@@ -1,0 +1,16 @@
+{% extends "layouts/base.html" %}
+{% block title %}マイページ{% endblock %}
+{% block content %}
+  <h2>マイページ</h2>
+  <p>{{ request.user.username }} さん、こんにちは。</p>
+  <h3 style="margin-top:16px;">お気に入り神社</h3>
+  {% if favorite_shrines %}
+    <div class="grid">
+      {% for s in favorite_shrines %}
+        {% include "components/shrine/card.html" with shrine=s %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>まだお気に入りがありません。詳細ページの「☆ お気に入りに追加」から登録できます。</p>
+  {% endif %}
+{% endblock %}
