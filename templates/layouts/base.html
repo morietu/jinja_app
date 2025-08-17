@@ -1,0 +1,16 @@
+{% load static %}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}神社アプリ{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/favicon.png' %}">
+</head>
+<body>
+  {% include "components/navbar.html" %}
+  <main style="max-width:960px;margin:0 auto;padding:16px;">
+    {% block content %}{% endblock %}
+  </main>
+  {% include "components/footer.html" %}
+</body>
+</html>
