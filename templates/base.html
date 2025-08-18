@@ -23,6 +23,11 @@
         <a href="{% url 'login' %}">ログイン</a>
       {% endif %}
     </nav>
+    {% if messages %}
+      <ul class="messages" style="margin:12px 16px;padding:0;list-style:none;">
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
   </header>
   <main>{% block content %}{% endblock %}</main>
   {% block scripts %}{% endblock %}
