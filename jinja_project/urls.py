@@ -6,12 +6,14 @@ from accounts.views import RegisterView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("accounts/", include("accounts.urls")),
+    path("shrines/", include("temples.urls", namespace="temples")),
+    path("", include("accounts.urls")),
 
     # Home は 1つだけ
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
 
-    # temples は 1 回だけ namespace 付きで include
-    path("temples/", include(("temples.urls", "temples"), namespace="temples")),
+
 
     # 認証
     path("accounts/login/", auth_views.LoginView.as_view(template_name="accounts/login.html"), name="login"),

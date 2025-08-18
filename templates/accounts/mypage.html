@@ -1,8 +1,20 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% block title %}マイページ{% endblock %}
 {% block content %}
   <h2>マイページ</h2>
-  <p>{{ request.user.username }} さん、こんにちは。</p>
+  <p>{{ request.user.username }} さん、ログイン中</p>
+
+  <ul>
+    <li><a href="{% url 'temples:shrine_list' %}">神社一覧へ</a></li>
+  </ul>
+
+  <!-- ログアウトは POST 必須（Django 5 仕様） -->
+  <form action="{% url 'logout' %}" method="post">
+    {% csrf_token %}
+    <button type="submit">ログアウト</button>
+  </form>
+
+  
   <h3 style="margin-top:16px;">お気に入り神社</h3>
   {% if favorite_shrines %}
     <div class="grid">
