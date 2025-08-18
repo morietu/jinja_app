@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ shrine.name }}{% endblock %}
 {% block content %}
   <h2>{{ shrine.name }}</h2>
@@ -12,7 +12,7 @@
 
 {% if request.user.is_authenticated %}
   <form method="post"
-        action="{% url 'shrine_favorite_toggle' shrine.pk %}"
+        action="{% url 'temples:favorite_toggle' shrine.pk %}"
         class="js-fav"
         onsubmit="return false;">
     {% csrf_token %}
@@ -22,7 +22,9 @@
     </button>
   </form>
 {% else %}
-  <p><a href="{% url 'login' %}?next={{ request.get_full_path }}">ログインしてお気に入りに追加</a></p>
+  <p>
+    {% include "components/auth_callout.html" %}
+  </p>
 {% endif %}
 {% endblock %}
 

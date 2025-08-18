@@ -1,5 +1,9 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% block title %}神社一覧{% endblock %}
+
+{% if not request.user.is_authenticated %}
+  {% include "components/auth_callout.html" %}
+{% endif %}
 
 {% block content %}
   <h2>神社一覧</h2>

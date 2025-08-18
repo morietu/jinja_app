@@ -9,5 +9,5 @@ urlpatterns = [
     path("", views.ShrineListView.as_view(), name="shrine_list"),
     path("<int:pk>/", views.ShrineDetailView.as_view(), name="shrine_detail"),
     path("<int:pk>/route/", views.shrine_route, name="shrine_route"),
-    path("<int:pk>/favorite/", views.favorite_toggle, name="shrine_favorite_toggle"),  # ← これ
+    path("<int:pk>/favorite/", views.favorite_toggle, name="favorite_toggle"),  # ← これ
 ]
