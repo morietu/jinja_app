@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}新規登録{% endblock %}
+{% block content %}
+<h1>新規登録</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">登録する</button>
+</form>
+<p>既にアカウントがありますか？ <a href="{% url 'login' %}">ログイン</a></p>
+{% endblock %}
