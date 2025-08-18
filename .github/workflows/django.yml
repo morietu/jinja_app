@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ develop, main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,3 +28,4 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: jinja_project.settings
         run: python manage.py test -v 2
+  
