@@ -8,11 +8,14 @@
     <span id="status" style="color:#666;"></span>
   </div>
 
+  {% if not MAPS_API_KEY %}
+    <p style="color:#b00;background:#fee;padding:8px;">
+      地図APIキーが未設定です。.env に GOOGLE_MAPS_API_KEY を設定してください。
+    </p>
+  {% endif %}
+
   <div id="map" style="width:100%;height:480px;border:1px solid #ddd"></div>
   <div id="summary" style="margin-top:8px;color:#444;"></div>
-
-  <!-- キープレフィックスのデバッグ（動作確認後に消してOK） -->
-  <script>console.log("MAPS_KEY_PREFIX:", "{{ GOOGLE_MAPS_API_KEY|default:''|slice:':6' }}****");</script>
 
   <script>
     // === ページ状態 ===
@@ -40,12 +43,10 @@
       });
     });
 
-    // === 所要時間で2件選ぶ（Distance Matrix）。失敗時は候補先頭2件にフォールバック ===
+    // === 所要時間で2件ピック（失敗時は先頭2件にフォールバック） ===
     function pickByDriveTime(origin, candidates, cb){
       if (!candidates?.length) return cb([]);
-      if (!google.maps.DistanceMatrixService) {  // ライブラリ無しでも落ちない
-        return cb(candidates.slice(0,2));
-      }
+      if (!google.maps.DistanceMatrixService) return cb(candidates.slice(0,2));
       const svc = new google.maps.DistanceMatrixService();
       svc.getDistanceMatrix({
         origins: [origin],
@@ -53,21 +54,21 @@
         travelMode: google.maps.TravelMode.DRIVING,
         drivingOptions: { departureTime: new Date() }
       }, (res, status) => {
-        if (status !== "OK") { console.warn("DistanceMatrix:", status, res); return cb(candidates.slice(0,2)); }
+        if (status !== "OK") return cb(candidates.slice(0,2));
         const elems = res.rows?.[0]?.elements || [];
         const ranked = candidates.map((c,i)=>({c,sec: elems[i]?.duration?.value ?? Number.MAX_SAFE_INTEGER}))
-                                 .sort((a,b)=>a.sec - b.sec)
-                                 .slice(0,2)
-                                 .map(x=>x.c);
+                                .sort((a,b)=>a.sec - b.sec)
+                                .slice(0,2)
+                                .map(x=>x.c);
         cb(ranked);
       });
     }
 
-    // === Google Maps 初期化 ===
+    // === Google Maps 初期化（Directions + DistanceMatrix を使用） ===
     function initMap(){
       const map = new google.maps.Map(document.getElementById("map"), {center: ORIGIN, zoom: 12});
-      const ds  = new google.maps.DirectionsService();
-      const dr  = new google.maps.DirectionsRenderer({map});
+      const ds  = new google.maps.DirectionsService();   // ルート計算
+      const dr  = new google.maps.DirectionsRenderer({map}); // 表示
 
       pickByDriveTime(ORIGIN, CANDS, (stops)=>{
         const waypoints = (stops || []).map(p => ({location: {lat:p.lat, lng:p.lng}, stopover: true}));
@@ -90,7 +91,7 @@
             document.getElementById("summary").textContent =
               `合計距離：約 ${km} km / 予測所要時間：約 ${min} 分` + (names ? `（立寄: ${names}）` : "");
           } else {
-            const msg = `DirectionsService Error: ${status} ` + (res?.error_message ? `(${res.error_message})` : "");
+            const msg = `DirectionsService Error: ${status}`;
             console.error(msg, res);
             document.getElementById("summary").textContent = "ルート計算に失敗: " + msg;
           }
@@ -102,8 +103,12 @@
         new google.maps.Marker({position: GOAL, map, title: "目的地"});
       });
     }
+    // callback で呼ばれるため、グローバル公開（公式推奨の load 方式）
+    window.initMap = initMap;
   </script>
 
-  <!-- Maps JavaScript（Directions はこのJS内から呼び出し） -->
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&callback=initMap"></script>
+  {% if MAPS_API_KEY %}
+    <!-- 公式ドキュメントの形：key + callback を 1 本だけ -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ MAPS_API_KEY }}&callback=initMap" async defer></script>
+  {% endif %}
 {% endblock %}
