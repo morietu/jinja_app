@@ -9,12 +9,12 @@
   </ul>
 
   <!-- ログアウトは POST 必須（Django 5 仕様） -->
-  <form action="{% url 'logout' %}" method="post">
+  <form action="{% url 'logout' %}" method="post" style="display:inline;">
     {% csrf_token %}
-    <button type="submit">ログアウト</button>
+    <button type="submit" style="background:none;border:none;color:#1a73e8;cursor:pointer;">ログアウト</button>
   </form>
 
-  
+
   <h3 style="margin-top:16px;">お気に入り神社</h3>
   {% if favorite_shrines %}
     <div class="grid">
