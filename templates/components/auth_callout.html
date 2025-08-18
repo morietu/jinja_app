@@ -1,0 +1,10 @@
+{# 未ログイン時に表示する認証CTAコンポーネント #}
+<div class="auth-cta">
+  <p>お気に入り機能を使うにはログインが必要です。</p>
+  <div class="auth-cta__actions">
+    <a class="btn btn-primary"
+       href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">ログイン</a>
+    <a class="btn btn-outline"
+       href="{% url 'register' %}?next={{ request.get_full_path|urlencode }}">新規登録</a>
+  </div>
+</div>

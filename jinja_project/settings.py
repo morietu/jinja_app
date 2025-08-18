@@ -135,4 +135,9 @@ TEMPLATES[0]["DIRS"] = [BASE_DIR / "templates"]
 
 # 認証後の遷移先
 LOGIN_REDIRECT_URL = "mypage"
-LOGOUT_REDIRECT_URL = "shrine_list"
+LOGOUT_REDIRECT_URL = "/"
+
+# 開発用メールバックエンド（送信内容をコンソールに表示）
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@example.com"
+

@@ -9,11 +9,6 @@
     <label>並び替え<br>{{ form.sort }}</label>
   </div>
 
-  <h3 style="margin:0 0 6px;font-size:16px;">
-    <a href="{% url 'temples:shrine_detail' shrine.pk %}">{{ shrine.name }}</a>
-    {% if shrine.is_favorited %}<span title="お気に入り">★</span>{% endif %}
-  </h3>
-  
   <div style="align-self:center;">
     <label>{{ form.fav }} お気に入りのみ</label>
     {% if not request.user.is_authenticated %}
@@ -21,16 +16,13 @@
     {% endif %}
   </div>
 
-
-    {{ form.lat }} {{ form.lng }}
-
+  {{ form.lat }} {{ form.lng }}
 
   <button type="submit">検索</button>
   <button type="button" id="useMyLocation" style="margin-left:8px;">現在地を使う</button>
 </form>
 
 <script>
-  // 「現在地を使う」→ lat/lng を hidden に入れて sort=nearest でサブミット
   (function(){
     const btn = document.getElementById("useMyLocation");
     if (!btn) return;

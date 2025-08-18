@@ -168,4 +168,3 @@ def shrine_route(request, pk):
     return render(request, "temples/route.html", ctx)
 
 
-修正する必要がある？

@@ -6,7 +6,7 @@
   <p>創建：{{ shrine.built_year|default:"不詳" }}</p>
   <p>祭神：{{ shrine.enshrined_kami|default:"—" }}</p>
   <p>ご利益：{{ shrine.benefits|default:"—" }}</p>
-  <p><a href="{% url 'shrine_route' shrine.pk %}">この神社へのルートを表示（＋近場2件）</a></p>
+  <p><a href="{% url 'temples:shrine_route' shrine.pk %}">この神社へのルートを表示（＋近場2件）</a></p>
   <p><strong>お気に入り：<span id="favCount">{{ favorite_count }}</span> 件</strong></p>
 
 
