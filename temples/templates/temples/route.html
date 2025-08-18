@@ -110,5 +110,14 @@
   {% if MAPS_API_KEY %}
     <!-- 公式ドキュメントの形：key + callback を 1 本だけ -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ MAPS_API_KEY }}&callback=initMap" async defer></script>
+    <!-- デバッグ（任意） -->
+    <script>console.log("MAPS_KEY_PREFIX:", "{{ MAPS_API_KEY|default:''|slice:':6' }}****");</script>
   {% endif %}
+
+  <!-- 未設定アラート（任意で残すなら） -->
+{% if not MAPS_API_KEY %}
+  <p style="color:#b00;background:#fee;padding:8px;">
+    地図APIキーが未設定です。.env に GOOGLE_MAPS_API_KEY を設定してください。
+  </p>
+{% endif %}
 {% endblock %}
