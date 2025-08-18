@@ -10,7 +10,7 @@
   </div>
 
   <h3 style="margin:0 0 6px;font-size:16px;">
-    <a href="{% url 'shrine_detail' shrine.pk %}">{{ shrine.name }}</a>
+    <a href="{% url 'temples:shrine_detail' shrine.pk %}">{{ shrine.name }}</a>
     {% if shrine.is_favorited %}<span title="お気に入り">★</span>{% endif %}
   </h3>
   
