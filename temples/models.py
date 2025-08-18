@@ -11,6 +11,16 @@ class Shrine(models.Model):
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
 
+
+    # ★追加：所有者（一般ユーザーは自分の神社だけ見える/触れる）
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shrines",
+        null=True,
+        blank=True,   # 既存データを壊さないため一旦許可（後で必須化OK）
+    )
+
     def __str__(self):
         return self.name
     class Meta:
@@ -39,4 +49,4 @@ class Favorite(models.Model):
     def __str__(self):
         return f"{self.user} → {self.shrine}"
 
-   
+ 

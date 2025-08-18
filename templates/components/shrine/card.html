@@ -1,14 +1,14 @@
 <article class="shrine-card" style="border:1px solid #e5e5e5;border-radius:10px;padding:12px;background:#fff;">
   {% with obj=shrine %}
-    {% url 'shrine_detail' obj.pk as detail_url %}
+  {% if obj.pk %}
+    {% url 'temples:shrine_detail' obj.pk as detail_url %}
     <h3 style="margin:0 0 6px;font-size:16px;">
-      {% if detail_url %}
-        <a href="{{ detail_url }}">{{ obj.name }}</a>
-      {% else %}
-        {{ obj.name }}
-      {% endif %}
+      <a href="{{ detail_url }}">{{ obj.name }}</a>
       {% if obj.is_favorited %}<span title="お気に入り">★</span>{% endif %}
     </h3>
+    {% else %}
+  <h3 style="margin:0 0 6px;font-size:16px;">{{ obj.name }}</h3>
+  {% endif %}
 
     <div style="color:#666;font-size:13px;">{{ obj.prefecture }} / {{ obj.address }}</div>
     {% if obj.benefits %}<div style="font-size:13px;">ご利益: {{ obj.benefits }}</div>{% endif %}
@@ -17,10 +17,10 @@
       {% if detail_url %}<a href="{{ detail_url }}">詳細</a>{% else %}<span>詳細</span>{% endif %}
       ·
       {% if detail_url %}
-        <a href="{% url 'shrine_route' obj.pk %}" class="js-route">ルート表示</a>
+        <a href="{% url 'temples:shrine_route' obj.pk %}" class="js-route">ルート表示</a>
       {% endif %}
       {% if request.user.is_authenticated and detail_url %}
-        <form method="post" action="{% url 'shrine_favorite_toggle' obj.pk %}" style="display:inline;">
+        <form method="post" action="{% url 'temples:shrine_detail' obj.pk as detail_url %}" style="display:inline;">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path|default:request.path }}">
           <button title="お気に入りに追加/解除" style="background:none;border:none;cursor:pointer;">★</button>

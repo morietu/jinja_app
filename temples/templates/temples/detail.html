@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ shrine.name }}{% endblock %}
 {% block content %}
   <h2>{{ shrine.name }}</h2>
@@ -6,13 +6,13 @@
   <p>創建：{{ shrine.built_year|default:"不詳" }}</p>
   <p>祭神：{{ shrine.enshrined_kami|default:"—" }}</p>
   <p>ご利益：{{ shrine.benefits|default:"—" }}</p>
-  <p><a href="{% url 'shrine_route' shrine.pk %}">この神社へのルートを表示（＋近場2件）</a></p>
+  <p><a href="{% url 'temples:shrine_route' shrine.pk %}">この神社へのルートを表示（＋近場2件）</a></p>
   <p><strong>お気に入り：<span id="favCount">{{ favorite_count }}</span> 件</strong></p>
 
 
 {% if request.user.is_authenticated %}
   <form method="post"
-        action="{% url 'shrine_favorite_toggle' shrine.pk %}"
+        action="{% url 'temples:favorite_toggle' shrine.pk %}"
         class="js-fav"
         onsubmit="return false;">
     {% csrf_token %}
@@ -22,7 +22,9 @@
     </button>
   </form>
 {% else %}
-  <p><a href="{% url 'login' %}?next={{ request.get_full_path }}">ログインしてお気に入りに追加</a></p>
+  <p>
+    {% include "components/auth_callout.html" %}
+  </p>
 {% endif %}
 {% endblock %}
 
