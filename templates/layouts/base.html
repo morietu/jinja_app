@@ -1,16 +1,25 @@
-{% load static %}
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}神社アプリ{% endblock %}</title>
-  <link rel="icon" href="{% static 'img/favicon.png' %}">
+  <meta charset="utf-8">
+  <title>{% block title %}神社App{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>body{font-family:system-ui;margin:0}header,footer{padding:12px 16px;border-bottom:1px solid #eee}main{max-width:960px;margin:0 auto;padding:24px 16px}a{color:#1a73e8;text-decoration:none}nav a{margin-right:12px}</style>
 </head>
 <body>
-  {% include "components/navbar.html" %}
-  <main style="max-width:960px;margin:0 auto;padding:16px;">
-    {% block content %}{% endblock %}
-  </main>
-  {% include "components/footer.html" %}
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/shrines/">神社一覧</a>
+      <a href="/mypage/">マイページ</a>
+      {% if user.is_authenticated %}
+        <a href="/accounts/logout/">ログアウト</a>
+      {% else %}
+        <a href="/accounts/login/">ログイン</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
