@@ -13,9 +13,14 @@
       <a href="/shrines/">神社一覧</a>
       <a href="/mypage/">マイページ</a>
       {% if user.is_authenticated %}
-        <a href="/accounts/logout/">ログアウト</a>
+        <form action="{% url 'logout' %}" method="post" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" style="background:none;border:none;color:#1a73e8;cursor:pointer;padding:0;margin-left:12px;">
+            ログアウト
+          </button>
+        </form>
       {% else %}
-        <a href="/accounts/login/">ログイン</a>
+        <a href="{% url 'login' %}">ログイン</a>
       {% endif %}
     </nav>
   </header>
