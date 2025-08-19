@@ -1,6 +1,8 @@
 from django.test import SimpleTestCase
 from django.urls import reverse, resolve
 
+app_name = "temples"
+
 class TemplesURLTests(SimpleTestCase):
     def test_reverse_paths(self):
         self.assertEqual(reverse("temples:shrine_list"), "/shrines/")

@@ -1,0 +1,47 @@
+[
+  {
+    "model": "temples.shrine",
+    "pk": 1,
+    "fields": {
+      "name": "明治神宮",
+      "prefecture": "東京都",
+      "city": "渋谷区",
+      "address": "東京都渋谷区代々木神園町1-1",
+      "enshrined_kami": "明治天皇, 昭憲皇太后",
+      "benefits": "勝運, 縁結び, 厄除け",
+      "built_year": 1920,
+      "lat": 35.6764,
+      "lng": 139.6993
+    }
+  },
+  {
+    "model": "temples.shrine",
+    "pk": 2,
+    "fields": {
+      "name": "神田明神",
+      "prefecture": "東京都",
+      "city": "千代田区",
+      "address": "東京都千代田区外神田2-16-2",
+      "enshrined_kami": "大己貴命, 少彦名命, 平将門命",
+      "benefits": "商売繁盛, 縁結び, 厄除け",
+      "built_year": 730,
+      "lat": 35.7020,
+      "lng": 139.7708
+    }
+  },
+  {
+    "model": "temples.shrine",
+    "pk": 3,
+    "fields": {
+      "name": "根津神社",
+      "prefecture": "東京都",
+      "city": "文京区",
+      "address": "東京都文京区根津1-28-9",
+      "enshrined_kami": "須佐之男命, 大山咋命, 誉田別命",
+      "benefits": "厄除け, 学業成就",
+      "built_year": 1706,
+      "lat": 35.7202,
+      "lng": 139.7649
+    }
+  }
+]
