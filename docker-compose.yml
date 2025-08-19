@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: jinja_postgres
+    environment:
+      POSTGRES_DB: jinja_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: jdb50515
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: jinja_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ejb0515@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

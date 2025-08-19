@@ -163,7 +163,8 @@ def shrine_route(request, pk):
             [{"lat": s.lat, "lng": s.lng, "name": s.name} for s in top],
             ensure_ascii=False,
         ),
-        "GOOGLE_MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY", ""),
+        "MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY", "") or os.getenv("MAPS_API_KEY", ""),
+        "GOOGLE_MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY", "") or os.getenv("MAPS_API_KEY", ""),
     }
     return render(request, "temples/route.html", ctx)
 

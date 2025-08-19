@@ -1,28 +1,10 @@
 {% extends "base.html" %}
 {% block title %}マイページ{% endblock %}
 {% block content %}
-  <h2>マイページ</h2>
-  <p>{{ request.user.username }} さん、ログイン中</p>
-
-  <ul>
-    <li><a href="{% url 'temples:shrine_list' %}">神社一覧へ</a></li>
-  </ul>
-
-  <!-- ログアウトは POST 必須（Django 5 仕様） -->
-  <form action="{% url 'logout' %}" method="post" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" style="background:none;border:none;color:#1a73e8;cursor:pointer;">ログアウト</button>
-  </form>
-
-
-  <h3 style="margin-top:16px;">お気に入り神社</h3>
-  {% if favorite_shrines %}
-    <div class="grid">
-      {% for s in favorite_shrines %}
-        {% include "components/shrine/card.html" with shrine=s %}
-      {% endfor %}
-    </div>
-  {% else %}
-    <p>まだお気に入りがありません。詳細ページの「☆ お気に入りに追加」から登録できます。</p>
-  {% endif %}
+<h1>マイページ</h1>
+{% if user.is_authenticated %}
+  <p>{{ user.username }} さん、こんにちは。</p>
+{% else %}
+  <p>ログインしてください。</p>
+{% endif %}
 {% endblock %}
