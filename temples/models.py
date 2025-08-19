@@ -3,8 +3,9 @@ from django.conf import settings
 
 class Shrine(models.Model):
     name = models.CharField(max_length=200)
-    prefecture = models.CharField(max_length=50)
-    address = models.CharField(max_length=255)
+    prefecture = models.CharField(max_length=50, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    address = models.CharField(max_length=255, blank=True)
     built_year = models.IntegerField(null=True, blank=True)  # ← founded_year を神社寄りの名前に
     enshrined_kami = models.CharField(max_length=200, blank=True, help_text="祭神（例: 天照大神）")
     benefits = models.CharField(max_length=255, blank=True, help_text="ご利益（カンマ区切り）")

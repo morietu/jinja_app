@@ -8,23 +8,23 @@ from django.shortcuts import redirect, render
 from django.views import View
 
 class RegisterView(View):
-    def get(self, request):
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "登録が完了しました。")
-            return redirect("mypage")
-        return render(request, "accounts/register.html", {"form": form})
+    template_name = "accounts/register.html"
 
+    
+    def get(self, request):
+        form = UserCreationForm()
+        return render(request, self.template_name, {"form": form})
 
     def post(self, request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, "登録が完了しました。")
             return redirect("mypage")
-        return render(request, "accounts/register.html", {"form": form})
+        return render(request, self.template_name, {"form": form})
+
+
 
 # 追加: ログイン/ログアウトでメッセージ
 class MyLoginView(LoginView):
@@ -39,6 +39,8 @@ class MyLogoutView(LogoutView):
         response = super().dispatch(request, *args, **kwargs)
         messages.info(request, "ログアウトしました。")
         return response
+
+
 @login_required
 def mypage(request):
     # 必要ならここでプロフィール情報を取得して context に渡す
