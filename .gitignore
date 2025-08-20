@@ -16,3 +16,7 @@ __pycache__/
 .env
 db.sqlite3
 staticfiles/
+
+.env
+.env.*
+runserver*.log

@@ -1,110 +1,142 @@
-# jomja_app (Django + PostgreSQL + Docker)
+# 神社参拝アプリ（MVP）
 
-神社データ検索・お気に入り機能・ユーザー認証（ログイン/登録/ログアウト）を備えた Django アプリです。  
-バックエンドDBは PostgreSQL を使用し、Docker 環境で動作します。
+## 概要
 
----
+神社参拝・御朱印管理・参拝チェックインができるアプリです。
+AIコンシェルジュがユーザーの好みや現在地から最適な神社を提案し、Google Mapsでルートを表示します。
 
-## セットアップ
+### 使用技術
 
-### 1. 仮想環境の作成
+- **バックエンド**: Django 5 + DRF + PostgreSQL(PostGIS)
+- **フロントエンド**: React Native (Expo) + Node.js 20 LTS
+- **AIレイヤー**: OpenAI Responses API（Structured Outputs）
+- **外部サービス**:
+  - Google Maps / Places(New) API
+  - Google Routes API
+  - AWS（本番環境: RDS(Postgres/PostGIS), S3, ECS/Fargate）
+  - Google Play Billing / Apple StoreKit（課金対応）
+
+## 機能一覧
+
+- ✅ 参拝チェックイン（GPS & DB記録）
+- ✅ 御朱印管理（撮影アップロード）
+- ✅ Google Maps統合（近傍神社・ルート表示）
+- ✅ **AIコンシェルジュ（神社提案＋ルート同梱）**
+- ✅ セキュリティ強化（JWT / HTTPS / HSTS / CSP / レート制限）
+
+## 環境構成
+
+### 開発環境
+
+- Docker Compose
+  - Django (web)
+  - PostgreSQL + PostGIS (db)
+- `.env.dev` を使用（接続先は Docker サービス名 `db`）
+
+### 本番環境
+
+- AWS RDS (PostgreSQL + PostGIS)
+- AWS ECS (Fargate) / EC2
+- AWS S3 (御朱印画像アップロード先)
+- Secrets: AWS SSM Parameter Store / Secrets Manager
+- `.env.prod` をベースに値を SSM へ登録し、ECS タスク定義から参照
+
+## セットアップ手順
+
+### 1. 開発環境
+
 ```bash
-python -m venv .venv
-. .venv/Scripts/activate   # Windows
-pip install -r requirements.txt
+# 環境設定ファイルをコピー
+cp .env.example .env.dev
+
+# Docker コンテナを起動
+docker compose --env-file .env.dev up -d
+
+# データベースマイグレーション実行
+docker compose exec web python manage.py migrate
+
+# 管理者ユーザー作成
+docker compose exec web python manage.py createsuperuser
 ```
 
-### 2. Dockerでデータベース起動
-```bash
-docker compose up -d db pgadmin
+#### アクセス先
+
+- 管理画面: http://localhost:8000/admin/
+- API: http://localhost:8000/api/shrines/
+
+### 2. 本番環境（AWS）
+
+1. RDS(PostgreSQL) 作成 → `CREATE EXTENSION postgis;`
+2. S3 バケット作成（画像保存用）
+3. SSM Parameter Store に環境変数を登録（`.env.prod.example` を参考）
+4. ECR へ Docker イメージ push
+5. ECS Fargate/ECS EC2 でタスク定義を作成しデプロイ
+6. ALB + ACM で HTTPS 有効化
+
+## 環境変数管理
+
+### 開発用 `.env.dev`
+
+```env
+# PostgreSQL設定
+POSTGRES_USER=shrine_user
+POSTGRES_PASSWORD=shrine_pass
+POSTGRES_DB=shrine_db
+POSTGRES_PORT=5432
+
+# Django DB設定
+DJANGO_DB_NAME=shrine_db
+DJANGO_DB_USER=shrine_user
+DJANGO_DB_PASSWORD=shrine_pass
+DJANGO_DB_HOST=db
+DJANGO_DB_PORT=5432
+
+# API設定
+OPENAI_API_KEY=sk-xxxx
+GOOGLE_MAPS_API_KEY=AIza-xxxx
 ```
 
-- **db(PostgreSQL)** → ポート `5433`
-- **pgAdmin** → [http://localhost:8080](http://localhost:8080)
+### 本番用 `.env.prod.example`
 
-### 3. Django マイグレーション
-```bash
-python manage.py migrate
+```env
+# Django設定
+DJANGO_SECRET_KEY=generate-a-strong-secret
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=api.example.com
+
+# データベース設定
+DJANGO_DB_NAME=shrine_prod
+DJANGO_DB_USER=shrine_prod_user
+DJANGO_DB_PASSWORD=super-strong-pass
+DJANGO_DB_HOST=xxxx.rds.amazonaws.com
+DJANGO_DB_PORT=5432
+
+# API設定
+OPENAI_API_KEY=sk-xxxx
+GOOGLE_MAPS_API_KEY=AIza-xxxx
+
+# AWS設定
+USE_S3_MEDIA=True
+AWS_STORAGE_BUCKET_NAME=shrine-media
+AWS_S3_REGION_NAME=ap-northeast-1
+AWS_ACCESS_KEY_ID=xxxx
+AWS_SECRET_ACCESS_KEY=xxxx
 ```
 
-### 4. サーバー起動
-```bash
-python manage.py runserver
-```
-ブラウザで [http://127.0.0.1:8000](http://127.0.0.1:8000) を開きます。
+⚠️ **注意**: 本番では `.env.prod` をそのまま置かず、**SSM Parameter Store** に登録して ECS タスクから参照してください。
 
----
+## データ移行（本番切替手順）
 
-## データベース管理
+1. 開発DBをフリーズ（新規書き込み停止）
+2. `pg_dump` でバックアップ
+3. `pg_restore` で RDS にリストア
+4. `python manage.py migrate` を RDS で実行
+5. アプリの `.env` を AWS の接続先に切替
+6. ALB 経由で本番公開
 
-### よく使うコマンド
-```bash
-docker compose ps          # 稼働中サービス確認
-docker compose logs db     # DBログ確認
-docker compose down        # 停止
-docker volume rm jinja_app_postgres_data  # データリセット（注意）
-```
+## 今後の拡張予定
 
-### pgAdmin
-- URL: http://localhost:8080  
-- 初期ログイン: `admin@jomja.com / admin_password`
-
----
-
-## サンプルデータ投入
-
-Django シェルから投入する例:
-```bash
-python manage.py shell
-```
-
-```python
-from temples.models import Shrine
-
-rows = [
-  dict(name='明治神宮', prefecture='東京都', city='渋谷区',
-       address='東京都渋谷区代々木神園町1-1',
-       enshrined_kami='明治天皇・昭憲皇太后', benefits='厄除け・家内安全・勝運'),
-  dict(name='伏見稲荷大社', prefecture='京都府', city='京都市伏見区',
-       address='京都府京都市伏見区深草藪之内町68',
-       enshrined_kami='稲荷大神', benefits='商売繁盛・五穀豊穣・家内安全'),
-  dict(name='出雲大社', prefecture='島根県', city='出雲市',
-       address='島根県出雲市大社町杵築東195',
-       enshrined_kami='大国主大神', benefits='縁結び・厄除け・開運'),
-]
-for r in rows:
-    Shrine.objects.get_or_create(name=r['name'], defaults=r)
-print("OK")
-```
-
-SQLで直接投入する例:
-```bash
-PGPASSWORD=jdb50515 psql -h 127.0.0.1 -p 5433 -U admin -d jinja_db <<'SQL'
-INSERT INTO temples_shrine (name, prefecture, city, address, enshrined_kami, benefits)
-VALUES
-  ('明治神宮', '東京都', '渋谷区', '東京都渋谷区代々木神園町1-1', '明治天皇・昭憲皇太后', '厄除け・家内安全・勝運'),
-  ('伏見稲荷大社', '京都府', '京都市伏見区', '京都府京都市伏見区深草藪之内町68', '稲荷大神', '商売繁盛・五穀豊穣・家内安全'),
-  ('出雲大社', '島根県', '出雲市', '島根県出雲市大社町杵築東195', '大国主大神', '縁結び・厄除け・開運');
-SQL
-```
-
----
-
-## 機能
-- 神社一覧・詳細表示
-- ユーザーアカウント（ログイン/登録/ログアウト）
-- お気に入り機能
-- マイページ
-
----
-
-## 環境変数（`.env`）
-```plaintext
-POSTGRES_DB=jinja_db
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=jdb50515
-DB_HOST=127.0.0.1
-DB_PORT=5433
-SECRET_KEY=your_secret_key
-DEBUG=True
-```
+- 多言語対応（英語／中国語）
+- Push通知（参拝リマインダー）
+- SNS連携（TikTok/Instagram）
+- 御朱印帳クラウド同期

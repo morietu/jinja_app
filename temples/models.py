@@ -50,4 +50,17 @@ class Favorite(models.Model):
     def __str__(self):
         return f"{self.user} → {self.shrine}"
 
+
+class Visit(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="visits")
+    shrine = models.ForeignKey("Shrine", on_delete=models.CASCADE, related_name="visits")
+    visited_at = models.DateTimeField(auto_now_add=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-visited_at"]
+
+    def __str__(self):
+        return f"{self.user} @ {self.shrine} ({self.visited_at:%Y-%m-%d})"
+
  

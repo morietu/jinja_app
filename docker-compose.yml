@@ -1,31 +1,31 @@
-version: '3.8'
-
 services:
   db:
-    image: postgres:15
-    container_name: jinja_postgres
-    environment:
-      POSTGRES_DB: jinja_db
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: jdb50515
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    image: postgis/postgis:16-3.4
+    container_name: shrine_db
     restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./.docker/db/data:/var/lib/postgresql/data
+      - ./.docker/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shrine_user} -d ${POSTGRES_DB:-shrine_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: jinja_pgadmin
+    image: dpage/pgadmin4:8.13
+    container_name: shrine_pgadmin
+    restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ejb0515@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: admin_password
+      PGADMIN_DEFAULT_EMAIL: admin@example.com   # ログイン用メール
+      PGADMIN_DEFAULT_PASSWORD: admin_pass       # ログイン用パスワード
     ports:
-      - "8080:80"
+      - "5050:80"
     depends_on:
       - db
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
+    volumes:
+      - ./.docker/pgadmin/data:/var/lib/pgadmin
