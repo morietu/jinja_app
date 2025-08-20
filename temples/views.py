@@ -1,14 +1,11 @@
 # temples/views.py
-import os
-import json
-
-import os
 import json
 
 from django.db.models import Q, Exists, OuterRef
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import ListView, DetailView
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -21,7 +18,8 @@ from .models import Shrine, Favorite
 def _is_admin(user):
     return user.is_staff or user.is_superuser
 
-class ShrineListView(LoginRequiredMixin, ListView):          # ★ログイン必須
+
+class ShrineListView(LoginRequiredMixin, ListView):  # ★ログイン必須
     model = Shrine
     template_name = "temples/list.html"
     context_object_name = "shrines"
@@ -32,7 +30,7 @@ class ShrineListView(LoginRequiredMixin, ListView):          # ★ログイン�
         # ★自分の所有だけ（管理者は全件）
         qs = Shrine.objects.all() if _is_admin(user) else Shrine.objects.filter(owner=user)
 
-        # ★ ログイン中は is_favorited を注入
+        # ★ログイン中は is_favorited を注入
         subq = Favorite.objects.filter(user=user, shrine_id=OuterRef("pk"))
         qs = qs.annotate(is_favorited=Exists(subq))
 
@@ -79,7 +77,7 @@ class ShrineListView(LoginRequiredMixin, ListView):          # ★ログイン�
         return ctx
 
 
-class ShrineDetailView(LoginRequiredMixin, DetailView):      # ★ログイン必須
+class ShrineDetailView(LoginRequiredMixin, DetailView):  # ★ログイン必須
     model = Shrine
     template_name = "temples/detail.html"
     context_object_name = "shrine"
@@ -120,7 +118,7 @@ def favorite_toggle(request, pk):
     next_url = (
         request.POST.get("next")
         or request.META.get("HTTP_REFERER")
-        or reverse("temples:shrine_detail", args=[pk])   # ★namespace付きに修正
+        or reverse("temples:shrine_detail", args=[pk])  # ★namespace付き
     )
     return redirect(next_url)
 
@@ -128,13 +126,17 @@ def favorite_toggle(request, pk):
 def _haversine(lat1, lon1, lat2, lon2):
     from math import radians, sin, cos, asin, sqrt
     R = 6371.0
-    dlat = radians(lat2 - lat1); dlon = radians(lon2 - lon1)
-    a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
     return 2 * R * asin(sqrt(a))
 
 
 @login_required
 def shrine_route(request, pk):
+    """
+    ルート表示（出発=現在地 or 神社座標、目的地=選択神社、立ち寄り=候補上位）
+    """
     # ★メインも候補も“自分の神社”に限定（管理者は全件OK）
     if _is_admin(request.user):
         main = get_object_or_404(Shrine, pk=pk)
@@ -163,9 +165,8 @@ def shrine_route(request, pk):
             [{"lat": s.lat, "lng": s.lng, "name": s.name} for s in top],
             ensure_ascii=False,
         ),
-        "MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY", "") or os.getenv("MAPS_API_KEY", ""),
-        "GOOGLE_MAPS_API_KEY": os.getenv("GOOGLE_MAPS_API_KEY", "") or os.getenv("MAPS_API_KEY", ""),
+        # ★APIキーは settings から一元的に取得（env名は GOOGLE_MAPS_API_KEY）
+        "MAPS_API_KEY": settings.GOOGLE_MAPS_API_KEY,
     }
+    # ★テンプレは temples/route.html に統一
     return render(request, "temples/route.html", ctx)
-
-
