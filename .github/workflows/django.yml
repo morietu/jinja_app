@@ -1,3 +1,4 @@
+# Updated workflow to remove working-directory
 name: Django CI
 
 on:
