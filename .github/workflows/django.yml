@@ -32,3 +32,4 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: shrine_project.settings
         run: python manage.py test -v 2
+
