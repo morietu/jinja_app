@@ -31,5 +31,5 @@ jobs:
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: shrine_project.settings
-        run: python manage.py test -v 2
 
+        run: python backend/manage.py test -v 2
