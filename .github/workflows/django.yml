@@ -30,9 +30,10 @@ jobs:
 
       - name: Run Django test
         env:
-          DJANGO_SETTINGS_MODULE: shrine_project.settings
+          DJANGO_SETTINGS_MODULE: backend.shrine_project.settings
 
         run: |
           cd $GITHUB_WORKSPACE
           python backend/manage.py test -v 2
+
 
