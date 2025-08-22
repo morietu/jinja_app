@@ -1,22 +1,37 @@
-
-
-.venv/
-db.sqlite3
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-.env
-.DS_Store
-NUL
+# Python
 __pycache__/
 *.py[cod]
-.venv/
-.env
-db.sqlite3
-staticfiles/
+*.egg-info/
+build/
+dist/
 
+# 仮想環境
+.venv/
+
+# テスト・ツール
+.tox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# IDE・OS
+.vscode/
+.idea/
+.DS_Store
+
+# 環境ファイル（秘匿）
 .env
 .env.*
 runserver*.log
+
+# Django
+*.sqlite3
+db.sqlite3
+staticfiles/
+media/
+
+# Node（使っていれば）
+node_modules/
+NUL
