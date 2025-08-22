@@ -1,142 +1,102 @@
-# 神社参拝アプリ（MVP）
+# AI参拝ナビ（MVP）
 
 ## 概要
 
-神社参拝・御朱印管理・参拝チェックインができるアプリです。
-AIコンシェルジュがユーザーの好みや現在地から最適な神社を提案し、Google Mapsでルートを表示します。
+**AI参拝ナビ** は、ユーザーの現在地・希望するご利益・移動手段をもとに、AIコンシェルジュが最適な神社ルートを提案してくれるアプリです。
 
-### 使用技術
+徒歩や車に応じたルート表示や、周辺の人気神社の自動推薦にも対応。参拝体験を記録する「御朱印投稿」や「ランキング機能」も補助機能として備え、参拝をより楽しく、便利にすることを目指します。
 
-- **バックエンド**: Django 5 + DRF + PostgreSQL(PostGIS)
-- **フロントエンド**: React Native (Expo) + Node.js 20 LTS
-- **AIレイヤー**: OpenAI Responses API（Structured Outputs）
-- **外部サービス**:
-  - Google Maps / Places(New) API
-  - Google Routes API
-  - AWS（本番環境: RDS(Postgres/PostGIS), S3, ECS/Fargate）
-  - Google Play Billing / Apple StoreKit（課金対応）
+## 使用技術
 
-## 機能一覧
+### バックエンド
+- **Django 5 + DRF + PostgreSQL (PostGIS)**
 
-- ✅ 参拝チェックイン（GPS & DB記録）
-- ✅ 御朱印管理（撮影アップロード）
-- ✅ Google Maps統合（近傍神社・ルート表示）
-- ✅ **AIコンシェルジュ（神社提案＋ルート同梱）**
-- ✅ セキュリティ強化（JWT / HTTPS / HSTS / CSP / レート制限）
+### フロントエンド
+- **React / Next.js**（Expoでモバイル対応）
 
-## 環境構成
+### AIレイヤー
+- **OpenAI Responses API**（Structured Outputs）
 
-### 開発環境
+### 外部サービス
+- Google Maps / Places (New) API
+- Google Routes API
+- Mapbox（徒歩＝青・車＝赤 のルート線描画）
+- AWS（RDS (Postgres/PostGIS), S3, ECS/Fargate）
 
-- Docker Compose
-  - Django (web)
-  - PostgreSQL + PostGIS (db)
-- `.env.dev` を使用（接続先は Docker サービス名 `db`）
+## コア機能（AI参拝ナビ）
 
-### 本番環境
+### 🧭 AI参拝ナビ
+- ご利益と移動手段を入力 → AIが神社ルートを提案
+- メイン神社＋近隣2か所をまとめて表示
 
-- AWS RDS (PostgreSQL + PostGIS)
-- AWS ECS (Fargate) / EC2
-- AWS S3 (御朱印画像アップロード先)
-- Secrets: AWS SSM Parameter Store / Secrets Manager
-- `.env.prod` をベースに値を SSM へ登録し、ECS タスク定義から参照
+### 🗺 ルート表示
+- 徒歩＝青・車＝赤のルート線
+- 現在地からの最短経路を算出
 
-## セットアップ手順
+### ⛩ 人気神社推薦
+- 閲覧数・イイネ数から30日間スコアを計算
+- 自然にルート提案へ組み込み
 
-### 1. 開発環境
+## サポート機能
+
+- 📸 **御朱印投稿**（画像アップロード／公開切替／編集／削除）
+- ⭐ **お気に入り神社リスト**（追加・削除・一覧取得）
+- 📊 **ランキング**（月間・年間TOP10／バッチ集計）
+- 🔐 **ユーザー認証／設定**（JWT・公開切替・ニックネーム変更）
+
+## ディレクトリ構成
+
+```
+jinja_app/
+├── backend/                  # Django + DRF
+│   ├── shrine_project/       # 設定ファイル
+│   ├── temples/              # Shrine / Goshuin / AIナビ / Ranking API
+│   ├── users/                # ユーザー認証・設定
+│   ├── media/                # 御朱印画像（S3連携予定）
+│   └── manage.py
+│
+├── frontend/                 # React/Next.js (Expo対応)
+│   ├── pages/                # ホーム・神社詳細・ランキング・マイページ・アカウント
+│   ├── components/           # ShrineCard / GoshuinCard / MapRoute / Toast
+│   ├── styles/               # 和風＋シックなテーマ
+│   ├── lib/                  # APIクライアント
+│   └── public/               # 静的ファイル
+│
+├── infra/                    # Docker / デプロイ設定
+│   ├── docker-compose.yml
+│   ├── Dockerfile.web
+│   ├── Dockerfile.frontend
+│   ├── .env.dev
+│   └── .env.prod.example
+│
+├── docs/                     # ドキュメント・ワイヤーフレーム
+└── tests/                    # E2Eテスト
+```
+
+## 開発環境セットアップ
 
 ```bash
 # 環境設定ファイルをコピー
 cp .env.example .env.dev
 
-# Docker コンテナを起動
+# Dockerコンテナ起動
 docker compose --env-file .env.dev up -d
 
-# データベースマイグレーション実行
+# マイグレーション実行
 docker compose exec web python manage.py migrate
 
-# 管理者ユーザー作成
+# 管理ユーザー作成
 docker compose exec web python manage.py createsuperuser
 ```
 
-#### アクセス先
-
-- 管理画面: http://localhost:8000/admin/
-- API: http://localhost:8000/api/shrines/
-
-### 2. 本番環境（AWS）
-
-1. RDS(PostgreSQL) 作成 → `CREATE EXTENSION postgis;`
-2. S3 バケット作成（画像保存用）
-3. SSM Parameter Store に環境変数を登録（`.env.prod.example` を参考）
-4. ECR へ Docker イメージ push
-5. ECS Fargate/ECS EC2 でタスク定義を作成しデプロイ
-6. ALB + ACM で HTTPS 有効化
-
-## 環境変数管理
-
-### 開発用 `.env.dev`
-
-```env
-# PostgreSQL設定
-POSTGRES_USER=shrine_user
-POSTGRES_PASSWORD=shrine_pass
-POSTGRES_DB=shrine_db
-POSTGRES_PORT=5432
-
-# Django DB設定
-DJANGO_DB_NAME=shrine_db
-DJANGO_DB_USER=shrine_user
-DJANGO_DB_PASSWORD=shrine_pass
-DJANGO_DB_HOST=db
-DJANGO_DB_PORT=5432
-
-# API設定
-OPENAI_API_KEY=sk-xxxx
-GOOGLE_MAPS_API_KEY=AIza-xxxx
-```
-
-### 本番用 `.env.prod.example`
-
-```env
-# Django設定
-DJANGO_SECRET_KEY=generate-a-strong-secret
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=api.example.com
-
-# データベース設定
-DJANGO_DB_NAME=shrine_prod
-DJANGO_DB_USER=shrine_prod_user
-DJANGO_DB_PASSWORD=super-strong-pass
-DJANGO_DB_HOST=xxxx.rds.amazonaws.com
-DJANGO_DB_PORT=5432
-
-# API設定
-OPENAI_API_KEY=sk-xxxx
-GOOGLE_MAPS_API_KEY=AIza-xxxx
-
-# AWS設定
-USE_S3_MEDIA=True
-AWS_STORAGE_BUCKET_NAME=shrine-media
-AWS_S3_REGION_NAME=ap-northeast-1
-AWS_ACCESS_KEY_ID=xxxx
-AWS_SECRET_ACCESS_KEY=xxxx
-```
-
-⚠️ **注意**: 本番では `.env.prod` をそのまま置かず、**SSM Parameter Store** に登録して ECS タスクから参照してください。
-
-## データ移行（本番切替手順）
-
-1. 開発DBをフリーズ（新規書き込み停止）
-2. `pg_dump` でバックアップ
-3. `pg_restore` で RDS にリストア
-4. `python manage.py migrate` を RDS で実行
-5. アプリの `.env` を AWS の接続先に切替
-6. ALB 経由で本番公開
+### アクセス先
+- **管理画面**: http://localhost:8000/admin/
+- **API**: http://localhost:8000/api/shrines/
 
 ## 今後の拡張予定
 
 - 多言語対応（英語／中国語）
 - Push通知（参拝リマインダー）
-- SNS連携（TikTok/Instagram）
+- SNS共有（Instagram/TikTok）
 - 御朱印帳クラウド同期
+- ランキングバッチ処理（自動集計・ログ保存）
