@@ -1,0 +1,17 @@
+[
+  {"model": "temples.goriyakuTag", "pk": 1, "fields": {"name": "縁結び"}},
+  {"model": "temples.goriyakuTag", "pk": 2, "fields": {"name": "子宝・安産"}},
+  {"model": "temples.goriyakuTag", "pk": 3, "fields": {"name": "学業成就"}},
+  {"model": "temples.goriyakuTag", "pk": 4, "fields": {"name": "合格祈願"}},
+  {"model": "temples.goriyakuTag", "pk": 5, "fields": {"name": "金運・商売繁盛"}},
+  {"model": "temples.goriyakuTag", "pk": 6, "fields": {"name": "仕事運・出世"}},
+  {"model": "temples.goriyakuTag", "pk": 7, "fields": {"name": "健康長寿"}},
+  {"model": "temples.goriyakuTag", "pk": 8, "fields": {"name": "病気平癒"}},
+  {"model": "temples.goriyakuTag", "pk": 9, "fields": {"name": "家内安全"}},
+  {"model": "temples.goriyakuTag", "pk": 10, "fields": {"name": "交通安全"}},
+  {"model": "temples.goriyakuTag", "pk": 11, "fields": {"name": "厄除け・方除け"}},
+  {"model": "temples.goriyakuTag", "pk": 12, "fields": {"name": "勝運・必勝祈願"}},
+  {"model": "temples.goriyakuTag", "pk": 13, "fields": {"name": "五穀豊穣"}},
+  {"model": "temples.goriyakuTag", "pk": 14, "fields": {"name": "地域安泰"}},
+  {"model": "temples.goriyakuTag", "pk": 15, "fields": {"name": "開運招福"}}
+]

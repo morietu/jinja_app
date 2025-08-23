@@ -1,0 +1,30 @@
+[
+  {
+    "model": "temples.shrine",
+    "pk": 1,
+    "fields": {
+      "name": "明治神宮",
+      "prefecture": "東京都",
+      "address": "渋谷区代々木神園町1-1",
+      "built_year": 1920,
+      "enshrined_kami": "明治天皇",
+      "benefits": "家内安全, 商売繁盛, 開運",
+      "lat": 35.6764,
+      "lng": 139.6993
+    }
+  },
+  {
+    "model": "temples.shrine",
+    "pk": 2,
+    "fields": {
+      "name": "赤坂氷川神社",
+      "prefecture": "東京都",
+      "address": "港区赤坂6-10-12",
+      "built_year": 951,
+      "enshrined_kami": "素盞嗚尊",
+      "benefits": "縁結び, 厄除け, 商売繁盛",
+      "lat": 35.6655,
+      "lng": 139.7322
+    }
+  }
+]
