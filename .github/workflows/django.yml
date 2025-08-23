@@ -28,11 +28,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Django test
+      - name: Prepare logs directory
+        run: mkdir -p backend/logs
+
+      - name: Run Django tests
         env:
           DJANGO_SETTINGS_MODULE: shrine_project.settings
-
-        run: |
-          cd $GITHUB_WORKSPACE
-          python backend/manage.py test -v 2
+          PYTHONPATH: ./backend
+        run: python backend/manage.py test -v 2
 

@@ -1,0 +1,42 @@
+# VCS / メタ
+.git
+.gitignore
+.dockerignore
+
+# Python ビルド不要物
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 仮想環境
+.venv/
+
+# テスト・ツールのキャッシュ
+.tox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# IDE・OS
+.vscode/
+.idea/
+.DS_Store
+
+# 環境ファイル（秘匿）
+.env
+.env.*
+
+# DB（ローカルSQLiteはイメージに入れない）
+*.sqlite3
+db.sqlite3
+
+# 生成物（Django）
+staticfiles/
+media/           # アップロード保存先をプロジェクトに置いてるなら除外
+
+# Node（使っていれば）
+node_modules/
