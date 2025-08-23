@@ -29,3 +29,21 @@ services:
       - db
     volumes:
       - ./.docker/pgadmin/data:/var/lib/pgadmin
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.web
+    container_name: shrine_web
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"

@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from backend.temples.views import ShrineViewSet, FavoriteToggleView, RouteView, VisitCreateView
+from temples.api.views import ShrineViewSet, FavoriteToggleView, RouteView, VisitCreateView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     # 'common',
 ]
 
+AUTH_USER_MODEL = "users.User"
+
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -162,6 +164,13 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 
 from pprint import pprint
 pprint(DATABASES["default"])
