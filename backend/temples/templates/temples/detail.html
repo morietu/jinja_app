@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ shrine.name }}{% endblock %}
+{% block content %}
+  <h2>{{ shrine.name }}</h2>
+  <p>{{ shrine.address }}（{{ shrine.prefecture }}）</p>
+  <p>創建：{{ shrine.built_year|default:"不詳" }}</p>
+  <p>祭神：{{ shrine.enshrined_kami|default:"—" }}</p>
+  <p>ご利益：{{ shrine.benefits|default:"—" }}</p>
+  <p><a href="{% url 'temples:shrine_route' shrine.pk %}">この神社へのルートを表示（＋近場2件）</a></p>
+  <p><strong>お気に入り：<span id="favCount">{{ favorite_count }}</span> 件</strong></p>
+
+
+{% if request.user.is_authenticated %}
+  <form method="post"
+        action="{% url 'temples:favorite_toggle' shrine.pk %}"
+        class="js-fav"
+        onsubmit="return false;">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <button type="submit" data-role="fav-btn">
+      {% if is_favorited %}★ お気に入り解除{% else %}☆ お気に入りに追加{% endif %}
+    </button>
+  </form>
+{% else %}
+  <p>
+    {% include "components/auth_callout.html" %}
+  </p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCookie(name){
+  const parts = document.cookie.split(";").map(c=>c.trim());
+  for(const p of parts){ if(p.startsWith(name+"=")) return decodeURIComponent(p.slice(name.length+1)); }
+  return "";
+}
+
+document.addEventListener("click", async (e) => {
+  const form = e.target.closest(".js-fav");
+  if (!form) return;
+  e.preventDefault();
+
+  const btn = form.querySelector('[data-role="fav-btn"]');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(form.action, {
+      method: "POST",
+      headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": getCookie("csrftoken") },
+      body: new FormData(form)
+    });
+    const data = await res.json();
+    // ボタン文言の切替
+    btn.textContent = (data.status === "added") ? "★ お気に入り解除" : "☆ お気に入りに追加";
+    // 件数の更新
+    const cnt = document.getElementById("favCount");
+    if (cnt) cnt.textContent = data.count;
+  } catch (err) {
+    // 失敗時はフォールバックで従来遷移
+    form.submit();
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+{% endblock %}
