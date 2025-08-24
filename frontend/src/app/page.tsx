@@ -74,12 +74,12 @@ export default function HomePage() {
     fetchTags()
   }, [])
 
-  // タグ選択が変わったら検索実行
-  useEffect(() => {
-    if (selectedTags.length > 0) {
-      fetchShrines({ tags: selectedTags })
-    }
-  }, [selectedTags])
+  //  ボタン押下で検索を確定
+const handleSearch = () => {
+  fetchShrines({ name: query, tags: selectedTags })
+}
+
+
 
   return (
     <main className="p-4">
@@ -95,12 +95,18 @@ export default function HomePage() {
           className="border rounded p-2 flex-1"
         />
         <button
-          onClick={() => fetchShrines({ name: query })}
+          onClick={handleSearch}
           className="bg-blue-500 text-white px-4 py-2 rounded"
         >
           検索
         </button>
       </div>
+
+
+      
+
+
+
 
       {/* ご利益タグ検索 */}
       <div className="flex flex-wrap gap-2 mb-4">
