@@ -26,9 +26,10 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         # タグフィルタ
-        tag = self.request.query_params.get("tag")
-        if tag:
-            queryset = queryset.filter(goriyaku_tags__name__icontains=tag)
+        tags = self.request.query_params.getlist("tag")  # ← 複数対応
+        if tags:
+            queryset = queryset.filter(goriyaku_tags__name__in=tags)
+
 
         # 半径フィルタ
         lat = self.request.query_params.get("lat")

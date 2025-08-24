@@ -5,7 +5,7 @@ from temples.api.views import (
     FavoriteToggleView,
     RouteView,
     VisitCreateView,
-    GoriyakuTagViewSet,   # ← 追加
+    GoriyakuTagViewSet,
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
