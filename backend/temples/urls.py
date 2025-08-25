@@ -1,4 +1,5 @@
 from django.urls import path, include
+from .views import RankingAPIView
 from rest_framework.routers import DefaultRouter
 from temples.api.views import (
     ShrineViewSet,
@@ -25,4 +26,5 @@ urlpatterns = [
     path("shrines/<int:shrine_id>/visit/", VisitCreateView.as_view(), name="visit_create"),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("ranking/", RankingAPIView.as_view(), name="ranking"),
 ]
