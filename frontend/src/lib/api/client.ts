@@ -1,14 +1,18 @@
-// src/lib/api/client.ts
-export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}${url}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  })
+import axios from "axios";
 
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`API Error: ${res.status} ${errorText}`)
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api",
+  timeout: 5000,
+  headers: { "Content-Type": "application/json" },
+});
+
+// 必要ならトークンを自動で付与
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  return res.json()
-}
+export default api;
