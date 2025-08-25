@@ -1,39 +1,32 @@
-"use client"
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { getRanking, RankingItem } from "@/lib/api/ranking"
+"use client";
+import { useEffect, useState } from "react";
+import { getRanking, RankingItem } from "@/lib/api/ranking";
+import ShrineCard from "@/components/ShrineCard";
 
 export default function RankingPage() {
-  const [ranking, setRanking] = useState<RankingItem[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [ranking, setRanking] = useState<RankingItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getRanking()
+    getRanking() // 年間ランキングを取得（MVPはこれだけ）
       .then(setRanking)
-      .catch(() => setError("ランキングの取得に失敗しました"))
-  }, [])
+      .catch(() => setError("ランキングの取得に失敗しました"));
+  }, []);
 
   return (
     <main className="p-4">
-      <h1 className="text-xl font-bold mb-4">人気神社ランキング</h1>
+      <h1 className="text-xl font-bold mb-4">年間人気神社ランキング</h1>
 
       {error && <p className="text-red-500">{error}</p>}
 
-      <ol className="space-y-2">
-        {ranking.map((item, index) => (
-          <li key={item.id} className="border p-3 rounded">
-            <span className="mr-2 font-bold">{index + 1}位</span>
-            <Link
-              href={`/shrines/${item.id}`}
-              className="text-blue-600 hover:underline"
-            >
-              {item.name_jp}
-            </Link>
-            <p className="text-sm text-gray-500">{item.address}</p>
-            <p className="text-sm">スコア: {item.score}</p>
+      <ol className="space-y-4">
+        {ranking.map((shrine, idx) => (
+          <li key={shrine.id} className="flex items-start gap-2">
+            <span className="text-xl font-bold w-6">{idx + 1}</span>
+            <ShrineCard shrine={shrine} />
           </li>
         ))}
       </ol>
     </main>
-  )
+  );
 }
