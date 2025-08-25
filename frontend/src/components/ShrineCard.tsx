@@ -7,12 +7,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
-type Shrine = {
-  id: number;
-  name_jp: string;
-  address: string;
-  goriyaku?: string; // ご利益
-};
+import { Shrine } from "@/lib/api/shrines";
 
 export default function ShrineCard({ shrine }: { shrine: Shrine }) {
   return (
