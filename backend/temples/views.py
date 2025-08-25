@@ -1,8 +1,17 @@
 from rest_framework import viewsets, filters
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.utils import timezone
+from datetime import timedelta
+
+
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from temples.models import Shrine, Visit, Favorite
+
 from .models import Shrine, GoriyakuTag
 from .serializers import ShrineSerializer, GoriyakuTagSerializer
 
@@ -50,3 +59,44 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 pass
 
         return queryset
+    
+class RankingAPIView(APIView):
+    def get(self, request):
+        last_30_days = timezone.now() - timedelta(days=30)
+
+        # Visit 集計
+        visits = (
+            Visit.objects.filter(visited_at__gte=last_30_days)
+            .values("shrine")
+            .annotate(count=Count("id"))
+        )
+        # Favorite 集計
+        favorites = (
+            Favorite.objects.filter(created_at__gte=last_30_days)
+            .values("shrine")
+            .annotate(count=Count("id"))
+        )
+
+        # shrine_id ごとにスコア集計
+        scores = {}
+        for v in visits:
+            scores[v["shrine"]] = scores.get(v["shrine"], 0) + v["count"]
+        for f in favorites:
+            scores[f["shrine"]] = scores.get(f["shrine"], 0) + f["count"]
+
+        # スコア順にソートして TOP10
+        ranking = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        data = []
+        for shrine_id, score in ranking:
+            shrine = Shrine.objects.get(id=shrine_id)
+            data.append({
+                "id": shrine.id,
+                "name_jp": shrine.name_jp,
+                "address": shrine.address,
+                "score": score,
+            })
+
+        return Response(data)
+    
+
