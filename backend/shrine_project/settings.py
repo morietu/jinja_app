@@ -63,23 +63,7 @@ CORS_ALLOWED_ORIGINS = ['http://127.0.0.1:8001', 'http://localhost:8001']
 CORS_ALLOW_CREDENTIALS = True
 
 # --- 開発向けの緩めCSP（本番は unsafe-* を外すの推奨） ---
-if DEBUG:
-    CSP_DEFAULT_SRC = ("'self'",)
-    CSP_SCRIPT_SRC = (
-        "'self'",
-        "https://maps.googleapis.com",
-        "https://maps.gstatic.com",
-        "'unsafe-inline'",
-        "'unsafe-eval'",
-    )
-    CSP_IMG_SRC = ("'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com")
-    CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
-    CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
-    CSP_CONNECT_SRC = (
-        "'self'",
-        "https://maps.googleapis.com",
-        "https://maps.gstatic.com",
-    )
+
 
 ROOT_URLCONF = 'shrine_project.urls'
 WSGI_APPLICATION = 'shrine_project.wsgi.application'
@@ -133,9 +117,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ),
 }
+
 
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8001',
@@ -172,5 +157,32 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "style-src": ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
+        "script-src": (
+            "'self'",
+            "https://maps.googleapis.com",
+            "https://maps.gstatic.com",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+        ),
+        "font-src": ("'self'", "https://fonts.gstatic.com"),
+        "img-src": (
+            "'self'",
+            "data:",
+            "https://*.googleapis.com",
+            "https://*.gstatic.com",
+            "https://*.google.com",
+        ),
+        "connect-src": ("'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"),
+    }
+}
+
+GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "/usr/lib/x86_64-linux-gnu/libgdal.so")
+
 from pprint import pprint
 pprint(DATABASES["default"])
+
+
