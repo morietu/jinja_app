@@ -1,28 +1,23 @@
 from django.urls import path, include
-
-from .views import ShrineViewSet, GoriyakuTagViewSet, RankingAPIView, UserVisitListView
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from temples.api.views import (
     ShrineViewSet,
-    FavoriteToggleView,
-    RouteView,
-    VisitCreateView,
     GoriyakuTagViewSet,
-    UserVisitListView,
+    FavoriteToggleView,
     UserFavoriteListView,
+    UserVisitListView,
+    RankingAPIView,
+    VisitCreateView,
+    RouteView,
 )
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-
-
 
 app_name = "temples"
 
 router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrines")
-router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="goriyaku-tags")  # ← 追加
+router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="goriyaku-tags")
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -34,6 +29,4 @@ urlpatterns = [
     path("ranking/", RankingAPIView.as_view(), name="ranking"),
     path("visits/", UserVisitListView.as_view(), name="visit-list"),
     path("favorites/", UserFavoriteListView.as_view(), name="favorite-list"),
-
-    
 ]
