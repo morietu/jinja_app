@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',  # PostGIS対応
 
     # サードパーティ
     'csp',
@@ -70,7 +71,7 @@ WSGI_APPLICATION = 'shrine_project.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',  # PostGIS対応
         'NAME': os.getenv('DJANGO_DB_NAME', 'shrine_db'),
         'USER': os.getenv('DJANGO_DB_USER', 'shrine_user'),
         'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', 'shrine_pass'),

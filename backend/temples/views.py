@@ -3,17 +3,20 @@ from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
 
-
+# PostGIS対応の地理空間機能
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import generics, permissions
+
 from temples.models import Shrine, Visit, Favorite
 
+
 from .models import Shrine, GoriyakuTag
-from .serializers import ShrineSerializer, GoriyakuTagSerializer
+from .serializers import ShrineSerializer, GoriyakuTagSerializer, VisitSerializer
 
 
 class GoriyakuTagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -39,8 +42,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
         if tags:
             queryset = queryset.filter(goriyaku_tags__name__in=tags)
 
-
-        # 半径フィルタ
+        # 半径フィルタ（PostGIS対応）
         lat = self.request.query_params.get("lat")
         lng = self.request.query_params.get("lng")
         radius = self.request.query_params.get("radius")
@@ -99,4 +101,17 @@ class RankingAPIView(APIView):
 
         return Response(data)
     
+class UserVisitListView(generics.ListAPIView):
+    """
+    ログイン中ユーザーの参拝履歴一覧
+    """
+    serializer_class = VisitSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return (
+            Visit.objects
+            .filter(user=self.request.user)
+            .select_related("shrine")   # shrine情報をJOINしてN+1防止
+            .order_by("-visited_at")    # 新しい順
+        )
