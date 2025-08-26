@@ -12,12 +12,12 @@ export type User = {
 
 // 現在のユーザー情報取得
 export async function getCurrentUser(): Promise<User> {
-  const res = await api.get("/users/me/");
+  const res = await api.get("users/me/");
   return res.data;
 }
 
 // ユーザー情報更新
 export async function updateUser(data: Partial<User>): Promise<User> {
-  const res = await api.patch("/users/me/", data);
+  const res = await api.patch("users/me/", data);
   return res.data;
 }

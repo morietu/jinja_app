@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/shrines/<int:shrine_id>/favorite/", FavoriteToggleView.as_view(), name="favorite_toggle"),
     path("api/shrines/<int:shrine_id>/route/", RouteView.as_view(), name="shrine_route"),
     path("api/shrines/<int:shrine_id>/visit/", VisitCreateView.as_view(), name="visit_create"),
+    path("api/users/", include("users.urls")),
 
     # users API
     path("users/", include("users.urls")),
