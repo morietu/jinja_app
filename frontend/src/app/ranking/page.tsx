@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getRanking, RankingItem } from "@/lib/api/ranking";
-import ShrineCard from "@/components/ShrineCard";
+import RankingCard from "@/components/RankingCard";
 
 export default function RankingPage() {
   const [ranking, setRanking] = useState<RankingItem[]>([]);
@@ -23,10 +23,11 @@ export default function RankingPage() {
         {ranking.map((shrine, idx) => (
           <li key={shrine.id} className="flex items-start gap-2">
             <span className="text-xl font-bold w-6">{idx + 1}</span>
-            <ShrineCard shrine={shrine} />
+            <RankingCard shrine={shrine} rank={idx + 1} />
           </li>
         ))}
       </ol>
     </main>
   );
 }
+

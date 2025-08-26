@@ -3,11 +3,17 @@ import api from "./client";
 export type Shrine = {
   id: number;
   name_jp: string;
+  name_romaji?: string;
   address: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   goriyaku?: string;
   sajin?: string;
+  description?: string;
+  element?: string;
+  created_at: string;
+  updated_at: string;
+  goriyaku_tags?: { id: number; name: string }[];
 };
 
 // 一覧取得
