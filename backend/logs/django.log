@@ -1009,3 +1009,23 @@ Not Found: /api/users/me/
 /app/shrine_project/urls.py changed, reloading.
 Watching for file changes with StatReloader
 Watching for file changes with StatReloader
+Unauthorized: /api/visits/
+Unauthorized: /api/favorites/
+Unauthorized: /api/users/me/
+Unauthorized: /api/visits/
+Unauthorized: /api/users/me/
+Unauthorized: /api/favorites/
+Unauthorized: /api/ranking/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Unauthorized: /api/ranking/
+Unauthorized: /api/ranking/
+Not Found: /api/api/shrines/
+Not Found: /api/api/goriyaku-tags/
+/app/temples/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/views.py changed, reloading.
+Watching for file changes with StatReloader

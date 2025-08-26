@@ -31,3 +31,4 @@ export default function ShrineCard({ shrine }: { shrine: Shrine }) {
     </Card>
   );
 }
+
