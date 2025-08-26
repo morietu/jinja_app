@@ -5,9 +5,11 @@ export type Visit = {
   id: number;
   shrine: Shrine;
   visited_at: string;
+  note?: string;
+  status?: string;
 };
 
-// 参拝チェックイン
+// 参拝チェックイン（トグル）
 export async function addVisit(shrineId: number) {
   const res = await api.post(`/shrines/${shrineId}/visit/`);
   return res.data;

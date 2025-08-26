@@ -8,6 +8,8 @@ from temples.api.views import (
     RouteView,
     VisitCreateView,
     GoriyakuTagViewSet,
+    UserVisitListView,
+    UserFavoriteListView,
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -31,5 +33,7 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("ranking/", RankingAPIView.as_view(), name="ranking"),
     path("visits/", UserVisitListView.as_view(), name="visit-list"),
+    path("favorites/", UserFavoriteListView.as_view(), name="favorite-list"),
+
     
 ]
