@@ -941,3 +941,15 @@ Not Found: /api/token/
 /app/temples/urls.py changed, reloading.
 Watching for file changes with StatReloader
 Unauthorized: /api/token/
+Not Found: /favorites/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /visits/
+/app/temples/urls.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/views.py changed, reloading.
+Watching for file changes with StatReloader
