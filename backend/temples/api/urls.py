@@ -1,23 +1,27 @@
-# apps/temples/api/urls.py
+# backend/temples/api/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     ShrineViewSet,
+    GoriyakuTagViewSet,
     FavoriteToggleView,
+    UserFavoriteListView,
     RouteView,
     VisitCreateView,
-    GoriyakuTagViewSet,   # ← 追加
+    UserVisitListView,
+    RankingAPIView,
 )
 
 router = DefaultRouter()
-router.register(r"shrines", ShrineViewSet, basename="shrine")
+router.register(r"shrines", ShrineViewSet, basename="shrines")
 router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="goriyaku-tags")
-
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("shrines/<int:shrine_id>/favorite/", FavoriteToggleView.as_view(), name="favorite-toggle"),
+    path("shrines/<int:shrine_id>/favorite/", FavoriteToggleView.as_view(), name="favorite_toggle"),
+    path("shrines/<int:shrine_id>/visit/", VisitCreateView.as_view(), name="visit_create"),
+    path("favorites/", UserFavoriteListView.as_view(), name="favorite_list"),
+    path("visits/", UserVisitListView.as_view(), name="visit_list"),
+    path("ranking/", RankingAPIView.as_view(), name="ranking"),
     path("route/", RouteView.as_view(), name="route"),
-    path("shrines/<int:shrine_id>/visit/", VisitCreateView.as_view(), name="visit-create"),
-    
 ]
