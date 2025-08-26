@@ -1,18 +1,17 @@
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
-
 from django.db.models import Q
+
 from temples.models import Shrine, Favorite, GoriyakuTag, Visit
 from ..serializers import ShrineSerializer, GoriyakuTagSerializer, VisitSerializer
 
 from math import radians, cos, sin, asin, sqrt
-
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 # -----------------------------
 # Haversine: 距離計算 (既存)
