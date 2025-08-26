@@ -953,3 +953,59 @@ Watching for file changes with StatReloader
 Watching for file changes with StatReloader
 /app/temples/views.py changed, reloading.
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /visits/
+Unauthorized: /users/me/
+Not Found: /favorites/
+Unauthorized: /users/me/
+Unauthorized: /users/me/
+Not Found: /favorites/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /visits/
+Unauthorized: /users/me/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /favorites/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /visits/
+Not Found: /visits/
+Not Found: /favorites/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+Not Found: /api/users/me/
+/app/users/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/views.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/urls.py changed, reloading.
+Watching for file changes with StatReloader
+/app/users/urls.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /api/users/me/
+/app/shrine_project/urls.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
