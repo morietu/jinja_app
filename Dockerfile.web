@@ -4,15 +4,26 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# OS依存ライブラリ + GDAL
+# OS依存ライブラリ（GDAL/PostGIS対応）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
     postgresql-client \
-    gdal-bin \
+    # GDAL/PostGIS関連ライブラリ
     libgdal-dev \
+    gdal-bin \
+    libgeos-dev \
+    libproj-dev \
+    proj-data \
+    proj-bin \
+    libspatialindex-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# GDAL環境変数設定
+ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so
+ENV GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so
+ENV PROJ_LIB=/usr/share/proj
 
 # Python依存インストール
 COPY requirements.txt /app/requirements.txt
@@ -22,8 +33,3 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY backend /app
 
 EXPOSE 8000
-
-# GDAL のパスを環境変数で指定
-ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so
-
-RUN ln -s /usr/lib/x86_64-linux-gnu/libgdal.so.* /usr/lib/x86_64-linux-gnu/libgdal.so

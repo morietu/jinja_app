@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.gis.db import models as gis_models  # PostGIS対応
 from django.conf import settings
 from django.utils import timezone
 
@@ -18,6 +19,7 @@ class Shrine(models.Model):
     address = models.CharField(max_length=255)
     latitude = models.FloatField()
     longitude = models.FloatField()
+    location = gis_models.PointField(null=True, blank=True, srid=4326)  # PostGIS対応
     goriyaku = models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
     sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
     description = models.TextField(blank=True, null=True)  # 神社の紹介文
@@ -122,3 +124,5 @@ class RankingLog(models.Model):
 
     def __str__(self):
         return f"{self.shrine} ({self.date}): views={self.view_count}, likes={self.like_count}"
+
+        
