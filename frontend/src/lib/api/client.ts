@@ -18,7 +18,6 @@ api.interceptors.request.use((config) => {
 // レスポンスのインターセプター
 api.interceptors.response.use(
   (response) => {
-    // デバッグ用ログ
     console.log(
       `✅ API Response: ${response.status} ${response.config.url}`,
       response.data
@@ -27,19 +26,16 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      // サーバーからレスポンスあり（4xx, 5xx 系）
       console.error(`❌ API Error: ${error.config?.url}`, {
         status: error.response.status,
         statusText: error.response.statusText,
         data: error.response.data,
       });
     } else if (error.request) {
-      // リクエストは送信されたがレスポンスなし
       console.error(`⚠️ API No Response: ${error.config?.url}`, {
         request: error.request,
       });
     } else {
-      // それ以外のエラー（設定など）
       console.error(`⚠️ API Setup Error: ${error.config?.url}`, {
         message: error.message,
       });

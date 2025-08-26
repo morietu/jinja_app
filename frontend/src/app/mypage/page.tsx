@@ -195,7 +195,12 @@ export default function MyPage() {
               <li key={visit.id} className="border-b pb-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-medium">{visit.shrine.name_jp}</h3>
+                    <h3 className="font-medium text-blue-600 cursor-pointer         hover:underline"
+                    onClick={() => router.push(`/shrines/${visit.shrine.id}`)}
+                    >
+                      {visit.shrine.name_jp}
+                    </h3>
+
                     <p className="text-sm text-gray-600">
                       {new Date(visit.visited_at).toLocaleDateString('ja-JP')}
                     </p>

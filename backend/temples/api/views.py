@@ -156,3 +156,65 @@ class GoriyakuTagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GoriyakuTag.objects.all()
     serializer_class = GoriyakuTagSerializer
     permission_classes = [permissions.AllowAny]
+
+
+
+class UserFavoriteListView(generics.ListAPIView):
+    serializer_class = ShrineSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Shrine.objects.filter(favorited_by__user=self.request.user)
+
+
+class UserVisitListView(generics.ListAPIView):
+    serializer_class = VisitSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Visit.objects
+            .filter(user=self.request.user)
+            .select_related("shrine")
+            .order_by("-visited_at")
+        )
+
+
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Count
+
+class RankingAPIView(APIView):
+    def get(self, request):
+        last_30_days = timezone.now() - timedelta(days=30)
+
+        visits = (
+            Visit.objects.filter(visited_at__gte=last_30_days)
+            .values("shrine")
+            .annotate(count=Count("id"))
+        )
+        favorites = (
+            Favorite.objects.filter(created_at__gte=last_30_days)
+            .values("shrine")
+            .annotate(count=Count("id"))
+        )
+
+        scores = {}
+        for v in visits:
+            scores[v["shrine"]] = scores.get(v["shrine"], 0) + v["count"]
+        for f in favorites:
+            scores[f["shrine"]] = scores.get(f["shrine"], 0) + f["count"]
+
+        ranking = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        data = []
+        for shrine_id, score in ranking:
+            shrine = Shrine.objects.get(id=shrine_id)
+            data.append({
+                "id": shrine.id,
+                "name_jp": shrine.name_jp,
+                "address": shrine.address,
+                "score": score,
+            })
+
+        return Response(data)
