@@ -16,9 +16,14 @@ class VisitCreateView(APIView):
 
         if not created:
             visit.delete()
-            return Response({"status": "removed"}, status=status.HTTP_200_OK)
+            return Response(
+                {"status": "removed", "shrine": {"id": shrine.id, "name_jp": shrine.name_jp}},
+                status=status.HTTP_200_OK
+            )
 
-        return Response({"status": "added"}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"status": "added", "shrine": {"id": shrine.id, "name_jp": shrine.name_jp}}, status=status.HTTP_201_CREATED
+        )
 
 
 class UserVisitListView(generics.ListAPIView):
