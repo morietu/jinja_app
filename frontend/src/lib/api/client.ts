@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const isServer = typeof window === "undefined";
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api",
+  baseURL: isServer
+    ? process.env.NEXT_PUBLIC_API_BASE_SERVER || "http://web:8000/api"
+    : process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api",
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
 });
@@ -11,7 +15,11 @@ api.interceptors.request.use((config) => {
   console.log("➡️ API Request:", `${config.baseURL}${config.url}`);
 
   // 認証不要のエンドポイントは除外
-  if (config.url?.startsWith("/shrines") || config.url?.startsWith("/goriyaku-tags")) {
+  if (
+    config.url?.startsWith("/shrines") ||
+    config.url?.startsWith("/goriyaku-tags") ||
+    config.url?.startsWith("/ranking")
+  ) {
     return config;
   }
 

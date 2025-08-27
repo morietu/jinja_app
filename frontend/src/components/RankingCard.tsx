@@ -1,3 +1,4 @@
+// src/components/RankingCard.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -19,8 +20,22 @@ export default function RankingCard({ shrine, rank }: { shrine: RankingItem; ran
         </CardTitle>
         <CardDescription>{shrine.address}</CardDescription>
       </CardHeader>
+
       <CardContent>
-        <p className="text-xs text-gray-500">スコア: {shrine.score}</p>
+        <p className="text-xs text-gray-500 mb-2">スコア: {shrine.score}</p>
+
+        {shrine.goriyaku_tags?.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {shrine.goriyaku_tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded"
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
