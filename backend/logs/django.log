@@ -1504,3 +1504,14 @@ django.core.exceptions.FieldError: Cannot resolve keyword 'visit' into field. Ch
 Watching for file changes with StatReloader
 /app/temples/api/views/ranking.py changed, reloading.
 Watching for file changes with StatReloader
+/app/temples/api/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+/app/temples/api/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/serializers.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
