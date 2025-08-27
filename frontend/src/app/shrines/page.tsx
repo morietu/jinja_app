@@ -12,7 +12,7 @@ export default function ShrinesPage() {
   useEffect(() => {
     getShrines()
       .then(setShrines)
-      .catch(() => setError("神社データの取得に失敗しました"));
+      .catch(() => setError("神社データの取得に失敗しました"))
       .finally(() => setLoading(false));
   }, []);
 

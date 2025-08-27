@@ -1,85 +1,44 @@
 "use client"
-import { useEffect, useState } from "react"
-import { Shrine } from "@/lib/api/shrines"
-// ⚠️ Sentry を使う場合は適切に import が必要です
-// import * as Sentry from "@sentry/nextjs"
 
-type GoriyakuTag = {
-  id: number
-  name: string
-}
+import { useEffect, useState } from "react"
+import { Shrine, getShrines } from "@/lib/api/shrines"
+import { GoriyakuTag, getTags } from "@/lib/api/tags"
 
 export default function HomePage() {
   const [shrines, setShrines] = useState<Shrine[]>([])
   const [tags, setTags] = useState<GoriyakuTag[]>([])
   const [query, setQuery] = useState("")
-  const [selectedTags, setSelectedTags] = useState<string[]>([]) // ← 配列に変更
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const fetchShrines = async (params: { name?: string; tags?: string[] } = {}) => {
+  const loadShrines = async (params: { name?: string; tags?: string[] } = {}) => {
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_BASE}/api/shrines/`
-      const queryParams = new URLSearchParams()
-      if (params.name) queryParams.append("name", params.name)
-      if (params.tags && params.tags.length > 0) {
-        params.tags.forEach((t) => queryParams.append("tag", t)) // ← 1つずつ追加
-      }
-      if (queryParams.toString()) url += `?${queryParams.toString()}`
-
-      const res = await fetch(url)
-      if (!res.ok) {
-        const errText = await res.text() // JSON以外でも拾えるように
-
-        if (process.env.NODE_ENV === "development") {
-          console.error("Fetch failed:", {
-            url,
-            status: res.status,
-            statusText: res.statusText,
-            body: errText,
-          })
-        } else {
-          // 本番では Sentry に送る
-          Sentry.captureException(
-            new Error(`Shrine API failed: ${res.status} ${res.statusText}`),
-            {
-              extra: { url, body: errText },
-            }
-          )
-        }
-        throw new Error(`APIエラー (${res.status})`)
-      }
-
-      const data = await res.json()
+      const data = await getShrines(params)
       setShrines(data)
       setError(null)
-    } catch (err: unknown) {
-      // ユーザー向けには簡潔なエラー
-      setError("神社データ取得に失敗しました。時間をおいて再度お試しください。")
-
-      // 開発者向け詳細ログ
-      if (process.env.NODE_ENV === "development") {
-        console.error("Shrine fetch error:", err)
-      }
+    } catch (err) {
+      setError("神社データ取得に失敗しました")
+      console.error(err)
     }
   }
 
-  const fetchTags = async () => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/goriyaku-tags/`)
-    const data = await res.json()
-    setTags(data)
+  const loadTags = async () => {
+    try {
+      const data = await getTags()
+      setTags(data)
+    } catch (err) {
+      console.error("タグ取得失敗:", err)
+    }
   }
 
   useEffect(() => {
-    fetchShrines()
-    fetchTags()
+    loadShrines()
+    loadTags()
   }, [])
 
-  //  ボタン押下で検索を確定
-const handleSearch = () => {
-  fetchShrines({ name: query, tags: selectedTags })
-}
-
-
+  const handleSearch = () => {
+    loadShrines({ name: query, tags: selectedTags })
+  }
 
   return (
     <main className="p-4">
@@ -102,12 +61,6 @@ const handleSearch = () => {
         </button>
       </div>
 
-
-      
-
-
-
-
       {/* ご利益タグ検索 */}
       <div className="flex flex-wrap gap-2 mb-4">
         {tags.map((tag) => (
@@ -116,8 +69,8 @@ const handleSearch = () => {
             onClick={() =>
               setSelectedTags((prev) =>
                 prev.includes(tag.name)
-                  ? prev.filter((t) => t !== tag.name) // 解除
-                  : [...prev, tag.name] // 追加
+                  ? prev.filter((t) => t !== tag.name)
+                  : [...prev, tag.name]
               )
             }
             className={`px-3 py-1 rounded border ${

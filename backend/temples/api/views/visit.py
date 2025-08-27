@@ -1,9 +1,11 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from temples.models import Shrine, Visit
-from ..serializers import VisitSerializer
+from temples.api.serializers import VisitSerializer
+
 
 class VisitCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -30,3 +32,5 @@ class UserVisitListView(generics.ListAPIView):
             .select_related("shrine")
             .order_by("-visited_at")
         )
+
+

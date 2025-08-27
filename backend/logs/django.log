@@ -1029,3 +1029,22 @@ Watching for file changes with StatReloader
 Watching for file changes with StatReloader
 /app/temples/api/views.py changed, reloading.
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Unauthorized: /api/goriyaku-tags/
+Unauthorized: /api/shrines/
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Unauthorized: /api/shrines/1/
+Watching for file changes with StatReloader
+Unauthorized: /api/shrines/1/
+Unauthorized: /api/shrines/1/
+/app/temples/api/views/visit.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/views/visit.py changed, reloading.
+Watching for file changes with StatReloader
+/app/temples/api/views/visit.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Unauthorized: /api/shrines/1/
+Unauthorized: /api/shrines/1/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
