@@ -13,7 +13,7 @@ export type Shrine = {
   element?: string;
   created_at: string;
   updated_at: string;
-  goriyaku_tags: { id: number; name: string }[];
+  goriyaku_tags?: { id: number; name: string }[];
 };
 
 // 一覧取得
