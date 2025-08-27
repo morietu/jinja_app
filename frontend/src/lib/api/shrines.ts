@@ -1,19 +1,18 @@
 import api from "./client";
+import { GoriyakuTag } from "./types";
+
+
 
 export type Shrine = {
   id: number;
   name_jp: string;
-  name_romaji?: string;
   address: string;
-  latitude: number | null;   // ← null 許容に変更
-  longitude: number | null;  // ← null 許容に変更
+  latitude: number;
+  longitude: number;
   goriyaku?: string;
   sajin?: string;
-  description?: string;
-  element?: string;
-  created_at: string;
-  updated_at: string;
-  goriyaku_tags?: { id: number; name: string }[];
+  description?: string | null;
+  goriyaku_tags: GoriyakuTag[];
 };
 
 // 一覧取得
