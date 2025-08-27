@@ -1,14 +1,14 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { getShrineDetail, ShrineDetail } from "@/lib/api/shrines"
+import { getShrine, Shrine } from "@/lib/api/shrines"
 import RouteMap from "@/components/maps/RouteMap"
 
 export default function ShrineDetailPage() {
   const params = useParams()
   const id = Number(params?.id)
 
-  const [shrine, setShrine] = useState<ShrineDetail | null>(null)
+  const [shrine, setShrine] = useState<Shrine | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -17,7 +17,7 @@ export default function ShrineDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    getShrineDetail(id)
+    getShrine(id)
       .then((data) => setShrine(data))
       .catch(() => setError("神社データの取得に失敗しました"))
       .finally(() => setLoading(false))
@@ -67,8 +67,13 @@ export default function ShrineDetailPage() {
         <h2 className="font-semibold mb-2">ルート案内</h2>
         <RouteMap
           origin={origin}
-          destination={{ lat: shrine.latitude, lng: shrine.longitude }}
+          destination={
+            shrine.latitude && shrine.longitude
+              ? { lat: shrine.latitude, lng: shrine.longitude }
+              : undefined
+          }
         />
+
       </section>
     </main>
   )
