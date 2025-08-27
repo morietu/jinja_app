@@ -5,7 +5,7 @@ export type GoriyakuTag = {
   name: string
 }
 
-export async function getTags(): Promise<GoriyakuTag[]> {
-  const res = await api.get("/goriyaku-tags/")
-  return res.data
+export async function getTags() {
+  const res = await api.get("/goriyaku-tags/"); // ✅ バックエンドに合わせる
+  return res.data;
 }
