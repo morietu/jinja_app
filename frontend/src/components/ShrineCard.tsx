@@ -1,3 +1,4 @@
+// src/components/ShrineCard.tsx
 import Link from "next/link";
 import {
   Card,
@@ -23,32 +24,25 @@ export default function ShrineCard({ shrine }: { shrine: Shrine }) {
         </CardTitle>
         <CardDescription>{shrine.address}</CardDescription>
       </CardHeader>
-      
 
-      {/* ご利益メモ */}
-      {shrine.goriyaku && (
-        <CardContent>
-          <p className="text-sm">ご利益: {shrine.goriyaku}</p>
-        </CardContent>
-      )}
+      <CardContent>
+        {shrine.goriyaku && (
+          <p className="text-sm mb-2">ご利益: {shrine.goriyaku}</p>
+        )}
 
-      {/* ご利益タグ */}
-      {shrine.goriyaku_tags && shrine.goriyaku_tags.length > 0 && (
-        <CardContent>
-          <p className="text-sm text-gray-700">
-            タグ:{" "}
+        {shrine.goriyaku_tags?.length > 0 && (
+          <div className="flex flex-wrap gap-2">
             {shrine.goriyaku_tags.map((tag) => (
               <span
                 key={tag.id}
-                className="inline-block bg-gray-200 rounded px-2 py-0.5 text-xs mr-1"
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded"
               >
                 {tag.name}
               </span>
             ))}
-          </p>
-        </CardContent>
-      )}
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }
-
