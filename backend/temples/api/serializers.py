@@ -10,9 +10,21 @@ class GoriyakuTagSerializer(serializers.ModelSerializer):
 
 # 一覧用（軽量）
 class ShrineListSerializer(serializers.ModelSerializer):
+    goriyaku_tags = GoriyakuTagSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Shrine
-        fields = ["id", "name_jp", "address"]
+        fields = [
+            "id",
+            "name_jp",
+            "address",
+            "latitude",
+            "longitude",
+            "goriyaku",
+            "sajin",
+            "description",
+            "goriyaku_tags",
+        ]
 
 
 # 詳細用（リッチ）
