@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Shrine, Visit, GoriyakuTag
+from temples.models import Shrine, Visit, GoriyakuTag
 
 
 class GoriyakuTagSerializer(serializers.ModelSerializer):

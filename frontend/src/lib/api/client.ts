@@ -8,9 +8,18 @@ const api = axios.create({
 
 // リクエストごとに Authorization ヘッダーを追加
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  console.log("➡️ API Request:", `${config.baseURL}${config.url}`);
+
+  // 認証不要のエンドポイントは除外
+  if (config.url?.startsWith("/shrines") || config.url?.startsWith("/goriyaku-tags")) {
+    return config;
+  }
+
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

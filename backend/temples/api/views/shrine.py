@@ -2,11 +2,12 @@
 from rest_framework import viewsets, permissions
 from django.db.models import Q
 from temples.models import Shrine, GoriyakuTag
-from ..serializers import ShrineListSerializer, ShrineDetailSerializer, GoriyakuTagSerializer
+from temples.api.serializers import ShrineListSerializer, ShrineDetailSerializer, GoriyakuTagSerializer
+
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Shrine.objects.all()
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         queryset = Shrine.objects.all()

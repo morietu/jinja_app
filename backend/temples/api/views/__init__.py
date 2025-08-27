@@ -3,6 +3,7 @@ from .shrine import ShrineViewSet, GoriyakuTagViewSet
 from .visit import VisitCreateView, UserVisitListView
 from .favorite import FavoriteToggleView, UserFavoriteListView
 from .ranking import RankingAPIView
+from .route import RouteView
 
 __all__ = [
     "ShrineViewSet",
@@ -12,4 +13,5 @@ __all__ = [
     "FavoriteToggleView",
     "UserFavoriteListView",
     "RankingAPIView",
+    "RouteView",
 ]

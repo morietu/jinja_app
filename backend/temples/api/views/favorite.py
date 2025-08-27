@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from temples.models import Shrine, Favorite
-from ..serializers import ShrineListSerializer
+from temples.api.serializers import ShrineListSerializer
 
 class FavoriteToggleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
