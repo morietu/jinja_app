@@ -2,11 +2,11 @@
 from rest_framework import viewsets, permissions
 from django.db.models import Q
 from temples.models import Shrine, GoriyakuTag
-from temples.api.serializers import ShrineListSerializer, ShrineDetailSerializer, GoriyakuTagSerializer
-
+from temples.api.serializers.shrine import ShrineListSerializer, ShrineDetailSerializer, GoriyakuTagSerializer
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Shrine.objects.all()
+    serializer_class = ShrineListSerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
@@ -31,3 +31,5 @@ class GoriyakuTagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GoriyakuTag.objects.all()
     serializer_class = GoriyakuTagSerializer
     permission_classes = [permissions.AllowAny]
+
+

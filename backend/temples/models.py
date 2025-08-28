@@ -125,4 +125,29 @@ class RankingLog(models.Model):
     def __str__(self):
         return f"{self.shrine} ({self.date}): views={self.view_count}, likes={self.like_count}"
 
-        
+class ConciergeHistory(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="concierge_histories"
+    )
+    shrine = models.ForeignKey(
+        "Shrine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recommended_histories"
+    )
+    reason = models.TextField()
+    tags = models.JSONField(default=list, blank=True)  # ["縁結び", "恋愛運"]
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        user_str = getattr(self.user, "username", str(self.user))
+        shrine_str = self.shrine.name_jp if self.shrine else "不明"
+        return f"{user_str} → {shrine_str}"
+    
+    
