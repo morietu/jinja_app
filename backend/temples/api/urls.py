@@ -1,6 +1,10 @@
 # backend/temples/api/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from temples.api.views.concierge import ConciergeAPIView
+from temples.api.views.concierge import ConciergeAPIView, ConciergeHistoryListView
+
+
 from .views import (
     ShrineViewSet,
     GoriyakuTagViewSet,
@@ -24,4 +28,8 @@ urlpatterns = [
     path("visits/", UserVisitListView.as_view(), name="visit_list"),
     path("ranking/", RankingAPIView.as_view(), name="ranking"),
     path("route/", RouteView.as_view(), name="route"),
+    path("concierge/", ConciergeAPIView.as_view(), name="concierge"),
+    path("concierge/history/", ConciergeHistoryListView.as_view(), name="concierge_history"),
 ]
+
+

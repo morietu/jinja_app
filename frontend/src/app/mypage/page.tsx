@@ -7,10 +7,13 @@ import { getVisits, Visit } from "@/lib/api/visits";
 import { Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/ShrineCard";
 import { getCurrentUser, updateUser, User } from "@/lib/api/users";
+import { getConciergeHistory, ConciergeHistory } from "@/lib/api/concierge";
+import Link from "next/link";
 
 export default function MyPage() {
   const [favorites, setFavorites] = useState<Shrine[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
+  const [history, setHistory] = useState<ConciergeHistory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -19,27 +22,26 @@ export default function MyPage() {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
-        // アクセストークンの確認
         const token = localStorage.getItem("access_token");
         if (!token) {
           router.push("/login");
           return;
         }
 
-        // ユーザー情報とデータを並行して取得
-        const [userData, favs, vis] = await Promise.all([
+        const [userData, favs, vis, hist] = await Promise.all([
           getCurrentUser(),
           getFavorites(),
-          getVisits()
+          getVisits(),
+          getConciergeHistory(),
         ]);
 
         setUser(userData);
         setFavorites(favs);
         setVisits(vis);
-      } catch (error) {
-        console.error("データ取得エラー:", error);
-        if (error.response?.status === 401) {
-          // 認証エラーの場合はログインページにリダイレクト
+        setHistory(hist);
+      } catch (err: any) {
+        console.error("データ取得エラー:", err);
+        if (err.response?.status === 401) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           router.push("/login");
@@ -56,7 +58,6 @@ export default function MyPage() {
 
   const handleSave = async () => {
     if (!user) return;
-    
     try {
       const updated = await updateUser({
         nickname: user.nickname,
@@ -64,8 +65,8 @@ export default function MyPage() {
       });
       setUser(updated);
       alert("ユーザー情報を更新しました！");
-    } catch (error) {
-      console.error("更新エラー:", error);
+    } catch (err) {
+      console.error("更新エラー:", err);
       alert("更新に失敗しました");
     }
   };
@@ -91,7 +92,7 @@ export default function MyPage() {
     return (
       <div className="p-4 text-center">
         <p className="text-red-500">ユーザー情報の取得に失敗しました</p>
-        <button 
+        <button
           onClick={() => router.push("/login")}
           className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
@@ -102,7 +103,7 @@ export default function MyPage() {
   }
 
   return (
-    <main className="p-4 max-w-4xl mx-auto">
+    <main className="p-4 max-w-4xl mx-auto space-y-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">マイページ</h1>
         <button
@@ -120,7 +121,7 @@ export default function MyPage() {
       )}
 
       {/* ユーザー設定 */}
-      <section className="mb-8 bg-white p-6 rounded-lg shadow">
+      <section className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-semibold mb-4">ユーザー設定</h2>
         <div className="space-y-4">
           <div>
@@ -155,7 +156,9 @@ export default function MyPage() {
                 onChange={(e) => setUser({ ...user, is_public: e.target.checked })}
                 className="rounded"
               />
-              <span className="text-sm font-medium text-gray-700">プロフィールを公開する</span>
+              <span className="text-sm font-medium text-gray-700">
+                プロフィールを公開する
+              </span>
             </label>
           </div>
 
@@ -169,7 +172,7 @@ export default function MyPage() {
       </section>
 
       {/* お気に入り神社 */}
-      <section className="mb-8 bg-white p-6 rounded-lg shadow">
+      <section className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-semibold mb-4">お気に入り神社</h2>
         {favorites.length === 0 ? (
           <p className="text-gray-500">お気に入りの神社はありません</p>
@@ -185,7 +188,7 @@ export default function MyPage() {
       </section>
 
       {/* 参拝履歴 */}
-      <section className="mb-8 bg-white p-6 rounded-lg shadow">
+      <section className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-semibold mb-4">参拝履歴</h2>
         {visits.length === 0 ? (
           <p className="text-gray-500">参拝履歴はありません</p>
@@ -195,25 +198,69 @@ export default function MyPage() {
               <li key={visit.id} className="border-b pb-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-medium text-blue-600 cursor-pointer         hover:underline"
-                    onClick={() => router.push(`/shrines/${visit.shrine.id}`)}
+                    <h3
+                      className="font-medium text-blue-600 cursor-pointer hover:underline"
+                      onClick={() => router.push(`/shrines/${visit.shrine.id}`)}
                     >
                       {visit.shrine.name_jp}
                     </h3>
-
                     <p className="text-sm text-gray-600">
-                      {new Date(visit.visited_at).toLocaleDateString('ja-JP')}
+                      {new Date(visit.visited_at).toLocaleDateString("ja-JP")}
                     </p>
                     {visit.note && (
                       <p className="text-sm text-gray-700 mt-1">{visit.note}</p>
                     )}
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded ${
-                    visit.status === 'added' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {visit.status === 'added' ? '参拝済み' : '削除済み'}
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${
+                      visit.status === "added"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {visit.status === "added" ? "参拝済み" : "削除済み"}
                   </span>
                 </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* コンシェルジュ診断履歴 */}
+      <section className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">コンシェルジュ診断履歴</h2>
+        {history.length === 0 ? (
+          <p className="text-gray-500">履歴はまだありません</p>
+        ) : (
+          <ul className="space-y-4">
+            {history.map((h) => (
+              <li key={h.id} className="border rounded p-3 bg-gray-50">
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-lg">{h.shrine_name}</p>
+                  {h.shrine && (
+                    <Link
+                      href={`/shrines/${h.shrine}`}
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      詳細を見る →
+                    </Link>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mt-1">{h.reason}</p>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {h.tags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  {new Date(h.created_at).toLocaleString("ja-JP")}
+                </p>
               </li>
             ))}
           </ul>
