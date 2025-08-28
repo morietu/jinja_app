@@ -11,7 +11,11 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 
-export default function RankingPage() {
+type Props = {
+  onBack: () => void;
+};
+
+export default function RankingView({ onBack }: Props) {
   const [monthly, setMonthly] = useState<RankingItem[]>([]);
   const [yearly, setYearly] = useState<RankingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,12 +35,13 @@ export default function RankingPage() {
 
   return (
     <main className="p-4">
+
       <h1 className="text-xl font-bold mb-4">人気神社ランキング</h1>
 
       <Tabs defaultValue="monthly">
         <TabsList>
-          <TabsTrigger value="monthly">月間</TabsTrigger>
-          <TabsTrigger value="yearly">年間</TabsTrigger>
+          <TabsTrigger value="monthly">月間TOP10</TabsTrigger>
+          <TabsTrigger value="yearly">年間TOP10</TabsTrigger>
         </TabsList>
 
         <TabsContent value="monthly">
