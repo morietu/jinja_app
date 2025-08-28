@@ -10,6 +10,10 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+
+console.log("DEBUG baseURL =", api.defaults.baseURL);
+
+
 // リクエストごとに Authorization ヘッダーを追加
 api.interceptors.request.use((config) => {
   console.log("➡️ API Request:", `${config.baseURL}${config.url}`);
@@ -18,7 +22,8 @@ api.interceptors.request.use((config) => {
   if (
     config.url?.startsWith("/shrines") ||
     config.url?.startsWith("/goriyaku-tags") ||
-    config.url?.startsWith("/ranking")
+    config.url?.startsWith("/ranking") ||
+    config.url === "/concierge"
   ) {
     return config;
   }

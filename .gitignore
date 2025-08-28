@@ -35,3 +35,9 @@ media/
 # Node（使っていれば）
 node_modules/
 NUL
+
+# DB data (ignore everything under .docker/db/data)
+.docker/db/data/
+
+# Logs
+backend/logs/
