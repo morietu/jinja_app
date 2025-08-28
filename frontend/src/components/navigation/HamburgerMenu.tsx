@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DialogTitle } from "@radix-ui/react-dialog"; // ✅ 追加
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -13,6 +14,9 @@ export default function HamburgerMenu() {
         <button className="p-2 border rounded-md">☰</button>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-4 space-y-4">
+        {/* ✅ アクセシビリティ対応 */}
+        <DialogTitle className="sr-only">メニュー</DialogTitle>
+
         <h2 className="text-lg font-bold mb-4">メニュー</h2>
         <nav className="flex flex-col space-y-2">
           <Link href="/" onClick={() => setOpen(false)}>🏠 ホーム</Link>
