@@ -32,12 +32,12 @@ class FavoriteToggleView(APIView):
 
 
 class UserFavoriteListView(generics.ListAPIView):
+    """
+    ログインユーザーのお気に入り Shrine 一覧を返す
+    """
     serializer_class = ShrineListSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return (
-            Favorite.objects
-            .filter(user=self.request.user)
-            .select_related("shrine")
-        )
+        # Shrine を直接返す
+        return Shrine.objects.filter(favorited_by__user=self.request.user)

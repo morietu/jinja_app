@@ -6,6 +6,7 @@ import { getShrines, Shrine } from "@/lib/api/shrines";
 import { GoriyakuTag } from "@/lib/api/types";
 import api from "@/lib/api/client";
 import ShrineCard from "@/components/ShrineCard";
+import Link from "next/link";
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -97,21 +98,25 @@ export default function SearchPage() {
 
       {/* 検索結果 */}
       {!keyword && selectedTags.length === 0 ? (
-  <p className="text-gray-500">条件を入力して検索してください</p>
-) : loading ? (
-  <p className="p-4">読み込み中...</p>
-) : error ? (
-  <p className="p-4 text-red-500">{error}</p>
-) : shrines.length === 0 ? (
-  <p className="text-gray-500">該当する神社はありませんでした</p>
-) : (
-  <ul className="grid gap-4">
-    {shrines.map((shrine) => (
-      <li key={shrine.id}>
-        <ShrineCard shrine={shrine} />
-      </li>
-    ))}
-  </ul>
+        <p className="text-gray-500">条件を入力して検索してください</p>
+          ) : loading ? (
+          <p className="p-4">読み込み中...</p>
+            ) : error ? (
+          <p className="p-4 text-red-500">{error}</p>
+            ) : shrines.length === 0 ? (
+          <p className="text-gray-500">該当する神社はありませんでした</p>
+            ) : (
+
+        <ul className="grid gap-4">
+          {shrines.map((shrine) => (
+            <li key={shrine.id}>
+              <Link href={`/shrines/${shrine.id}`}>
+                <ShrineCard shrine={shrine} />
+              </Link>
+            
+            </li>
+          ))}
+        </ul>
 )}
     </main>
   );

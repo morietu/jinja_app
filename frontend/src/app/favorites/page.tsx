@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getFavorites } from "@/lib/api/favorites";
 import { Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/ShrineCard";
+import Link from "next/link";
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Shrine[]>([]);
@@ -30,7 +31,9 @@ export default function FavoritesPage() {
       <ul className="grid gap-4">
         {favorites.map((shrine) => (
           <li key={shrine.id}>
-            <ShrineCard shrine={shrine} />
+            <Link href={`/shrines/${shrine.id}`}>
+              <ShrineCard shrine={shrine} />
+            </Link>
           </li>
         ))}
       </ul>
