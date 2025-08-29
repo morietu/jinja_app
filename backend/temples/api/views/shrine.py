@@ -11,14 +11,41 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = Shrine.objects.all()
-        name = self.request.query_params.get("name")
+        params = self.request.query_params
+
+        # 新: q パラメータ検索
+        q = params.get("q")
+        if q:
+            queryset = queryset.filter(
+                Q(name_jp__icontains=q) |
+                Q(name_romaji__icontains=q) |
+                Q(address__icontains=q) |
+                Q(goriyaku__icontains=q) |
+                Q(goriyaku_tags__name__icontains=q)
+            )
+
+        # 旧: 名前検索
+        name = params.get("name")
         if name:
             queryset = queryset.filter(
                 Q(name_jp__icontains=name) | Q(name_romaji__icontains=name)
             )
-        tag = self.request.query_params.get("tag")
-        if tag:
-            queryset = queryset.filter(goriyaku_tags__name__icontains=tag)
+
+        # 旧: ご利益タグ
+        goriyaku = params.getlist("goriyaku")
+        if goriyaku:
+            queryset = queryset.filter(goriyaku_tags__name__in=goriyaku)
+
+        # 旧: 神格タグ
+        shinkaku = params.getlist("shinkaku")
+        if shinkaku:
+            queryset = queryset.filter(goriyaku_tags__name__in=shinkaku)
+
+        # 旧: 地域タグ
+        region = params.getlist("region")
+        if region:
+            queryset = queryset.filter(goriyaku_tags__name__in=region)
+
         return queryset.distinct()
 
     def get_serializer_class(self):
@@ -31,5 +58,3 @@ class GoriyakuTagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GoriyakuTag.objects.all()
     serializer_class = GoriyakuTagSerializer
     permission_classes = [permissions.AllowAny]
-
-
