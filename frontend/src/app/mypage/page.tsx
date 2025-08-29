@@ -3,30 +3,35 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFavorites } from "@/lib/api/favorites";
-import { getVisits, Visit } from "@/lib/api/visits";
+
+
 import { Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/ShrineCard";
 import { getCurrentUser, updateUser, User } from "@/lib/api/users";
 import { getConciergeHistory, ConciergeHistory } from "@/lib/api/concierge";
 import Link from "next/link";
 import { refreshAccessToken } from "@/lib/api/auth";
+import { Goshuin, getGoshuin } from "@/lib/api/goshuin";
+import Image from "next/image";
+
 
 
 
 export default function MyPage() {
   const [favorites, setFavorites] = useState<Shrine[]>([]);
-  const [visits, setVisits] = useState<Visit[]>([]);
+
   const [history, setHistory] = useState<ConciergeHistory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
+  const [goshuin, setGoshuin] = useState<Goshuin[]>([]);
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       try {
         let token = localStorage.getItem("access_token");
-        
+
         if (!token) {
           // access_token が無ければ refresh を試す
           token = await refreshAccessToken();
@@ -36,21 +41,21 @@ export default function MyPage() {
         }
       }
 
-        let [userData, favs, vis, hist] = await Promise.all([
+        let [userData, favs, gos, hist]: [User, Shrine[], Goshuin[], ConciergeHistory[]] = await Promise.all([
           getCurrentUser(),
           getFavorites(),
-          getVisits(),
+          getGoshuin(),
           getConciergeHistory(),
         ]);
 
         console.log("ユーザーデータ:", userData);
         console.log("お気に入り:", favs);
-        console.log("参拝履歴:", vis);
+        console.log("御朱印:", gos);
         console.log("診断履歴:", hist);
 
         setUser(userData);
         setFavorites(favs);
-        setVisits(vis);
+        setGoshuin(gos);
         setHistory(hist);
       } catch (err: any) {
         console.error("データ取得エラー:", err);
@@ -219,51 +224,40 @@ export default function MyPage() {
   )}
 </section>
 
+      {/* 御朱印帳 */}
+      <section className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">御朱印帳</h2>
+        {goshuin.length === 0 ? (
+          <p className="text-gray-500">御朱印はまだ投稿されていません</p>
+        ) : (
+          <ul className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {goshuin.map((item) => (
+              <li key={item.id} className="border rounded overflow-hidden shadow-sm">
+                <Link href={`/shrines/${item.shrine}`}>
+                  <Image
+                    src={item.image_url || "/placeholder.png"}
+                    alt={item.shrine_name || "御朱印"}
+                    width={300}
+                    height={200}
+                    className="w-full h-40 object-cover"
+                  />
+                  <div className="p-2 text-sm">
+                    <p className="font-bold">{item.shrine_name}</p>
+                    <p className="text-gray-600 text-xs">
+                      {new Date(item.created_at).toLocaleDateString("ja-JP")}
+                    </p>
+                  </div>
+                </Link>
+              </li>
 
-      {/* 参拝履歴 */}
-<section className="bg-white p-6 rounded-lg shadow">
-  <h2 className="text-xl font-semibold mb-4">参拝履歴</h2>
-  {visits.length === 0 ? (
-    <p className="text-gray-500">参拝履歴はありません</p>
-  ) : (
-    <ul className="space-y-4">
-      {visits.map((visit) => (
-        <li
-          key={visit.id}
-          className={`border-b pb-2 ${
-            visit.status !== "added" ? "opacity-50" : ""
-          }`}
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <h3
-                className="font-medium text-blue-600 cursor-pointer hover:underline"
-                onClick={() => router.push(`/shrines/${visit.shrine.id}`)}
-              >
-                {visit.shrine.name_jp}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {new Date(visit.visited_at).toLocaleDateString("ja-JP")}
-              </p>
-              {visit.note && (
-                <p className="text-sm text-gray-700 mt-1">{visit.note}</p>
-              )}
-            </div>
-            <span
-              className={`px-2 py-1 text-xs rounded ${
-                visit.status === "added"
-                  ? "bg-green-100 text-green-800"
-                  : "bg-gray-200 text-gray-600"
-              }`}
-            >
-              {visit.status === "added" ? "参拝済み" : "削除済み"}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )}
-</section>
+            ))}
+          </ul>
+        )}
+      </section>
+
+
+
+
 
 
       {/* コンシェルジュ診断履歴 */}

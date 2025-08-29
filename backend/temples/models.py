@@ -5,8 +5,16 @@ from django.utils import timezone
 
 
 class GoriyakuTag(models.Model):
+    CATEGORY_CHOICES = [
+        ("ご利益", "願望・テーマ別"),
+        ("神格", "祭神の種類"),
+        ("地域", "地域や役割"),
+    ]
+    
     """ご利益タグ（マスターデータ: 固定15個）"""
     name = models.CharField(max_length=50, unique=True)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default="ご利益")
+
 
     def __str__(self):
         return self.name
