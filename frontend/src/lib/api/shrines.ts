@@ -4,6 +4,7 @@ import { GoriyakuTag } from "./types";
 
 
 export type Shrine = {
+  is_favorite(is_favorite: any): [any, any];
   id: number;
   name_jp: string;
   address: string;
@@ -15,17 +16,16 @@ export type Shrine = {
   goriyaku_tags: GoriyakuTag[];
 };
 
-// 一覧取得
-export async function getShrines(params: { name?: string; tags?: string[] } = {}): Promise<Shrine[]> {
+// 一覧取得 Qで一本化
+export async function getShrines(params: { q?: string } = {}): Promise<Shrine[]> {
   const query = new URLSearchParams();
-  if (params.name) query.append("name", params.name);
-  if (params.tags) params.tags.forEach((t) => query.append("tag", t));
+  if (params.q) query.append("q", params.q);
 
-  const res = await api.get(`/shrines/${query.toString() ? `?${query.toString()}` : ""}`);
+  const res = await api.get(`/shrines${query.toString() ? `?${query.toString()}` : ""}`);
   return res.data;
 }
 
-// 詳細取得（axiosで統一）
+// 詳細取得（axiosで統一）　ここの詳細取得は残す？
 export async function getShrine(id: number): Promise<Shrine> {
   const res = await api.get(`/shrines/${id}/`);
   return res.data;
