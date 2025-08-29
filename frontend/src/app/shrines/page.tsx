@@ -34,5 +34,3 @@ export default function ShrinesPage() {
     </main>
   );
 }
-
-これが今の既存のこーど

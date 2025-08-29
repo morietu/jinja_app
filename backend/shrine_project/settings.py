@@ -183,6 +183,10 @@ CONTENT_SECURITY_POLICY = {
 
 GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "/usr/lib/x86_64-linux-gnu/libgdal.so")
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
 from pprint import pprint
 pprint(DATABASES["default"])
 

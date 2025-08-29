@@ -13,3 +13,5 @@ class UserSerializer(serializers.ModelSerializer):
             "is_public",
             "created_at",
         ]
+
+
