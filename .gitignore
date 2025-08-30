@@ -34,10 +34,12 @@ media/
 
 # Node（使っていれば）
 node_modules/
-NUL
 
 # DB data (ignore everything under .docker/db/data)
 .docker/db/data/
+
+# Docker pgAdmin data
+.docker/pgadmin/data/
 
 # Logs
 backend/logs/
