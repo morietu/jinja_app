@@ -33,9 +33,9 @@ export async function getShrine(id: number): Promise<Shrine> {
 
 export async function createShrine(data: {
   name_jp: string;
-  address: string;
-  latitude: number;
-  longitude: number;
+  address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   goriyaku?: string;
   sajin?: string;
 }) {
