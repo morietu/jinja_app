@@ -30,3 +30,15 @@ export async function getShrine(id: number): Promise<Shrine> {
   const res = await api.get(`/shrines/${id}/`);
   return res.data;
 }
+
+export async function createShrine(data: {
+  name_jp: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  goriyaku?: string;
+  sajin?: string;
+}) {
+  const res = await api.post("/shrines/", data);
+  return res.data;
+}
