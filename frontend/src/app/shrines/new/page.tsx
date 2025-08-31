@@ -1,20 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createShrine } from "@/lib/api/shrines";
+import { getGoriyakuTags } from "@/lib/api/tags";
 
 export default function NewShrinePage() {
   const router = useRouter();
   const [form, setForm] = useState({
     name_jp: "",
     address: "",
-    latitude: 0,
-    longitude: 0,
     goriyaku: "",
     sajin: "",
   });
-  const [error, setError] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+
+  // ご利益タグ一覧を取得
+  useEffect(() => {
+    getGoriyakuTags().then(setTags);
+  }, []);
+
+  // ご利益タグ選択切り替え
+  const toggleTag = (id: number) => {
+    setSelectedTags((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    );
+  };
 
   // 住所から緯度経度を自動取得
   const geocodeAddress = async (address: string) => {
@@ -30,9 +43,50 @@ export default function NewShrinePage() {
     }
     throw new Error("住所から位置を取得できませんでした");
   };
-  
-  
-   return (
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name_jp) {
+      setErrors({ name_jp: "神社名は必須です" });
+      return;
+    }
+
+    try {
+      let lat: number | null = null;
+      let lon: number | null = null;
+
+      if (form.address) {
+        try {
+          const coords = await geocodeAddress(form.address);
+          lat = coords.latitude;
+          lon = coords.longitude;
+        } catch {
+          setErrors({ address: "住所から位置を取得できませんでした" });
+          return;
+        }
+      }
+
+      const shrine = await createShrine({
+        name_jp: form.name_jp,
+        address: form.address || "",
+        latitude: lat,
+        longitude: lon,
+        goriyaku: form.goriyaku,
+        sajin: form.sajin,
+        goriyaku_tags: selectedTags, // 👈 追加
+      });
+
+      router.push(`/shrines/${shrine.id}`);
+    } catch (err) {
+      setErrors({ general: "登録に失敗しました。" });
+    }
+  };
+
+  return (
     <div className="max-w-md mx-auto p-4">
       <h1 className="text-xl font-bold mb-4">神社新規登録</h1>
       {errors.general && <p className="text-red-500">{errors.general}</p>}
@@ -45,7 +99,9 @@ export default function NewShrinePage() {
             onChange={handleChange}
             className="border p-2 w-full"
           />
-          {errors.name_jp && <p className="text-red-500 text-sm">{errors.name_jp}</p>}
+          {errors.name_jp && (
+            <p className="text-red-500 text-sm">{errors.name_jp}</p>
+          )}
         </div>
         <div>
           <input
@@ -55,7 +111,28 @@ export default function NewShrinePage() {
             onChange={handleChange}
             className="border p-2 w-full"
           />
-          {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+          {errors.address && (
+            <p className="text-red-500 text-sm">{errors.address}</p>
+          )}
+        </div>
+        <div>
+          <h2 className="font-bold">ご利益タグ</h2>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={`px-3 py-1 rounded border ${
+                  selectedTags.includes(tag.id)
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100"
+                }`}
+                onClick={() => toggleTag(tag.id)}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
         </div>
         <input
           name="goriyaku"
@@ -71,7 +148,10 @@ export default function NewShrinePage() {
           onChange={handleChange}
           className="border p-2 w-full"
         />
-        <button type="submit" className="bg-blue-500 text-white p-2 w-full rounded">
+        <button
+          type="submit"
+          className="bg-blue-500 text-white p-2 w-full rounded"
+        >
           登録する
         </button>
       </form>
