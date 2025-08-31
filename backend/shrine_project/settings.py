@@ -1,15 +1,24 @@
 from pathlib import Path
 import os
+import sys
 import environ
+from datetime import timedelta
 
+# ---- OSGeo4W の DLL パス（将来GIS再有効化する時のために残すが、今はGIS無効）----
+if sys.platform == "win32":
+    os.add_dll_directory(r"C:\OSGeo4W\bin")
+
+# 参考: GIS復活時に使う
+GDAL_LIBRARY_PATH = r"C:\OSGeo4W\bin\gdal310.dll"
+GEOS_LIBRARY_PATH = r"C:\OSGeo4W\bin\geos_c.dll"
+
+# ---- パス/ENV ----
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# .env.dev を読み込む
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env.dev")
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-...')
-DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-...")
+DEBUG = True  # まず開発優先
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
 CSRF_TRUSTED_ORIGINS = (
@@ -18,176 +27,151 @@ CSRF_TRUSTED_ORIGINS = (
 )
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# --- INSTALLED_APPS ---
+# ---- アプリ ----
 INSTALLED_APPS = [
     # Django
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.gis',  # PostGIS対応
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    # ★ GISはひとまず無効化（GDAL周りが落ち着くまで）
+    # "django.contrib.gis",
 
-    # サードパーティ
-    'csp',
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'corsheaders',
+    # 3rd party
+    "csp",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "corsheaders",
 
-    # Local apps
-    'users',
-    'temples',
-    # 今後追加予定
-    # 'maps',
-    # 'concierge',
-    # 'common',
+    # Local
+    "users",
+    "temples.apps.TemplesConfig",
 ]
 
 AUTH_USER_MODEL = "users.User"
 
-# --- MIDDLEWARE ---
+# ---- ミドルウェア ----
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'csp.middleware.CSPMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',   # Common より前
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = ['http://127.0.0.1:8001', 'http://localhost:8001']
-CORS_ALLOW_CREDENTIALS = True
+ROOT_URLCONF = "shrine_project.urls"
+WSGI_APPLICATION = "shrine_project.wsgi.application"
 
-# --- 開発向けの緩めCSP（本番は unsafe-* を外すの推奨） ---
-
-
-ROOT_URLCONF = 'shrine_project.urls'
-WSGI_APPLICATION = 'shrine_project.wsgi.application'
-
+# ---- DB: まず SQLite で起動優先 ----
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',  # PostGIS対応
-        'NAME': os.getenv('DJANGO_DB_NAME', 'shrine_db'),
-        'USER': os.getenv('DJANGO_DB_USER', 'shrine_user'),
-        'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', 'shrine_pass'),
-        'HOST': os.getenv('DJANGO_DB_HOST', 'db'),
-        'PORT': os.getenv('DJANGO_DB_PORT', '5432'),
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
+# ---- 国際化 ----
 LANGUAGE_CODE = "ja"
 TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True
 USE_TZ = True
 
+# ---- 静的/メディア ----
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# ---- テンプレート ----
 TEMPLATES = [
-  {
-    'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'DIRS': [],
-    'APP_DIRS': True,
-    'OPTIONS': {
-        'context_processors': [
-            "django.template.context_processors.debug",
-            'django.template.context_processors.request',
-            "django.template.context_processors.static",
-            'django.contrib.auth.context_processors.auth',
-            'django.contrib.messages.context_processors.messages',
-            "shrine_project.context_processors.maps_api_key",
-        ],
-    },
-}]
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",   # admin sidebar 用
+                "django.template.context_processors.static",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "shrine_project.context_processors.maps_api_key",
+            ],
+        },
+    }
+]
 
 LOGIN_REDIRECT_URL = "mypage"
 LOGOUT_REDIRECT_URL = "/"
 
+# ---- Google Maps ----
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
-GOOGLE_MAPS_MAP_ID  = os.getenv("GOOGLE_MAPS_MAP_ID", "DEMO_MAP_ID")
+GOOGLE_MAPS_MAP_ID = os.getenv("GOOGLE_MAPS_MAP_ID", "DEMO_MAP_ID")
 
+# ---- DRF / JWT ----
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.AllowAny",
     ),
 }
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+}
 
+# ---- CORS ----
 CORS_ALLOWED_ORIGINS = [
-    'http://127.0.0.1:8001',
-    'http://localhost:8001',
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-AUTH_USER_MODEL = "users.User"
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+]
 
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 3600
+
+# ---- ログ ----
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / "logs" / "django.log",
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": str(LOG_DIR / "django.log"),
         },
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
         },
     },
-    'root': {
-        'handlers': ['file', "console"],
-        'level': 'DEBUG',
+    "root": {
+        "handlers": ["file", "console"],
+        "level": "DEBUG",
     },
 }
 
+# ---- 将来 Spatialite を試す場合のために残す（今は未使用）----
+SPATIALITE_LIBRARY_PATH = os.getenv("SPATIALITE_LIBRARY_PATH")
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-
-CONTENT_SECURITY_POLICY = {
-    "DIRECTIVES": {
-        "default-src": ("'self'",),
-        "style-src": ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
-        "script-src": (
-            "'self'",
-            "https://maps.googleapis.com",
-            "https://maps.gstatic.com",
-            "'unsafe-inline'",
-            "'unsafe-eval'",
-        ),
-        "font-src": ("'self'", "https://fonts.gstatic.com"),
-        "img-src": (
-            "'self'",
-            "data:",
-            "https://*.googleapis.com",
-            "https://*.gstatic.com",
-            "https://*.google.com",
-        ),
-        "connect-src": ("'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"),
-    }
-}
-
-GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH", "/usr/lib/x86_64-linux-gnu/libgdal.so")
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-
-from pprint import pprint
-pprint(DATABASES["default"])
-
-
+# Auto geocode toggle (default off)
+AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE","0").lower() in ("1","true","yes")
