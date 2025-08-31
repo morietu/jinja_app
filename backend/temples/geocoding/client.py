@@ -34,7 +34,7 @@ class GeocodingClient:
 
     def _geocode_opencage(self, address: str) -> GeocodeResult:
         url = "https://api.opencagedata.com/geocode/v1/json"
-        params = {"q": address, "key": self.api_key, "language": "ja", "limit": 1, "no_annotations": 1}
+        params = {"q": address, "key": self.api_key, "language": "ja", "limit": 1, "no_annotations": 1, "countrycode": "jp"}
         resp = self.session.get(url, params=params, timeout=10)
         if resp.status_code != 200:
             text = getattr(resp, "text", "")[:200]
