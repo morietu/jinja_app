@@ -44,3 +44,13 @@ except Exception as e:
         return JsonResponse({"error": "failed to import temples.api.urls",
                              "detail": str(e)}, status=500)
     urlpatterns += [path("api/__import_error__", import_error)]
+from temples.views_me import me
+
+urlpatterns += [
+    path("api/me/", me),
+]
+from temples.views_me import me
+
+urlpatterns += [
+    path("api/me/", me),
+]
