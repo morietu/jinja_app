@@ -1,0 +1,6 @@
+[目的] access 期限切れ時に refresh で自動再送されることを確認
+[手順]
+1) ログインして access_token/refresh_token が localStorage に入っている状態にする
+2) access の寿命を短くする or 手動で無効化して保護APIを叩く
+3) 401 → /token/refresh/ → 元リクエスト再送 → 200 の流れを Network で確認
+[期待] refresh は同時に1回だけ実行され、以降のリクエストは新accessで成功する
