@@ -103,6 +103,22 @@ npm install
 npm run dev
 ```
 
+## Windows: Miniforge + conda-forge（GDAL/Geo スタック推奨）
+
+GDAL, pyproj, shapely, fiona, geopandas など地理系は **pip/venv だと Windows で詰まりやすい**ため、Miniforge + conda-forge を推奨します。
+
+### 1) Miniforge の初期化
+PowerShell:
+```powershell
+& "$env:USERPROFILE\Miniforge3\Scripts\conda.exe" init powershell
+# いったん PowerShell を閉じて開き直す
+conda --version
+
+## Git Bash
+"$HOME/Miniforge3/Scripts/conda.exe" init bash
+exec -l "$SHELL"
+conda --version
+
 ## アクセス先
 
 - **管理画面**: http://localhost:8000/admin/
@@ -118,4 +134,8 @@ npm run dev
 - ランキングバッチ処理（自動集計・ログ保存）
 - コンシェルジュAIの強化（干支→四柱推命→吉方位へ拡張）
 
-
+### Windows: Miniforge + conda-forge
+```powershell
+conda create -n jinja_app_py311 -c conda-forge python=3.11 gdal pyproj shapely fiona geopandas rtree -y
+conda activate jinja_app_py311
+python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo())"
