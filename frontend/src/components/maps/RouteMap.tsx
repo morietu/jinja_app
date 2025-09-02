@@ -1,51 +1,74 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
+import { Loader } from "@googlemaps/js-api-loader";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type LatLng = { lat: number; lng: number }
+type LatLng = { lat: number; lng: number };
 
 type Props = {
-  origin: LatLng
-  destination: LatLng
-}
+  origin: LatLng;
+  destination: LatLng;
+  zoom?: number;
+  height?: string;
+};
 
-export default function RouteMap({ origin, destination }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const [mode, setMode] = useState<google.maps.TravelMode>("WALKING")
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer>()
+export default function RouteMap({ origin, destination, zoom = 14, height = "384px" }: Props) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<google.maps.TravelMode>("WALKING");
+
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!;
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+
+  const bounds = useMemo(() => {
+    const b = new google.maps.LatLngBounds();
+    b.extend(origin);
+    b.extend(destination);
+    return b;
+  }, [origin, destination]);
 
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!divRef.current || !apiKey) return;
 
-    // Google Maps 初期化
-    const map = new google.maps.Map(mapRef.current, {
-      center: origin,
-      zoom: 14,
-    })
+    const loader = new Loader({ apiKey, version: "weekly" });
+    let map: google.maps.Map | null = null;
+    let renderer: google.maps.DirectionsRenderer | null = null;
 
-    const directionsService = new google.maps.DirectionsService()
-    directionsRendererRef.current = new google.maps.DirectionsRenderer()
-    directionsRendererRef.current.setMap(map)
+    loader.load().then(() => {
+      if (!divRef.current) return;
 
-    const renderRoute = () => {
-      directionsService.route(
-        {
-          origin,
-          destination,
-          travelMode: mode,
-        },
+      map = new google.maps.Map(divRef.current, {
+        center: origin,
+        zoom,
+        mapId,
+        gestureHandling: "greedy",
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+      });
+
+      const service = new google.maps.DirectionsService();
+      renderer = new google.maps.DirectionsRenderer({ suppressMarkers: false });
+      renderer.setMap(map);
+
+      service.route(
+        { origin, destination, travelMode: mode },
         (result, status) => {
           if (status === "OK" && result) {
-            directionsRendererRef.current?.setDirections(result)
+            renderer!.setDirections(result);
+            map!.fitBounds(bounds);
           } else {
-            console.error("Directions request failed:", status)
+            console.error("Directions failed:", status);
           }
         }
-      )
-    }
+      );
+    });
 
-    renderRoute()
-  }, [origin, destination, mode])
+    return () => {
+      renderer?.setMap(null);
+      // @ts-expect-error: release reference
+      map = null;
+    };
+  }, [apiKey, mapId, origin, destination, mode, zoom, bounds]);
 
   return (
     <div className="w-full">
@@ -60,7 +83,7 @@ export default function RouteMap({ origin, destination }: Props) {
           <option value="DRIVING">車</option>
         </select>
       </div>
-      <div ref={mapRef} className="w-full h-96 border rounded" />
+      <div ref={divRef} className="w-full border rounded" style={{ height }} />
     </div>
-  )
+  );
 }
