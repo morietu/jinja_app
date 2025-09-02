@@ -3,7 +3,7 @@ import { Shrine } from "./shrines";
 
 // お気に入り一覧
 export async function getFavorites(): Promise<Shrine[]> {
-  const res = await api.get("/favorites/");
+  const res = await api.get("/api/favorites/");
   return res.data; // バックエンドが Shrine のリストを返す仕様ならこのままでOK
 }
 

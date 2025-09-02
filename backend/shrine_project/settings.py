@@ -1,7 +1,32 @@
 # backend/shrine_project/settings.py
 from pathlib import Path
 import os
+import sys
 from datetime import timedelta
+
+_CONDA_PREFIX = Path(sys.prefix)  # 例: C:\Users\user\Miniforge3\envs\jinja_app_py311
+_DLL_DIR     = _CONDA_PREFIX / "Library" / "bin"
+_GDAL_DATA   = _CONDA_PREFIX / "Library" / "share" / "gdal"
+_PROJ_LIB    = _CONDA_PREFIX / "Library" / "share" / "proj"
+
+# manage.py でもやっているが、settings 側でもベルト＆サスペンダーで通す
+if hasattr(os, "add_dll_directory") and _DLL_DIR.exists():
+    os.add_dll_directory(str(_DLL_DIR))
+
+# gdal*.dll を自動検出（conda は gdal.dll のことがある）
+_gdal_dll = None
+try:
+    for p in _DLL_DIR.glob("gdal*.dll"):
+        _gdal_dll = p
+        break
+except Exception:
+    pass
+
+# Django が参照する設定値
+GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")
+GDAL_DATA         = os.getenv("GDAL_DATA")
+PROJ_LIB          = os.getenv("PROJ_LIB")
+GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")
 
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent   # .../backend/shrine_project
@@ -36,6 +61,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # GeoDjango
+    "django.contrib.gis",   # ← 追加（GISモデルを使うなら必須）
+
 
     # 3rd-party（最小）
     "rest_framework",
@@ -92,10 +121,17 @@ TEMPLATES = [
 ]
 
 # ========= データベース（まずは SQLite）=========
+def _env(name, fallback_name, default=None):
+    return os.getenv(name, os.getenv(fallback_name, default))
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.getenv("DJANGO_DB_NAME", "jinja_db"),
+        "USER": os.getenv("DJANGO_DB_USER", "admin"),
+        "PASSWORD": os.getenv("DJANGO_DB_PASSWORD", ""),
+        "HOST": os.getenv("DJANGO_DB_HOST", "db"),
+        "PORT": os.getenv("DJANGO_DB_PORT", "5432"),
     }
 }
 
@@ -106,7 +142,9 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.AllowAny",
+    
     ),
+    "DEFAULT_ROUTER_TRAILING_SLASH": "/?",
 }
 
 SIMPLE_JWT = {

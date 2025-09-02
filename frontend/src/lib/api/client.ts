@@ -1,9 +1,10 @@
+// frontend/src/lib/api/client.ts
 import axios, { InternalAxiosRequestConfig } from "axios";
 
 const isServer = typeof window === "undefined";
 const BASE_URL = isServer
-  ? process.env.NEXT_PUBLIC_API_BASE_SERVER || "http://web:8000/api"
-  : process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+  ? process.env.NEXT_PUBLIC_API_BASE_SERVER || "http://web:8000"
+  : process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -11,32 +12,64 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const ACCESS_KEY = "access_token";
-const REFRESH_KEY = "refresh_token";
+// ---- トークンキーを両対応（既存との互換維持）----
+const ACCESS_KEYS = ["access_token", "access"];
+const REFRESH_KEYS = ["refresh_token", "refresh"];
 
-// 認証不要APIの除外
-const isNoAuth = (url: string) =>
-  url.startsWith("/shrines") ||
-  url.startsWith("/goriyaku-tags") ||
-  url.startsWith("/ranking") ||
-  url === "/concierge" ||
-  url.startsWith("/token"); // /token/, /token/refresh/
+function getFromAny(keys: string[]) {
+  if (isServer) return null;
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v) return { key: k, value: v };
+  }
+  return null;
+}
+function setAll(keys: string[], value: string) {
+  if (isServer) return;
+  keys.forEach((k) => localStorage.setItem(k, value));
+}
+function removeAll(keys: string[]) {
+  if (isServer) return;
+  keys.forEach((k) => localStorage.removeItem(k));
+}
 
+// ---- 末尾スラッシュ補正（/token系や拡張子付きは除外）----
+function ensureTrailingSlash(u: string) {
+  if (!u) return u;
+  if (u.startsWith("/token") || u.includes(".")) return u;
+  const [path, qs = ""] = u.split("?");
+  if (path.endsWith("/")) return u;
+  return qs ? `${path}/?${qs}` : `${path}/`;
+}
+
+
+
+// -------------------------
+// リクエストインターセプター
+// -------------------------
 api.interceptors.request.use((config) => {
   const url = config.url || "";
+
+  // 末尾スラッシュを標準化（/token系は除外）
+  if (!url.startsWith("/token")) {
+    config.url = ensureTrailingSlash(url);
+  }
+
+  // 認証不要ならそのまま
   if (isNoAuth(url)) return config;
 
-  if (!isServer) {
-    const token = window.localStorage.getItem(ACCESS_KEY);
-    if (token) {
-      config.headers = config.headers ?? {};
-      (config.headers as any).Authorization = `Bearer ${token}`;
-    }
+  // Authorization 付与（両対応キー）
+  const tk = getFromAny(ACCESS_KEYS);
+  if (tk) {
+    config.headers = config.headers ?? {};
+    (config.headers as any).Authorization = `Bearer ${tk.value}`;
   }
   return config;
 });
 
-// 401→refresh→再送（多重refreshを抑止）
+// -------------------------
+// レスポンスインターセプター（401→refresh→再送）
+// -------------------------
 let isRefreshing = false;
 let waitQueue: Array<(t: string) => void> = [];
 
@@ -53,6 +86,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // すでに refresh 中なら待ってから再送
     if (isRefreshing) {
       const newToken = await new Promise<string>((resolve) => waitQueue.push(resolve));
       original.headers = original.headers ?? {};
@@ -66,26 +100,34 @@ api.interceptors.response.use(
 
     try {
       if (isServer) throw error;
-      const refresh = window.localStorage.getItem(REFRESH_KEY);
-      if (!refresh) throw error;
 
-      const { data } = await axios.post(`${api.defaults.baseURL}/token/refresh/`, { refresh });
+      const r = getFromAny(REFRESH_KEYS);
+      if (!r) throw error;
+
+      const { data } = await axios.post(
+        `${api.defaults.baseURL}/api/token/refresh/`,
+        { refresh: r.value }
+      );
+
       const newAccess: string = data.access;
       if (!newAccess) throw new Error("No access token from refresh");
 
-      window.localStorage.setItem(ACCESS_KEY, newAccess);
+      // 新 access を全キーに保存
+      setAll(ACCESS_KEYS, newAccess);
+
+      // 待機中のリクエストを再開
       waitQueue.forEach((fn) => fn(newAccess));
       waitQueue = [];
 
+      // 元リクエストを再送
       original.headers = original.headers ?? {};
       (original.headers as any).Authorization = `Bearer ${newAccess}`;
       return api(original);
     } catch (e) {
-      if (!isServer) {
-        window.localStorage.removeItem(ACCESS_KEY);
-        window.localStorage.removeItem(REFRESH_KEY);
-        if (typeof window !== "undefined") window.location.href = "/login";
-      }
+      // 失敗時はトークンを全削除してログインへ
+      removeAll(ACCESS_KEYS);
+      removeAll(REFRESH_KEYS);
+      if (!isServer && typeof window !== "undefined") window.location.href = "/login";
       throw e;
     } finally {
       isRefreshing = false;

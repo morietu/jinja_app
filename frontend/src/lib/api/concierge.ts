@@ -32,6 +32,6 @@ export type ConciergeHistory = {
 
 // 履歴取得
 export async function getConciergeHistory(): Promise<ConciergeHistory[]> {
-  const res = await api.get("/concierge/history/");
+  const res = await api.get("/api/concierge/history/");
   return res.data;
 }
