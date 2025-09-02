@@ -1,3 +1,4 @@
+# --- ここから ---
 annotated-types==0.7.0
 anyio==4.9.0
 asgiref==3.9.1
@@ -44,9 +45,12 @@ openai==1.97.1
 packaging==25.0
 pillow==11.3.0
 proglog==0.1.12
-psycopg==3.2.9
-psycopg-binary==3.2.9
-psycopg2-binary==2.9.10
+
+# ここを統一：psycopg (v3) のバイナリ版のみを採用
+psycopg[binary]==3.2.9
+# psycopg2-binary==2.9.10   ← 使わないなら削除
+# psycopg==3.2.9            ← [binary] と二重になるので不要
+
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycryptodomex==3.23.0
@@ -74,4 +78,6 @@ typing_extensions==4.14.1
 tzdata==2025.2
 urllib3==2.5.0
 whitenoise==6.9.0
-openai>=1.0.0
+
+# GDAL は Dockerfile で OS 版に合わせて入れるため “ここには書かない” のが安全
+# --- ここまで ---

@@ -24,9 +24,9 @@ class Shrine(models.Model):
     """神社"""
     name_jp = models.CharField(max_length=100)
     name_romaji = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=255)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    address = models.CharField(max_length=255, null=False, blank=False)
+    latitude = models.FloatField(null=False)
+    longitude = models.FloatField(null=False)
     location = gis_models.PointField(null=True, blank=True, srid=4326)  # PostGIS対応
     goriyaku = models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
     sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
