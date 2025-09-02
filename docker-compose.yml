@@ -11,7 +11,7 @@ services:
       - ./.docker/db/data:/var/lib/postgresql/data
       - ./.docker/db/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shrine_user} -d ${POSTGRES_DB:-shrine_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-jinja_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,6 +38,18 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
+    environment:
+      DJANGO_DB_NAME: ${DJANGO_DB_NAME}
+      DJANGO_DB_USER: ${DJANGO_DB_USER}
+      DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD}
+      DJANGO_DB_HOST: ${DJANGO_DB_HOST}
+      DJANGO_DB_PORT: ${DJANGO_DB_PORT}
+
+      # ← GDAL/GEOS/PROJ は「空」で上書き → つまり未設定になる
+      GDAL_LIBRARY_PATH:
+      GEOS_LIBRARY_PATH:
+      GDAL_DATA:
+      PROJ_LIB:
     depends_on:
       - db
     volumes:
@@ -47,6 +59,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
+
 
 
 
