@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from temples.api.views.concierge import ConciergeAPIView, ConciergeHistoryListView
-
+from temples.api.views.geocode import GeocodeView
 from .views import (
     ShrineViewSet,
     GoriyakuTagViewSet,
@@ -30,5 +30,6 @@ urlpatterns = [
     path("route/", RouteView.as_view(), name="route"),
     path("concierge/", ConciergeAPIView.as_view(), name="concierge"),
     path("concierge/history/", ConciergeHistoryListView.as_view(), name="concierge_history"),
+    path("geocode/", GeocodeView.as_view(), name="geocode"),
 ]
 
