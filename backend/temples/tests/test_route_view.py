@@ -1,8 +1,10 @@
+from .factories import make_user, make_shrine
 # temples/tests/test_route_view.py
 import os
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from temples.models import Shrine
 
 
@@ -11,8 +13,8 @@ class RouteViewTests(TestCase):
         # テンプレで <script ... key=...> を出すために一時キーを設定
         os.environ["GOOGLE_MAPS_API_KEY"] = "test-key"
         # 最小のユーザー＆神社
-        self.user = User.objects.create_user(username="u", password="p")
-        self.shrine = Shrine.objects.create(name="S1", owner=self.user)
+        self.user = make_user(username="u", password="p")
+        self.shrine = make_shrine(name="S1", owner=self.user)
 
     def test_requires_login_redirects_to_login(self):
         url = reverse("temples:shrine_route", args=[self.shrine.pk])

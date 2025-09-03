@@ -1,3 +1,5 @@
+# backend/temples/api/urls.py
+
 from django.urls import path, include
 from temples.api.views.concierge import ConciergeRecommendationsView
 
@@ -13,13 +15,14 @@ from .views import (
     VisitCreateView,
     UserVisitListView,
     RankingAPIView,
-    GoshuinViewSet
+
 )
 
 router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrines")
 router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="goriyaku-tags")
-router.register(r"goshuin", GoshuinViewSet, basename="goshuin")
+# router.register(r"goshuin", basename="goshuin")
+  # TODO: 実装後に復活
 
 
 urlpatterns = [
@@ -35,4 +38,5 @@ urlpatterns = [
     path("geocode/", GeocodeView.as_view(), name="geocode"),
     path("concierge/recommendations/", ConciergeRecommendationsView.as_view(), name="concierge-recommendations"),
 ]
+
 

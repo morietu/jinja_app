@@ -1,13 +1,15 @@
+from .factories import make_user, make_shrine
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from temples.models import Shrine
 
 class ShrinePermissionTests(TestCase):
     def setUp(self):
-        self.u1 = User.objects.create_user("u1", password="p")
-        self.u2 = User.objects.create_user("u2", password="p")
-        self.s1 = Shrine.objects.create(name="S1", owner=self.u1)
+        self.u1 = make_user("u1", password="p")
+        self.u2 = make_user("u2", password="p")
+        self.s1 = make_shrine(name="S1", owner=self.u1)
 
     def test_non_owner_cannot_view_detail(self):
         self.client.login(username="u2", password="p")
