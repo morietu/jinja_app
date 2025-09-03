@@ -139,3 +139,6 @@ conda --version
 conda create -n jinja_app_py311 -c conda-forge python=3.11 gdal pyproj shapely fiona geopandas rtree -y
 conda activate jinja_app_py311
 python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo())"
+
+## Backend tests:
+  docker compose exec -T web pytest -q
