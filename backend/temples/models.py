@@ -21,8 +21,6 @@ class GoriyakuTag(models.Model):
 
 
 class Shrine(models.Model):
-    name = models.CharField(max_length=255, default="")
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shrines', null=True, blank=True)
     """神社"""
     name_jp = models.CharField(max_length=100)
     name_romaji = models.CharField(max_length=100, blank=True, null=True)
@@ -62,7 +60,12 @@ class Favorite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("user", "shrine")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "shrine"],
+                name="uq_favorite_user_shrine",
+            )
+        ]
         ordering = ["-created_at"]
 
     def __str__(self):
