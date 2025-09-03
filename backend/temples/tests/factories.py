@@ -9,65 +9,50 @@ def make_user(username=None, password="p", **extra):
     return User.objects.create_user(username=username, password=password, **extra)
 
 def make_shrine(**overrides):
-    """
-    Shrine のフィールド差異を吸収するファクトリ。
-    - name -> name_jp へ自動マップ（存在すれば）
-    - owner/user -> 実際のUser FKフィールド名へ自動マップ
-    - address が必須ならデフォルトを補う
-    """
+    # owner/user は取り出して保持（FK/M2M に使う）
+    owner = overrides.pop("owner", None) or overrides.pop("user", None)
+
     fields = {f.name for f in Shrine._meta.fields}
     data = {}
 
-    # name 系
-    if "name" in overrides:
-        val = overrides.pop("name")
+    # name → name_jp の互換
+    name = overrides.pop("name", None)
+    if name is not None:
         if "name" in fields:
-            data["name"] = val
+            data["name"] = name
         elif "name_jp" in fields:
-            data["name_jp"] = val
+            data["name_jp"] = name
     else:
         if "name" in fields:
             data["name"] = "テスト神社"
         elif "name_jp" in fields:
             data["name_jp"] = "テスト神社"
 
-    # address 必須なら補う
+    # address がモデルにあればデフォルトを補う
     if "address" in fields and "address" not in overrides:
         data["address"] = "東京都テスト区1-1-1"
 
-    # User FK フィールド名を推測
-    owner_override = overrides.pop("owner", None) or overrides.pop("user", None)
-    owner_field = None
+    # User FK フィールド名を推測してセット（存在する場合）
+    owner_fk_field = None
     for f in Shrine._meta.fields:
         if isinstance(f, models.ForeignKey):
             model = getattr(getattr(f, "remote_field", None), "model", None)
             if model and "user" in model.__name__.lower():
-                owner_field = f.name
+                owner_fk_field = f.name
                 break
-    if owner_override and owner_field:
-        data[owner_field] = owner_override
+    if owner and owner_fk_field:
+        data[owner_fk_field] = owner
 
-    data.update(overrides)
-        # keep schema compatibility between `name` and `name_jp`
-    if 'name' in data and 'name_jp' not in data:
-        data['name_jp'] = data['name']
-    if 'name' not in data and 'name_jp' in data:
-        data['name'] = data['name_jp']
-        # -- schema-compat for name/name_jp --
-    # 1) prefer to mirror 'name' -> 'name_jp' when model has no 'name'
-    from temples.models import Shrine as _S
-    _fields = {f.name for f in _S._meta.get_fields() if getattr(f, "column", None)}
+    # 実在フィールドのみ上書き
+    for k, v in overrides.items():
+        if k in fields:
+            data[k] = v
 
-    if "name" in data and "name" not in _fields and "name_jp" in _fields:
-        # copy over then drop invalid key
-        data.setdefault("name_jp", data["name"])
-        data.pop("name", None)
+    shrine = Shrine.objects.create(**data)
 
-    if "name_jp" in data and "name_jp" not in _fields and "name" in _fields:
-        data.setdefault("name", data["name_jp"])
-        data.pop("name_jp", None)
+    # M2M owners があれば追加
+    owners_rel = getattr(shrine, "owners", None)
+    if owner and owners_rel is not None and hasattr(owners_rel, "add"):
+        owners_rel.add(owner)
 
-    # （将来のスキーマ差異に備え）未知のキーは除去
-    data = {k: v for k, v in data.items() if k in _fields}
-
-    return Shrine.objects.create(**data)
+    return shrine
