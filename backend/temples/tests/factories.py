@@ -48,4 +48,26 @@ def make_shrine(**overrides):
         data[owner_field] = owner_override
 
     data.update(overrides)
+        # keep schema compatibility between `name` and `name_jp`
+    if 'name' in data and 'name_jp' not in data:
+        data['name_jp'] = data['name']
+    if 'name' not in data and 'name_jp' in data:
+        data['name'] = data['name_jp']
+        # -- schema-compat for name/name_jp --
+    # 1) prefer to mirror 'name' -> 'name_jp' when model has no 'name'
+    from temples.models import Shrine as _S
+    _fields = {f.name for f in _S._meta.get_fields() if getattr(f, "column", None)}
+
+    if "name" in data and "name" not in _fields and "name_jp" in _fields:
+        # copy over then drop invalid key
+        data.setdefault("name_jp", data["name"])
+        data.pop("name", None)
+
+    if "name_jp" in data and "name_jp" not in _fields and "name" in _fields:
+        data.setdefault("name", data["name_jp"])
+        data.pop("name_jp", None)
+
+    # （将来のスキーマ差異に備え）未知のキーは除去
+    data = {k: v for k, v in data.items() if k in _fields}
+
     return Shrine.objects.create(**data)

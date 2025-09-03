@@ -1,17 +1,13 @@
-# backend/shrine_project/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse, JsonResponse
-from temples.views_me import me
-
-
-# ヘルス
-def healthz(_): return HttpResponse("ok", content_type="text/plain")
-
-# JWTで叩ける /api/users/me/ の一時スタブ（後でtemples実装に置換）
+from django.http import HttpResponse
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from temples.views_me import me
+
+def healthz(_): return HttpResponse("ok", content_type="text/plain")
 
 class UserMeStub(APIView):
     permission_classes = [IsAuthenticated]
@@ -19,38 +15,23 @@ class UserMeStub(APIView):
         u = request.user
         return Response({"id": u.id, "username": u.username, "email": u.email})
 
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
 urlpatterns = [
     path("__healthz", healthz),
     path("api/ping/", healthz),
 
-    path("api/users/me/", UserMeStub.as_view()),
-
-    # ★ JWT
+    # JWT
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
+    # 一時 /api/users/me/ と /api/me/
+    path("api/users/me/", UserMeStub.as_view()),
+    path("api/me/", me),
+
+    # ★ API: backend/temples/api/urls.py
+    path("api/", include("temples.api.urls")),
+
+    # ★ Web: backend/temples/urls.py
+    path("", include(("temples.urls", "temples"), namespace="temples")),
+
     path("admin/", admin.site.urls),
-    path("api/me/", me),
-
-]
-
-# temples.api.urls は安全に取り込む（失敗時は理由を可視化）
-try:
-    urlpatterns += [path("api/", include("temples.api.urls"))]
-except Exception as e:
-    def import_error(_):
-        return JsonResponse({"error": "failed to import temples.api.urls",
-                             "detail": str(e)}, status=500)
-    urlpatterns += [path("api/__import_error__", import_error)]
-from temples.views_me import me
-
-urlpatterns += [
-    path("api/me/", me),
-]
-from temples.views_me import me
-
-urlpatterns += [
-    path("api/me/", me),
 ]

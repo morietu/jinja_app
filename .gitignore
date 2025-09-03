@@ -41,3 +41,6 @@ NUL
 
 # Logs
 backend/logs/
+# local artifacts
+backend/app/
+frontend/pytest.ini
