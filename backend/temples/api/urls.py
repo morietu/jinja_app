@@ -6,6 +6,7 @@ from temples.api.views.concierge import ConciergeRecommendationsView
 from rest_framework.routers import DefaultRouter
 from temples.api.views.concierge import ConciergeAPIView, ConciergeHistoryListView
 from temples.api.views.geocode import GeocodeView
+from .views.favorites import FavoriteViewSet
 from .views import (
     ShrineViewSet,
     GoriyakuTagViewSet,
@@ -21,10 +22,11 @@ from .views import (
 router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrines")
 router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="goriyaku-tags")
-# router.register(r"goshuin", basename="goshuin")
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
+
   # TODO: 実装後に復活
 
-
+urlpatterns = router.urls
 urlpatterns = [
     path("", include(router.urls)),
     path("shrines/<int:shrine_id>/favorite/", FavoriteToggleView.as_view(), name="favorite_toggle"),
