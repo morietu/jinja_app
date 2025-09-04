@@ -1,24 +1,26 @@
-# shrine_project/urls.py
-from django.conf import settings
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+from django.conf import settings
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView, TokenRefreshView, TokenVerifyView
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,  # 使わないなら削除OK
 )
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("temples.urls")),
 
-    # ★ token系を直に登録（users.urlsの影響を受けないようにする）
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("api/auth/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+    # アプリのAPI
+    path("api/", include("temples.urls")),  # 既存のAPI
+    path("api/", include("users.urls")),    # /api/users/me/ を提供（users/urls.py 側で定義）
 
-    # users 側の /me などはこれでマウント（token系は上で直付けしているので競合しません）
-    path("api/auth/", include(("users.urls", "users"), namespace="users")),
+    # JWT エンドポイント（/api/token/... で固定）
+    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
 ]
 
+# デバッグ用
 if settings.DEBUG:
     try:
         from temples import debug_views  # optional
