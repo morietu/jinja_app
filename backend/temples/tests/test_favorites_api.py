@@ -1,5 +1,6 @@
 import pytest
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 from .factories import make_user, make_shrine
 
 @pytest.mark.django_db
@@ -9,20 +10,22 @@ def test_favorites_crud_happy_path():
     c = APIClient()
     assert c.login(username="apiu", password="p")
 
+token = str(RefreshToken.for_user(u).access_token)
+c.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     # list: empty
     res = c.get("/api/favorites/")
     assert res.status_code == 200
     assert res.json() == []
 
     # create
-    res = c.post("/api/favorites/", {"shrine": s.id}, format="json")
+    res = c.post("/api/favorites/", {"shrine_id": s.id}, format="json")
     assert res.status_code == 201
     fav = res.json()
     fav_id = fav["id"]
     assert fav["shrine"] == s.id
 
     # duplicate -> 400
-    res = c.post("/api/favorites/", {"shrine": s.id}, format="json")
+    res = c.post("/api/favorites/", {"shrine_id": s.id}, format="json")
     assert res.status_code == 400
 
     # list: one item (own only)
@@ -46,10 +49,14 @@ def test_favorites_are_user_scoped():
     s = make_shrine(name="Scoped Shrine", owner=owner)
 
     c_owner = APIClient(); assert c_owner.login(username="owner", password="p")
+token_owner = str(RefreshToken.for_user(owner).access_token)
+c_owner.credentials(HTTP_AUTHORIZATION=f"Bearer {token_owner}")
     c_other = APIClient(); assert c_other.login(username="other", password="p")
 
+token_other = str(RefreshToken.for_user(other).access_token)
+c_other.credentials(HTTP_AUTHORIZATION=f"Bearer {token_other}")
     # owner adds
-    res = c_owner.post("/api/favorites/", {"shrine": s.id}, format="json")
+    res = c_owner.post("/api/favorites/", {"shrine_id": s.id}, format="json")
     assert res.status_code == 201
     fav_id = res.json()["id"]
 
