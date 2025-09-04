@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - "backend/**"
-      - "infra/**"
+      - "docker-compose.yml"
       - ".github/workflows/backend-tests-compose.yml"
   push:
     branches:
@@ -21,61 +21,62 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # CI 専用の .env を生成（必要最小限）
+      # リポジトリ直下に CI 用の .env.ci を生成
       - name: Create .env.ci
         run: |
-          mkdir -p infra
-          cat > infra/.env.ci <<'EOF'
-          # --- DB ---
-          POSTGRES_DB=app
-          POSTGRES_USER=app
-          POSTGRES_PASSWORD=app
-          # --- Django ---
+          cat > .env.ci <<'EOF'
+          # --- Postgres (db サービス用) ---
+          POSTGRES_DB=jinja_db
+          POSTGRES_USER=admin
+          POSTGRES_PASSWORD=admin_pass
+          POSTGRES_PORT=5432
+
+          # --- Django (web サービス用) ---
+          DJANGO_DB_NAME=jinja_db
+          DJANGO_DB_USER=admin
+          DJANGO_DB_PASSWORD=admin_pass
+          DJANGO_DB_HOST=db
+          DJANGO_DB_PORT=5432
+
+          # 任意: Django settings
           DJANGO_SETTINGS_MODULE=shrine_project.settings
-          # DATABASE_URL は compose のサービス名(db)を使う
-          DATABASE_URL=postgresql://app:app@db:5432/app
           PYTHONDONTWRITEBYTECODE=1
           PYTHONUNBUFFERED=1
           EOF
 
-      # 依存サービスを含むコンテナ群を起動
+      # db と web だけ起動（pgadmin / frontend は CI では不要）
       - name: docker compose up (build & start)
         run: |
-          docker compose -f infra/docker-compose.yml --env-file infra/.env.ci up -d --build
-          docker compose -f infra/docker-compose.yml ps
+          docker compose -f docker-compose.yml --env-file .env.ci up -d --build db web
+          docker compose -f docker-compose.yml ps
 
-      # DB が立ち上がるまで待機（ヘルスチェック or pg_isready）
       - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            if docker compose -f infra/docker-compose.yml exec -T db pg_isready -U app -h localhost; then
+            if docker compose -f docker-compose.yml exec -T db pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-jinja_db} -h localhost; then
               echo "Postgres is ready"; break
             fi
             echo "Waiting for Postgres ($i/30)..."; sleep 2
           done
 
-      # 依存パッケージに pytest が含まれていない場合の保険
       - name: Ensure pytest exists (inside web)
         run: |
-          docker compose -f infra/docker-compose.yml exec -T web sh -lc "python -m pip install -q --upgrade pip && (pytest --version || pip install -q pytest pytest-django)"
+          docker compose -f docker-compose.yml exec -T web sh -lc "python -m pip install -q --upgrade pip && (pytest --version || pip install -q pytest pytest-django)"
 
-      # マイグレーション（必要なら）
-      - name: Django migrate (optional but recommended)
+      - name: Django migrate
         run: |
-          docker compose -f infra/docker-compose.yml exec -T web python manage.py migrate --noinput
+          docker compose -f docker-compose.yml exec -T web python manage.py migrate --noinput
 
-      # テスト実行
       - name: Run pytest in web container
         run: |
-          docker compose -f infra/docker-compose.yml exec -T web pytest -q --maxfail=1 --disable-warnings
+          docker compose -f docker-compose.yml exec -T web pytest -q --maxfail=1 --disable-warnings
 
-      # 失敗してもログを採取して後片付け
       - name: Collect logs
         if: always()
         run: |
           mkdir -p artifacts
-          docker compose -f infra/docker-compose.yml logs --no-color web > artifacts/web.log || true
-          docker compose -f infra/docker-compose.yml logs --no-color db  > artifacts/db.log  || true
+          docker compose -f docker-compose.yml logs --no-color web > artifacts/web.log || true
+          docker compose -f docker-compose.yml logs --no-color db  > artifacts/db.log  || true
 
       - name: Upload logs
         if: always()
@@ -86,4 +87,4 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: docker compose -f infra/docker-compose.yml down -v
+        run: docker compose -f docker-compose.yml down -v
