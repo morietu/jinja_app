@@ -1,0 +1,35 @@
+# backend/Dockerfile.web
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# OS 依存ライブラリ
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential \
+    gdal-bin \
+    libgdal-dev \
+    libgeos-dev \
+    proj-bin \
+    libproj-dev \
+    postgresql-client \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# OS の gdal バージョンに合わせて Python GDAL をインストール
+RUN GDAL_VER="$(gdal-config --version)" \
+ && python -m pip install --upgrade pip \
+ && python -m pip install "GDAL==${GDAL_VER}.*"
+
+# 依存インストール（build context=backend なので相対でOK）
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install -r /app/requirements.txt
+
+# アプリ本体（backend 配下をすべて）
+COPY . /app
+
+EXPOSE 8000
+
+CMD sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
