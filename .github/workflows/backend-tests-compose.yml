@@ -88,3 +88,7 @@ jobs:
       - name: Teardown
         if: always()
         run: docker compose -f docker-compose.yml down -v
+
+      - name: Install dev dependencies in web container
+        run: |
+          docker compose -f docker-compose.yml exec -T web sh -lc "pip install -q -r /app/requirements-dev.txt"
