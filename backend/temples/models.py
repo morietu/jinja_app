@@ -162,5 +162,3 @@ class ConciergeHistory(models.Model):
         user_str = getattr(self.user, "username", str(self.user))
         shrine_str = self.shrine.name_jp if self.shrine else "不明"
         return f"{user_str} → {shrine_str}"
-    
-    

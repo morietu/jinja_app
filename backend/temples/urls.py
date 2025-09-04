@@ -1,5 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 from . import views
+from .api_views import FavoriteViewSet
+
+router = DefaultRouter()
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
 
 app_name = "temples"
 
@@ -8,4 +14,5 @@ urlpatterns = [
     path("shrines/<int:pk>/", views.shrine_detail, name="shrine_detail"),
     path("shrines/<int:pk>/route/", views.shrine_route, name="shrine_route"),
     path("shrines/<int:pk>/favorite/", views.favorite_toggle, name="favorite_toggle"),
+    path("", include(router.urls)),  # => /favorites/ が有効に
 ]
