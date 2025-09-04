@@ -20,5 +20,9 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    from temples import debug_views
-    urlpatterns += [path("api/_debug/whoami/", debug_views.whoami)]
+    try:
+        from temples import debug_views  # optional
+    except Exception:
+        debug_views = None
+    if debug_views and hasattr(debug_views, "whoami"):
+        urlpatterns += [path("api/_debug/whoami/", debug_views.whoami)]
