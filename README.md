@@ -142,3 +142,9 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
 
 ## Backend tests:
   docker compose exec -T web pytest -q
+
+### Run tests locally
+```bash
+docker compose up -d db web
+docker compose exec -T web sh -lc "pip install -q pytest pytest-django && pytest -q"
+
