@@ -1,0 +1,29 @@
+name: backend tests
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & up services
+        run: |
+          docker compose up -d --build db web
+
+      - name: Run pytest inside web
+        run: |
+          docker compose exec -T web sh -lc "pip install -q pytest pytest-django && pytest -q"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
