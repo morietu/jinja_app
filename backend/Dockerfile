@@ -1,37 +1,29 @@
-# backend 用 (Debian slim 推奨)
 FROM python:3.11-slim
 
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
-# OS依存ライブラリ: GDAL/GEOS/PROJ + Postgres client 等
+# OSレイヤ（GDAL/GEOS/PROJ + psql クライアント）
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    build-essential \
-    gdal-bin \
-    libgdal-dev \
-    libgeos-dev \
-    proj-bin \
-    libproj-dev \
-    postgresql-client \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential gdal-bin libgdal-dev libgeos-dev proj-bin libproj-dev postgresql-client ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
-# OSの gdal バージョンに合わせて Python GDAL をインストール
-# 例: gdal-config --version が 3.8.4 なら GDAL==3.8.*
+# Python: pip更新 & GDAL は OS の gdal-config に合わせる
+RUN python -m pip install --upgrade pip
 RUN GDAL_VER="$(gdal-config --version)" \
-    && python -m pip install --upgrade pip \
-    && python -m pip install "GDAL==${GDAL_VER}.*"
+ && python -m pip install "GDAL==${GDAL_VER}.*"
 
-# 依存インストール（requirements.txt は backend 直下想定なら、パス合わせ注意）
-COPY requirements.txt /app/requirements.txt
-RUN python -m pip install -r requirements.txt
+# 依存関係（backend 配下を前提）
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
+# （任意）テスト用依存があるならインストール
+#   ない場合はこの2行はコメントアウトのままでOK
+# COPY backend/requirements-dev.txt /app/requirements-dev.txt
+# RUN pip install -r /app/requirements-dev.txt || true
 
 # アプリ本体
-COPY backend /app
+COPY backend/ /app/
 
 EXPOSE 8000
-
-# 起動（migrate → runserver）
 CMD sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"

@@ -48,3 +48,6 @@ frontend/pytest.ini
 # local artifacts
 backend/app/
 frontend/pytest.ini
+
+# local-only
+backend/favorites/
