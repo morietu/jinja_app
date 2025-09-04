@@ -1,5 +1,0 @@
-# backend/requirements-dev.txt
--r requirements.txt
-pytest>=8,<9
-pytest-django>=4.9,<5
-ruff==0.12.8
