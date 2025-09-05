@@ -40,6 +40,13 @@ export default function MyPageCard() {
           <Pressable style={styles.btn}><Text style={styles.btnText}>一覧を見る</Text></Pressable>
         </Link>
       </View>
+
+      <View style={{ width: 8 }} />
+
+  {/* ★ マイページ（プロフィール）を開く */}
+  <Link href="/profile" asChild>
+    <Pressable style={styles.btn}><Text style={styles.btnText}>開く</Text></Pressable>
+  </Link>
     </View>
   );
 }
