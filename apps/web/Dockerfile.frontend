@@ -1,0 +1,14 @@
+# frontend/Dockerfile.frontend
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 依存だけ先に入れてキャッシュ有効化
+COPY package*.json ./
+RUN npm ci
+
+# 残りをコピー
+COPY . .
+
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "-p", "3000", "-H", "0.0.0.0"]

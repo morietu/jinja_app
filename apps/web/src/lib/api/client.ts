@@ -1,3 +1,4 @@
+import { isNoAuth } from "./noauth";
 // frontend/src/lib/api/client.ts
 import axios, { InternalAxiosRequestConfig } from "axios";
 
