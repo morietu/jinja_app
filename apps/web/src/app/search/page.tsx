@@ -1,12 +1,17 @@
-"use client";
+
+import Link from "next/link";
+import { searchShrines } from "@/lib/api/shrines";
+import ShrineCard from "@/components/ShrineCard";
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getShrines, Shrine } from "@/lib/api/shrines";
 import { GoriyakuTag } from "@/lib/api/types";
 import api from "@/lib/api/client";
-import ShrineCard from "@/components/ShrineCard";
-import Link from "next/link";
+
+export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
+  const q = searchParams?.q;
+  const { items: shrines } = await searchShrines(q); // ← 常に配列
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -65,6 +70,7 @@ export default function SearchPage() {
     acc[tag.category].push(tag);
     return acc;
   }, {} as Record<string, GoriyakuTag[]>);
+  
 
   return (
     <main className="p-4 max-w-4xl mx-auto">
@@ -113,7 +119,7 @@ export default function SearchPage() {
               <Link href={`/shrines/${shrine.id}`}>
                 <ShrineCard shrine={shrine} />
               </Link>
-            
+
             </li>
           ))}
         </ul>

@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "AI参拝ナビ",
+    "slug": "ai-sanpai-navi",
+    "scheme": "ai-sanpai-navi",
+    "plugins": ["expo-router"],
+    "web": { "bundler": "metro" }
+  }
+}
