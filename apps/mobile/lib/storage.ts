@@ -5,7 +5,8 @@ export const keys = {
   stamps: "sanpai:stamps",     // 御朱印: {id, uri, createdAt}[]
   favorites: "sanpai:favs",    // お気に入り: shrineId[]
   visits: "sanpai:visits",     // 参拝回数
-  profile: "sanpai:profile",   // プロフィール
+  profile: "sanpai:profile",
+  recents: "sanpai:recents",   // プロフィール
 };
 
 async function getJSON<T>(key: string, fallback: T): Promise<T> {
@@ -64,4 +65,14 @@ export async function toggleFavorite(id: string) {
   const next = favs.includes(id) ? favs.filter(x => x !== id) : [id, ...favs];
   await setJSON(keys.favorites, next);
   return next.includes(id);
+}
+
+export async function pushRecent(id: string, limit = 10) {
+  const list = await getJSON<string[]>(keys.recents, []);
+  const next = [id, ...list.filter(x => x !== id)].slice(0, limit);
+  await setJSON(keys.recents, next);
+  return next;
+}
+export async function getRecents() {
+  return await getJSON<string[]>(keys.recents, []);
 }
