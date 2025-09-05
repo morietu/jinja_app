@@ -47,6 +47,8 @@ export default function Home() {
             <Text style={{ fontWeight:"600" }}>検索する</Text>
           </Pressable>
         </View>
+
+        
       </View>
 
       
