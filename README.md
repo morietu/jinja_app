@@ -64,12 +64,14 @@ jinja_app/
 │   ├── media/                # 御朱印画像（S3連携予定）
 │   └── manage.py
 │
-├── frontend/                 # React/Next.js (Expo対応)
-│   ├── app/                  # Next.js App Router ページ
-│   ├── components/           # ShrineCard / GoshuinCard / MapRoute / UI
-│   ├── lib/                  # APIクライアント
-│   ├── styles/               # Tailwindベースのテーマ
-│   └── public/               # 静的ファイル
+├── apps/
+│   ├── web/                  # Next.js (Webフロントエンド)
+│   │   ├── app/              # App Router ページ
+│   │   ├── components/       # ShrineCard / GoshuinCard / MapRoute / UI
+│   │   ├── lib/              # APIクライアント (axios)
+│   │   ├── styles/           # Tailwindベースのテーマ
+│   │   └── public/           # 静的ファイル
+│   └── mobile/               # Expo (モバイルアプリ)
 │
 ├── infra/                    # Docker / デプロイ設定
 │   ├── docker-compose.yml
@@ -98,10 +100,24 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 
 # フロントエンド起動
-cd frontend
+cd apps/web
 npm install
 npm run dev
-```
+
+# モバイル起動（Expo）
+cd apps/mobile
+npm install
+npm start
+
+
+### フロントエンド
+- **React / Next.js**（Web）
+- **Expo + React Native**（モバイル）
+- **shadcn/ui + Tailwind CSS**（和風×モダンのUIテーマ）
+- **axios**（APIクライアント用、`apps/web/lib/api.ts` に実装）
+
+
+
 
 ## Windows: Miniforge + conda-forge（GDAL/Geo スタック推奨）
 
