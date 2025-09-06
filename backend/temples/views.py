@@ -36,10 +36,8 @@ class RouteView(APIView):
 
         result = build_route(data["mode"], origin, destinations)
 
-        # レスポンス形式を軽く検証
-        out = RouteResponseSerializer(data=result)
-        out.is_valid(raise_exception=True)
-        return Response(out.validated_data, status=status.HTTP_200_OK)
+        # API 仕様は `from` キーのまま返す（Serializer 検証は行わない）
+        return Response(result, status=status.HTTP_200_OK)
 
 
 def _is_shrine_owner(user, shrine) -> bool:
