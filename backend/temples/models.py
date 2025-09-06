@@ -2,7 +2,30 @@ from django.db import models
 from django.contrib.gis.db import models as gis_models  # PostGIS対応
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.gis.geos import Point
+from django.core.validators import MinValueValidator, MaxValueValidator
 
+
+class PlaceRef(models.Model):
+    place_id = models.CharField(max_length=128, primary_key=True)
+    name = models.CharField(max_length=255, blank=True, default="")
+    address = models.CharField(max_length=255, blank=True, default="")
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    snapshot_json = models.JSONField(null=True, blank=True)
+    synced_at = models.DateTimeField(null=True, blank=True, auto_now=False)
+
+    def __str__(self):
+        return self.name or self.place_id
+    
+
+    class Meta:
+        db_table = "place_ref"
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["synced_at"]),
+        ]
+        
 
 class GoriyakuTag(models.Model):
     CATEGORY_CHOICES = [
@@ -10,14 +33,19 @@ class GoriyakuTag(models.Model):
         ("神格", "祭神の種類"),
         ("地域", "地域や役割"),
     ]
-    
     """ご利益タグ（マスターデータ: 固定15個）"""
     name = models.CharField(max_length=50, unique=True)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default="ご利益")
 
-
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.category})"
+
+    class Meta:
+        ordering = ["category", "name"]
+        indexes = [
+            models.Index(fields=["category", "name"]),
+        ]
+
 
 
 class Shrine(models.Model):
@@ -25,8 +53,10 @@ class Shrine(models.Model):
     name_jp = models.CharField(max_length=100)
     name_romaji = models.CharField(max_length=100, blank=True, null=True)
     address = models.CharField(max_length=255, null=False, blank=False)
-    latitude = models.FloatField(null=False)
-    longitude = models.FloatField(null=False)
+    latitude  = models.FloatField(null=False,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
+    longitude = models.FloatField(null=False,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
     location = gis_models.PointField(null=True, blank=True, srid=4326)  # PostGIS対応
     goriyaku = models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
     sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
@@ -44,6 +74,19 @@ class Shrine(models.Model):
 
     def __str__(self):
         return self.name_jp
+    
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["name_jp"]),
+            models.Index(fields=["updated_at"]),
+        ]
+    
+    def save(self, *args, **kwargs):
+        # lat/lng が入っているときは Point を同期（経度→x、緯度→y）
+        if self.latitude is not None and self.longitude is not None:
+            self.location = Point(self.longitude, self.latitude, srid=4326)
+        super().save(*args, **kwargs)
 
 
 class Favorite(models.Model):
@@ -119,6 +162,9 @@ class ViewLike(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     is_like = models.BooleanField(default=False)  # True=いいね, False=閲覧
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["created_at"]), models.Index(fields=["is_like"])]
 
     def __str__(self):
         action = "Like" if self.is_like else "View"
