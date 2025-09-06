@@ -4,7 +4,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.views import APIView
 
 from .models import Shrine, Favorite          # ← Shrine を追加
-from .serializers import ShrineSerializer, FavoriteSerializer
+from .api.serializers import ShrineSerializer, FavoriteSerializer, FavoriteUpsertSerializer
 from .services.places import text_search, get_or_sync_place, PlacesError
 
 
@@ -37,23 +37,40 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             .filter(user=self.request.user)
             .order_by("-id")
         )
+    def get_serializer_class(self):
+        # 書き込み時は Upsert（shrine_id / place_id のどちらでも受け付け）
+        if self.request.method in ("POST", "PUT", "PATCH"):
+            return FavoriteUpsertSerializer
+        return FavoriteSerializer
 
     # 冪等: 既存があれば 200、無ければ作成して 201
     def create(self, request, *args, **kwargs):
         shrine_id = request.data.get("shrine_id")
-        if shrine_id is None:
+        place_id  = request.data.get("place_id")
+        if not shrine_id and not place_id:
             return Response(
-                {"detail": "shrine_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "either shrine_id or place_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        obj, created = Favorite.objects.get_or_create(
-            user=request.user, shrine_id=shrine_id
-        )
-        serializer = self.get_serializer(obj)
+        try:
+            if place_id:
+                # PlaceRef を同期（将来の参照のため）
+                get_or_sync_place(place_id)
+                obj, created = Favorite.objects.get_or_create(
+                    user=request.user, place_id=place_id
+                )
+            else:
+                obj, created = Favorite.objects.get_or_create(
+                    user=request.user, shrine_id=shrine_id
+                )
+        except PlacesError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        data = FavoriteSerializer(obj).data
         return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 
