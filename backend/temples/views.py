@@ -1,5 +1,5 @@
-# temples/views.py
 import os
+from typing import List
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -8,9 +8,46 @@ from django.db import models
 
 from .models import Shrine
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import (
+    RouteRequestSerializer,
+    RouteResponseSerializer,
+)
+from .route_service import build_route, Point
+
+
+class RouteView(APIView):
+    """
+    POST /api/route/
+    認証は MVP 段階では無し（必要になれば JWT に差し替え）
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        s = RouteRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        data = s.validated_data
+
+        origin = Point(**data["origin"])
+        destinations = [Point(**p) for p in data["destinations"]]
+
+        result = build_route(data["mode"], origin, destinations)
+
+        # レスポンス形式を軽く検証
+        out = RouteResponseSerializer(data=result)
+        out.is_valid(raise_exception=True)
+        return Response(out.validated_data, status=status.HTTP_200_OK)
+
 
 def _is_shrine_owner(user, shrine) -> bool:
-    """Shrine の所有者判定（User FK / M2M / プロパティ / Favorite フォールバック対応）"""
+    """
+    Shrine の所有者判定（User FK / M2M / プロパティ / Favorite フォールバック対応）
+    - スキーマが流動的な段階を考慮し、いくつかの候補を探索
+    - 認可の暫定実装。将来的にはポリシーレイヤで統一する想定
+    """
     uid = getattr(user, "id", None)
     if uid is None:
         return False
@@ -65,6 +102,9 @@ def shrine_detail(request, pk: int):
 
 @login_required
 def shrine_route(request, pk: int):
+    """
+    HTML での簡易ルート表示。オーナー制度が未スキーマの場合のみ lat/lng パラメータで暫定許可。
+    """
     shrine = get_object_or_404(Shrine, pk=pk)
 
     ok = _is_shrine_owner(request.user, shrine)
