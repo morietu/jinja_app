@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.gis.geos import Point
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Q
 
 
 class PlaceRef(models.Model):
@@ -25,7 +26,7 @@ class PlaceRef(models.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["synced_at"]),
         ]
-        
+
 
 class GoriyakuTag(models.Model):
     CATEGORY_CHOICES = [
@@ -98,8 +99,12 @@ class Favorite(models.Model):
     shrine = models.ForeignKey(
         Shrine,
         on_delete=models.CASCADE,
-        related_name="favorited_by"
+        related_name="favorited_by",
+        null=True,
+        blank=True
     )
+    place_id = models.CharField(max_length=128, null=True, blank=True, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -107,12 +112,19 @@ class Favorite(models.Model):
             models.UniqueConstraint(
                 fields=["user", "shrine"],
                 name="uq_favorite_user_shrine",
-            )
+                condition=~Q(shrine=None),
+            ),
+            # place_id 運用の一意
+            models.UniqueConstraint(
+                fields=["user", "place_id"], name="uq_favorite_user_place",
+                condition=~Q(place_id=None),
+            ),
         ]
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.user} → {self.shrine}"
+        target = self.shrine.name_jp if self.shrine else (self.place_id or "?")
+        return f"{self.user} → {target}"
 
 
 class Visit(models.Model):
