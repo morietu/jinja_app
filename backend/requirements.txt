@@ -11,5 +11,4 @@ python-dotenv==1.1.1
 # ↑ dotenv と decouple はどちらか一方に統一推奨。decoupleを使うなら下行を有効化してdotenvを削除。
 # python-decouple==3.8
 djangorestframework-simplejwt>=5.3
-requests>=2.32
-djangorestframework-simplejwt>=5.3
+requests>=2.31.0

@@ -1,9 +1,11 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.views import APIView
 
 from .models import Shrine, Favorite          # ← Shrine を追加
 from .serializers import ShrineSerializer, FavoriteSerializer
+from .services.places import text_search, get_or_sync_place, PlacesError
 
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
@@ -53,3 +55,41 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
         )
+
+
+class PlacesSearchView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        q = request.GET.get("q")
+        lat = request.GET.get("lat")
+        lng = request.GET.get("lng")
+        if not q:
+            return Response({"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST)
+        lat_f = float(lat) if lat else None
+        lng_f = float(lng) if lng else None
+        try:
+            data = text_search(q, lat_f, lng_f)
+            return Response(data, status=status.HTTP_200_OK)
+        except PlacesError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class PlacesDetailView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, place_id: str):
+        try:
+            rec = get_or_sync_place(place_id)
+            return Response({
+                "place_id": rec.place_id,
+                "name": rec.name,
+                "address": rec.address,
+                "location": {"lat": rec.latitude, "lng": rec.longitude},
+                "snapshot": rec.snapshot_json,
+                "synced_at": rec.synced_at,
+            }, status=status.HTTP_200_OK)
+        except PlacesError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
