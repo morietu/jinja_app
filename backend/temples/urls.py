@@ -3,14 +3,14 @@ app_name = "temples"
 
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
-
-from . import views
 from .api_views import (
     ShrineViewSet, FavoriteViewSet,
     PlacesSearchView, PlacesDetailView,
-    PlacesTextSearchPagedView, PlacesNearbySearchView, PlacesPhotoProxyView, RouteAPIView,
-    PopularShrinesView
+    PlacesTextSearchPagedView, PlacesNearbySearchView, PlacesPhotoProxyView, RouteAPIView
 )
+from .views import PopularShrinesView
+from . import views
+
 
 router = DefaultRouter()
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
