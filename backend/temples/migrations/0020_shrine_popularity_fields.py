@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
         
         migrations.AddIndex(
             model_name="shrine",
-            index=SpatialIndex(fields=["location"], name="shrine_location_gix"),
+            index=models.Index(fields=["popular_score"], name="shrine_popular_idx"),
         ),
         migrations.RunPython(backfill_location_from_latlng, migrations.RunPython.noop),
     ]
