@@ -1,21 +1,32 @@
 import os
-from typing import List
+
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db import models
+import math
+from django.db.models import F, Value
+from django.db.models.functions import Abs
 
-from .models import Shrine
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from rest_framework import status
+from temples.serializers import PopularShrineSerializer
 from .serializers import (
-    RouteRequestSerializer,
-    RouteResponseSerializer,
-)
-from .route_service import build_route, Point
+     RouteRequestSerializer,
+     RouteResponseSerializer,
+ )
+
+
+from .models import Shrine
+
+
+
+from .route_service import build_route, Point as RoutePoint
 
 class ShrineListView(APIView):
     """URLリゾルバ用の最小スタブ。実装は後で差し替えます。"""
@@ -28,15 +39,15 @@ class RouteView(APIView):
     認証は MVP 段階では無し（必要になれば JWT に差し替え）
     """
     authentication_classes = []
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request):
         s = RouteRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         data = s.validated_data
 
-        origin = Point(**data["origin"])
-        destinations = [Point(**p) for p in data["destinations"]]
+        origin = RoutePoint(**data["origin"])
+        destinations = [RoutePoint(**p) for p in data["destinations"]]
 
         result = build_route(data["mode"], origin, destinations)
 
@@ -93,18 +104,42 @@ def shrine_list(request):
     # URL 逆引き用の最小実装
     return HttpResponse("ok")
 
-try:
-    from rest_framework.views import APIView
-    from rest_framework.response import Response
-except Exception:
-    APIView = object
-    def Response(data, status=200):  # fallback (テスト環境ではDRFあり想定)
-        return data
 
-class ShrineListView(APIView):  # テストが参照するクラス名だけ定義
-    def get(self, request, *args, **kwargs):
-        # TODO: 後で実装を置き換え
-        return Response({"results": []})
+class PopularShrinesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        limit = int(request.GET.get("limit", 10))
+        near = request.GET.get("near")          # "lat,lng"
+        radius_km = request.GET.get("radius_km")
+
+        qs = Shrine.objects.all().order_by("-popular_score", "-updated_at")
+
+        # 近接フィルタ：GIS関数なし版（バウンディングボックス＋近似距離でソート）
+        if near and radius_km:
+            try:
+                lat, lng = [float(v) for v in near.split(",")]
+                r_km = float(radius_km)
+                # 1度あたりのkm換算（おおよそ）。緯度は一定、経度は緯度によって変動
+                lat_delta = r_km / 111.32
+                lng_delta = r_km / (111.32 * max(0.000001, math.cos(math.radians(lat))))
+                # bboxで粗く絞り込み（FloatFieldのlatitude/longitudeを使用）
+                qs = qs.filter(
+                    latitude__gte=lat - lat_delta,
+                    latitude__lte=lat + lat_delta,
+                    longitude__gte=lng - lng_delta,
+                    longitude__lte=lng + lng_delta,
+                )
+                # 近似距離（度のマンハッタン距離）でセカンダリソート
+                qs = qs.annotate(
+                    _approx_deg=Abs(F("latitude") - Value(lat)) + Abs(F("longitude") - Value(lng))
+                ).order_by("-popular_score", "_approx_deg")
+            except Exception:
+                # パラメータ不正は無視してスコア順のみ
+                pass
+
+        data = PopularShrineSerializer(qs[:limit], many=True).data
+        return Response({"items": data, "limit": limit})
 
 
 @login_required
@@ -154,3 +189,4 @@ def favorite_toggle(request, pk: int):
     # URL 解決用の最小応答
     get_object_or_404(Shrine, pk=pk)
     return HttpResponse("ok")
+
