@@ -1,26 +1,23 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import path, include
 from django.conf import settings
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    # ✅ JWT 認証API
+    # temples は namespace 付きで 1 回だけ
+    path("api/", include(("temples.urls", "temples"), namespace="temples")),
+
+    # JWT
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
 
-    # ✅ アプリAPI
-    path("api/", include("temples.urls")),
+    # users は必要ならここで
     path("api/", include("users.urls")),
 ]
 
-# デバッグ用
 if settings.DEBUG:
     try:
         from temples import debug_views

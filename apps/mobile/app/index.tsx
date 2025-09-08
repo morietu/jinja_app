@@ -8,6 +8,9 @@ import RankingCarousel from "../components/home/RankingCarousel";
 import { SHRINES } from "../data/shrines";
 import MyPageCard from "../components/home/MyPageCard";
 
+// 🆕 追加
+import RecentViewed from "../components/home/RecentViewed";
+import NearbyShrines from "../components/home/NearbyShrines";
 
 export default function Home() {
   const router = useRouter();
@@ -47,18 +50,17 @@ export default function Home() {
             <Text style={{ fontWeight:"600" }}>検索する</Text>
           </Pressable>
         </View>
-
-        
       </View>
 
-      
-
+      {/* 既存 */}
       <SearchChips onChange={setFilters} />
       <RankingCarousel items={SHRINES.slice(0, 5)} />
-      
-      <MyPageCard />
 
-      
+      {/* ▼ 並び順：1) 最近見た → 2) 近くの神社 */}
+      <RecentViewed />
+      <NearbyShrines />
+
+      <MyPageCard />
     </ScrollView>
   );
 }

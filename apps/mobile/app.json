@@ -4,6 +4,15 @@
     "slug": "ai-sanpai-navi",
     "scheme": "ai-sanpai-navi",
     "plugins": ["expo-router"],
-    "web": { "bundler": "metro" }
+    "web": { "bundler": "metro" },
+
+    "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "近くの神社を表示するため、位置情報を利用します。"
+      }
+    },
+    "android": {
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    }
   }
 }
