@@ -2,7 +2,7 @@
 from typing import List, Tuple
 from rest_framework import serializers
 from .models import Shrine, Favorite
-
+from temples.models import Shrine
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
 class ShrineSerializer(serializers.ModelSerializer):
@@ -80,3 +80,25 @@ class RouteResponseSerializer(serializers.Serializer):
     distance_m_total = serializers.IntegerField(min_value=0)
     duration_s_total = serializers.IntegerField(min_value=0)
     provider = serializers.CharField()
+
+class PopularShrineSerializer(serializers.ModelSerializer):
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shrine
+        fields = [
+            "id", "name_jp", "address",
+            "latitude", "longitude",
+            "views_30d", "favorites_30d", "popular_score",
+        ]
+
+    def get_latitude(self, obj):
+        if getattr(obj, "location", None):
+            return obj.location.y
+        return getattr(obj, "latitude", None)
+
+    def get_longitude(self, obj):
+        if getattr(obj, "location", None):
+            return obj.location.x
+        return getattr(obj, "longitude", None)
