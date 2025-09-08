@@ -26,7 +26,7 @@ def backfill_location_from_latlng(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("temples", "0004_previous_migration"),  # ← 直前の番号に合わせて調整
+        ("temples", "0019_favorite_favorite_exactly_one_target"),  # ← 直前の番号に合わせて調整
     ]
 
     operations = [
