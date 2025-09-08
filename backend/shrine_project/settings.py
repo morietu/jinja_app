@@ -69,13 +69,18 @@ DATABASES = {
     }
 }
 
-# ========= Cache（REDIS_URL が無ければ Docker/ホストで既定を切替）=========
-REDIS_URL = os.getenv("REDIS_URL")
-if not REDIS_URL:
-    redis_host = "redis" if in_docker() else "127.0.0.1"
-    REDIS_URL = f"redis://{redis_host}:6379/0"
+# ========= Cache: REDIS_URL は明示設定のみ。未設定/127.0.0.1なら LocMem =========
+def _sanitize_redis_url(url: str) -> str:
+    url = (url or "").strip()
+    if not url:
+        return ""
+    # Docker 内で 127.0.0.1 / localhost 指定は接続不可になりがち → フォールバック
+    if in_docker() and ("127.0.0.1" in url or "localhost" in url):
+        return ""
+    return url
 
-
+REDIS_URL = _sanitize_redis_url(os.getenv("REDIS_URL", ""))
+CACHES = _build_cache()
 
 # ========= 効いている設定の確認（必要時のみ）=========
 if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
