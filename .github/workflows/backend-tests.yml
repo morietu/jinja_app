@@ -5,31 +5,38 @@ on:
   pull_request:
     paths:
       - "backend/**"
-      - "pyproject.toml"
-      - "requirements*.txt"
       - ".github/workflows/backend-tests.yml"
+      - "backend/requirements*.txt"
   push:
     branches:
       - "ci/**"
+      - "feature/**"
+      - "develop"
+      - "main"
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: postgres:16
+      db:
+        image: postgis/postgis:16-3.4
         env:
-          POSTGRES_DB: app
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
+          POSTGRES_DB: jinja_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ""
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U app"
+          --health-cmd="pg_isready -U admin -d jinja_db"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
 
     steps:
       - name: Checkout
@@ -44,21 +51,53 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
           restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install system deps (GDAL minimal)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
+          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
+
+      - name: Export env
+        run: |
+          echo "DJANGO_DB_NAME=jinja_db" >> $GITHUB_ENV
+          echo "DJANGO_DB_USER=admin" >> $GITHUB_ENV
+          echo "DJANGO_DB_PASSWORD=" >> $GITHUB_ENV
+          echo "DJANGO_DB_HOST=127.0.0.1" >> $GITHUB_ENV
+          echo "DJANGO_DB_PORT=5432" >> $GITHUB_ENV
+          echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
+          echo "PLACES_THROTTLE_BURST=30/min" >> $GITHUB_ENV
+          echo "PLACES_THROTTLE_SUSTAIN=1000/day" >> $GITHUB_ENV
+          echo "PLACES_CACHE_TTL_SECONDS=90" >> $GITHUB_ENV
+          echo "PLACES_PHOTO_CACHE_TTL_SECONDS=86400" >> $GITHUB_ENV
+          echo "GOOGLE_DEFAULT_LANGUAGE=ja" >> $GITHUB_ENV
+
+      - name: Wait for DB and enable PostGIS
+        env:
+          PGPASSWORD: ${{ env.DJANGO_DB_PASSWORD }}
+        run: |
+          for i in `seq 1 30`; do
+            (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break
+            echo "waiting for postgres..."; sleep 1
+          done
+          psql -h 127.0.0.1 -U "$DJANGO_DB_USER" -d "$DJANGO_DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+
+      - name: Run migrations
+        working-directory: backend
+        run: python manage.py migrate --noinput
 
       - name: Run pytest
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://app:app@localhost:5432/app
         run: pytest -q --maxfail=1 --disable-warnings
 
-      - name: Upload pytest cache/logs (always)
+      - name: Upload pytest artifacts (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
