@@ -14,4 +14,4 @@ export async function get<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // テストやデバッグ用
-+export const __internal = { BASE_URL };
+export const __internal = { BASE_URL };
