@@ -3,8 +3,14 @@ from django.contrib.gis.db import models as gis_models  # PostGIS 対応
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.gis.geos import Point
+
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Q, CheckConstraint
+
+
+
+
+
 
 
 class PlaceRef(models.Model):
@@ -47,40 +53,62 @@ class GoriyakuTag(models.Model):
             models.Index(fields=["category", "name"]),
         ]
 
-
-class Shrine(models.Model):
+class Shrine(gis_models.Model):
     """神社"""
-    name_jp = models.CharField(max_length=100)
-    name_romaji = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=255)
-    latitude = models.FloatField(
+
+    # 基本情報
+    name_jp = gis_models.CharField(max_length=100)
+    name_romaji = gis_models.CharField(max_length=100, blank=True, null=True)
+    address = gis_models.CharField(max_length=255)
+
+    # 位置情報
+    latitude = gis_models.FloatField(
         validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
     )
-    longitude = models.FloatField(
+    longitude = gis_models.FloatField(
         validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
     location = gis_models.PointField(null=True, blank=True, srid=4326)  # 経度(x), 緯度(y)
-    goriyaku = models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
-    sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
-    description = models.TextField(blank=True, null=True)
+
+    # ご利益・祭神など
+    goriyaku = gis_models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
+    sajin = gis_models.TextField(help_text="祭神", blank=True, null=True, default="")
+    description = gis_models.TextField(blank=True, null=True)
 
     # 多対多: ご利益タグ（検索用）
-    goriyaku_tags = models.ManyToManyField(GoriyakuTag, related_name="shrines", blank=True)
+    goriyaku_tags = gis_models.ManyToManyField(
+        "temples.GoriyakuTag", related_name="shrines", blank=True
+    )
 
     # 将来のAI用（五行・属性）
-    element = models.CharField(max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水")
+    element = gis_models.CharField(
+        max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
+    )
 
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
+    # タイムスタンプ
+    created_at = gis_models.DateTimeField(default=timezone.now)
+    updated_at = gis_models.DateTimeField(auto_now=True)
+
+    # 人気集計（直近30日）
+    views_30d = gis_models.PositiveIntegerField(default=0)
+    favorites_30d = gis_models.PositiveIntegerField(default=0)
+    popular_score = gis_models.FloatField(default=0.0)
+    last_popular_calc_at = gis_models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name_jp
+
 
     class Meta:
         ordering = ["-updated_at"]
         indexes = [
             models.Index(fields=["name_jp"]),
             models.Index(fields=["updated_at"]),
+            # 人気順の高速化（descはB-Treeで表現できないためクエリでORDER BY DESC、
+            # ここでは並び替えに寄与する一般Indexを付与）
+            models.Index(fields=["popular_score"], name="shrine_popular_idx"),
+            # 位置検索用の空間インデックス（PostGIS / Spatialite）
+
         ]
 
     def save(self, *args, **kwargs):
