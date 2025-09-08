@@ -1,6 +1,5 @@
 # backend/temples/admin.py
 from django.contrib import admin
-from django.contrib.gis.admin import OSMGeoAdmin
 from .models import Shrine
 
 
@@ -10,7 +9,7 @@ class GoriyakuTagAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 @admin.register(Shrine)
-class ShrineAdmin(OSMGeoAdmin):
+class ShrineAdmin(admin.ModelAdmin):
     """
     神社モデルの管理画面
     - 位置情報は地図ウィジェットで編集
