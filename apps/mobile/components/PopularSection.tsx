@@ -1,15 +1,15 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import PopularShrineCard from "./PopularShrineCard";
 import { CardSkeleton } from "./Skeletons";
 import { usePopularShrines } from "../hooks/usePopularShrines";
 
 export default function PopularSection() {
   const { state, reload } = usePopularShrines(10);
-  const router = useRouter();
 
-  const goDetail = (id: string) => router.push({ pathname: "/shrine/[id]", params: { id } });
-  const goMap = () => router.push({ pathname: "/map", params: { filter: "popular", radius_km: "10" } });
+  const goMap = () =>
+    // map 画面がある前提のまま残しています。未実装ならここは後続PRで対応。
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    router.push({ pathname: "/map", params: { filter: "popular", radius_km: "10" } });
 
   return (
     <View style={styles.box}>
@@ -34,11 +34,26 @@ export default function PopularSection() {
       )}
 
       {state.status === "ready" && (
-        <View style={{ gap: 10 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: 16, gap: 12 }}
+        >
           {state.data.map((s) => (
-            <PopularShrineCard key={s.id} item={s} onPress={goDetail} />
+            <PopularShrineCard
+              key={String(s.id)}
+              id={s.id}
+              name={s.name}
+              address={s.address}
+              rating={s.rating}
+              photo_url={s.photo_url}
+              popularity={s.popularity}
+              // PopularShrineCard 側が Link で遷移する実装なので onPress は不要
+              // onPress を使いたい場合は以下のように：
+              // onPress={() => router.push({ pathname: "/shrines/[id]", params: { id: String(s.id) } })}
+            />
           ))}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
