@@ -5,8 +5,9 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.contrib.gis.geos import Point as GeoPoint
-from django.contrib.gis.db.models.functions import DistanceSphere
+import math
+from django.db.models import F, Value
+from django.db.models.functions import Abs
 
 
 
@@ -22,6 +23,7 @@ from .serializers import (
 
 
 from .models import Shrine
+
 
 
 from .route_service import build_route, Point as RoutePoint
@@ -113,16 +115,25 @@ class PopularShrinesView(APIView):
 
         qs = Shrine.objects.all().order_by("-popular_score", "-updated_at")
 
-        # 近接フィルタ（WGS84でも安定するように DistanceSphere＝メートルで絞る）
+        # 近接フィルタ：GIS関数なし版（バウンディングボックス＋近似距離でソート）
         if near and radius_km:
             try:
                 lat, lng = [float(v) for v in near.split(",")]
-                center = GeoPoint(lng, lat, srid=4326)
-                qs = (
-                    qs.annotate(dist_m=DistanceSphere("location", center))
-                      .filter(dist_m__lte=float(radius_km) * 1000.0)
-                      .order_by("-popular_score", "dist_m")
+                r_km = float(radius_km)
+                # 1度あたりのkm換算（おおよそ）。緯度は一定、経度は緯度によって変動
+                lat_delta = r_km / 111.32
+                lng_delta = r_km / (111.32 * max(0.000001, math.cos(math.radians(lat))))
+                # bboxで粗く絞り込み（FloatFieldのlatitude/longitudeを使用）
+                qs = qs.filter(
+                    latitude__gte=lat - lat_delta,
+                    latitude__lte=lat + lat_delta,
+                    longitude__gte=lng - lng_delta,
+                    longitude__lte=lng + lng_delta,
                 )
+                # 近似距離（度のマンハッタン距離）でセカンダリソート
+                qs = qs.annotate(
+                    _approx_deg=Abs(F("latitude") - Value(lat)) + Abs(F("longitude") - Value(lng))
+                ).order_by("-popular_score", "_approx_deg")
             except Exception:
                 # パラメータ不正は無視してスコア順のみ
                 pass
