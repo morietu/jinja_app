@@ -3,11 +3,11 @@ from django.contrib.gis.db import models as gis_models  # PostGIS 対応
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.gis.geos import Point
-
+from django.contrib.gis.db.models.indexes import SpatialIndex
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Q, CheckConstraint
 
-from django.contrib.gis.db.models import indexes as gis_indexes
+
 
 
 
@@ -107,8 +107,8 @@ class Shrine(gis_models.Model):
             # 人気順の高速化（descはB-Treeで表現できないためクエリでORDER BY DESC、
             # ここでは並び替えに寄与する一般Indexを付与）
             models.Index(fields=["popular_score"], name="shrine_popular_idx"),
-            # 位置検索用の空間インデックス（PostGIS）
-            gis_indexes.SpatialIndex(fields=["location"], name="shrine_location_gix"),
+            # 位置検索用の空間インデックス（PostGIS / Spatialite）
+            SpatialIndex(fields=["location"], name="shrine_location_gix"),
         ]
 
     def save(self, *args, **kwargs):
