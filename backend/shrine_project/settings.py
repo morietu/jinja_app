@@ -80,7 +80,9 @@ def _sanitize_redis_url(url: str) -> str:
     return url
 
 REDIS_URL = _sanitize_redis_url(os.getenv("REDIS_URL", ""))
-CACHES = _build_cache()
+
+
+
 
 # ========= 効いている設定の確認（必要時のみ）=========
 if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
@@ -254,14 +256,10 @@ LOGGING = {
 }
 
 
-
-
-
 # ----------------------------------------
 # Cache 設定（pytest中は LocMem を強制、普段は REDIS_URL があり redis クライアントが入っていれば Redis）
 # ----------------------------------------
 def _build_cache():
-    import os
     key_func = "shrine_project.cache_keys.memcache_safe_key"
     # pytest 実行中は無条件で LocMem
     if os.environ.get("PYTEST_CURRENT_TEST"):
@@ -290,7 +288,6 @@ def _build_cache():
         except Exception:
             # redis クライアント未導入/不調なら安全に LocMem へフォールバック
             pass
-
     # デフォルトは LocMem
     return {
         "default": {
@@ -303,6 +300,8 @@ def _build_cache():
     }
 
 CACHES = _build_cache()
+
+
 
 # 確認ログ（任意）
 if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
