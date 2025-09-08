@@ -1,10 +1,14 @@
+# docker-compose.yml
+
 services:
   db:
     image: postgis/postgis:16-3.4
     container_name: shrine_db
     restart: unless-stopped
-    env_file:
-      - .env.dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jinja_db}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_pass}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -21,8 +25,8 @@ services:
     container_name: shrine_pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com   # ログイン用メール
-      PGADMIN_DEFAULT_PASSWORD: admin_pass       # ログイン用パスワード
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin_pass
     ports:
       - "5050:80"
     depends_on:
@@ -37,15 +41,18 @@ services:
     container_name: shrine_web
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - .env.dev          # ← ここから GOOGLE_PLACES_API_KEY / GOOGLE_MAPS_API_KEY も読み込み
     environment:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "UTF-8"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
       DJANGO_DB_NAME: ${DJANGO_DB_NAME}
       DJANGO_DB_USER: ${DJANGO_DB_USER}
       DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD}
       DJANGO_DB_HOST: ${DJANGO_DB_HOST}
       DJANGO_DB_PORT: ${DJANGO_DB_PORT}
-
-      # ← GDAL/GEOS/PROJ は「空」で上書き → つまり未設定になる
+      # ↓ あえて空で上書き（未設定にする）※必要なら削除してください
       GDAL_LIBRARY_PATH:
       GEOS_LIBRARY_PATH:
       GDAL_DATA:
@@ -60,9 +67,6 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
-
-
-
   frontend:
     build:
       context: ./frontend
@@ -75,3 +79,13 @@ services:
       - ./frontend:/app
     depends_on:
       - web
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+volumes:
+  redis-data:
