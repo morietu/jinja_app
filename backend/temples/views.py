@@ -15,6 +15,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from temples.serializers import PopularShrineSerializer
 from .serializers import (
      RouteRequestSerializer,
@@ -23,10 +25,8 @@ from .serializers import (
 
 
 from .models import Shrine
-
-
-
 from .route_service import build_route, Point as RoutePoint
+
 
 class ShrineListView(APIView):
     """URLリゾルバ用の最小スタブ。実装は後で差し替えます。"""
@@ -104,12 +104,19 @@ def shrine_list(request):
     # URL 逆引き用の最小実装
     return HttpResponse("ok")
 
-
+@method_decorator(cache_page(60), name="get")
 class PopularShrinesView(APIView):
+
     permission_classes = [AllowAny]
+    throttle_scope = "places"  # 既存のDEFAULT_THROTTLE_RATES["places"]を使用
 
     def get(self, request):
-        limit = int(request.GET.get("limit", 10))
+        # limitの堅牢化（1..50）
+        try:
+            limit = int(request.GET.get("limit", 10))
+        except Exception:
+            limit = 10
+        limit = max(1, min(50, limit))
         near = request.GET.get("near")          # "lat,lng"
         radius_km = request.GET.get("radius_km")
 
