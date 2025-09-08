@@ -3,13 +3,14 @@ app_name = "temples"
 
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
-
-from . import views
 from .api_views import (
     ShrineViewSet, FavoriteViewSet,
     PlacesSearchView, PlacesDetailView,
-    PlacesTextSearchPagedView, PlacesNearbySearchView, PlacesPhotoProxyView, RouteAPIView,
+    PlacesTextSearchPagedView, PlacesNearbySearchView, PlacesPhotoProxyView, RouteAPIView
 )
+from .views import PopularShrinesView
+from . import views
+
 
 router = DefaultRouter()
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
@@ -25,6 +26,7 @@ urlpatterns = [
 
     # --- DRF ViewSet（一覧だけ下線名の別名を用意）---
     path("shrines/", api_shrine_list, name="shrine_list"),
+    path("shrines/popular/", PopularShrinesView.as_view(), name="popular-shrines"),
 
     # --- ルート計算 API ---
     path("route/", RouteAPIView.as_view(), name="route_api"),
