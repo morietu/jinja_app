@@ -1,18 +1,26 @@
 {
   "expo": {
-    "name": "AI参拝ナビ",
-    "slug": "ai-sanpai-navi",
+    "name": "jinja-app",
+    "slug": "jinja-app",
     "scheme": "ai-sanpai-navi",
-    "plugins": ["expo-router"],
-    "web": { "bundler": "metro" },
-
-    "ios": {
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "近くの神社を表示するため、位置情報を利用します。"
-      }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "使用中に位置情報を利用します。近場の人気神社の提案に使われます。",
+          "locationAlwaysAndWhenInUsePermission": "常に、または使用中のみで位置情報を利用します。"
+        }
+      ]
+    ],
+        "ios": {
+          "infoPlist": {
+            "NSLocationWhenInUseUsageDescription": "近場の人気神社を提案するため、アプリ使用中に位置情報を利用します。",
+            "NSLocationAlwaysAndWhenInUseUsageDescription": "バックグラウンド含め近場の神社提案や現在地更新に位置情報を利用します。"
+        }
     },
     "android": {
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_FINE_LOCATION"]
     }
   }
 }
