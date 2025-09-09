@@ -9,7 +9,7 @@ import { SHRINES } from "../data/shrines";
 import MyPageCard from "../components/home/MyPageCard";
 
 // 🆕 追加
-import RecentViewed from "../components/home/RecentViewed";
+
 import NearbyShrines from "../components/home/NearbyShrines";
 
 export default function Home() {
@@ -57,7 +57,7 @@ export default function Home() {
       <RankingCarousel items={SHRINES.slice(0, 5)} />
 
       {/* ▼ 並び順：1) 最近見た → 2) 近くの神社 */}
-      <RecentViewed />
+
       <NearbyShrines />
 
       <MyPageCard />
