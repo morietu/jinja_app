@@ -1,129 +1,86 @@
+// apps/web/src/app/search/page.tsx
+import PlaceCard from "@/components/PlaceCard";
 
-import Link from "next/link";
-import { searchShrines } from "@/lib/api/shrines";
-import ShrineCard from "@/components/ShrineCard";
+type SearchParams = { keyword?: string; locationbias?: string };
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getShrines, Shrine } from "@/lib/api/shrines";
-import { GoriyakuTag } from "@/lib/api/types";
-import api from "@/lib/api/client";
+const API = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
 
-export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
-  const q = searchParams?.q;
-  const { items: shrines } = await searchShrines(q); // ← 常に配列
+async function fetchPlaces(params: SearchParams) {
+  const usp = new URLSearchParams({
+    input: params.keyword ?? "",
+    language: "ja",
+    fields:
+      "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon",
+  });
+  if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-export default function SearchPage() {
-  const searchParams = useSearchParams();
-  const keyword = searchParams.get("keyword") || "";
+  // ✅ 絶対URLでバックエンド直叩き（SSR）
+  const r = await fetch(`${API}/api/places/find_place/?${usp.toString()}`, {
+    cache: "no-store",
+  });
+  if (!r.ok) return { results: [] as any[] };
+  return r.json();
+}
 
-  const [shrines, setShrines] = useState<Shrine[]>([]);
-  const [tags, setTags] = useState<GoriyakuTag[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function SearchPage({
+  searchParams,
+}: {
+  // ✅ Next.js 15: Promise を await してから使う
+  searchParams: Promise<SearchParams>;
+}) {
+  const sp = await searchParams;
+  const keyword = (sp.keyword ?? "").trim();
+  const locationbias = sp.locationbias ?? "";
 
-  // ご利益タグ一覧をロード
-  useEffect(() => {
-    api.get("/goriyaku-tags/").then((res) => setTags(res.data));
-  }, []);
+  const data = keyword
+    ? await fetchPlaces({ keyword, locationbias })
+    : { results: [] as any[] };
 
-  // 神社検索
-  useEffect(() => {
-     // 🔍 条件が空なら検索しない
-  if (!keyword && selectedTags.length === 0) {
-    setShrines([]);
-    setLoading(false);
-    return;
-  }
-
-    const fetchData = async () => {
-    setLoading(true);
-    try {
-      // 🔍 keyword と tags を q にまとめる
-      const q = [keyword, ...selectedTags].filter(Boolean).join(" ");
-      const results = await getShrines({ q });
-      setShrines(results);
-      setError(null);
-    } catch (err) {
-      console.error("検索エラー:", err);
-      setError("検索に失敗しました");
-    } finally {
-      setLoading(false);
-    }
-  };
-    fetchData();
-  }, [keyword, selectedTags]);
-
-  // タグのON/OFF切り替え
-  const toggleTag = (tagName: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tagName)
-        ? prev.filter((t) => t !== tagName) // 選択解除
-        : [...prev, tagName] // 選択追加
-    );
-  };
-
-  // ✅ カテゴリごとにタグをグループ化
-  const grouped = tags.reduce((acc, tag) => {
-    if (!acc[tag.category]) acc[tag.category] = [];
-    acc[tag.category].push(tag);
-    return acc;
-  }, {} as Record<string, GoriyakuTag[]>);
-  
+  const results: any[] = Array.isArray((data as any).results)
+    ? (data as any).results
+    : [];
 
   return (
-    <main className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">
-        検索結果: 「{keyword}」
-      </h1>
+    <main className="p-4 max-w-3xl mx-auto space-y-6">
+      <h1 className="text-xl font-bold">検索結果</h1>
 
-      {/* ✅ ご利益タグフィルタ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        {Object.entries(grouped).map(([category, tags]) => (
-          <div key={category}>
-            <h2 className="text-lg font-semibold mb-2">{category}</h2>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleTag(tag.name)}
-                  className={`w-full text-left px-3 py-2 rounded-full border text-sm ${
-                    selectedTags.includes(tag.name)
-                      ? "bg-blue-500 text-white border-blue-600"
-                      : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-                  }`}
-                >
-                  {tag.name}
-                </button>
-              ))}
+      {!keyword && (
+        <p className="text-gray-500">キーワードを入力して検索してください。</p>
+      )}
+
+      {keyword && results.length === 0 && (
+        <p className="text-gray-500">
+          「{keyword}」に一致する候補が見つかりませんでした。条件（地名や表記）を変えてお試しください。
+        </p>
+      )}
+
+      <div className="grid gap-3">
+        {results.map((r: any) => {
+          const place = {
+            place_id: r.place_id,
+            name: r.name,
+            address: r.address ?? r.formatted_address,
+            rating: r.rating,
+            user_ratings_total: r.user_ratings_total,
+            icon: r.icon,
+          };
+          const planHref =
+            `/plan?query=${encodeURIComponent(place.name)}` +
+            (locationbias ? `&locationbias=${encodeURIComponent(locationbias)}` : "");
+
+          return (
+            <div key={r.place_id ?? r.name} className="space-y-2">
+              <PlaceCard p={place} />
+              <a
+                href={planHref}
+                className="inline-block text-sm px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                この神社でプラン
+              </a>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      {/* 検索結果 */}
-      {!keyword && selectedTags.length === 0 ? (
-        <p className="text-gray-500">条件を入力して検索してください</p>
-          ) : loading ? (
-          <p className="p-4">読み込み中...</p>
-            ) : error ? (
-          <p className="p-4 text-red-500">{error}</p>
-            ) : shrines.length === 0 ? (
-          <p className="text-gray-500">該当する神社はありませんでした</p>
-            ) : (
-
-        <ul className="grid gap-4">
-          {shrines.map((shrine) => (
-            <li key={shrine.id}>
-              <Link href={`/shrines/${shrine.id}`}>
-                <ShrineCard shrine={shrine} />
-              </Link>
-
-            </li>
-          ))}
-        </ul>
-)}
     </main>
   );
 }
