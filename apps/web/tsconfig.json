@@ -13,11 +13,12 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-
     "plugins": [{ "name": "next" }],
-
-    "baseUrl": ".",                     // ←これを追加
-    "paths": { "@/*": ["./src/*"] }     // ここはOK
+    "baseUrl": ".",                         // そのままでOK
+    "paths": {
+      "@/*": ["./src/*"],                   // 既存
+      "@shared/*": ["../../packages/shared/*"] // ← 追加：共有レイヤ
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

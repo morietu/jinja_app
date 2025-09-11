@@ -1,19 +1,29 @@
-import { isNoAuth } from "./noauth";
-// frontend/src/lib/api/client.ts
 import axios, { InternalAxiosRequestConfig } from "axios";
 
 const isServer = typeof window === "undefined";
-const BASE_URL = isServer
-  ? process.env.NEXT_PUBLIC_API_BASE_SERVER || "http://web:8000"
-  : process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+
+// 末尾スラッシュ除去
+const strip = (s?: string | null) => (s ? s.replace(/\/$/, "") : undefined);
+
+// CSR: "/api"（Next rewrites） / SSR: 絶対URL+"/api"
+const PUBLIC_BASE = strip(process.env.NEXT_PUBLIC_API_BASE);
+const SERVER_BASE = strip(process.env.API_BASE_SERVER);
+const baseURL = isServer
+  ? `${SERVER_BASE ?? PUBLIC_BASE ?? "http://localhost:8000"}/api`
+  : "/api";
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL,
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
 });
 
-// ---- トークンキーを両対応（既存との互換維持）----
+// ===== 認証ヘルパ =====
+export function setAuthToken(token: string | null) {
+  if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  else delete api.defaults.headers.common["Authorization"];
+}
+
 const ACCESS_KEYS = ["access_token", "access"];
 const REFRESH_KEYS = ["refresh_token", "refresh"];
 
@@ -34,45 +44,37 @@ function removeAll(keys: string[]) {
   keys.forEach((k) => localStorage.removeItem(k));
 }
 
-// ---- 末尾スラッシュ補正（/token系や拡張子付きは除外）----
-function ensureTrailingSlash(u: string) {
+// /token 系は末尾スラッシュ操作しない
+function ensureTrailingSlash(u?: string) {
   if (!u) return u;
-  if (u.startsWith("/token") || u.includes(".")) return u;
+  if (u.startsWith("/token") || u.startsWith("/auth")) return u;
   const [path, qs = ""] = u.split("?");
   if (path.endsWith("/")) return u;
   return qs ? `${path}/?${qs}` : `${path}/`;
 }
 
-
-
-// -------------------------
-// リクエストインターセプター
-// -------------------------
+// ===== リクエスト: 末尾スラッシュ & Authorization 自動付与 =====
 api.interceptors.request.use((config) => {
   const url = config.url || "";
+  config.url = ensureTrailingSlash(url);
 
-  // 末尾スラッシュを標準化（/token系は除外）
-  if (!url.startsWith("/token")) {
-    config.url = ensureTrailingSlash(url);
-  }
-
-  // 認証不要ならそのまま
-  if (isNoAuth(url)) return config;
-
-  // Authorization 付与（両対応キー）
-  const tk = getFromAny(ACCESS_KEYS);
-  if (tk) {
-    config.headers = config.headers ?? {};
-    (config.headers as any).Authorization = `Bearer ${tk.value}`;
+  // Authorization 未設定なら localStorage から付与
+  const hasAuth =
+    !!(config.headers as any)?.Authorization ||
+    !!api.defaults.headers.common["Authorization"];
+  if (!hasAuth) {
+    const tk = getFromAny(ACCESS_KEYS);
+    if (tk) {
+      config.headers = config.headers ?? {};
+      (config.headers as any).Authorization = `Bearer ${tk.value}`;
+    }
   }
   return config;
 });
 
-// -------------------------
-// レスポンスインターセプター（401→refresh→再送）
-// -------------------------
-let isRefreshing = false;
-let waitQueue: Array<(t: string) => void> = [];
+// ===== レスポンス: 401 -> refresh -> リトライ =====
+let refreshing = false;
+let waiters: Array<(t: string) => void> = [];
 
 api.interceptors.response.use(
   (r) => r,
@@ -83,55 +85,54 @@ api.interceptors.response.use(
     if (status !== 401 || !original || original._retry) {
       return Promise.reject(error);
     }
-    if ((original.url || "").startsWith("/token")) {
+    // 認証系自体はリトライしない
+    const url = original.url || "";
+    if (url.startsWith("/token") || url.startsWith("/auth")) {
       return Promise.reject(error);
     }
 
-    // すでに refresh 中なら待ってから再送
-    if (isRefreshing) {
-      const newToken = await new Promise<string>((resolve) => waitQueue.push(resolve));
+    if (refreshing) {
+      const newTok = await new Promise<string>((resolve) => waiters.push(resolve));
       original.headers = original.headers ?? {};
-      (original.headers as any).Authorization = `Bearer ${newToken}`;
+      (original.headers as any).Authorization = `Bearer ${newTok}`;
       original._retry = true;
       return api(original);
     }
 
-    isRefreshing = true;
+    refreshing = true;
     original._retry = true;
 
     try {
-      if (isServer) throw error;
+      // CSR 以外はリフレッシュしない（基本CSR前提）
+      if (typeof window === "undefined") throw error;
 
       const r = getFromAny(REFRESH_KEYS);
       if (!r) throw error;
 
-      const { data } = await axios.post(
-        `${api.defaults.baseURL}/api/token/refresh/`,
-        { refresh: r.value }
-      );
+      // 相対パスで OK（Next rewrites 経由）
+      const { data } = await axios.post("/api/token/refresh/", { refresh: r.value });
 
-      const newAccess: string = data.access;
+      const newAccess: string | undefined = data?.access;
       if (!newAccess) throw new Error("No access token from refresh");
 
-      // 新 access を全キーに保存
+      // 保存＆キュー解放
       setAll(ACCESS_KEYS, newAccess);
+      api.defaults.headers.common["Authorization"] = `Bearer ${newAccess}`;
+      waiters.forEach((fn) => fn(newAccess));
+      waiters = [];
 
-      // 待機中のリクエストを再開
-      waitQueue.forEach((fn) => fn(newAccess));
-      waitQueue = [];
-
-      // 元リクエストを再送
+      // 元リクエスト再送
       original.headers = original.headers ?? {};
       (original.headers as any).Authorization = `Bearer ${newAccess}`;
       return api(original);
     } catch (e) {
-      // 失敗時はトークンを全削除してログインへ
+      // 失敗時は破棄してログインへ
       removeAll(ACCESS_KEYS);
       removeAll(REFRESH_KEYS);
-      if (!isServer && typeof window !== "undefined") window.location.href = "/login";
+      if (typeof window !== "undefined") window.location.href = "/login";
       throw e;
     } finally {
-      isRefreshing = false;
+      refreshing = false;
     }
   }
 );
