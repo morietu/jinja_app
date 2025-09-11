@@ -1,5 +1,6 @@
 // apps/web/src/app/search/page.tsx
 import PlaceCard from "@/components/PlaceCard";
+import { gmapsDirUrl } from "@/lib/maps";
 
 type SearchParams = { keyword?: string; locationbias?: string };
 
@@ -63,7 +64,20 @@ export default async function SearchPage({
             rating: r.rating,
             user_ratings_total: r.user_ratings_total,
             icon: r.icon,
+            // lat/lng は geometry or lat/lng のどちらか
+            lat: r.lat ?? r.geometry?.location?.lat,
+            lng: r.lng ?? r.geometry?.location?.lng,
           };
+
+          // 現在地が未指定なら origin は省略（Google側で “現在地を使う” を案内）
+          const mapsUrl =
+            place.lat && place.lng
+              ? gmapsDirUrl({
+                  dest: { lat: place.lat, lng: place.lng },
+                  mode: "walk",
+                })
+              : null;
+
           const planHref =
             `/plan?query=${encodeURIComponent(place.name)}` +
             (locationbias ? `&locationbias=${encodeURIComponent(locationbias)}` : "");
@@ -71,12 +85,24 @@ export default async function SearchPage({
           return (
             <div key={r.place_id ?? r.name} className="space-y-2">
               <PlaceCard p={place} />
-              <a
-                href={planHref}
-                className="inline-block text-sm px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                この神社でプラン
-              </a>
+              <div className="flex gap-2">
+                {mapsUrl && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    マップで見る（徒歩）
+                  </a>
+                )}
+                <a
+                  href={planHref}
+                  className="inline-block text-sm px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  ＋近隣も回る
+                </a>
+              </div>
             </div>
           );
         })}
