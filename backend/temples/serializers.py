@@ -1,8 +1,7 @@
-# RouteRequest/Response の簡易Serializer
-from typing import List, Tuple
+# RouteRequest/Response の簡易Serializer（修正版）
+from typing import List
 from rest_framework import serializers
-from .models import Shrine, Favorite
-from temples.models import Shrine
+from .models import Shrine, Favorite  # ← temples.models の重複importは不要
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
 class ShrineSerializer(serializers.ModelSerializer):
@@ -33,6 +32,19 @@ class PointSerializer(serializers.Serializer):
     lng = serializers.FloatField(min_value=-180.0, max_value=180.0)
 
 
+class GeometryListField(serializers.ListField):
+    """
+    geometry: [[lat, lng], ...] を検証
+    - 各要素は [lat, lng] の2要素
+    - 要素は float（範囲チェックは簡易）
+    """
+    child = serializers.ListField(
+        child=serializers.FloatField(),
+        min_length=2,
+        max_length=2,
+    )
+
+
 class RouteRequestSerializer(serializers.Serializer):
     """
     例:
@@ -54,23 +66,12 @@ class RouteRequestSerializer(serializers.Serializer):
         return value
 
 
-class RouteLegGeometrySerializer(serializers.ListSerializer):
-    """
-    geometry: [[lat, lng], ...] を軽く検証（各要素2要素の数値配列）
-    """
-    child = serializers.ListField(
-        child=serializers.FloatField(),
-        min_length=2,
-        max_length=2,
-    )
-
-
 class RouteLegSerializer(serializers.Serializer):
     from_ = PointSerializer(source="from")
     to = PointSerializer()
     distance_m = serializers.IntegerField(min_value=0)
     duration_s = serializers.IntegerField(min_value=0)
-    geometry = RouteLegGeometrySerializer()
+    geometry = GeometryListField()  # ← ListSerializer ではなく ListField でOK
 
 
 class RouteResponseSerializer(serializers.Serializer):
@@ -80,6 +81,7 @@ class RouteResponseSerializer(serializers.Serializer):
     distance_m_total = serializers.IntegerField(min_value=0)
     duration_s_total = serializers.IntegerField(min_value=0)
     provider = serializers.CharField()
+
 
 class PopularShrineSerializer(serializers.ModelSerializer):
     latitude = serializers.SerializerMethodField()
@@ -95,10 +97,10 @@ class PopularShrineSerializer(serializers.ModelSerializer):
 
     def get_latitude(self, obj):
         if getattr(obj, "location", None):
-            return obj.location.y
+            return obj.location.y  # GeoDjango: y=lat
         return getattr(obj, "latitude", None)
 
     def get_longitude(self, obj):
         if getattr(obj, "location", None):
-            return obj.location.x
+            return obj.location.x  # GeoDjango: x=lng
         return getattr(obj, "longitude", None)

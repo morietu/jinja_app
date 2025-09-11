@@ -1,5 +1,6 @@
 # import math
 import re
+
 # import requests
 import unicodedata
 from urllib.parse import unquote_to_bytes
@@ -20,9 +21,15 @@ from .services import google_places as gp
 from .services.places import get_or_sync_place, PlacesError
 
 from .models import Shrine, Favorite, PlaceRef
-from .api.serializers import ShrineSerializer, FavoriteSerializer, FavoriteUpsertSerializer
+from .api.serializers import (
+    ShrineSerializer,
+    FavoriteSerializer,
+    FavoriteUpsertSerializer,
+)
 
-REPLACEMENT_CHAR = "\uFFFD"
+REPLACEMENT_CHAR = "\ufffd"
+MAX_Q = getattr(settings, "PLACES_MAX_QUERY_LEN", 200)
+
 
 def _robust_get_query_param(request, name: str) -> str:
     """
@@ -37,30 +44,29 @@ def _robust_get_query_param(request, name: str) -> str:
 
     raw_qs = request.META.get("QUERY_STRING", "")
     # name=... を抜き出し
-    m = re.search(r'(?:^|&)' + re.escape(name) + r'=([^&]*)', raw_qs)
+    m = re.search(r"(?:^|&)" + re.escape(name) + r"=([^&]*)", raw_qs)
     if not m:
         return val
     raw_enc = m.group(1)
 
     # '+' はスペース扱い、%XX はバイト化
     try:
-        raw_bytes = unquote_to_bytes(raw_enc.replace('+', ' '))
+        raw_bytes = unquote_to_bytes(raw_enc.replace("+", " "))
     except Exception:
         return val
 
     # 正規の UTF-8 ならそれでOK
     try:
-        return raw_bytes.decode('utf-8')
+        return raw_bytes.decode("utf-8")
     except Exception:
         pass
     # Windows/CP932 → Shift_JIS の順で試す
-    for enc in ('cp932', 'shift_jis'):
+    for enc in ("cp932", "shift_jis"):
         try:
             return raw_bytes.decode(enc)
         except Exception:
             continue
     return val
-
 
 
 def _parse_locationbias_center_and_radius(lb: str):
@@ -90,17 +96,26 @@ def _parse_locationbias_center_and_radius(lb: str):
         pass
     return None, None, None
 
+
 def _is_shinto_shrine_row(r: dict) -> bool:
     types = set(r.get("types") or [])
-    name = (r.get("name") or "")
+    name = r.get("name") or ""
     lname = name.lower()
 
     if "buddhist_temple" in types:
         return False
-    
+
     # type / 典型和名 / 典型英名
     jp_keywords = ("神社", "稲荷", "八幡", "天神", "天満宮", "神宮")
-    en_keywords = ("shinto_shrine", "jinja", "jingu", "hachiman", "inari", "tenjin", "shrine")
+    en_keywords = (
+        "shinto_shrine",
+        "jinja",
+        "jingu",
+        "hachiman",
+        "inari",
+        "tenjin",
+        "shrine",
+    )
 
     if "shinto_shrine" in types:
         return True
@@ -111,9 +126,11 @@ def _is_shinto_shrine_row(r: dict) -> bool:
 
     return False
 
+
 def _normalize_name(s: str) -> str:
     # 空白除去・小文字化のみの簡易正規化（日本語にも無害）
     return re.sub(r"\s+", "", (s or "")).lower()
+
 
 def _name_equals_query(name: str, q: str) -> bool:
     """
@@ -122,6 +139,7 @@ def _name_equals_query(name: str, q: str) -> bool:
     ・空白を削除
     ・小文字化
     """
+
     def norm(x: str) -> str:
         x = x or ""
         # 全角/半角の括弧内を除去（（…）/(...)）
@@ -130,6 +148,7 @@ def _name_equals_query(name: str, q: str) -> bool:
         x = unicodedata.normalize("NFKC", x)
         x = re.sub(r"\s+", "", x).lower()
         return x
+
     return norm(name) == norm(q)
 
 
@@ -155,7 +174,7 @@ def _match_bucket(name: str, q: str) -> int:
     # ★ 完全一致は最優先
     if _name_equals_query(name, q):
         return 0
-    
+
     n = _normalize_name(name)
     qn = _normalize_name(q)
     if not qn:
@@ -173,6 +192,7 @@ def _sort_results_for_query(results, q: str, center=None):
     """
     マッチ度 → 距離（近いほど先）→ rating 降順 → user_ratings_total 降順
     """
+
     def key(r):
         return (
             _match_bucket(r.get("name") or "", q),
@@ -180,14 +200,22 @@ def _sort_results_for_query(results, q: str, center=None):
             -(r.get("rating") or 0),
             -(r.get("user_ratings_total") or 0),
         )
+
     return sorted(results or [], key=key)
+
 
 def _inject_exact_match(q: str, location: str, radius_i: int, data: dict):
     """
     Text Search/Nearby のどちらにも q と（緩和した）完全一致の name が無ければ、
     候補を探して先頭に挿入。best-effort。
     """
-    if not (q and location and radius_i and isinstance(data, dict) and isinstance(data.get("results"), list)):
+    if not (
+        q
+        and location
+        and radius_i
+        and isinstance(data, dict)
+        and isinstance(data.get("results"), list)
+    ):
         return
 
     results = data["results"]
@@ -200,7 +228,7 @@ def _inject_exact_match(q: str, location: str, radius_i: int, data: dict):
         exacts = []
 
         def _collect(rows):
-            for r in (rows or []):
+            for r in rows or []:
                 if _is_shinto_shrine_row(r) and _name_equals_query(r.get("name"), q):
                     exacts.append(r)
 
@@ -217,27 +245,44 @@ def _inject_exact_match(q: str, location: str, radius_i: int, data: dict):
             pass
 
         # 1) Text Search（素の q）
-        _collect(gp.text_search(
-            query=q, location=location, radius=radius_i, language="ja", region="jp"
-        ).get("results"))
+        _collect(
+            gp.text_search(
+                query=q, location=location, radius=radius_i, language="ja", region="jp"
+            ).get("results")
+        )
 
         # 2) Text Search（神社バイアス）
         if not exacts and "神社" not in q:
-            _collect(gp.text_search(
-                query=f"{q} 神社", location=location, radius=radius_i, language="ja", region="jp"
-            ).get("results"))
+            _collect(
+                gp.text_search(
+                    query=f"{q} 神社",
+                    location=location,
+                    radius=radius_i,
+                    language="ja",
+                    region="jp",
+                ).get("results")
+            )
 
         # 3) Nearby（最後の保険）
         if not exacts:
-            _collect(gp.nearby_search(
-                location=location, radius=radius_i, keyword=q,
-                opennow=False, type_=None, language="ja",
-            ).get("results"))
+            _collect(
+                gp.nearby_search(
+                    location=location,
+                    radius=radius_i,
+                    keyword=q,
+                    opennow=False,
+                    type_=None,
+                    language="ja",
+                ).get("results")
+            )
 
         if not exacts:
             return
 
-        best = max(exacts, key=lambda r: ((r.get("rating") or 0), (r.get("user_ratings_total") or 0)))
+        best = max(
+            exacts,
+            key=lambda r: ((r.get("rating") or 0), (r.get("user_ratings_total") or 0)),
+        )
         existing_ids = {r.get("place_id") for r in results}
         if best.get("place_id") not in existing_ids:
             results.insert(0, best)  # 先頭固定（ここでは再ソートしない）
@@ -254,8 +299,8 @@ def _maybe_fix_mojibake(s: str) -> str:
     """
     try:
         # 0x80–0x9F の制御領域っぽい文字が混じる場合は怪しいので補正を試みる
-        if any('\x80' <= ch <= '\x9f' for ch in s):
-            return s.encode('latin1', 'ignore').decode('cp932', 'ignore')
+        if any("\x80" <= ch <= "\x9f" for ch in s):
+            return s.encode("latin1", "ignore").decode("cp932", "ignore")
     except Exception:
         pass
     return s
@@ -273,17 +318,37 @@ class PlacesSearchView(APIView):
     throttle_scope = "places"
 
     def get(self, request, *args, **kwargs):
-        q = (request.query_params.get("q") or request.query_params.get("query") or "").strip()
+        q = (
+            _robust_get_query_param(request, "q")
+            or _robust_get_query_param(request, "query")
+            or ""
+        ).strip()
         if not q:
-            return Response({"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST)
-        q = _maybe_fix_mojibake(q)
+            return Response(
+                {"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        q = q[:MAX_Q]
 
         # 位置バイアスは明示的指定時のみ
         lat = request.query_params.get("lat")
         lng = request.query_params.get("lng")
         location = f"{lat},{lng}" if (lat and lng) else None
-        radius = request.query_params.get("radius")
-        radius_i = int(radius) if radius else None
+
+        radius_param = request.query_params.get("radius")
+        radius_i = None
+        if radius_param is not None:
+            try:
+                radius_i = int(radius_param)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "radius must be int"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            if radius_i < 1:
+                return Response(
+                    {"detail": "radius must be >= 1"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            radius_i = min(radius_i, 50000)
 
         # 神社にバイアス
         q_bias = q if ("神社" in q) else f"{q} 神社"
@@ -302,7 +367,9 @@ class PlacesSearchView(APIView):
             data = gp.text_search(**params)
 
             # フィルタ
-            filtered = [r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)]
+            filtered = [
+                r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)
+            ]
 
             # center 算出（並べ替え用）
             center = None
@@ -320,7 +387,7 @@ class PlacesSearchView(APIView):
             if location and radius_i:
                 _inject_exact_match(q, location, radius_i, data)
 
-            # それでも空なら nearby フォールバック
+            # それでも空なら Nearby フォールバック
             if not data["results"] and location and radius_i:
                 nb = gp.nearby_search(
                     location=location,
@@ -330,13 +397,16 @@ class PlacesSearchView(APIView):
                     type_=None,
                     language="ja",
                 )
-                nb_filtered = [r for r in (nb.get("results") or []) if _is_shinto_shrine_row(r)]
+                nb_filtered = [
+                    r for r in (nb.get("results") or []) if _is_shinto_shrine_row(r)
+                ]
                 nb["results"] = _sort_results_for_query(nb_filtered, q, center=center)
-                if nb["results"] != []:
+                if nb["results"]:
                     data = nb
                     _inject_exact_match(q, location, radius_i, data)
 
             return Response(data, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -349,10 +419,16 @@ class PlacesTextSearchPagedView(APIView):
 
     def get(self, request):
         pagetoken = request.GET.get("pagetoken")
-        q = (request.GET.get("q") or "").strip()
+        q = (
+            _robust_get_query_param(request, "q")
+            or _robust_get_query_param(request, "query")
+            or ""
+        ).strip()
         if not pagetoken and not q:
-            return Response({"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST)
-        q = _robust_get_query_param(request, "q") or _robust_get_query_param(request, "query")
+            return Response(
+                {"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        q = q[:MAX_Q]
 
         # 神社バイアス
         q_bias = q if ("神社" in q) else f"{q} 神社"
@@ -374,9 +450,7 @@ class PlacesTextSearchPagedView(APIView):
                 eff_radius_i = int(default_radius)
 
         ttl = getattr(settings, "PLACES_TEXT_CACHE_SECONDS", 300)
-        cache_key = (
-            f"places:text:{q}:{eff_location or ''}:{eff_radius_i or ''}:{pagetoken or ''}:shinto_only"
-        )
+        cache_key = f"places:text:{q}:{eff_location or ''}:{eff_radius_i or ''}:{pagetoken or ''}:shinto_only"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
@@ -395,7 +469,9 @@ class PlacesTextSearchPagedView(APIView):
             data = gp.text_search(**search_kwargs)
 
             # フィルタ
-            filtered = [r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)]
+            filtered = [
+                r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)
+            ]
 
             # center 算出（並べ替え用）
             center = None
@@ -427,9 +503,9 @@ class PlacesNearbySearchView(APIView):
 
     def get(self, request):
         pagetoken = request.GET.get("pagetoken")
-        keyword = _robust_get_query_param(request, "keyword") or "神社"   # 既定は神社
-        keyword = _maybe_fix_mojibake(keyword)
+        keyword = (_robust_get_query_param(request, "keyword") or "神社").strip()
         opennow = (request.GET.get("opennow") or "").lower() in ("1", "true", "yes")
+        keyword = keyword[:MAX_Q]
 
         center = None
         if not pagetoken:
@@ -438,15 +514,19 @@ class PlacesNearbySearchView(APIView):
             radius = request.GET.get("radius")
             if lat is None or lng is None or radius is None:
                 return Response(
-                    {"detail": "lat, lng, radius are required (unless pagetoken provided)"},
+                    {
+                        "detail": "lat, lng, radius are required (unless pagetoken provided)"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
                 clat, clng = float(lat), float(lng)
                 radius_i = int(radius)
             except ValueError:
-                return Response({"detail": "lat/lng must be float, radius must be int"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "lat/lng must be float, radius must be int"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             location = f"{lat},{lng}"
             center = (clat, clng)
         else:
@@ -485,8 +565,12 @@ class PlacesNearbySearchView(APIView):
                     language="ja",
                     region="jp",
                 )
-                ts_filtered = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
-                ts["results"] = _sort_results_for_query(ts_filtered, keyword, center=center)
+                ts_filtered = [
+                    r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)
+                ]
+                ts["results"] = _sort_results_for_query(
+                    ts_filtered, keyword, center=center
+                )
                 return Response(ts, status=status.HTTP_200_OK)
 
             return Response(data, status=status.HTTP_200_OK)
@@ -494,8 +578,11 @@ class PlacesNearbySearchView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
+
 # ビュー全体をキャッシュ（2回目以降は gp.photo を呼ばない）
-@method_decorator(cache_page(getattr(settings, "PLACES_PHOTO_CACHE_SECONDS", 86400)), name="get")
+@method_decorator(
+    cache_page(getattr(settings, "PLACES_PHOTO_CACHE_SECONDS", 86400)), name="get"
+)
 class PlacesPhotoProxyView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -505,7 +592,10 @@ class PlacesPhotoProxyView(APIView):
     def get(self, request, *args, **kwargs):
         ref = request.query_params.get("photo_reference")
         if not ref:
-            return Response({"detail": "photo_reference is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "photo_reference is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         maxwidth = request.query_params.get("maxwidth")
         maxheight = request.query_params.get("maxheight")
@@ -514,7 +604,9 @@ class PlacesPhotoProxyView(APIView):
 
         try:
             body, content_type = gp.photo(ref, maxwidth=maxwidth, maxheight=maxheight)
-            resp = HttpResponse(body, content_type=content_type, status=status.HTTP_200_OK)
+            resp = HttpResponse(
+                body, content_type=content_type, status=status.HTTP_200_OK
+            )
             max_age = int(getattr(settings, "PLACES_PHOTO_CACHE_SECONDS", 86400))
             resp["Cache-Control"] = f"public, max-age={max_age}"
             return resp
@@ -535,7 +627,11 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Favorite.objects.select_related("shrine").filter(user=self.request.user).order_by("-id")
+        return (
+            Favorite.objects.select_related("shrine")
+            .filter(user=self.request.user)
+            .order_by("-id")
+        )
 
     def get_serializer_class(self):
         if self.request.method in ("POST", "PUT", "PATCH"):
@@ -543,34 +639,53 @@ class FavoriteViewSet(viewsets.ModelViewSet):
         return FavoriteSerializer
 
     def create(self, request, *args, **kwargs):
-        shrine_id = request.data.get("shrine_id")
-        place_id = request.data.get("place_id")
+        # alias: accept "shrine" as "shrine_id"
+        data = request.data.copy()
+        if "shrine" in data and "shrine_id" not in data:
+            data["shrine_id"] = data.pop("shrine")
 
+        # ★ alias 後の data から評価する
+        shrine_id = data.get("shrine_id")
+        place_id = data.get("place_id")
         if not shrine_id and not place_id:
-            return Response({"detail": "either shrine_id or place_id is required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "either shrine_id or place_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             if place_id:
                 if not PLACE_ID_RE.match(place_id):
-                    return Response({"detail": "invalid place_id format"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"detail": "invalid place_id format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 get_or_sync_place(place_id)
-                obj, created = Favorite.objects.get_or_create(user=request.user, place_id=place_id)
+                obj, created = Favorite.objects.get_or_create(
+                    user=request.user, place_id=place_id
+                )
 
                 places = {}
-                pr = (PlaceRef.objects.filter(pk=obj.place_id)
-                      .only("place_id", "name", "address", "latitude", "longitude").first())
+                pr = (
+                    PlaceRef.objects.filter(pk=obj.place_id)
+                    .only("place_id", "name", "address", "latitude", "longitude")
+                    .first()
+                )
                 if pr:
                     places[obj.place_id] = pr
                 data = FavoriteSerializer(obj, context={"places": places}).data
             else:
-                obj, created = Favorite.objects.get_or_create(user=request.user, shrine_id=shrine_id)
+                obj, created = Favorite.objects.get_or_create(
+                    user=request.user, shrine_id=shrine_id
+                )
                 data = FavoriteSerializer(obj).data
 
         except PlacesError as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        return Response(data, status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK))
+        return Response(
+            data, status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        )
 
 
 class PlacesDetailView(APIView):
@@ -581,7 +696,10 @@ class PlacesDetailView(APIView):
 
     def get(self, request, place_id: str):
         if not PLACE_ID_RE.match(place_id):
-            return Response({"detail": "invalid place_id format"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "invalid place_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             details = gp.place_details(
@@ -602,7 +720,6 @@ class PlacesDetailView(APIView):
 
 
 # ---- ルート API（バリデーションのみ：テスト要件どおり）----
-
 class LatLngSerializer(serializers.Serializer):
     lat = serializers.FloatField()
     lng = serializers.FloatField()
@@ -619,7 +736,9 @@ class LatLngSerializer(serializers.Serializer):
 
 
 class RouteRequestSerializer(serializers.Serializer):
-    mode = serializers.ChoiceField(choices=["walking", "driving", "bicycling", "transit"])
+    mode = serializers.ChoiceField(
+        choices=["walking", "driving", "bicycling", "transit"]
+    )
     origin = LatLngSerializer()
     destinations = LatLngSerializer(many=True, allow_empty=False)
 
@@ -646,7 +765,7 @@ class RouteAPIView(APIView):
             lat2, lon2 = radians(b["lat"]), radians(b["lng"])
             dlat = lat2 - lat1
             dlon = lon2 - lon1
-            h = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            h = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
             return 2 * R * asin(sqrt(h))
 
         speed_mps = {
@@ -663,28 +782,32 @@ class RouteAPIView(APIView):
         for d in data["destinations"]:
             dist = haversine_m(current, d)
             dur = dist / speed_mps
-            legs.append({
-                "origin": current,
-                "destination": d,
-                "distance_m": int(dist),
-                "duration_s": int(dur),
-            })
+            legs.append(
+                {
+                    "origin": current,
+                    "destination": d,
+                    "distance_m": int(dist),
+                    "duration_s": int(dur),
+                }
+            )
             total_m += dist
             total_s += dur
             current = d
 
         provider = getattr(settings, "ROUTE_PROVIDER", "dummy")  # ★追加
 
-        return Response({
-            "ok": True,
-            "provider": provider,                     # ★追加
-            "mode": data["mode"],
-            "origin": data["origin"],
-            "destinations": data["destinations"],
-            "legs": legs,
-            "distance_m_total": int(total_m),
-            "duration_s_total": int(total_s),
-        })
+        return Response(
+            {
+                "ok": True,
+                "provider": provider,  # ★追加
+                "mode": data["mode"],
+                "origin": data["origin"],
+                "destinations": data["destinations"],
+                "legs": legs,
+                "distance_m_total": int(total_m),
+                "duration_s_total": int(total_s),
+            }
+        )
 
 
 # --- Find Place API ---
@@ -698,7 +821,10 @@ class PlacesFindPlaceView(APIView):
         # ここは必ず半角スペース4つのインデントにしてください（タブ・全角不可）
         input_text = _robust_get_query_param(request, "input")
         if not input_text:
-            return Response({"detail": "input is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "input is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        input_text = input_text[:MAX_Q]
 
         language = request.GET.get("language", "ja")
         locationbias = request.GET.get("locationbias")
@@ -723,9 +849,21 @@ class PlacesFindPlaceView(APIView):
                 fields=fields,  # None のときはクライアント側の既定 fields を自動付与
             )
 
+            # 上流のエラーを明示
+            if data.get("status") not in ("OK", "ZERO_RESULTS"):
+                # Google のエラー内容をできるだけ透過
+                msg = (
+                    data.get("error_message") or data.get("status") or "upstream error"
+                )
+                return Response({"detail": msg}, status=status.HTTP_502_BAD_GATEWAY)
+
             # 神社のみ残す
-            filtered = [r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)]
-            data["results"] = _sort_results_for_query(filtered, input_text, center=center)
+            filtered = [
+                r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)
+            ]
+            data["results"] = _sort_results_for_query(
+                filtered, input_text, center=center
+            )
 
             if location and radius_i:
                 _inject_exact_match(input_text, location, radius_i, data)
@@ -742,8 +880,12 @@ class PlacesFindPlaceView(APIView):
                     language="ja",
                     region="jp",
                 )
-                ts_filtered = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
-                ts["results"] = _sort_results_for_query(ts_filtered, input_text, center=center)
+                ts_filtered = [
+                    r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)
+                ]
+                ts["results"] = _sort_results_for_query(
+                    ts_filtered, input_text, center=center
+                )
 
                 if ts["results"]:
                     cache.set(cache_key, ts, ttl)
@@ -759,8 +901,12 @@ class PlacesFindPlaceView(APIView):
                         type_=None,
                         opennow=False,
                     )
-                    nb_filtered = [r for r in (nb.get("results") or []) if _is_shinto_shrine_row(r)]
-                    nb["results"] = _sort_results_for_query(nb_filtered, input_text, center=center)
+                    nb_filtered = [
+                        r for r in (nb.get("results") or []) if _is_shinto_shrine_row(r)
+                    ]
+                    nb["results"] = _sort_results_for_query(
+                        nb_filtered, input_text, center=center
+                    )
                     cache.set(cache_key, nb, ttl)
                     return Response(nb, status=status.HTTP_200_OK)
 

@@ -6,6 +6,9 @@ import json
 import hashlib
 import logging
 from typing import Dict, Any, Tuple, Optional
+import re
+import unicodedata
+from math import radians, sin, cos, atan2
 
 from hashlib import md5
 from django.conf import settings
@@ -14,8 +17,14 @@ from django.utils import timezone
 
 from ..models import PlaceRef
 from . import google_places  # 低レベルHTTPクライアント（関数型）に統一
+from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
+
+DEBUG_PLACES_RANKING = os.getenv("PLACES_DEBUG", "0").lower() in {"1", "true", "on"}
+def _dbg(msg: str, **kv):
+    if DEBUG_PLACES_RANKING:
+        logger.info("places.rank %s | %s", msg, kv)
 
 # 環境変数からTTL
 DEFAULT_TTL = int(os.getenv("PLACES_CACHE_TTL_SECONDS", "90"))
@@ -27,6 +36,7 @@ __all__ = [
     "get_or_sync_place", "build_photo_params",
     # 旧API互換シム
     "text_search", "nearby_search", "details", "photo",
+    "text_search_first",
 ]
 
 # ----------------------------
@@ -91,7 +101,13 @@ def places_text_search(params: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Nearby Search（キャッシュ付）"""
+    """
+    Nearby Search（キャッシュ付）
+    - 神社系のみ抽出
+    - 近い順＋マッチ度で並べ替え（距離→マッチ度→rating→件数）
+    - 完全一致（キーワード）があれば先頭へ。Nearbyに無ければText Searchから注入（半径+20%まで）
+    - Nearbyが空のときは Text Search にフォールバック（同じ整列/注入）
+    """
     params = dict(params or {})
     params.setdefault("language", _lang_or_default(params.get("language")))
     payload = {"endpoint": "nearby_search", **_norm_params(params)}
@@ -100,6 +116,95 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
         return _wrap_call(google_places.nearby_search, params)
 
     data, _ = _get_or_set("search", payload, fetch, DEFAULT_TTL)
+
+    # ---- ここから整形（cachedでも毎回同じ処理） --------------------
+    keyword = params.get("keyword") or "神社"
+    pagetoken = params.get("pagetoken")
+    language = params.get("language")
+    radius = int(params.get("radius") or 1500)
+
+    try:
+        center = (float(params["lat"]), float(params["lng"])) \
+                 if (params.get("lat") is not None and params.get("lng") is not None) else None
+    except Exception:
+        center = None
+
+    raw = (data or {}).get("results") or []
+    filtered = [r for r in raw if _is_shinto_shrine_row(r)]
+    # 取得状況のログ
+    _dbg("nearby.fetch",
+         keyword=keyword, lat=params.get("lat"), lng=params.get("lng"),
+         radius=radius, pagetoken=bool(pagetoken),
+         raw=len(raw), filtered=len(filtered))
+
+
+    # 近い順＋マッチ度の並べ替え
+    sorted_results = _sort_results_for_query(filtered, keyword, center=center)
+    # リスト内に完全一致があれば先頭へ
+    sorted_results = _ensure_exact_on_top(sorted_results, keyword)
+
+    # 上位プレビュー（距離/マッチ度など）
+    if center is not None:
+        preview = []
+        for r in sorted_results[:5]:
+            dist = None
+            if r.get("lat") is not None and r.get("lng") is not None:
+                dist = int(_haversine_m(center, (float(r["lat"]), float(r["lng"]))))
+            preview.append({
+                "name": r.get("name"),
+                "d_m": dist,
+                "match": _keyword_match_score(r.get("name"), keyword),
+                "rating": r.get("rating"),
+                "reviews": r.get("user_ratings_total"),
+            })
+        _dbg("rank.top5", items=preview)
+
+
+    # 完全一致が無ければ Text Search から1件注入
+    if not pagetoken and center is not None:
+        key = _norm(keyword)
+        has_exact = any(_norm(r.get("name")) == key for r in sorted_results)
+        if not has_exact:
+            hit = _find_exact_from_text_nearby(keyword, center=center, radius_m=radius, language=language)
+            if hit and _is_shinto_shrine_row(hit):
+                _dbg("inject.exact_text", name=hit.get("name"), pid=hit.get("place_id"))
+                pid = hit.get("place_id")
+                sorted_results = [x for x in sorted_results if x.get("place_id") != pid]
+                sorted_results.insert(0, hit)
+            else:
+                _dbg("inject.miss", keyword=keyword)
+    # Nearby が空なら Text Search にフォールバック
+    if not sorted_results and not pagetoken:
+        q_bias = keyword if ("神社" in keyword) else f"{keyword} 神社"
+        _dbg("fallback.text_search", q=q_bias)
+        ts_params = {"q": q_bias, "language": _lang_or_default(language)}
+        if center is not None:
+            ts_params.update({"lat": center[0], "lng": center[1], "radius": radius})
+        _dbg("fallback.text_search", **{k: ts_params[k] for k in ("q", "lat", "lng", "radius") if k in ts_params})
+
+        ts = places_text_search(ts_params)
+
+        ts_results = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
+        ts_results = _sort_results_for_query(ts_results, keyword, center=center)
+        ts_results = _ensure_exact_on_top(ts_results, keyword)
+
+        if center is not None:
+            key = _norm(keyword)
+            if not any(_norm(r.get("name")) == key for r in ts_results):
+                hit = _find_exact_from_text_nearby(keyword, center=center, radius_m=radius, language=language)
+                if hit and _is_shinto_shrine_row(hit):
+                    _dbg("inject.exact_text", name=hit.get("name"), pid=hit.get("place_id"))
+                    pid = hit.get("place_id")
+                    ts_results = [x for x in ts_results if x.get("place_id") != pid]
+                    ts_results.insert(0, hit)
+                else:
+                    _dbg("inject.miss", keyword=keyword)
+
+
+        ts["results"] = ts_results
+        return ts
+
+    data["results"] = sorted_results
     return data
 
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -234,3 +339,216 @@ def _places_key(*parts: str) -> str:
     raw = ":".join("" if p is None else str(p) for p in parts)
     digest = md5(raw.encode("utf-8")).hexdigest()
     return f"{settings.CACHE_KEY_PREFIX}places:{digest}"
+
+def _build_photo_url_simple(photo_reference: Optional[str], *, maxwidth: int = 800) -> Optional[str]:
+    """Photo プロキシのURLを組み立て（/api/places/photo/ 経由）"""
+    if not photo_reference:
+        return None
+    params = build_photo_params(photo_reference, maxwidth=maxwidth)
+    # None はクエリに含めない
+    params = {k: v for k, v in params.items() if v is not None}
+    return f"/api/places/photo/?{urlencode(params)}"
+
+# 末尾の text_search_first を置き換え
+# ファイル内の下の方にある text_search_first を置き換え
+def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    正規化済み TextSearch の最初の『神社だけ』から1件返す。
+    address / location / photo_url を整形。なければ詳細で補完。
+    """
+    def _is_shinto(r: Dict[str, Any]) -> bool:
+        types = set(r.get("types") or [])
+        name = (r.get("name") or "")
+        if "buddhist_temple" in types:
+            return False
+        return ("shinto_shrine" in types) or ("神社" in name)
+
+    data = places_text_search({"q": q, "language": _lang_or_default(language)})
+    results = [r for r in ((data or {}).get("results") or []) if _is_shinto(r)]
+    if not results:
+        return None
+
+    r0 = results[0]
+    addr = r0.get("address") or r0.get("formatted_address") or r0.get("vicinity")
+    lat, lng = r0.get("lat"), r0.get("lng")
+    photo_ref = r0.get("photo_reference")
+
+    out = {
+        "place_id": r0.get("place_id"),
+        "address": addr,
+        "formatted_address": addr,
+        "photo_url": _build_photo_url_simple(photo_ref, maxwidth=800) if photo_ref else None,
+        "location": {"lat": lat, "lng": lng} if (lat is not None and lng is not None) else None,
+    }
+
+    # 不足は Details で補完
+    if out["address"] is None or out["location"] is None:
+        try:
+            det = places_details(out["place_id"], {"language": _lang_or_default(language)})
+            addr2 = det.get("formatted_address") or det.get("vicinity")
+            if out["address"] is None and addr2:
+                out["address"] = addr2
+                out["formatted_address"] = addr2
+            loc2 = (det.get("geometry") or {}).get("location") or {}
+            la2, ln2 = loc2.get("lat"), loc2.get("lng")
+            if out["location"] is None and la2 is not None and ln2 is not None:
+                out["location"] = {"lat": la2, "lng": ln2}
+        except Exception:
+            pass
+    return out
+
+# ---- ranking / filtering helpers ---------------------------------
+def _norm(s: Optional[str]) -> str:
+    """日本語名の簡易正規化（NFKC→小文字→記号/空白除去）。"""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKC", str(s)).casefold()
+    s = re.sub(r"[ \u3000\-\.\,，。/／\(\)（）「」『』【】\[\]~～・]+", "", s)
+    return s
+
+def _haversine_m(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    """(lat,lng)×2 → 距離[m]"""
+    (lat1, lng1), (lat2, lng2) = a, b
+    R = 6371000.0
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    x = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlng/2)**2
+    return 2 * R * atan2(x**0.5, (1 - x)**0.5)
+
+def _keyword_match_score(name: Optional[str], keyword: Optional[str]) -> float:
+    """
+    簡易マッチ度。完全一致>前方一致>部分一致>それ以外。
+    """
+    n, k = _norm(name), _norm(keyword)
+    if not k or not n:
+        return 0.0
+    if n == k:
+        return 1.0
+    if n.startswith(k):
+        return 0.8
+    if k in n:
+        return 0.6
+    return 0.0
+
+def _is_shinto_shrine_row(r: Dict[str, Any]) -> bool:
+    """
+    神社系のみ通す（buddhist_temple は除外）。
+    低レイヤーの正規化結果（types/name）がある前提。
+    """
+    types = set(r.get("types") or [])
+    name = r.get("name") or ""
+    if "buddhist_temple" in types:
+        return False
+    return ("shinto_shrine" in types) or ("神社" in name)
+
+def _sort_results_for_query(results: list, keyword: Optional[str], *, center: Optional[Tuple[float, float]]) -> list:
+    """
+    並び順：距離(昇順) → マッチ度(降順) → rating(降順) → 口コミ件数(降順)
+    """
+    def keyer(r: Dict[str, Any]):
+        # 距離
+        if center is not None and r.get("lat") is not None and r.get("lng") is not None:
+            d = _haversine_m(center, (float(r["lat"]), float(r["lng"])))
+        else:
+            d = 10**12  # centerがない/座標欠落は最下位へ
+        match = _keyword_match_score(r.get("name"), keyword)
+        rating = float(r.get("rating") or 0.0)
+        cnt = int(r.get("user_ratings_total") or 0)
+        return (d, -match, -rating, -cnt)
+    return sorted(results or [], key=keyer)
+
+def _ensure_exact_on_top(results: list, keyword: Optional[str]) -> list:
+    """リスト内に完全一致があれば先頭へ（安定移動）。"""
+    key = _norm(keyword)
+    if not key:
+        return results
+    for i, r in enumerate(results or []):
+        if _norm(r.get("name")) == key:
+            return [r] + [x for j, x in enumerate(results) if j != i]
+    return results
+
+def _find_exact_from_text_nearby(
+    keyword: str,
+    *,
+    center: Optional[Tuple[float, float]],
+    radius_m: int,
+    language: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """
+    まず Find Place from Text（locationbias 付き）で指名ヒットを探す。
+    見つからなければ Text Search（半径+40%）でフォールバック。
+    一致条件：完全一致 > 前方一致 > 部分一致。距離は +40% まで許容。
+    """
+    lang = _lang_or_default(language)
+
+    def _ok_and_dist(r: Dict[str, Any], tgt_norm: str) -> Optional[float]:
+        n = _norm(r.get("name"))
+        if not (n == tgt_norm or n.startswith(tgt_norm) or tgt_norm in n):
+            return None
+        if center is None or r.get("lat") is None or r.get("lng") is None:
+            return 0.0
+        d = _haversine_m(center, (float(r["lat"]), float(r["lng"])))
+        return d if d <= radius_m * 1.4 else None
+
+    tgt = _norm(keyword)
+
+    # ---- 1) Find Place from Text を優先（より指名性が高い）
+    try:
+        locationbias = None
+        if center is not None:
+            locationbias = f"circle:{int(radius_m * 1.4)}@{center[0]},{center[1]}"
+
+        fp = _wrap_call(
+            google_places.find_place_text,
+            keyword,
+            language=lang,
+            locationbias=locationbias,
+            fields="place_id,name,geometry,formatted_address,types,photos,opening_hours,icon",
+        )
+        candidates = fp.get("results") or []
+        _dbg("inject.findplace.candidates", n=len(candidates))
+
+        hits: list[Tuple[float, Dict[str, Any]]] = []
+        for r in candidates:
+            d = _ok_and_dist(r, tgt)
+            if d is not None:
+                hits.append((d, r))
+
+        if hits:
+            hits.sort(key=lambda x: x[0])
+            best = hits[0][1]
+            _dbg("inject.findplace.hit", name=best.get("name"), place_id=best.get("place_id"))
+            return best
+        else:
+            _dbg("inject.findplace.miss", keyword=keyword)
+    except Exception as e:
+        _dbg("inject.findplace.error", err=str(e))
+
+    # ---- 2) フォールバック: Text Search（半径+40%）
+    ts_params = {"q": keyword, "language": lang}
+    if center is not None:
+        ts_params.update({
+            "lat": center[0],
+            "lng": center[1],
+            "radius": int(radius_m * 1.4),
+        })
+    _dbg("inject.ts.query", **ts_params)
+
+    ts = places_text_search(ts_params)
+    candidates = ts.get("results") or []
+    _dbg("inject.ts.candidates", n=len(candidates))
+
+    hits: list[Tuple[float, Dict[str, Any]]] = []
+    for r in candidates:
+        d = _ok_and_dist(r, tgt)
+        if d is not None:
+            hits.append((d, r))
+
+    if not hits:
+        _dbg("inject.miss", keyword=keyword)
+        return None
+
+    hits.sort(key=lambda x: x[0])
+    best = hits[0][1]
+    _dbg("inject.hit", name=best.get("name"), place_id=best.get("place_id"))
+    return best
