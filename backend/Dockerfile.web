@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# OS 依存ライブラリ
+# ▼ ここを少し拡張（proj-data を追加）
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential \
     gdal-bin \
@@ -14,6 +14,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libgeos-dev \
     proj-bin \
     libproj-dev \
+    proj-data \            # ← 座標系データ
     postgresql-client \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -23,11 +24,18 @@ RUN GDAL_VER="$(gdal-config --version)" \
  && python -m pip install --upgrade pip \
  && python -m pip install "GDAL==${GDAL_VER}.*"
 
-# 依存インストール（build context=backend なので相対でOK）
+# ▼ ライブラリの実体パスを環境変数で固定（環境により .so の末尾バージョンは異なる）
+ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so
+ENV GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so
+# ▼ データディレクトリを OS 既定に合わせて指定（ホストの変数が漏れないように）
+ENV GDAL_DATA=/usr/share/gdal \
+    PROJ_LIB=/usr/share/proj
+
+# 依存インストール
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install -r /app/requirements.txt
 
-# アプリ本体（backend 配下をすべて）
+# アプリ本体
 COPY . /app
 
 EXPOSE 8000

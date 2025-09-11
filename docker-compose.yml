@@ -1,4 +1,4 @@
-# docker-compose.yml
+version: "3.9"
 
 services:
   db:
@@ -41,22 +41,23 @@ services:
     container_name: shrine_web
     restart: unless-stopped
     env_file:
-      - .env.dev          # ← ここから GOOGLE_PLACES_API_KEY / GOOGLE_MAPS_API_KEY も読み込み
+      - .env.dev
     environment:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "UTF-8"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
-      DJANGO_DB_NAME: ${DJANGO_DB_NAME}
-      DJANGO_DB_USER: ${DJANGO_DB_USER}
-      DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD}
-      DJANGO_DB_HOST: ${DJANGO_DB_HOST}
-      DJANGO_DB_PORT: ${DJANGO_DB_PORT}
-      # ↓ あえて空で上書き（未設定にする）※必要なら削除してください
-      GDAL_LIBRARY_PATH:
-      GEOS_LIBRARY_PATH:
-      GDAL_DATA:
-      PROJ_LIB:
+      # DB（.env.dev に無ければまずは明示）
+      DJANGO_DB_NAME: ${DJANGO_DB_NAME:-jinja_db}
+      DJANGO_DB_USER: ${DJANGO_DB_USER:-admin}
+      DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD:-admin_pass}
+      DJANGO_DB_HOST: ${DJANGO_DB_HOST:-db}
+      DJANGO_DB_PORT: ${DJANGO_DB_PORT:-5432}
+      # GIS ライブラリ（= ここがコロン形式必須）
+      GDAL_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgdal.so
+      GEOS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgeos_c.so
+      GDAL_DATA: /usr/share/gdal
+      PROJ_LIB: /usr/share/proj
     depends_on:
       - db
     volumes:
@@ -70,7 +71,8 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.frontend
+    #  ↑ Dockerfile.frontend を使うなら:
+    #  dockerfile: Dockerfile.frontend
     container_name: shrine_frontend
     restart: unless-stopped
     ports:
@@ -87,5 +89,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+
 volumes:
   redis-data:

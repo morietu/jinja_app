@@ -1,56 +1,91 @@
+import axios from "axios";
 import api from "./client";
-
-export type ConciergeResponse = {
-  recommendation: string;
-  reason: string;
-  tags: string[];
-};
 
 export type ConciergeHistory = {
   id: number;
-  shrine: number | null;
-  shrine_name: string;
-  reason: string;
-  tags: string[];
-  created_at: string;
+  shrine: number;
+  shrine_name?: string;
+  reason?: string | null;
+  tags?: string[] | null;
+  created_at?: string;
 };
 
-// baseURL は http://localhost:8000/api を想定
-// まず /concierge/history/、無ければ /concierge/recommendations/ を使う
-const HISTORY_CANDIDATES = [
-  "/concierge/history/",
-  "/concierge/recommendations/",
-];
+const PUBLIC_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
 
-export async function getConciergeHistory(): Promise<ConciergeHistory[]> {
-  let last404: any = null;
-  for (const path of HISTORY_CANDIDATES) {
-    try {
-      const res = await api.get(path);
-      return res.data as ConciergeHistory[];
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        last404 = err;
-        continue; // 次の候補へ
-      }
-      throw err; // 404 以外は即エラー
-    }
-  }
-  console.warn("No concierge history endpoint found. Returning empty list.", last404?.response?.status);
-  return [];
+// 先頭/末尾スラッシュを保証
+function normalize(p: string) {
+  let s = (p || "").trim();
+  if (!s.startsWith("/")) s = "/" + s;
+  if (!s.endsWith("/")) s += "/";
+  return s;
 }
 
-export async function getConciergeRecommendation(
-  birthYear: number,
-  birthMonth?: number,
-  birthDay?: number,
-  theme?: string
-): Promise<ConciergeResponse> {
-  const res = await api.post("/concierge/", {
-    birth_year: birthYear,
-    birth_month: birthMonth,
-    birth_day: birthDay,
-    theme: theme ?? "",
-  });
-  return res.data as ConciergeResponse;
+/** 候補: 環境によりどれかが存在 */
+const HISTORY_CANDIDATES = [
+  "/concierge/history",
+  "/users/me/concierge-history",
+  "/temples/concierge/history",
+].map(normalize);
+
+let HISTORY_EP_CACHE: string | null = null;
+
+async function tryGet(path: string) {
+  const ep = normalize(path);
+
+  // 1) 通常は Next の rewrites 経由（/api ベース）
+  try {
+    const r = await api.get<ConciergeHistory[]>(ep);
+    return { kind: "ok" as const, data: r.data };
+  } catch (err: any) {
+    // 404 → 次候補へ
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      return { kind: "missing" as const };
+    }
+    // 401/403 → エンドポイントは「存在」するが未ログイン
+    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+      return { kind: "exists" as const, data: [] as ConciergeHistory[] };
+    }
+    // レスポンス無し → Network Error など。絶対URLでフォールバックを一度試す
+    if (axios.isAxiosError(err) && !err.response) {
+      try {
+        const abs = `${PUBLIC_BASE}/api${ep}`;
+        const r2 = await axios.get<ConciergeHistory[]>(abs, {
+          headers: api.defaults.headers.common, // Authorization を引き継ぐ
+        });
+        return { kind: "ok" as const, data: r2.data };
+      } catch {
+        return { kind: "error" as const, error: err };
+      }
+    }
+    return { kind: "error" as const, error: err };
+  }
+}
+
+/** 履歴一覧（ログイン必須。未ログインや未実装でも UI を落とさない） */
+export async function getConciergeHistory(): Promise<ConciergeHistory[]> {
+  // キャッシュがあれば最初に試す
+  if (HISTORY_EP_CACHE) {
+    const r = await tryGet(HISTORY_EP_CACHE);
+    if (r.kind === "ok") return r.data;
+    if (r.kind === "exists") return []; // 未ログイン
+    // missing / error → キャッシュ破棄して再探索
+    HISTORY_EP_CACHE = null;
+  }
+
+  for (const path of HISTORY_CANDIDATES) {
+    const r = await tryGet(path);
+    if (r.kind === "ok") {
+      HISTORY_EP_CACHE = path;
+      return r.data;
+    }
+    if (r.kind === "exists") {
+      HISTORY_EP_CACHE = path;
+      return []; // 未ログイン（存在は確認できた）
+    }
+    // missing → 次候補へ
+  }
+
+  // どれも見つからない（未実装）→ フェイルソフト
+  console.warn("[concierge] history endpoint not found; returning empty list");
+  return [];
 }

@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
+from typing import Dict, Any
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from temples.serializers import PopularShrineSerializer
@@ -22,10 +23,61 @@ from .serializers import (
      RouteRequestSerializer,
      RouteResponseSerializer,
  )
-
-
+from temples.services.places import text_search_first, PlacesError
+from temples.services.concierge import make_plan
+from temples.services.places import text_search_first  # 既存の軽ラッパを想定
 from .models import Shrine
 from .route_service import build_route, Point as RoutePoint
+
+
+def normalize_candidate(cand: Dict[str, Any]) -> Dict[str, Any]:
+    # name + area_hint でTextSearch → 1件目を採用（API側でランキング済み想定)
+    """
+    name + area_hint でTextSearch → 1件目を採用。
+    失敗しても最低限（name/area_hint/reason）を返す。
+    """
+    query = f"{cand['name']} {cand['area_hint']}".strip()
+    hit = text_search_first(query) or {}
+    try:
+        hit = text_search_first(query)
+    except PlacesError as e:
+        # ログだけ残してフォールバック
+        logger = logging.getLogger(__name__)
+        logger.warning("places normalize failed: %s / %s", query, e)
+        hit = None
+
+    hit = hit or {}
+    return {
+        "name": cand["name"],
+        "area_hint": cand["area_hint"],
+        "reason": cand["reason"],
+        "place_id": hit.get("place_id"),
+        "address": hit.get("address") or hit.get("formatted_address"),
+        "photo_url": hit.get("photo_url"),
+        "location": hit.get("location"),  # {lat, lng}（無ければNone）
+    }
+
+class ConciergePlanView(APIView):
+    throttle_scope = "concierge"
+    authentication_classes = []                # ← 追加（公開API）
+    permission_classes = [AllowAny]            # ← 追加
+
+    def post(self, request):
+        lat   = request.data.get("lat")
+        lng   = request.data.get("lng")
+        mode  = request.data.get("mode", "walk")
+        benefit = request.data.get("benefit", "")
+        time_limit = request.data.get("time_limit")  # "2h" 等（任意）
+
+        plan = make_plan(lat, lng, benefit, mode, time_limit)
+        main = normalize_candidate(plan["main"])
+        nearby = [normalize_candidate(x) for x in plan["nearby"]]
+
+        return Response({
+            "mode": plan["mode"],
+            "main": main,
+            "nearby": nearby
+        }, status=status.HTTP_200_OK)
 
 
 class ShrineListView(APIView):
