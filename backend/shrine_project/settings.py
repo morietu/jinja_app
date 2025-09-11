@@ -130,6 +130,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
 
     # GeoDjango
     "django.contrib.gis",
@@ -147,6 +148,9 @@ INSTALLED_APPS = [
 # ========= DRF / 認可 =========
 PLACES_THROTTLE_BURST   = os.getenv("PLACES_THROTTLE_BURST",   "30/min")
 PLACES_THROTTLE_SUSTAIN = os.getenv("PLACES_THROTTLE_SUSTAIN", "1000/day")
+PLACES_TEXT_DEFAULT_LOCATION = "35.71,139.80"   # "lat,lng" 文字列
+PLACES_TEXT_DEFAULT_RADIUS_M = 3000             # メートル
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -168,6 +172,7 @@ REST_FRAMEWORK = {
         "places":         os.getenv("THROTTLE_PLACES", "60/min"),
         "places_burst":   PLACES_THROTTLE_BURST,
         "places_sustain": PLACES_THROTTLE_SUSTAIN,
+        "concierge": "20/hour",
     },
     "DEFAULT_ROUTER_TRAILING_SLASH": "/?",
 }
@@ -247,13 +252,8 @@ CORS_ALLOW_METHODS = list(default_methods)
 # ========= OpenAI =========
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# ========= ログ =========
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler", "level": "INFO"}},
-    "root": {"handlers": ["console"], "level": "INFO"},
-}
+
+
 
 
 # ----------------------------------------
@@ -309,4 +309,29 @@ if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
     print("[settings] Cache BACKEND:", _s.CACHES["default"]["BACKEND"], flush=True)
     print("[settings] Cache LOCATION:", _s.CACHES["default"].get("LOCATION"), flush=True)
 
+
+
+# --- logging ---
+DJANGO_LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    # ルートロガー（全体の標準出力）
+    "root": {
+        "handlers": ["console"],
+        "level": DJANGO_LOG_LEVEL,
+    },
+    "loggers": {
+        # temples.* 配下（temples.services.places も含む）を INFO 以上で出力
+        "temples": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}
 

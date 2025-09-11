@@ -3,11 +3,10 @@ from django.contrib.gis.db import models as gis_models  # PostGIS 対応
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.gis.geos import Point
+from django.contrib.postgres.indexes import GistIndex, GinIndex
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Q, CheckConstraint
-
-
 
 
 
@@ -30,11 +29,13 @@ class PlaceRef(models.Model):
         indexes = [
             models.Index(fields=["name"]),
             models.Index(fields=["synced_at"]),
+            GinIndex(fields=["snapshot_json"], name="placeref_snapshot_gin"),
         ]
 
 
 class GoriyakuTag(models.Model):
     """ご利益タグ（マスターデータ）"""
+
     CATEGORY_CHOICES = [
         ("ご利益", "願望・テーマ別"),
         ("神格", "祭神の種類"),
@@ -42,7 +43,9 @@ class GoriyakuTag(models.Model):
     ]
 
     name = models.CharField(max_length=50, unique=True)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default="ご利益")
+    category = models.CharField(
+        max_length=50, choices=CATEGORY_CHOICES, default="ご利益"
+    )
 
     def __str__(self) -> str:
         return f"{self.name} ({self.category})"
@@ -53,7 +56,8 @@ class GoriyakuTag(models.Model):
             models.Index(fields=["category", "name"]),
         ]
 
-class Shrine(gis_models.Model):
+
+class Shrine(models.Model):
     """神社"""
 
     # 基本情報
@@ -68,16 +72,20 @@ class Shrine(gis_models.Model):
     longitude = gis_models.FloatField(
         validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
-    location = gis_models.PointField(null=True, blank=True, srid=4326)  # 経度(x), 緯度(y)
+    location = gis_models.PointField(
+        srid=4326, null=True, blank=True
+    )  # 経度(x), 緯度(y)
 
     # ご利益・祭神など
-    goriyaku = gis_models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
+    goriyaku = gis_models.TextField(
+        help_text="ご利益（自由メモ）", blank=True, null=True, default=""
+    )
     sajin = gis_models.TextField(help_text="祭神", blank=True, null=True, default="")
     description = gis_models.TextField(blank=True, null=True)
 
     # 多対多: ご利益タグ（検索用）
     goriyaku_tags = gis_models.ManyToManyField(
-        "temples.GoriyakuTag", related_name="shrines", blank=True
+        "GoriyakuTag", related_name="shrines", blank=True
     )
 
     # 将来のAI用（五行・属性）
@@ -98,7 +106,6 @@ class Shrine(gis_models.Model):
     def __str__(self) -> str:
         return self.name_jp
 
-
     class Meta:
         ordering = ["-updated_at"]
         indexes = [
@@ -108,13 +115,14 @@ class Shrine(gis_models.Model):
             # ここでは並び替えに寄与する一般Indexを付与）
             models.Index(fields=["popular_score"], name="shrine_popular_idx"),
             # 位置検索用の空間インデックス（PostGIS / Spatialite）
-
+            GistIndex(fields=["location"], name="shrine_location_gist"),
         ]
 
     def save(self, *args, **kwargs):
-        # lat/lng が入っているときは Point を同期（経度→x、緯度→y）
         if self.latitude is not None and self.longitude is not None:
             self.location = Point(self.longitude, self.latitude, srid=4326)
+        else:
+            self.location = None
         super().save(*args, **kwargs)
 
 
@@ -144,8 +152,8 @@ class Favorite(models.Model):
             CheckConstraint(
                 name="favorite_exactly_one_target",
                 condition=(
-                    (Q(shrine__isnull=False) & Q(place_id__isnull=True)) |
-                    (Q(shrine__isnull=True)  & Q(place_id__isnull=False))
+                    (Q(shrine__isnull=False) & Q(place_id__isnull=True))
+                    | (Q(shrine__isnull=True) & Q(place_id__isnull=False))
                 ),
             ),
             # user × shrine を一意（shrine がある場合のみ）
@@ -165,6 +173,7 @@ class Favorite(models.Model):
     def __str__(self) -> str:
         target = self.shrine.name_jp if self.shrine else (self.place_id or "?")
         return f"{self.user} → {target}"
+
 
 class Visit(models.Model):
     STATUS_CHOICES = [
@@ -194,30 +203,41 @@ class Visit(models.Model):
 
 
 class Goshuin(models.Model):
-    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="goshuins")
+    shrine = models.ForeignKey(
+        Shrine, on_delete=models.CASCADE, related_name="goshuins"
+    )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     title = models.CharField(max_length=100, blank=True)
-    image1 = models.ImageField(upload_to="goshuin/", blank=True, null=True)
-    image2 = models.ImageField(upload_to="goshuin/", blank=True, null=True)
-    image3 = models.ImageField(upload_to="goshuin/", blank=True, null=True)
     is_public = models.BooleanField(default=True)
     likes = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class GoshuinImage(models.Model):
+    goshuin = models.ForeignKey(
+        Goshuin, on_delete=models.CASCADE, related_name="images"
+    )
+    image = models.ImageField(upload_to="goshuin/")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+        indexes = [models.Index(fields=["order"])]
 
     def __str__(self) -> str:
         return f"{self.shrine.name_jp} - {self.title or '御朱印'}"
 
 
-class ViewLike(models.Model):
-    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="viewlikes")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    is_like = models.BooleanField(default=False)  # True=いいね, False=閲覧
+class Like(models.Model):
+    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="likes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["created_at"]),
-            models.Index(fields=["is_like"]),
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shrine", "user"], name="uq_like_shrine_user"
+            )
         ]
 
     def __str__(self) -> str:
@@ -227,13 +247,20 @@ class ViewLike(models.Model):
 
 class RankingLog(models.Model):
     """ランキング用の集計（30日間）"""
-    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="ranking_logs")
-    date = models.DateField(default=timezone.now)
+
+    shrine = models.ForeignKey(
+        Shrine, on_delete=models.CASCADE, related_name="ranking_logs"
+    )
+    date = models.DateField(default=timezone.localdate)
     view_count = models.PositiveIntegerField(default=0)
     like_count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        unique_together = ("shrine", "date")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shrine", "date"], name="uq_rankinglog_shrine_date"
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.shrine} ({self.date}): views={self.view_count}, likes={self.like_count}"

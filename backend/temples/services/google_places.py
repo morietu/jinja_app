@@ -1,4 +1,3 @@
-# temples/services/google_places.py
 import os
 import logging
 from typing import Dict, Any, Optional, Tuple
@@ -6,10 +5,11 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+
 class GooglePlacesClient:
     BASE_URL = "https://maps.googleapis.com/maps/api/place"
 
-    def __init__(self, api_key: Optional[str] = None, timeout: float | None = None):
+    def __init__(self, api_key: Optional[str] = None, timeout: Optional[float] = None):
         self.api_key = api_key or os.getenv("GOOGLE_PLACES_API_KEY")
         if not self.api_key:
             raise RuntimeError("GOOGLE_PLACES_API_KEY is not set")
@@ -36,7 +36,7 @@ class GooglePlacesClient:
     @staticmethod
     def _normalize_result(r: Dict[str, Any]) -> Dict[str, Any]:
         geometry = r.get("geometry") or {}
-        loc = (geometry.get("location") or {})
+        loc = geometry.get("location") or {}
         photos = r.get("photos") or []
         first_photo_ref = (photos[0] or {}).get("photo_reference") if photos else None
         return {
@@ -124,7 +124,13 @@ class GooglePlacesClient:
         results = [self._normalize_result(r) for r in data.get("results", [])]
         return {"results": results, "status": status}, data.get("next_page_token")
 
-    def place_details(self, place_id: str, *, language: str = "ja", fields: Optional[str] = None) -> Dict[str, Any]:
+    def place_details(
+        self,
+        place_id: str,
+        *,
+        language: str = "ja",
+        fields: Optional[str] = None,
+    ) -> Dict[str, Any]:
         params: Dict[str, Any] = {"place_id": place_id, "language": language}
         if fields:
             params["fields"] = fields
@@ -164,9 +170,57 @@ class GooglePlacesClient:
         content_type = resp.headers.get("Content-Type", "image/jpeg")
         return resp.content, content_type
 
+    # 追加：Find Place（指名打ち）— デフォルト fields をクライアント側で補う
+    def find_place_from_text(
+        self,
+        input_text: str,
+        *,
+        language: str = "ja",
+        locationbias: Optional[str] = None,
+        fields: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "input": input_text,
+            "inputtype": "textquery",
+            "language": language,
+        }
+        if locationbias:
+            params["locationbias"] = locationbias
+
+        # ★ fields を明示しない呼び出しでも十分な情報が返るようデフォルトを補完
+        params["fields"] = fields or (
+            "place_id,name,geometry,formatted_address,types,photos,opening_hours,"
+            "rating,user_ratings_total,icon"
+        )
+
+        data = self._get("findplacefromtext", params).json()
+        status = data.get("status")
+        if status not in ("OK", "ZERO_RESULTS"):
+            logger.error("Places findplace error: %s, msg=%s", status, data.get("error_message"))
+            self._ensure_ok(data)
+
+        # 既存の正規化に合わせて整形
+        results = []
+        for c in data.get("candidates", []):
+            r = {
+                "place_id": c.get("place_id"),
+                "name": c.get("name"),
+                "formatted_address": c.get("formatted_address"),
+                "geometry": c.get("geometry"),
+                "types": c.get("types"),
+                "photos": c.get("photos", []),
+                "opening_hours": c.get("opening_hours"),
+                "icon": c.get("icon"),
+                "rating": c.get("rating"),
+                "user_ratings_total": c.get("user_ratings_total"),
+            }
+            results.append(self._normalize_result(r))
+        return {"results": results, "status": status}
+
 
 # ======== ここから下が “テストが patch する” モジュール関数（1セットだけ！） ========
 _client_singleton: Optional[GooglePlacesClient] = None
+
 
 def _client() -> GooglePlacesClient:
     global _client_singleton
@@ -174,22 +228,108 @@ def _client() -> GooglePlacesClient:
         _client_singleton = GooglePlacesClient()
     return _client_singleton
 
-def text_search(query: str, **kwargs) -> Dict[str, Any]:
-    data, _ = _client().text_search(query, **kwargs)
-    return data
 
-def nearby_search(**kwargs) -> Dict[str, Any]:
-    data, _ = _client().nearby_search(**kwargs)
-    return data
+def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
+    """
+    後方互換ラッパ:
+    - 旧: text_search({"q": "...", "language":"ja", "region":"jp", ...})
+    - 新: text_search("キーワード", language="ja", region="jp", ...)
+    """
+    if isinstance(query_or_params, dict):
+        p = dict(query_or_params)  # 破壊防止でコピー
+        query = p.pop("q", None) or p.pop("query", "") or ""
+        # 旧→新のキー変換
+        location = p.pop("location", None)
+        # lat,lng を渡していた旧呼び出しに対応
+        if not location and p.get("lat") is not None and p.get("lng") is not None:
+            location = f"{p.pop('lat')},{p.pop('lng')}"
+        pagetoken = p.pop("pagetoken", None)
+        language = p.pop("language", "ja")
+        region = p.pop("region", "jp")
+        open_now = p.pop("opennow", p.pop("open_now", None))
+        minprice = p.pop("minprice", None)
+        maxprice = p.pop("maxprice", None)
+        type_ = p.pop("type", None)
+        # 余剰は kwargs に流す
+        kwargs.update(p)
+        data, _ = _client().text_search(
+            query,
+            location=location,
+            radius=kwargs.pop("radius", None),
+            pagetoken=pagetoken,
+            language=language,
+            region=region,
+            open_now=open_now,
+            minprice=minprice,
+            maxprice=maxprice,
+            type_=type_,
+            **kwargs,
+        )
+        return data
+    else:
+        # 新APIスタイル
+        query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
+        data, _ = _client().text_search(query, **kwargs)
+        return data
+
+
+def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
+    """
+    後方互換ラッパ:
+    - 旧: nearby_search({"lat":..,"lng":..,"radius":..,"keyword":...})
+    - 新: nearby_search(location="lat,lng", radius=..., keyword=...)
+    """
+    if isinstance(params_or_none, dict):
+        p = dict(params_or_none)
+        location = p.pop("location", None)
+        if not location and p.get("lat") is not None and p.get("lng") is not None:
+            location = f"{p.pop('lat')},{p.pop('lng')}"
+        radius = p.pop("radius", None)
+        pagetoken = p.pop("pagetoken", None)
+        language = p.pop("language", "ja")
+        type_ = p.pop("type", None)
+        opennow = p.pop("opennow", p.pop("open_now", None))
+        keyword = p.pop("keyword", None)
+        kwargs.update(p)
+        data, _ = _client().nearby_search(
+            location=location,
+            radius=radius,
+            keyword=keyword,
+            language=language,
+            pagetoken=pagetoken,
+            type_=type_,
+            opennow=opennow,
+            **kwargs,
+        )
+        return data
+    else:
+        data, _ = _client().nearby_search(**kwargs)
+        return data
+
 
 def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
     return _client().place_details(place_id, **kwargs)
 
+
 def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
     return _client().photo(photo_reference, **kwargs)
+
 
 def details(place_id: str, **kwargs):
     # 既存の place_details をそのまま呼ぶ
     return _client().place_details(place_id, **kwargs)
 
-__all__ = ["GooglePlacesClient", "text_search", "nearby_search", "place_details", "photo", "details"]
+
+def find_place_text(input_text: str, **kwargs) -> Dict[str, Any]:
+    return _client().find_place_from_text(input_text, **kwargs)
+
+
+__all__ = [
+    "GooglePlacesClient",
+    "text_search",
+    "nearby_search",
+    "place_details",
+    "photo",
+    "details",
+    "find_place_text",
+]
