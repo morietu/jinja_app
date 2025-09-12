@@ -5,21 +5,12 @@ import { Button } from "@/components/ui/button";
 
 export default function Hero() {
   return (
-    <section className="relative bg-[url('/torii-bg.jpg')] bg-cover bg-center py-32 text-center text-white">
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="relative z-10">
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">
-          AI参拝ナビ
-        </h1>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-4 text-lg">
-            <Link href="/consultation">AIコンシェルジュに相談</Link>
-          </Button>
-          <Button asChild className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-8 py-4 text-lg">
-            <Link href="/ranking">人気神社を見る</Link>
-          </Button>
-        </div>
-      </div>
+    <section className="py-10 text-center bg-gray-50 rounded">
+      <h2 className="text-3xl font-bold mb-2">神社ポータル</h2>
+      <p className="text-gray-600 mb-4">探す・相談する・お気に入りを管理する</p>
+      <a href="/shrines/search" className="inline-block px-4 py-2 bg-blue-600 text-white rounded">
+        今すぐ探す
+      </a>
     </section>
   );
 }
