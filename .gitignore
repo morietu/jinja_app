@@ -49,3 +49,8 @@ backend/logs/
 # VS Code (track only settings.json)
 .vscode/*
 !.vscode/settings.json
+
+# VS Code (track only settings.json)
+!.vscode/
+.vscode/*
+!.vscode/settings.json
