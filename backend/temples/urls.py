@@ -9,6 +9,7 @@ from .api_views import (
     PlacesTextSearchPagedView, PlacesNearbySearchView,
     PlacesPhotoProxyView, RouteAPIView,
     PlacesFindPlaceView,
+    NearbyShrinesView,
 )
 from .views import PopularShrinesView, ConciergePlanView
 from . import views
@@ -27,6 +28,7 @@ urlpatterns = [
     # --- DRF ViewSet ---
     path("shrines/", api_shrine_list, name="shrine_list"),
     path("shrines/popular/", PopularShrinesView.as_view(), name="popular-shrines"),
+    path("shrines/nearby/",  NearbyShrinesView.as_view(),  name="shrines-nearby"),
 
     # --- ルート計算 API ---
     path("route/", RouteAPIView.as_view(), name="route_api"),

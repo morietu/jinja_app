@@ -9,8 +9,12 @@ from django.core.cache import cache
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.db.models import Q
 
-from rest_framework import viewsets, permissions, status, serializers
+from math import radians, sin, cos, asin, sqrt
+from typing import List, Dict, Any
+from rest_framework import status
+from rest_framework import viewsets, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
@@ -29,7 +33,67 @@ from .api.serializers import (
 
 REPLACEMENT_CHAR = "\ufffd"
 MAX_Q = getattr(settings, "PLACES_MAX_QUERY_LEN", 200)
+EARTH_KM = 6371.0088
 
+def haversine_km(lat1, lon1, lat2, lon2) -> float:
+    lat1, lon1, lat2, lon2 = float(lat1), float(lon1), float(lat2), float(lon2)
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+    return 2 * EARTH_KM * asin(sqrt(a))
+
+class NearbyShrinesView(APIView):
+    """
+    GET /api/shrines/nearby/?lat=35.68&lng=139.76&radius=1500&limit=3
+      - radius: メートル（デフォ 1500, 最大 10000）
+      - limit : 件数（デフォ 3, 最大 20）
+    返却: distance(km) を含む簡易情報
+    """
+    def get(self, request):
+        try:
+            lat = float(request.GET.get("lat"))
+            lng = float(request.GET.get("lng"))
+        except (TypeError, ValueError):
+            return Response({"detail": "lat,lng は必須です"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            radius_m = int(request.GET.get("radius", 1500))
+        except ValueError:
+            radius_m = 1500
+        radius_m = max(100, min(radius_m, 10000))
+        radius_km = radius_m / 1000.0
+
+        try:
+            limit = int(request.GET.get("limit", 3))
+        except ValueError:
+            limit = 3
+        limit = max(1, min(limit, 20))
+
+        # バウンディングボックスで粗く絞る（高速）
+        lat_delta = radius_km / 110.574  # 1度 ≒110.574km
+        lng_den = 111.320 * max(0.000001, cos(radians(lat)))  # 緯度依存
+        lng_delta = radius_km / lng_den
+
+        qs = (
+            Shrine.objects
+            .filter(
+                Q(latitude__gte=lat - lat_delta) & Q(latitude__lte=lat + lat_delta) &
+                Q(longitude__gte=lng - lng_delta) & Q(longitude__lte=lng + lng_delta)
+            )
+            .values("id", "name_jp", "address", "latitude", "longitude")
+        )
+
+        items: List[Dict[str, Any]] = []
+        for s in qs:
+            d = haversine_km(lat, lng, s["latitude"], s["longitude"])
+            if d <= radius_km:
+                s["distance"] = round(d, 3)  # km
+                items.append(s)
+
+        items.sort(key=lambda x: x["distance"])
+        items = items[:limit]
+        return Response(items, status=200)
+    
 
 def _robust_get_query_param(request, name: str) -> str:
     """
