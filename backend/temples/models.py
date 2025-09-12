@@ -114,8 +114,11 @@ class Shrine(models.Model):
             # 人気順の高速化（descはB-Treeで表現できないためクエリでORDER BY DESC、
             # ここでは並び替えに寄与する一般Indexを付与）
             models.Index(fields=["popular_score"], name="shrine_popular_idx"),
-            # 位置検索用の空間インデックス（PostGIS / Spatialite）
+            # PointField の spatial_index=True で自動作成されるため省略可
             GistIndex(fields=["location"], name="shrine_location_gist"),
+            models.Index(fields=['latitude'], name='idx_shrine_lat'),
+            models.Index(fields=['longitude'], name='idx_shrine_lng'),
+            models.Index(fields=['latitude', 'longitude'], name='idx_shrine_lat_lng'),
         ]
 
     def save(self, *args, **kwargs):
@@ -225,7 +228,10 @@ class GoshuinImage(models.Model):
         indexes = [models.Index(fields=["order"])]
 
     def __str__(self) -> str:
-        return f"{self.shrine.name_jp} - {self.title or '御朱印'}"
+        g = self.goshuin
+        shrine_name = getattr(getattr(g, "shrine", None), "name_jp", "不明")
+        title = getattr(g, "title", "") or "御朱印"
+        return f"{shrine_name} - {title}"
 
 
 class Like(models.Model):
@@ -241,8 +247,8 @@ class Like(models.Model):
         ]
 
     def __str__(self) -> str:
-        action = "Like" if self.is_like else "View"
-        return f"{self.shrine} / {self.user or 'Anonymous'} / {action}"
+        # is_like フラグは無いので固定表示
+        return f"Like: {self.shrine} / {self.user or 'Anonymous'}"
 
 
 class RankingLog(models.Model):
