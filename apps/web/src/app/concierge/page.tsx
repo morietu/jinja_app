@@ -28,7 +28,7 @@ type GeocodeResult = {
   provider: string;
 };
 
-const NEARBY_RADIUS_M = 2000;
+
 
 // ===== Config =====
 const API_BASE =
@@ -54,6 +54,12 @@ async function apiGet<T>(
   }
 }
 
+function fmtDistanceKm(km?: number) {
+  if (typeof km !== "number") return "";
+  if (km < 1) return `${Math.round(km * 1000)}m`;
+  return `${(Math.round(km * 10) / 10).toFixed(1)}km`;
+}
+
 // 簡易★ボタン（初期はfalseでOK）
 function FavButton({ shrineId }: { shrineId: number }) {
   const { fav, busy, toggle } = useFavorite(false, String(shrineId));
@@ -66,6 +72,7 @@ function FavButton({ shrineId }: { shrineId: number }) {
 
 export default function ConciergePage() {
   const [mode, setMode] = useState<"popular" | "nearby">("popular");
+  const [radiusM, setRadiusM] = useState<number>(2000);
 
   // 起点
   const [origin, setOrigin] = useState<LatLng | null>(null);
@@ -122,7 +129,7 @@ export default function ConciergePage() {
 
         // 近い順モード：/nearby を最優先（起点が必要）
         if (mode === "nearby" && o) {
-          const params = { ...baseParams, radius: NEARBY_RADIUS_M };
+          const params = { ...baseParams, radius: radiusM };
           const data = await apiGet<any>(
             "/api/shrines/nearby/",
             params,
@@ -188,14 +195,14 @@ export default function ConciergePage() {
         setLoadingList(false);
       }
     },
-    [mode]
+    [mode, radiusM]
   );
 
   // 起点 or mode が変わったら候補を取得
   useEffect(() => {
     fetchCandidates(origin);
     return () => listAbortRef.current?.abort();
-  }, [origin, mode, fetchCandidates]);
+  }, [origin, mode, radiusM, fetchCandidates]);
 
   // 住所検索
   const onSearch = async (e: React.FormEvent) => {
@@ -255,23 +262,42 @@ export default function ConciergePage() {
     <main className="p-4 space-y-6">
       <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
 
-      {/* 並び替えトグル */}
-      <div className="flex gap-2">
-        <button
-          className={`px-2 py-1 rounded ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          onClick={() => setMode("popular")}
-        >
-          人気順
-        </button>
-        <button
-          className={`px-2 py-1 rounded ${mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          onClick={() => setMode("nearby")}
-          disabled={!origin}
-          title={!origin ? "起点を設定してください" : ""}
-        >
-          近い順
-        </button>
-      </div>
+      {/* 並び替え + 半径 */}
+<div className="flex gap-2 items-center">
+  <button
+    className={`px-2 py-1 rounded ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+    onClick={() => setMode("popular")}
+  >
+    人気順
+  </button>
+
+  <button
+    className={`px-2 py-1 rounded ${mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+    onClick={() => setMode("nearby")}
+    disabled={!origin}
+    title={!origin ? "起点を設定してください" : ""}
+  >
+    近い順
+  </button>
+
+  {/* 半径セレクト（近い順のときだけ表示） */}
+  {mode === "nearby" && (
+    <label className="ml-2 text-sm flex items-center gap-1">
+      半径
+      <select
+        value={radiusM}
+        onChange={(e) => setRadiusM(Number(e.target.value))}
+        disabled={!origin}
+        className="border rounded px-2 py-1"
+        aria-label="検索半径"
+      >
+        <option value={500}>500m</option>
+        <option value={1000}>1km</option>
+        <option value={2000}>2km</option>
+      </select>
+    </label>
+  )}
+</div>
 
       {/* 起点入力 */}
       <section className="space-y-3">
@@ -353,7 +379,7 @@ export default function ConciergePage() {
 
                 {/* 距離（nearby応答にあれば表示、単位はmに丸め） */}
                 {typeof s.distance === "number" && (
-                  <div className="text-xs text-gray-500 mt-1">{Math.round(s.distance * 1000)}m</div>
+                  <div className="text-xs text-gray-500 mt-1">{fmtDistanceKm(s.distance)}</div>
                 )}
 
                 {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
