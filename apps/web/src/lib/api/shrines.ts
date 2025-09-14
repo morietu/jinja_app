@@ -6,6 +6,14 @@ import {
   type PaginationMeta,
 } from "../utils/toArray";
 
+// ★ Server Action の型と関数を唯一の正とする
+import {
+  createShrine as createShrineAction,
+  type CreateShrineInput,
+} from "@/app/shrines/actions";
+
+export type { CreateShrineInput };
+
 /** Shrine レコードの型（最小必須+任意項目） */
 export type Shrine = {
   id: number;
@@ -17,26 +25,18 @@ export type Shrine = {
   sajin?: string | null;
   description?: string | null;
   goriyaku_tags: GoriyakuTag[];
-  /** API都合で乗る場合がある。なければ undefined のまま */
   is_favorite?: boolean;
 };
 
 export type ShrineList = { items: Shrine[]; meta: PaginationMeta };
 
 export type ShrineListParams = {
-  /** フリーワード検索（バックエンド側 q 対応を想定） */
   q?: string;
-  /** DRF ページネーションを想定（あるなら） */
   page?: number;
   page_size?: number;
 };
 
-/**
- * 一覧取得（正規API）
- * - 常に配列で返す（items）
- * - ページネーション情報は meta に分離
- * - axios の baseURL は http://localhost:8000/api を想定
- */
+/** 一覧取得 */
 export async function listShrines(
   params: ShrineListParams = {}
 ): Promise<ShrineList> {
@@ -47,10 +47,10 @@ export async function listShrines(
   };
 }
 
-/** 互換: 旧 searchShrines を listShrines へ集約（UIの呼び出しを壊さない） */
+/** 互換: 検索は一覧に集約 */
 export const searchShrines = listShrines;
 
-/** 互換: 配列だけ欲しい既存UI向けの薄いラッパ（MVP期間中は残す） */
+/** 互換: 配列だけ欲しい UI 向け */
 export async function getShrines(
   params: { q?: string } = {}
 ): Promise<Shrine[]> {
@@ -58,7 +58,7 @@ export async function getShrines(
   return items;
 }
 
-/** 詳細取得（存在しなければ null 返却で UI を壊さない） */
+/** 詳細取得（存在しなければ null） */
 export async function getShrine(id: number): Promise<Shrine | null> {
   try {
     const res = await api.get(`/shrines/${id}/`);
@@ -69,19 +69,14 @@ export async function getShrine(id: number): Promise<Shrine | null> {
   }
 }
 
-/** 作成（必要なフィールドはMVP想定の最小） */
-export type CreateShrineInput = {
-  name_jp: string;
-  address?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  goriyaku?: string | null;
-  sajin?: string | null;
-  description?: string | null;
-  goriyaku_tags?: GoriyakuTag[]; // バックエンドが受ければ
-};
+/** 作成（★Server Action 経由・推奨） */
+export async function createShrine(input: CreateShrineInput): Promise<Shrine> {
+  // goriyakuTagIds: number[] を受け、Server Action 側で connect する
+  return (await createShrineAction(input)) as unknown as Shrine;
+}
 
-export async function createShrine(data: CreateShrineInput): Promise<Shrine> {
-  const res = await api.post("/shrines/", data);
+/** 任意：REST で作成したい場合は別名で残す（バックエンドが対応している時のみ） */
+export async function createShrineRest(input: CreateShrineInput): Promise<Shrine> {
+  const res = await api.post("/shrines/", input);
   return res.data as Shrine;
 }

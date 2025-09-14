@@ -1,78 +1,26 @@
 // apps/web/src/components/HomeCards.tsx
-"use client";
-
+// ※ 見出しは出さずに「カードのグリッドだけ」を返す
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button"; // shadcn/ui 前提。なければ <a> に置換。
-import { useAuth } from "@/lib/hooks/useAuth";
+
+const NAV = [
+  { title: "AIコンシェルジュ", desc: "現在地や住所から神社提案＋ルート表示", href: "/concierge", cta: "開く" },
+  { title: "神社検索", desc: "キーワード・タグで探す（暫定）", href: "/search", cta: "探す" },
+  { title: "ランキング", desc: "30日/短期の人気順（暫定）", href: "/ranking", cta: "見る" },
+  { title: "マイページ", desc: "お気に入り一覧・履歴（ログイン誘導）", href: "/mypage", cta: "開く" },
+];
 
 export default function HomeCards() {
-  const { isAuthenticated } = useAuth();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const next = `${pathname || "/"}${searchParams?.toString() ? `?${searchParams?.toString()}` : ""}`;
-  const loginHref = `/login?next=${encodeURIComponent("/mypage/")}`;
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {/* 1) OpenAIコンシェルジュ */}
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>OpenAI コンシェルジュ</CardTitle>
-          <CardDescription>参拝計画や御朱印の相談をAIに。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-end">
-          <Button asChild>
-            <Link href="/concierge">開く</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 2) 神社検索 */}
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>神社検索</CardTitle>
-          <CardDescription>エリア・ご利益・タグで探す。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-end">
-          <Button asChild>
-            <Link href="/shrines/search">検索する</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 3) ランキング */}
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>らんきんぐ</CardTitle>
-          <CardDescription>30日・月間・年間の人気TOP10。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-end">
-          <Button asChild>
-            <Link href="/shrines/ranking?period=30d">見る</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 4) マイページ導線（お気に入り一覧） */}
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>マイページ</CardTitle>
-          <CardDescription>お気に入り神社の一覧を表示。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">
-            {isAuthenticated ? "ログイン済み" : "ログインが必要です"}
-          </span>
-          <Button asChild>
-            <Link href={isAuthenticated ? "/mypage/" : loginHref}>
-              {isAuthenticated ? "マイページへ" : "ログインして開く"}
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {NAV.map((card) => (
+        <div key={card.href} className="rounded border p-4">
+          <div className="font-semibold mb-1">{card.title}</div>
+          <div className="text-sm text-gray-500 mb-2">{card.desc}</div>
+          <Link href={card.href} className="inline-block px-3 py-1 bg-blue-600 text-white rounded">
+            {card.cta}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }

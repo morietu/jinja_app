@@ -1,7 +1,14 @@
 import axios from "axios";
 import api, { setAuthToken } from "./client";
 
-type LoginResult = { access?: string; refresh?: string; key?: string; auth_token?: string; token?: string };
+type LoginResult = {
+  access?: string;
+  access_token?: string;   // ← 追加
+  refresh?: string;
+  key?: string;
+  auth_token?: string;
+  token?: string;
+};
 
 // 先頭/末尾スラッシュを揃える
 function normalizePath(raw: string) {
@@ -13,13 +20,20 @@ function normalizePath(raw: string) {
   return s;
 }
 
-const LOGIN_PATH = normalizePath(process.env.NEXT_PUBLIC_AUTH_LOGIN_PATH || "/token/");
 const PUBLIC_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
 
+// env で差し替え可能に（すべて normalize）
+const LOGIN_PATH   = normalizePath(process.env.NEXT_PUBLIC_AUTH_LOGIN_PATH   || "/token/");
+const REFRESH_PATH = normalizePath(process.env.NEXT_PUBLIC_AUTH_REFRESH_PATH || "/token/refresh/");
+const SIGNUP_PATH  = normalizePath(process.env.NEXT_PUBLIC_SIGNUP_PATH       || "/auth/signup/");
+
 function pickAccessToken(data: LoginResult) {
-  return data.access || data.key || data.auth_token || data.token || null;
+  // 返却フォーマットの揺れを吸収
+  return data.access || data.access_token || data.key || data.auth_token || data.token || null;
 }
+
 function saveTokens(access: string, refresh?: string | null) {
+  if (typeof window === "undefined") return;
   localStorage.setItem("access_token", access);
   localStorage.setItem("access", access);
   if (refresh) {
@@ -34,9 +48,9 @@ export async function login(username: string, password: string) {
   let lastErr: unknown = null;
 
   for (const body of bodies) {
-    // 1) まずバックエンド直叩き（絶対URL）。rewrite由来の差分を回避
+    // 1) まずバックエンド直叩き（絶対URL）
     try {
-      const absUrl = `${PUBLIC_BASE}/api${LOGIN_PATH}`; // ex) http://localhost:8000/api/token/
+      const absUrl = `${PUBLIC_BASE}/api${LOGIN_PATH}`;
       const r = await axios.post<LoginResult>(absUrl, body, {
         headers: { "Content-Type": "application/json" },
       });
@@ -46,11 +60,10 @@ export async function login(username: string, password: string) {
       return r.data;
     } catch (e) {
       lastErr = e;
-      // 400/401 は別ペイロード（username/email 切替）を試す
       if (axios.isAxiosError(e) && (e.response?.status === 400 || e.response?.status === 401)) {
         continue;
       }
-      // 404, 5xx, ネットワーク などは 2) 相対 /api を試す
+      // その他は相対で再試行
     }
 
     // 2) 相対 /api（Next rewrites 経由）
@@ -62,7 +75,6 @@ export async function login(username: string, password: string) {
       return res.data;
     } catch (e2) {
       lastErr = e2;
-      // 400/401 → 次のペイロードへ、その他は次のループへ
       if (axios.isAxiosError(e2) && (e2.response?.status === 400 || e2.response?.status === 401)) {
         continue;
       }
@@ -72,7 +84,9 @@ export async function login(username: string, password: string) {
 }
 
 export function logout() {
-  ["access_token", "access", "refresh_token", "refresh"].forEach((k) => localStorage.removeItem(k));
+  if (typeof window !== "undefined") {
+    ["access_token", "access", "refresh_token", "refresh"].forEach((k) => localStorage.removeItem(k));
+  }
   setAuthToken(null);
 }
 
@@ -84,7 +98,7 @@ export async function refreshAccessToken(): Promise<string | null> {
 
   // 1) 相対 /api
   try {
-    const r = await api.post<LoginResult>("/token/refresh/", { refresh });
+    const r = await api.post<LoginResult>(REFRESH_PATH, { refresh });
     const access = pickAccessToken(r.data || {});
     if (!access) return null;
     saveTokens(access, r.data?.refresh ?? refresh);
@@ -92,7 +106,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   } catch {
     // 2) 絶対URL
     try {
-      const abs = `${PUBLIC_BASE}/api/token/refresh/`;
+      const abs = `${PUBLIC_BASE}/api${REFRESH_PATH}`;
       const r2 = await axios.post<LoginResult>(abs, { refresh }, { headers: { "Content-Type": "application/json" } });
       const access = pickAccessToken(r2.data || {});
       if (!access) return null;
@@ -104,4 +118,16 @@ export async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
   }
+}
+
+export type SignupPayload = {
+  username: string;
+  password: string;
+  email?: string;
+};
+
+/** サインアップ（バックエンドの実装に合わせて path を調整してください） */
+export async function signup(payload: SignupPayload) {
+  const { data } = await api.post(SIGNUP_PATH, payload);
+  return data;
 }

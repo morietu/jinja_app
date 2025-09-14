@@ -1,7 +1,7 @@
 # RouteRequest/Response の簡易Serializer（修正版）
 from typing import List
 from rest_framework import serializers
-from .models import Shrine, Favorite  # ← temples.models の重複importは不要
+from .models import Shrine, Favorite, Goshuin  # ← temples.models の重複importは不要
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
 class ShrineSerializer(serializers.ModelSerializer):
@@ -104,3 +104,30 @@ class PopularShrineSerializer(serializers.ModelSerializer):
         if getattr(obj, "location", None):
             return obj.location.x  # GeoDjango: x=lng
         return getattr(obj, "longitude", None)
+
+class GoshuinSerializer(serializers.ModelSerializer):
+    # ← ここで親FKの name_jp を露出
+    shrine_name = serializers.CharField(source="shrine.name_jp", read_only=True)
+    # 便利フィールド（既にあるなら流用）
+    image_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Goshuin
+        fields = [
+            "id",
+            "shrine",        # FK ID（従来通りPOST/PUTで受ける）
+            "shrine_name",   # ★ 追加（読み取り専用）
+            "title",
+            "is_public",
+            "likes",
+            "created_at",
+            "image_url",     # あるとフロントが楽
+        ]
+
+    def get_image_url(self, obj):
+        img = obj.images.order_by("order", "id").first()
+        if not img or not img.image:
+            return None
+        request = self.context.get("request")
+        url = img.image.url
+        return request.build_absolute_uri(url) if request else url

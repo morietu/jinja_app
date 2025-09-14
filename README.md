@@ -32,6 +32,12 @@
 ### 🧭 AI参拝ナビ
 - ご利益と移動手段を入力 → AIが神社ルートを提案
 - メイン神社＋近隣2か所をまとめて表示
+- 🧭 AI参拝ナビ（ご利益×移動手段から最適ルート提案）
+- 🗺 ルート表示（徒歩＝青／車＝赤）
+- ⛩ 人気神社推薦（30日スコア算出）
+- ⭐ お気に入り神社管理（追加・削除・一覧）
+- 📸 御朱印投稿（公開/非公開切替、画像アップロード）
+- ➕ ユーザーによる神社登録（マップ上にピンを立て、名前を入力 → 住所は自動取得）
 
 ### 🔮 コンシェルジュ提案
 - **ライト診断**（干支ベース）：生まれ年から相性の良い神社を提案
@@ -163,4 +169,3 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
 ```bash
 docker compose up -d db web
 docker compose exec -T web sh -lc "pip install -q pytest pytest-django && pytest -q"
-

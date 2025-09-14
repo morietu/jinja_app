@@ -2,24 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import type { FormEvent, ChangeEvent } from "react";
 import { createShrine } from "@/lib/api/shrines";
 import { getGoriyakuTags } from "@/lib/api/tags";
 
+type Tag = { id: number; name: string };
+
 export default function NewShrinePage() {
   const router = useRouter();
+
   const [form, setForm] = useState({
     name_jp: "",
     address: "",
     goriyaku: "",
     sajin: "",
   });
+
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
 
   // ご利益タグ一覧を取得
   useEffect(() => {
-    getGoriyakuTags().then(setTags);
+    getGoriyakuTags().then(setTags).catch(() => {
+      setErrors((prev) => ({ ...prev, tags: "ご利益タグの取得に失敗しました" }));
+    });
   }, []);
 
   // ご利益タグ選択切り替え
@@ -39,57 +46,62 @@ export default function NewShrinePage() {
     const data = await res.json();
     if (data.features?.length > 0) {
       const [lon, lat] = data.features[0].center;
-      return { latitude: lat, longitude: lon };
+      return { latitude: lat as number, longitude: lon as number };
     }
     throw new Error("住所から位置を取得できませんでした");
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // 必須チェック
     if (!form.name_jp) {
       setErrors({ name_jp: "神社名は必須です" });
       return;
     }
 
     try {
-      let lat: number | null = null;
-      let lon: number | null = null;
+      let latitude: number | null = null;
+      let longitude: number | null = null;
 
       if (form.address) {
         try {
           const coords = await geocodeAddress(form.address);
-          lat = coords.latitude;
-          lon = coords.longitude;
+          latitude = coords.latitude;
+          longitude = coords.longitude;
         } catch {
-          setErrors({ address: "住所から位置を取得できませんでした" });
+          setErrors((prev) => ({ ...prev, address: "住所から位置を取得できませんでした" }));
           return;
         }
       }
 
+      // 🔧 API の DTO を ID 配列で揃える
       const shrine = await createShrine({
         name_jp: form.name_jp,
         address: form.address || "",
-        latitude: lat,
-        longitude: lon,
+        latitude,
+        longitude,
         goriyaku: form.goriyaku,
         sajin: form.sajin,
-        goriyaku_tags: selectedTags, // 👈 追加
+        goriyakuTagIds: selectedTags, // ← ここが重要（number[] をそのまま渡す）
       });
 
       router.push(`/shrines/${shrine.id}`);
     } catch (err) {
-      setErrors({ general: "登録に失敗しました。" });
+      setErrors((prev) => ({ ...prev, general: "登録に失敗しました。" }));
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-4">
       <h1 className="text-xl font-bold mb-4">神社新規登録</h1>
+
       {errors.general && <p className="text-red-500">{errors.general}</p>}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <input
@@ -103,6 +115,7 @@ export default function NewShrinePage() {
             <p className="text-red-500 text-sm">{errors.name_jp}</p>
           )}
         </div>
+
         <div>
           <input
             name="address"
@@ -115,8 +128,12 @@ export default function NewShrinePage() {
             <p className="text-red-500 text-sm">{errors.address}</p>
           )}
         </div>
+
         <div>
           <h2 className="font-bold">ご利益タグ</h2>
+          {errors.tags && (
+            <p className="text-red-500 text-sm">{errors.tags}</p>
+          )}
           <div className="flex flex-wrap gap-2 mt-2">
             {tags.map((tag) => (
               <button
@@ -134,6 +151,7 @@ export default function NewShrinePage() {
             ))}
           </div>
         </div>
+
         <input
           name="goriyaku"
           placeholder="ご利益"
@@ -141,6 +159,7 @@ export default function NewShrinePage() {
           onChange={handleChange}
           className="border p-2 w-full"
         />
+
         <input
           name="sajin"
           placeholder="祭神"
@@ -148,6 +167,7 @@ export default function NewShrinePage() {
           onChange={handleChange}
           className="border p-2 w-full"
         />
+
         <button
           type="submit"
           className="bg-blue-500 text-white p-2 w-full rounded"

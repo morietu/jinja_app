@@ -1,6 +1,7 @@
 // apps/web/src/components/ShrineCard.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -14,16 +15,19 @@ type Props = {
   onToggled?: (isFav: boolean) => void;
 };
 
+const IS_DEMO =
+  process.env.NEXT_PUBLIC_DEMO_MODE === "1" ||
+  process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
 
-  // shrine 未到着なら描画しない（スケルトンを入れてもOK）
   if (!shrine) return null;
 
-  // initial の決定（APIの命名揺れ is_favorite / isFavorite どちらにも対応）
+  // initial の決定（APIの命名揺れ is_favorite / isFavorite 両対応）
   const rawInit =
     typeof initialFav === "boolean"
       ? initialFav
@@ -31,21 +35,36 @@ export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
   const init = Boolean(rawInit);
 
   const shrineId = shrine?.id != null ? String(shrine.id) : null;
-  const { fav, busy, toggle } = useFavorite(init, shrineId ?? "");
+
+  // 通常は useFavorite を使用。デモ時はローカル state で UI だけ切替
+  const { fav, busy, toggle } = useFavorite(shrineId ?? "", init ?? false);
+  const [demoFav, setDemoFav] = useState(init);
+  const activeFav = IS_DEMO ? demoFav : fav;
+  const activeBusy = IS_DEMO ? false : busy;
 
   const goLoginWithReturn = () => {
-    const next = `${pathname}${searchParams?.toString() ? `?${searchParams?.toString()}` : ""}`;
+    const next = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
     router.push(`/login?next=${encodeURIComponent(next)}`);
   };
 
   const handleClick = async () => {
-    if (!shrineId) return; // IDが無ければ何もしない
+    if (!shrineId) return;
     if (!isAuthenticated) {
       goLoginWithReturn();
       return;
     }
-    const next = !fav;     // 次の状態を先に計算（コールバック用）
-    await toggle();        // フック内で楽観更新＋ロールバック
+
+    // デモモード：APIを叩かずUIだけトグル
+    if (IS_DEMO) {
+      const next = !demoFav;
+      setDemoFav(next);
+      onToggled?.(next);
+      return;
+    }
+
+    // 本番：useFavorite に委譲（内部で楽観更新＋ロールバック）
+    const next = !fav;
+    await toggle();
     onToggled?.(next);
   };
 
@@ -64,29 +83,29 @@ export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
         {/* ★ お気に入りトグル */}
         <button
           onClick={handleClick}
-          disabled={busy || !shrineId}
-          aria-pressed={fav}
-          aria-label={fav ? "お気に入り解除" : "お気に入り追加"}
+          disabled={activeBusy || !shrineId}
+          aria-pressed={activeFav}
+          aria-label={activeFav ? "お気に入り解除" : "お気に入り追加"}
           title={
             isAuthenticated
-              ? fav
+              ? activeFav
                 ? "お気に入り解除"
                 : "お気に入り追加"
               : "ログインでお気に入りが使えます"
           }
           className={`px-3 py-1 rounded text-sm ${
             isAuthenticated
-              ? fav
+              ? activeFav
                 ? "bg-red-500 text-white hover:bg-red-600"
                 : "bg-gray-200 hover:bg-gray-300"
               : "bg-gray-100 text-gray-400 hover:bg-gray-200"
           }`}
           data-testid="fav-toggle"
         >
-          {busy
+          {activeBusy
             ? "処理中..."
             : isAuthenticated
-            ? fav
+            ? activeFav
               ? "お気に入り解除"
               : "お気に入り追加"
             : "ログインでお気に入り"}

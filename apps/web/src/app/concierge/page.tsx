@@ -62,7 +62,7 @@ function fmtDistanceKm(km?: number) {
 
 // 簡易★ボタン（初期はfalseでOK）
 function FavButton({ shrineId }: { shrineId: number }) {
-  const { fav, busy, toggle } = useFavorite(false, String(shrineId));
+  const { fav, busy, toggle } = useFavorite(String(shrineId), false);
   return (
     <button onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
       {busy ? "…" : fav ? "★" : "☆"}

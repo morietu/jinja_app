@@ -1,3 +1,4 @@
+// apps/web/src/lib/api/goshuin.ts
 import axios from "axios";
 import api from "./client";
 
@@ -7,9 +8,23 @@ export type Goshuin = {
   title?: string | null;
   image_url?: string | null;
   created_at?: string;
+  is_public: boolean;
+  shrine_name?: string;
 };
 
-/** 末尾スラッシュ統一 */
+/** 公開一覧（認証不要） */
+export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<Goshuin[]>("/goshuin/");
+  return r.data ?? [];
+}
+
+/** 自分の一覧（要認証） */
+export async function fetchMyGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<Goshuin[]>("/my/goshuin/");
+  return r.data ?? [];
+}
+
+/* ====== 以下：自動判定 ====== */
 function normalize(p: string) {
   let s = (p || "").trim();
   if (!s.startsWith("/")) s = "/" + s;
@@ -18,42 +33,25 @@ function normalize(p: string) {
 }
 
 const PUBLIC_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
-
-/** 環境変数で固定できる（例: NEXT_PUBLIC_GOSHUIN_PATH=/users/me/goshuin/） */
 const ENV_PATH_RAW = (process.env.NEXT_PUBLIC_GOSHUIN_PATH || "").trim();
 
-/** 候補（環境によりどれかが存在） */
-const CANDIDATES = [
-  "/goshuin",
-  "/users/me/goshuin",
-  "/temples/goshuin",
-].map(normalize);
-
+const CANDIDATES = ["/goshuin", "/users/me/goshuin", "/temples/goshuin"].map(normalize);
 let EP_CACHE: string | null = ENV_PATH_RAW ? normalize(ENV_PATH_RAW) : null;
 
 async function tryGet(path: string) {
   const ep = normalize(path);
-
-  // 1) 通常は Next の rewrites 経由（相対 /api）
   try {
     const r = await api.get<Goshuin[]>(ep);
     return { kind: "ok" as const, data: r.data };
   } catch (err: any) {
-    // 404 → 次候補
-    if (axios.isAxiosError(err) && err.response?.status === 404) {
-      return { kind: "missing" as const };
-    }
-    // 401/403 → エンドポイントは存在（未ログイン）
-    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) return { kind: "missing" as const };
+    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403))
       return { kind: "exists" as const, data: [] as Goshuin[] };
-    }
-    // レスポンス無し → Network Error 等。絶対URLで再試行
+
     if (axios.isAxiosError(err) && !err.response) {
       try {
         const abs = `${PUBLIC_BASE}/api${ep}`;
-        const r2 = await axios.get<Goshuin[]>(abs, {
-          headers: api.defaults.headers.common, // Authorization を引き継ぐ
-        });
+        const r2 = await axios.get<Goshuin[]>(abs, { headers: api.defaults.headers.common });
         return { kind: "ok" as const, data: r2.data };
       } catch {
         return { kind: "error" as const, error: err };
@@ -63,30 +61,22 @@ async function tryGet(path: string) {
   }
 }
 
-/** 御朱印一覧（未ログイン・未実装でも UI は落とさない） */
+/** 自動判定：環境に合わせて最も近いエンドポイントから一覧を返す */
 export async function getGoshuin(): Promise<Goshuin[]> {
-  // まず ENV or キャッシュを試す
   if (EP_CACHE) {
     const r = await tryGet(EP_CACHE);
     if (r.kind === "ok") return r.data;
-    if (r.kind === "exists") return []; // 未ログイン
-    EP_CACHE = null; // ダメなら破棄して探索
+    if (r.kind === "exists") return [];
+    EP_CACHE = null;
   }
-
   for (const p of CANDIDATES) {
     const r = await tryGet(p);
-    if (r.kind === "ok") {
-      EP_CACHE = p;
-      return r.data;
-    }
-    if (r.kind === "exists") {
-      EP_CACHE = p;
-      return []; // 未ログイン（存在は確認）
-    }
-    // missing → 次候補
+    if (r.kind === "ok") { EP_CACHE = p; return r.data; }
+    if (r.kind === "exists") { EP_CACHE = p; return []; }
   }
-
-  // 見つからない（未実装）→ フェイルソフト
   console.warn("[goshuin] endpoint not found; returning empty list");
   return [];
 }
+
+// 好きなら別名も出しておく
+export const getGoshuinAuto = getGoshuin;

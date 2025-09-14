@@ -1,0 +1,17 @@
+
+> frontend@0.1.0 dev C:\Users\user\Desktop\jinja_app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.1
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.3.4:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ externalDir
+
+ ✓ Starting...
+ ✓ Ready in 4.1s
+ ○ Compiling /mypage ...
+ ✓ Compiled /mypage in 3.5s (813 modules)
+ GET /mypage/ 200 in 4534ms
+[?25h
