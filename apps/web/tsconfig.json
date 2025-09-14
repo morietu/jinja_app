@@ -20,6 +20,6 @@
       "@shared/*": ["../../packages/shared/*"] // ← 追加：共有レイヤ
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "src/**/*", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "lib/**", "**/*.legacy.*"]
 }

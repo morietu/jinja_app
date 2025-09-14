@@ -221,6 +221,21 @@ OPENAI_API_KEY=sk-...
 - Popular/Raking 集計は30日指標（バッチ導入予定）
 - マイグレーションは PostGIS 有効化と空間Index付与
 
+### backend/temples/
+- Shrine モデル拡張
+  - `created_by`（登録者ユーザー）
+  - `created_at`
+- API
+  - `POST /api/shrines/` : ユーザーによる神社登録（認証必須）
+  - 重複チェック : 名前＋住所の完全一致、緯度経度の近接（約100m以内）
+
+### apps/web
+- 神社登録ページ
+  - Google Maps/Mapbox 上でピンを立てるUI
+  - 神社名を入力 → API呼び出し
+- マイページ
+  - 自分が登録した神社一覧も表示可能
+
 ## 今後の追加予定
 
 - [ ] `docs/api_endpoints.md` に API 仕様を体系化（認可/スロットル/例含む）

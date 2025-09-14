@@ -13,12 +13,15 @@ from django.db.models import Q
 
 from math import radians, sin, cos, asin, sqrt
 from typing import List, Dict, Any
-from rest_framework import status
-from rest_framework import viewsets, permissions, serializers
+
+from rest_framework import status, viewsets, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from .models import Goshuin
+from .serializers import GoshuinSerializer
 
 # 上流呼び出しは google_places に統一（tests がここを patch します）
 from .services import google_places as gp
@@ -41,6 +44,25 @@ def haversine_km(lat1, lon1, lat2, lon2) -> float:
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
     return 2 * EARTH_KM * asin(sqrt(a))
+
+
+class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
+    """誰でも閲覧できる公開御朱印一覧"""
+    queryset = Goshuin.objects.filter(is_public=True).select_related("shrine")
+    serializer_class = GoshuinSerializer
+    permission_classes = [permissions.AllowAny]
+
+class MyGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
+    """自分の御朱印一覧（要認証・非公開も含む）"""
+    serializer_class = GoshuinSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Goshuin.objects
+            .filter(user=self.request.user)
+            .select_related("shrine")
+        )
 
 class NearbyShrinesView(APIView):
     """
@@ -821,7 +843,7 @@ class RouteAPIView(APIView):
         s.is_valid(raise_exception=True)
         data = s.validated_data
 
-        from math import radians, sin, cos, asin, sqrt
+        
 
         def haversine_m(a: dict, b: dict) -> float:
             R = 6371000.0
@@ -979,3 +1001,17 @@ class PlacesFindPlaceView(APIView):
 
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class GoshuinViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = Goshuin.objects.select_related("shrine")
+        # 認証済みなら自分の非公開も含める（任意）
+        user = getattr(self.request, "user", None)
+        if user and user.is_authenticated:
+            return qs.filter(is_public=True) | qs.filter(user=user)
+        return qs.filter(is_public=True)
+
+    serializer_class = GoshuinSerializer

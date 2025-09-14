@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -20,20 +18,6 @@ services:
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4:8.13
-    container_name: shrine_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin_pass
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-    volumes:
-      - ./.docker/pgadmin/data:/var/lib/pgadmin
-
   web:
     build:
       context: ./backend
@@ -43,23 +27,27 @@ services:
     env_file:
       - .env.dev
     environment:
-      PYTHONUTF8: "1"
-      PYTHONIOENCODING: "UTF-8"
-      LANG: "C.UTF-8"
-      LC_ALL: "C.UTF-8"
-      # DB（.env.dev に無ければまずは明示）
+      # ← ここに置く（Django が読む）
+      DATABASE_URL: postgres://admin:admin_pass@db:5432/jinja_db
+
+      # 併用するなら DJANGO_DB_* もこのままでOK（settings.py 側の対応次第）
       DJANGO_DB_NAME: ${DJANGO_DB_NAME:-jinja_db}
       DJANGO_DB_USER: ${DJANGO_DB_USER:-admin}
       DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD:-admin_pass}
       DJANGO_DB_HOST: ${DJANGO_DB_HOST:-db}
       DJANGO_DB_PORT: ${DJANGO_DB_PORT:-5432}
-      # GIS ライブラリ（= ここがコロン形式必須）
+
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "UTF-8"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
       GDAL_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgdal.so
       GEOS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgeos_c.so
       GDAL_DATA: /usr/share/gdal
       PROJ_LIB: /usr/share/proj
     depends_on:
-      - db
+      db:
+        condition: service_healthy   # ← DB の起動完了を待つ
     volumes:
       - ./backend:/app
     ports:
@@ -68,19 +56,20 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
+  # フロントがローカルで 3000 を使っているなら、片方を止めるかポート変更
   frontend:
     build:
       context: ./frontend
-    #  ↑ Dockerfile.frontend を使うなら:
-    #  dockerfile: Dockerfile.frontend
     container_name: shrine_frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"  # ← 競合回避（もしくはサービスごと止める）
     volumes:
       - ./frontend:/app
     depends_on:
       - web
+
+
 
   redis:
     image: redis:7-alpine
