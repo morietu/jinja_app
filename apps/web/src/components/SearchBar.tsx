@@ -1,30 +1,44 @@
+// apps/web/src/components/SearchBar.tsx
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import UseMyLocationButton from "@/components/UseMyLocationButton";
 import { buildLocationBias } from "@/lib/locationBias";
 
-type Props = { className?: string };
+type Props = {
+  className?: string;
+  initialKeyword?: string;          // ★ 追加
+  initialLocationBias?: string;     // （必要なら）
+};
 
-export default function SearchBar({ className }: Props) {
+export default function SearchBar({
+  className,
+  initialKeyword = "",
+  initialLocationBias = "",
+}: Props) {
   const router = useRouter();
-  const sp = useSearchParams();
-  const [q, setQ] = useState(sp.get("keyword") ?? "");
+  const [q, setQ] = useState(initialKeyword);
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
 
+  // 親からの初期値の変化を反映
   useEffect(() => {
-    setQ(sp.get("keyword") ?? "");
-  }, [sp]);
+    setQ(initialKeyword);
+  }, [initialKeyword]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const keyword = q.trim();
     if (!keyword) return;
+
     const params = new URLSearchParams({ keyword });
+
+    // 位置バイアス（ボタンで取れた場合を優先。なければ初期値を使う）
     const lb = buildLocationBias(lat, lng, 1500);
     if (lb) params.set("locationbias", lb);
+    else if (initialLocationBias) params.set("locationbias", initialLocationBias);
+
     router.push(`/search?${params.toString()}`);
   };
 

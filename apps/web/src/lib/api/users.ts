@@ -2,14 +2,20 @@
 import axios from "axios";
 import api from "./client";
 
-/** 最小のユーザー型（既存互換） */
-export type User = { id: number; username: string; email?: string };
+/** 最小ユーザー型（既存互換） */
+export type User = {
+  id: number;
+  username: string;
+  email?: string | null;
+};
 
-/** 拡張プロフィール */
+/** サーバー実体に合わせたプロフィール型 */
 export type UserProfile = User & {
-  display_name?: string | null;
-  avatar_url?: string | null;
-  home_location?: { lat: number; lng: number } | null;
+  nickname: string;
+  bio?: string | null;
+  icon?: string | null;
+  is_public: boolean;
+  created_at: string; // ISO 文字列
 };
 
 // 先頭/末尾スラッシュを保証（/api は付けない方針）
@@ -53,7 +59,7 @@ async function tryProbe(path: string): Promise<"exists" | "notfound" | "retry"> 
   try {
     await api.get(rel);
     return "exists";
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const code = err.response?.status;
       if (code && EXISTS_STATUS.has(code)) return "exists";
@@ -63,7 +69,7 @@ async function tryProbe(path: string): Promise<"exists" | "notfound" | "retry"> 
           const abs = `${PUBLIC_BASE}/api${rel}`;
           await axios.get(abs, { headers: authHeaders() });
           return "exists";
-        } catch (ee: any) {
+        } catch (ee: unknown) {
           if (axios.isAxiosError(ee) && ee.response?.status === 404) return "notfound";
           return "retry";
         }
@@ -101,7 +107,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   try {
     const res = await api.get<UserProfile>(ep);
     return res.data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const code = err.response?.status;
       if (code === 401 || code === 403 || code === 404) return null;
@@ -112,7 +118,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
     const abs = `${PUBLIC_BASE}/api${ep}`;
     const res = await axios.get<UserProfile>(abs, { headers: authHeaders() });
     return res.data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const code = err.response?.status;
       if (code === 401 || code === 403 || code === 404) return null;
@@ -126,7 +132,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
 export const getMe = getCurrentUser;
 
 /** プロフィール更新（部分更新・相対→絶対の順で試行） */
-export type UpdateUserInput = Partial<Omit<UserProfile, "id" | "username">>;
+export type UpdateUserInput = Partial<Omit<UserProfile, "id" | "username" | "created_at">>;
 
 export async function updateUser(payload: UpdateUserInput): Promise<UserProfile> {
   const ep = await resolveUserEndpoint();

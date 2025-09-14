@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import Link from "next/link";
 import Script from "next/script";
 import HamburgerMenu from "@/components/navigation/HamburgerMenu";
 
@@ -36,19 +37,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ja">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {/* 共通ヘッダー */}
-        <header className="flex items-center justify-between p-4 border-b">
-          <HamburgerMenu />
-          <h1 className="text-lg font-bold">AI参拝ナビ</h1>
+        <header className="border-b bg-white">
+          <nav className="max-w-5xl mx-auto flex items-center gap-4 p-3">
+            <Link href="/" className="font-bold">Jinja</Link>
+            <Link href="/search" className="hover:underline">検索</Link>
+            <Link href="/ranking" className="hover:underline">ランキング</Link>
+
+            <div className="ml-auto flex items-center gap-3">
+              <Link
+                href="/mypage?tab=goshuin"
+                className="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                御朱印帳
+              </Link>
+            </div>
+          </nav>
         </header>
+        {/* ▲ 追加おわり */}
 
         {/* ページ内容 */}
         <main>{children}</main>
 
         {/* Google Maps API */}
-        <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
-          strategy="afterInteractive"
-        />
+        
       </body>
     </html>
   );

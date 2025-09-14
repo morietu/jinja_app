@@ -1,35 +1,35 @@
 // apps/web/src/hooks/useFavorite.ts
 import { useState, useCallback } from "react";
-import { addFavorite, removeFavorite, toggleFavorite } from "@/lib/api/favorites";
+import { addFavorite, removeFavoriteByShrineId } from "@/lib/api/favorites";
 
-export function useFavorite(initial: boolean, shrineId: string) {
-  const [fav, setFav] = useState(initial);
+/** 神社ID（number|string）と初期状態でトグルするフック */
+export function useFavorite(shrineId: number | string, initial = false) {
+  const [fav, setFav] = useState<boolean>(initial);
   const [busy, setBusy] = useState(false);
 
+  // 文字列でも安全に数値化
+  const idNum = typeof shrineId === "string" ? Number(shrineId) : shrineId;
+  const validId = Number.isFinite(idNum) ? (idNum as number) : null;
+
   const toggle = useCallback(async () => {
-    if (busy) return;
+    if (busy || validId == null) return;
     setBusy(true);
     const prev = fav;
     setFav(!fav); // 楽観更新
     try {
-      const r = await toggleFavorite(shrineId);
-      const next = r.status === "added";
-      setFav(next);
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        try {
-          if (!prev) { await addFavorite(shrineId); setFav(true); }
-          else { await removeFavorite(shrineId); setFav(false); }
-        } catch {
-          setFav(prev);
-        }
+      if (!prev) {
+        await addFavorite(validId);
       } else {
-        setFav(prev);
+        await removeFavoriteByShrineId(validId);
       }
+    } catch (e) {
+      setFav(prev); // 失敗時ロールバック
+      console.error(e);
+      alert("お気に入り更新に失敗しました");
     } finally {
       setBusy(false);
     }
-  }, [busy, fav, shrineId]);
+  }, [fav, busy, validId]);
 
   return { fav, busy, toggle };
 }

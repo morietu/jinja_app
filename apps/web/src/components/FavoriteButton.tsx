@@ -1,11 +1,16 @@
 "use client";
+
 import { useFavorite } from "@/hooks/useFavorite";
 
 export default function FavoriteButton({
   shrineId,
   initialFav = false,
-}: { shrineId: number; initialFav?: boolean }) {
-  const { fav, busy, toggle } = useFavorite(initialFav, String(shrineId));
+}: {
+  shrineId: number;
+  initialFav?: boolean;
+}) {
+  const { fav, busy, toggle } = useFavorite(String(shrineId), initialFav ?? false);
+
   return (
     <button
       onClick={toggle}

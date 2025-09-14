@@ -68,7 +68,8 @@ export default function DbSearchSection({ keyword }: { keyword: string }) {
   const groupedTags = useMemo(() => {
     const acc: Record<string, GoriyakuTag[]> = {};
     for (const tag of tags) {
-      (acc[tag.category] = acc[tag.category] ?? []).push(tag);
+      const key = tag.category ?? "その他";
+      (acc[key] = acc[key] ?? []).push(tag);
     }
     return acc;
   }, [tags]);
