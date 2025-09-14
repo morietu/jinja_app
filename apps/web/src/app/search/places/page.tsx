@@ -1,43 +1,41 @@
-// apps/web/src/app/search/page.tsx
-import SearchBar from "@/components/SearchBar";
+// apps/web/src/app/search/places/page.tsx
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
 
-type SearchParams = { keyword?: string; locationbias?: string };
+type SearchParams = {
+  keyword?: string;
+  locationbias?: string;
+};
 
-// バックエンドの絶対URL（末尾スラッシュ除去）
-const API = (
-  process.env.NEXT_PUBLIC_API ??
-  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ??
-  "http://localhost:8000"
-).replace(/\/$/, "");
-
-// /api/places/find_place/ を叩く（将来差し替えはここだけ）
-async function fetchPlaces(params: { keyword: string; locationbias?: string }) {
+async function fetchPlaces(params: SearchParams) {
   const usp = new URLSearchParams({
-    input: params.keyword,
+    input: params.keyword ?? "",
     language: "ja",
     fields:
       "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon",
   });
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  const r = await fetch(`${API}/api/places/find_place/?${usp.toString()}`, {
+  // 相対パスでバックエンドへ（rewrites が効く）
+  const r = await fetch(`/api/places/find_place/?${usp.toString()}`, {
     cache: "no-store",
   });
   if (!r.ok) return { results: [] as any[] };
   return r.json();
 }
 
-export default async function SearchPage({
+export default async function Page({
   searchParams,
 }: {
-  // ★ Next 15: Promise を await
-  searchParams: Promise<SearchParams>;
+  // ★ Next.js 15: Promise を受け取る
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // ★ ここで await
   const sp = await searchParams;
-  const keyword = (sp.keyword ?? "").trim();
-  const locationbias = sp.locationbias ?? "";
+  const keyword =
+    typeof sp.keyword === "string" ? sp.keyword.trim() : "";
+  const locationbias =
+    typeof sp.locationbias === "string" ? sp.locationbias : "";
 
   const data = keyword
     ? await fetchPlaces({ keyword, locationbias })
@@ -50,9 +48,6 @@ export default async function SearchPage({
   return (
     <main className="p-4 max-w-3xl mx-auto space-y-6">
       <h1 className="text-xl font-bold">検索結果</h1>
-
-      {/* ★ 初期値は props で渡す */}
-      <SearchBar initialKeyword={keyword} />
 
       {!keyword && (
         <p className="text-gray-500">キーワードを入力して検索してください。</p>
@@ -78,7 +73,7 @@ export default async function SearchPage({
           };
 
           const mapsUrl =
-            place.lat && place.lng
+            typeof place.lat === "number" && typeof place.lng === "number"
               ? gmapsDirUrl({
                   dest: { lat: place.lat, lng: place.lng },
                   mode: "walk",
@@ -92,7 +87,7 @@ export default async function SearchPage({
               : "");
 
           return (
-            <div key={place.place_id ?? place.name} className="space-y-2">
+            <div key={r.place_id ?? r.name} className="space-y-2">
               <PlaceCard p={place} />
               <div className="flex gap-2">
                 {mapsUrl && (

@@ -2,6 +2,7 @@
 export type GoriyakuTag = {
   id: number;
   name: string;
+  category?: string | null;
 };
 
 export type ShrineBase = {
