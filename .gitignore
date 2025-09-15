@@ -64,3 +64,8 @@ node_modules
 
 # allow shrine-app/.env.example
 !shrine-app/.env.example
+
+# Expo native outputs
+/shrine-app/ios/
+/shrine-app/android/
+/shrine-app/.expo/
