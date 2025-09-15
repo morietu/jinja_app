@@ -20,6 +20,7 @@ urlpatterns = [
 
     # Concierge（必要ならここに残す）
     path("api/concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
+    
 
     # users
     path("api/", include("users.urls")),

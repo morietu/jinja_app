@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useFavorite } from "@/hooks/useFavorite";
 
-const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false, loading: () => <p>地図を読み込み中…</p> });
 
 // ===== Types =====
 type LatLng = { lat: number; lng: number };
@@ -14,8 +14,8 @@ type ShrineLite = {
   name_jp?: string;
   name?: string;
   address?: string;
-  latitude: number | string;
-  longitude: number | string;
+  latitude: number; // ← 数値に正規化
+  longitude: number; // ← 数値に正規化
   goriyaku_tags?: { id: number; name: string }[];
   distance?: number; // km
 };
@@ -28,13 +28,67 @@ type GeocodeResult = {
   provider: string;
 };
 
+// ===== AI Plan Types =====
+type AiStep = {
+  shrine_id?: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  reason?: string;
+  stay_minutes?: number;
+};
+type AiPlan = {
+  title: string;
+  summary?: string;
+  mode: "walking" | "driving";
+  steps: AiStep[];
+};
 
+// ===== Type Guards / Coercers =====
+function toNumberSafe(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function isTagArray(v: unknown): v is { id: number; name: string }[] {
+  return Array.isArray(v) && v.every((t) => t && typeof t.id === "number" && typeof t.name === "string");
+}
+
+function coerceShrineLite(raw: any): ShrineLite | null {
+  const id = typeof raw?.id === "number" ? raw.id : null;
+  const name_jp = typeof raw?.name_jp === "string" ? raw.name_jp : undefined;
+  const name = typeof raw?.name === "string" ? raw.name : undefined;
+  const address = typeof raw?.address === "string" ? raw.address : undefined;
+
+  const lat = toNumberSafe(raw?.latitude ?? raw?.lat);
+  const lng = toNumberSafe(raw?.longitude ?? raw?.lng);
+  if (id === null || lat === null || lng === null) return null; // 座標必須
+
+  const out: ShrineLite = {
+    id,
+    name_jp,
+    name,
+    address,
+    latitude: lat,
+    longitude: lng,
+  };
+
+  if (isTagArray(raw?.goriyaku_tags)) out.goriyaku_tags = raw.goriyaku_tags;
+  if (typeof raw?.distance === "number" && Number.isFinite(raw.distance)) out.distance = raw.distance;
+  return out;
+};
 
 // ===== Config =====
 const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ??
   process.env.NEXT_PUBLIC_API ??
   process.env.NEXT_PUBLIC_BACKEND_ORIGIN ??
-  "http://localhost:8000";
+  "http://localhost:8000"; // NEXT_PUBLIC_* はクライアントに露出。ビルド時にインライン展開されます。
 
 // ===== Common GET (null返しでUIを落とさない) =====
 async function apiGet<T>(
@@ -64,7 +118,7 @@ function fmtDistanceKm(km?: number) {
 function FavButton({ shrineId }: { shrineId: number }) {
   const { fav, busy, toggle } = useFavorite(String(shrineId), false);
   return (
-    <button onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
+    <button type="button" onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
       {busy ? "…" : fav ? "★" : "☆"}
     </button>
   );
@@ -87,6 +141,14 @@ export default function ConciergePage() {
   const [candidates, setCandidates] = useState<ShrineLite[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  // AI プロンプト & 結果
+  const [userPrompt, setUserPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPlan, setAiPlan] = useState<AiPlan | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  // 交通手段（AI には walking/driving を渡す）
+  const [travelMode, setTravelMode] = useState<"walking" | "driving">("walking");
+
   // 通知
   const [error, setError] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(false);
@@ -105,9 +167,72 @@ export default function ConciergePage() {
         setOriginLabel("現在地");
       },
       () => setOrigin(null),
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   }, []);
+
+  useEffect(() => {
+    return () => {
+      listAbortRef.current?.abort();
+      geocodeAbortRef.current?.abort();
+    };
+  }, []);
+
+  // AI プラン生成
+  async function requestAiPlan() {
+    if (!origin || !userPrompt.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiPlan(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/concierge/plan/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: userPrompt,
+          origin,
+          mode: travelMode,   // AI エンドポイントには walking/driving を渡す
+          count: 3,
+          radius_m: radiusM,
+        }),
+      });
+      if (!res.ok) {
+        setAiError("AIプラン生成に失敗しました（検索にフォールバックしてください）");
+        return;
+      }
+      const data = (await res.json()) as AiPlan;
+      if (!data || !Array.isArray(data.steps) || data.steps.length === 0) {
+        setAiError("AIから有効な行程が返りませんでした");
+        return;
+      }
+      setAiPlan(data);
+    } catch {
+      setAiError("AIプラン生成に失敗しました（ネットワークエラー）");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  // AI 提案を候補に採用
+  function adoptAiPlan(p: AiPlan) {
+    const toCandidate = (st: AiStep, idx: number): ShrineLite | null => {
+      const raw = {
+        id: typeof st.shrine_id === "number" ? st.shrine_id : -1000 - idx,
+        name_jp: st.name,
+        address: st.address ?? "",
+        latitude: st.latitude,
+        longitude: st.longitude,
+        goriyaku_tags: [],
+        distance: undefined,
+      };
+      return coerceShrineLite(raw);
+    };
+    const cs = p.steps.slice(0, 3).map(toCandidate).filter((x): x is ShrineLite => x !== null);
+    if (cs.length > 0) {
+      setCandidates(cs);
+      setSelectedIdx(0);
+    }
+  }
 
   // 候補3件取得：mode に応じて入口エンドポイントを変える
   const fetchCandidates = useCallback(
@@ -137,15 +262,7 @@ export default function ConciergePage() {
           );
           list = Array.isArray(data) ? data : (data as any)?.results ?? [];
           if (list.length > 0) {
-            const cs: ShrineLite[] = list.slice(0, 3).map((s: any) => ({
-              id: s.id,
-              name_jp: s.name_jp ?? s.name,
-              address: s.address ?? "",
-              latitude: Number(s.latitude),
-              longitude: Number(s.longitude),
-              goriyaku_tags: s.goriyaku_tags,
-              distance: typeof s.distance === "number" ? s.distance : undefined,
-            }));
+            const cs = list.slice(0, 3).map(coerceShrineLite).filter((x): x is ShrineLite => x !== null);
             setCandidates(cs);
             setSelectedIdx(0);
             return;
@@ -177,15 +294,7 @@ export default function ConciergePage() {
           return;
         }
 
-        const cs: ShrineLite[] = list.slice(0, 3).map((s: any) => ({
-          id: s.id,
-          name_jp: s.name_jp ?? s.name,
-          address: s.address ?? "",
-          latitude: Number(s.latitude),
-          longitude: Number(s.longitude),
-          goriyaku_tags: s.goriyaku_tags,
-          distance: typeof s.distance === "number" ? s.distance : undefined,
-        }));
+        const cs = list.slice(0, 3).map(coerceShrineLite).filter((x): x is ShrineLite => x !== null);
         setCandidates(cs);
         setSelectedIdx(0);
       } catch {
@@ -254,7 +363,7 @@ export default function ConciergePage() {
 
   const selected = candidates[selectedIdx] || null;
   const destination = useMemo(
-    () => (selected ? { lat: Number(selected.latitude), lng: Number(selected.longitude) } : null),
+    () => (selected ? { lat: selected.latitude, lng: selected.longitude } : null),
     [selected]
   );
 
@@ -265,6 +374,7 @@ export default function ConciergePage() {
       {/* 並び替え + 半径 */}
 <div className="flex gap-2 items-center">
   <button
+    type="button"
     className={`px-2 py-1 rounded ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
     onClick={() => setMode("popular")}
   >
@@ -272,6 +382,7 @@ export default function ConciergePage() {
   </button>
 
   <button
+    type="button"
     className={`px-2 py-1 rounded ${mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
     onClick={() => setMode("nearby")}
     disabled={!origin}
@@ -331,7 +442,8 @@ export default function ConciergePage() {
                   setOriginLabel("現在地");
                   fetchCandidates(o);
                 },
-                () => setGeoMsg("現在地を取得できませんでした")
+                () => setGeoMsg("現在地を取得できませんでした"),
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
               );
             }}
             className="bg-gray-200 px-3 py-2 rounded"
@@ -354,6 +466,68 @@ export default function ConciergePage() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      {/* AI プロンプト入力 & 提案 */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">AI にプラン作成を依頼（任意）</h2>
+        <div className="flex items-center gap-3">
+          <label className="text-sm">移動手段</label>
+          <select
+            value={travelMode}
+            onChange={(e) => setTravelMode(e.target.value as "walking" | "driving")}
+            className="border rounded px-2 py-1"
+            aria-label="移動手段"
+          >
+            <option value="walking">徒歩</option>
+            <option value="driving">車</option>
+          </select>
+        </div>
+        <textarea
+          value={userPrompt}
+          onChange={(e) => setUserPrompt(e.target.value)}
+          placeholder="ご希望や条件（例：縁結びを重視・徒歩で2〜3箇所・できれば人混み少なめ など）"
+          className="w-full h-24 border rounded p-2"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={requestAiPlan}
+            disabled={!origin || !userPrompt.trim() || aiLoading}
+            className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+            aria-busy={aiLoading}
+          >
+            {aiLoading ? "AIがプラン作成中…" : "AIにプラン作成を依頼"}
+          </button>
+          {aiPlan && (
+            <button
+              type="button"
+              onClick={() => adoptAiPlan(aiPlan)}
+              className="rounded border px-4 py-2"
+            >
+              このAI提案を採用
+            </button>
+          )}
+        </div>
+        {aiError && <div className="text-sm text-red-600">{aiError}</div>}
+        {aiPlan && (
+          <div className="rounded border p-3 space-y-2">
+            <div className="font-semibold">{aiPlan.title}</div>
+            {aiPlan.summary && <div className="text-sm text-gray-700">{aiPlan.summary}</div>}
+            <ol className="list-decimal pl-5 space-y-2">
+              {aiPlan.steps.map((st, i) => (
+                <li key={i}>
+                  <div className="font-medium">{st.name}</div>
+                  {st.address && <div className="text-sm text-gray-600">{st.address}</div>}
+                  {st.reason && <div className="text-xs text-gray-500">理由：{st.reason}</div>}
+                </li>
+              ))}
+            </ol>
+            <p className="text-xs text-gray-500">
+              ※「このAI提案を採用」を押すと上の候補カードに反映され、地図・経路表示やお気に入り追加が可能になります。
+            </p>
+          </div>
         )}
       </section>
 
@@ -404,9 +578,7 @@ export default function ConciergePage() {
                     className="text-xs underline mt-2 inline-block"
                     target="_blank"
                     rel="noopener noreferrer"
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${Number(
-                      s.latitude
-                    )},${Number(s.longitude)}`}
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${s.latitude},${s.longitude}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     外部マップで経路

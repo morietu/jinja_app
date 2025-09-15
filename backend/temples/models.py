@@ -1,8 +1,8 @@
-from django.db import models
-from django.contrib.gis.db import models as gis_models  # PostGIS 対応
+
+
 from django.conf import settings
 from django.utils import timezone
-from django.contrib.gis.geos import Point
+
 from django.contrib.postgres.indexes import GistIndex, GinIndex
 
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -11,6 +11,30 @@ from django.db.models import Q, CheckConstraint
 
 
 
+GIS_ENABLED = bool(getattr(settings, "USE_GIS", False))
+
+if GIS_ENABLED:
+    # 本番/コンテナなど（PostGIS+GDALがある環境）
+    from django.contrib.gis.db import models as models
+    try:
+        from django.contrib.gis.geos import Point  # 使っていれば利用可
+    except Exception:
+        Point = None
+else:
+    # ローカル開発（GISなし）
+    from django.db import models as models
+
+    # 既存コードが Point(x, y) を呼んでも落ちないような簡易ダミー
+    class Point(tuple):
+        def __new__(cls, x, y): return super().__new__(cls, (x, y))
+        @property
+        def x(self): return self[0]
+        @property
+        def y(self): return self[1]
+
+    # もし models.PointField を使っていた場合の簡易代替
+    class PointField(models.JSONField):
+        pass
 
 class PlaceRef(models.Model):
     place_id = models.CharField(max_length=128, primary_key=True)
@@ -61,47 +85,49 @@ class Shrine(models.Model):
     """神社"""
 
     # 基本情報
-    name_jp = gis_models.CharField(max_length=100)
-    name_romaji = gis_models.CharField(max_length=100, blank=True, null=True)
-    address = gis_models.CharField(max_length=255)
+    name_jp = models.CharField(max_length=100)
+    name_romaji = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=255)
 
     # 位置情報
-    latitude = gis_models.FloatField(
+    latitude = models.FloatField(
         validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
     )
-    longitude = gis_models.FloatField(
+    longitude = models.FloatField(
         validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
-    location = gis_models.PointField(
-        srid=4326, null=True, blank=True
-    )  # 経度(x), 緯度(y)
+if GIS_ENABLED:
+    location = models.PointField(srid=4326, null=True, blank=True)  # 経度(x), 緯度(y)
+else:
+    # ローカル（GISなし）は JSON に lng/lat を格納
+    location = models.JSONField(null=True, blank=True)  # {"lng": x, "lat": y}
 
     # ご利益・祭神など
-    goriyaku = gis_models.TextField(
+    goriyaku = models.TextField(
         help_text="ご利益（自由メモ）", blank=True, null=True, default=""
     )
-    sajin = gis_models.TextField(help_text="祭神", blank=True, null=True, default="")
-    description = gis_models.TextField(blank=True, null=True)
+    sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
+    description = models.TextField(blank=True, null=True)
 
     # 多対多: ご利益タグ（検索用）
-    goriyaku_tags = gis_models.ManyToManyField(
+    goriyaku_tags = models.ManyToManyField(
         "GoriyakuTag", related_name="shrines", blank=True
     )
 
     # 将来のAI用（五行・属性）
-    element = gis_models.CharField(
+    element = models.CharField(
         max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
     )
 
     # タイムスタンプ
-    created_at = gis_models.DateTimeField(default=timezone.now)
-    updated_at = gis_models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # 人気集計（直近30日）
-    views_30d = gis_models.PositiveIntegerField(default=0)
-    favorites_30d = gis_models.PositiveIntegerField(default=0)
-    popular_score = gis_models.FloatField(default=0.0)
-    last_popular_calc_at = gis_models.DateTimeField(null=True, blank=True)
+    views_30d = models.PositiveIntegerField(default=0)
+    favorites_30d = models.PositiveIntegerField(default=0)
+    popular_score = models.FloatField(default=0.0)
+    last_popular_calc_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name_jp
@@ -145,16 +171,15 @@ class Favorite(models.Model):
     )
     # Places ベース
     place_id = models.CharField(max_length=128, null=True, blank=True, db_index=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
     class Meta:
         ordering = ["-created_at"]
         constraints = [
             # 片方だけ必須（XOR）
-            CheckConstraint(
+            models.CheckConstraint(
                 name="favorite_exactly_one_target",
-                condition=(
+                check=(
                     (Q(shrine__isnull=False) & Q(place_id__isnull=True))
                     | (Q(shrine__isnull=True) & Q(place_id__isnull=False))
                 ),

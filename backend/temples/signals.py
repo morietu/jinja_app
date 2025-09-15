@@ -4,12 +4,15 @@ import logging
 from django.conf import settings
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.contrib.gis.geos import Point
 from .models import Shrine
 from .geocoding.client import GeocodingClient, GeocodingError
 
 logger = logging.getLogger(__name__)
 
+try:
+    from django.contrib.gis.geos import Point  # USE_GIS=0 でも基本 import 可
+except Exception:
+    Point = None  # GEOS が無い環境では None にして後段でスキップ
 # --- ユーティリティ -------------------------------------------------
 
 def _compose_address(obj) -> str | None:
@@ -45,26 +48,27 @@ def _normalize_address_safe(s: str) -> str:
 @receiver(pre_save, sender=Shrine)
 def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
     """
-    Shrine を保存する直前に、住所から lat/lon/location を自動補完。
-    - 設定 AUTO_GEOCODE_ON_SAVE が False なら何もしない
-    - 住所が空なら何もしない
-    - 住所が実質未変更 & 既存の lat/lon があるなら何もしない
-    - 1回だけ geocode して lat/lon と location(Point, srid=4326) を埋める
+    Shrine 保存直前に住所→座標を補完。
+    - AUTO_GEOCODE_ON_SAVE=False なら何もしない
+    - 既に latitude/longitude が入っていれば geocode しない（新規作成でも）
+    - geocode 失敗時はログのみで保存は続行（落とさない）
     """
-    # 1) フラグで全体ON/OFF（デフォルト True）
+    # 0) フラグで全体ON/OFF（settings 未定義なら True 扱い）
     if getattr(settings, "AUTO_GEOCODE_ON_SAVE", True) is False:
         return
 
-    # 2) 住所を組み立て & 正規化
+    # 1) 既に座標が指定されていれば何もしない（新規/更新どちらも）
+    if getattr(instance, "latitude", None) is not None and getattr(instance, "longitude", None) is not None:
+        return
+
+    # 2) 住所の取得＆正規化（無ければ何もしない）
     addr = _compose_address(instance)
     addr = _normalize_address_safe(addr)
     if not addr:
-        return  # address は Serializer 側で必須化している前提
+        return
 
-    # 3) 既に座標があり、かつ住所が実質未変更ならスキップ
-    cur_lat = getattr(instance, "latitude", None)
-    cur_lng = getattr(instance, "longitude", None)
-    if instance.pk and cur_lat is not None and cur_lng is not None:
+    # 3) 既存レコードで住所未変更ならスキップ（保険）
+    if instance.pk:
         try:
             prev = sender.objects.filter(pk=instance.pk).only("id").first()
             if prev is not None:
@@ -72,22 +76,25 @@ def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
                 if prev_addr == addr:
                     return
         except Exception:
-            # 取得失敗は無視して続行（ベストエフォート）
-            pass
+            pass  # 取れなくても続行
 
-    # 4) geocode（1回だけ）
+    # 4) geocode（失敗しても保存は続行）
     try:
         client = GeocodingClient()
         res = client.geocode(addr)
+        if not res:
+            logger.warning("auto_geocode_on_save: no result for %r", addr)
+            return
+        instance.latitude = float(res.lat)
+        instance.longitude = float(res.lon)
+        if Point is not None:
+            try:
+                instance.location = Point(res.lon, res.lat, srid=4326)
+            except Exception:
+                pass  # GeoDjango 無効時などは無視
     except GeocodingError as e:
-        logger.warning("auto_geocode_on_save: geocode failed: %s", e)
-        # Shrine.latitude/longitude は非NULLなので、ここで止めるのが安全
-        raise
+        logger.warning("auto_geocode_on_save: geocode failed: %s (skip)", e)
+        return
     except Exception as e:
-        logger.exception("auto_geocode_on_save: unexpected error: %s", e)
-        raise
-
-    # 5) 代入（SRID は必ずキーワード引数で）
-    instance.latitude = float(res.lat)
-    instance.longitude = float(res.lon)
-    instance.location = Point(res.lon, res.lat, srid=4326)
+        logger.exception("auto_geocode_on_save: unexpected error: %s (skip)", e)
+        return

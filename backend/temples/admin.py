@@ -3,12 +3,17 @@ from .models import Shrine
 
 @admin.register(Shrine)
 class ShrineAdmin(admin.ModelAdmin):
-    """神社モデルの管理画面（GISウィジェットなしの暫定版）"""
-    list_display = (
-        "name_jp", "address", "popular_score",
-        "views_30d", "favorites_30d", "updated_at",
-    )
-    search_fields = ("name_jp", "name_romaji", "address")
-    list_filter = ("element",)
-    ordering = ("-popular_score", "-updated_at")
-    readonly_fields = ("last_popular_calc_at",)
+    """
+    モデルに name が無くても通る安全構成。
+    """
+    list_display = ("id", "display_name")
+    ordering = ("id",)
+    search_fields = ()  # 後で実在カラムに差し替え
+
+    @admin.display(description="Name")
+    def display_name(self, obj):
+        # よくある候補を順に探す。無ければ __str__。
+        for attr in ("name", "title", "shrine_name", "label"):
+            if hasattr(obj, attr):
+                return getattr(obj, attr)
+        return str(obj)
