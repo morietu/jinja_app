@@ -4,6 +4,13 @@ import os
 import sys
 from datetime import timedelta
 
+if sys.platform == "darwin":
+    # macOS (Homebrew) 環境: GeoDjango が確実に見つけられるようヒントを付与
+    os.environ.setdefault("GDAL_DATA", "/opt/homebrew/share/gdal")
+    os.environ.setdefault("PROJ_LIB", "/opt/homebrew/share/proj")
+    GDAL_LIBRARY_PATH = "/opt/homebrew/opt/gdal/lib/libgdal.dylib"
+    GEOS_LIBRARY_PATH = "/opt/homebrew/opt/geos/lib/libgeos_c.dylib"
+
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
@@ -14,6 +21,8 @@ _DLL_DIR     = _CONDA_PREFIX / "Library" / "bin"
 _GDAL_DATA_D = _CONDA_PREFIX / "Library" / "share" / "gdal"
 _PROJ_LIB_D  = _CONDA_PREFIX / "Library" / "share" / "proj"
 
+
+
 # ========= .env の読込（最初に1回だけ。OS環境変数を優先: override=False）=========
 for candidate in (REPO_ROOT / ".env.dev", REPO_ROOT / ".env"):
     if candidate.exists():
@@ -22,6 +31,9 @@ for candidate in (REPO_ROOT / ".env.dev", REPO_ROOT / ".env"):
             load_dotenv(dotenv_path=candidate, override=False)
         except Exception:
             pass
+# ← ここで定義に移動（.envを読んだ“後”に評価）
+USE_GIS = os.getenv("USE_GIS", "0") == "1"
+
 
 # ========= 実行環境ヘルパ =========
 def in_docker() -> bool:
@@ -48,6 +60,7 @@ def pick_db_host() -> str:
         return "127.0.0.1"
     return env_host
 
+
 # ========= データベース（単一定義）=========
 DB_HOST = pick_db_host()
 DB_PORT = os.getenv("DJANGO_DB_PORT", "5432")
@@ -55,19 +68,36 @@ DB_NAME = os.getenv("DJANGO_DB_NAME", "jinja_db")
 DB_USER = os.getenv("DJANGO_DB_USER", "admin")
 DB_PASSWORD = os.getenv("DJANGO_DB_PASSWORD", "jdb50515")
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": DB_NAME,
-        "USER": DB_USER,
-        "PASSWORD": DB_PASSWORD,
-        "HOST": DB_HOST,
-        "PORT": DB_PORT,
-        "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
-        "OPTIONS": {"connect_timeout": 5},
-        "TEST": {"NAME": f"test_{DB_NAME}"},
+if USE_GIS:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.contrib.gis.db.backends.postgis",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": DB_PORT,
+            "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
+            "OPTIONS": {"connect_timeout": 5},
+            "TEST": {"NAME": f"test_{DB_NAME}"},
+        }
     }
-}
+else:
+    # ✅ PostgreSQL（GISなし）
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": DB_PORT,
+            "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
+            "OPTIONS": {"connect_timeout": 5},
+            "TEST": {"NAME": f"test_{DB_NAME}"},
+        }
+    }
+
 
 # ========= Cache: REDIS_URL は明示設定のみ。未設定/127.0.0.1なら LocMem =========
 def _sanitize_redis_url(url: str) -> str:
@@ -88,25 +118,45 @@ REDIS_URL = _sanitize_redis_url(os.getenv("REDIS_URL", ""))
 if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
     print(f"[settings] DB_HOST={DB_HOST} REDIS_URL={REDIS_URL}", flush=True)
 
-# ========= GDAL/GEOS の DLL ヒント =========
-if hasattr(os, "add_dll_directory"):
-    if _DLL_DIR.exists():
-        os.add_dll_directory(str(_DLL_DIR))
-    _DLL_HINT = os.getenv("GDAL_DLL_DIR")
-    if _DLL_HINT and os.path.isdir(_DLL_HINT):
-        os.add_dll_directory(_DLL_HINT)
+# ========= GDAL/GEOS の DLL ヒント（Windows のみ）=========
+if sys.platform == "win32":
+    from pathlib import Path
+    _CONDA_PREFIX = Path(sys.prefix)
+    _DLL_DIR = _CONDA_PREFIX / "Library" / "bin"
 
-# gdal*.dll 自動検出（必要なら）
-try:
-    _ = next(_DLL_DIR.glob("gdal*.dll"))
-except StopIteration:
-    _ = None
+    if hasattr(os, "add_dll_directory"):
+        if _DLL_DIR.exists():
+            os.add_dll_directory(str(_DLL_DIR))
+        _DLL_HINT = os.getenv("GDAL_DLL_DIR")
+        if _DLL_HINT and os.path.isdir(_DLL_HINT):
+            os.add_dll_directory(_DLL_HINT)
 
-# Django が参照する設定値（env > conda 既定）
-GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")  # 例: C:\...\gdal310.dll
-GDAL_DATA         = os.getenv("GDAL_DATA") or (str(_GDAL_DATA_D) if _GDAL_DATA_D.exists() else None)
-PROJ_LIB          = os.getenv("PROJ_LIB") or (str(_PROJ_LIB_D)  if _PROJ_LIB_D.exists()  else None)
-GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")  # 例: C:\...\geos_c.dll
+    # （任意）デバッグ用の存在確認。未発見でも問題なし
+    _has_gdal_dll = any(_DLL_DIR.glob("gdal*.dll"))
+
+
+# Django が参照する設定値
+# 既に上でプラットフォーム別の既定を与えているので、
+# 「環境変数があれば上書き、無ければ既定を残す」合流ロジックにする
+GDAL_LIBRARY_PATH = os.getenv(
+    "GDAL_LIBRARY_PATH",
+    globals().get("GDAL_LIBRARY_PATH")  # 例: macOS Homebrew の既定
+)
+GEOS_LIBRARY_PATH = os.getenv(
+    "GEOS_LIBRARY_PATH",
+    globals().get("GEOS_LIBRARY_PATH")
+)
+# GDAL_DATA / PROJ_LIB は基本は環境変数で渡す想定。
+# Windows(Conda) では該当ディレクトリが存在すればフォールバック。
+_env_gdal_data = os.getenv("GDAL_DATA")
+_env_proj_lib = os.getenv("PROJ_LIB")
+if not _env_gdal_data and sys.platform == "win32" and _GDAL_DATA_D.exists():
+    _env_gdal_data = str(_GDAL_DATA_D)
+if not _env_proj_lib and sys.platform == "win32" and _PROJ_LIB_D.exists():
+    _env_proj_lib = str(_PROJ_LIB_D)
+# 参考: これらは settings 変数として持つ必要はないが、デバッグ用に保持してもOK
+GDAL_DATA = _env_gdal_data
+PROJ_LIB  = _env_proj_lib
 
 # ========= 基本設定 =========
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-key")
@@ -132,9 +182,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
 
-    # GeoDjango
-    "django.contrib.gis",
-
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
@@ -144,6 +191,11 @@ INSTALLED_APPS = [
     "users",
     "temples.apps.TemplesConfig",
 ]
+
+# USE_GIS の時だけ GeoDjango を有効化（リストを締めた“後”に挿入）
+if USE_GIS and "django.contrib.gis" not in INSTALLED_APPS:
+    insert_pos = INSTALLED_APPS.index("django.contrib.postgres") + 1 if "django.contrib.postgres" in INSTALLED_APPS else len(INSTALLED_APPS)
+    INSTALLED_APPS.insert(insert_pos, "django.contrib.gis")
 
 # ========= DRF / 認可 =========
 PLACES_THROTTLE_BURST   = os.getenv("PLACES_THROTTLE_BURST",   "30/min")
@@ -240,6 +292,10 @@ from corsheaders.defaults import default_headers, default_methods
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:19006",      # Expo Web
+    "http://127.0.0.1:19006",
+    "http://localhost:8081", "http://127.0.0.1:8081",
+    "http://localhost:3000", "http://127.0.0.1:3000",
 ]
 # CORS_ALLOW_CREDENTIALS = True
 
@@ -335,3 +391,4 @@ LOGGING = {
     },
 }
 
+AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "1") == "1"

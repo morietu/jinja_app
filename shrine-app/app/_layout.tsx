@@ -1,9 +1,12 @@
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
+
 export default function RootLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: true }}>
-      <Tabs.Screen name="(tabs)" options={{ headerShown: false, title: "Home" }} />
-      <Tabs.Screen name="shrine/[id]" options={{ href: null, title: "Shrine" }} />
-    </Tabs>
+    <Stack>
+      {/* タブグループはヘッダー非表示（タブ側で出す） */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* 詳細画面はここで登録（タブの外） */}
+      <Stack.Screen name="shrine/[id]" options={{ title: "神社詳細" }} />
+    </Stack>
   );
 }
