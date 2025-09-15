@@ -1,28 +1,57 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
+// shrine-app/app/(tabs)/index.tsx
+import { useEffect, useState, useCallback } from "react";
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native";
 import { Link } from "expo-router";
-import { api, Shrine } from "../../lib/api";
+import { api, type Shrine } from "../../lib/api";
 
 export default function PopularList() {
   const [data, setData] = useState<Shrine[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    let on = true;
-    api.popular(20)
-      .then(d => on && setData(d))
-      .catch(e => on && setErr(String(e)));
-    return () => { on = false; };
+  const load = useCallback(async () => {
+    setErr(null);
+    try {
+      const d = await api.popular(20);
+      setData(d);
+    } catch (e: any) {
+      setErr(e?.message ?? "fetch failed");
+    }
   }, []);
 
-  if (err) return <View style={{ padding: 16 }}><Text>エラー: {err}</Text></View>;
-  if (!data) return <View style={{ padding: 16 }}><ActivityIndicator /><Text> 読み込み中...</Text></View>;
+  useEffect(() => { load(); }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  if (err) {
+    return (
+      <View style={{ padding: 16 }}>
+        <Text style={{ color: "red", marginBottom: 8 }}>エラー: {err}</Text>
+        <TouchableOpacity onPress={load} style={{ padding: 12, borderWidth: 1, borderRadius: 8 }}>
+          <Text>再試行</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  if (!data) {
+    return (
+      <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <ActivityIndicator />
+        <Text>読み込み中...</Text>
+      </View>
+    );
+  }
 
   return (
     <FlatList
       data={data}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={{ padding: 12 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       renderItem={({ item }) => (
         <Link href={`/shrine/${item.id}`} asChild>
           <TouchableOpacity style={{ padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 8 }}>
