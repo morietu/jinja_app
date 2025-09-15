@@ -1,56 +1,80 @@
-# Python
+# -----------------
+# macOS / OS files
+# -----------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# -------------
+# Python / Pip
+# -------------
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.egg-info/
 build/
 dist/
 
-# 仮想環境
+# ------------------
+# Virtual Environments
+# ------------------
 .venv/
+venv/
+env/
 
-# テスト・ツール
+# -----------
+# Django
+# -----------
+# ※ 現在は Postgres を使用中だが、ローカル切替時のSQLiteも無視しておく
+*.sqlite3
+db.sqlite3
+
+# collectstatic / user uploads / logs
+**/staticfiles/
+**/media/
+**/runserver*.log
+**/logs/
+
+# ---------------
+# Test / Tooling
+# ---------------
 .tox/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage*
+.coverage
+.coverage.*
 htmlcov/
+coverage.xml
+pytest.xml
 
-# IDE・OS
-.vscode/
+# -------------
+# IDE settings
+# -------------
 .idea/
-.DS_Store
+.vscode/*
+!.vscode/settings.json   # VS Code は settings.json のみ追跡したい場合
 
-# 環境ファイル（秘匿）
+# -------------------------
+# Environment / Secrets
+# -------------------------
 .env
 .env.*
-runserver*.log
+!.env.example            # サンプルは追跡
 
-# Django
-*.sqlite3
-db.sqlite3
-staticfiles/
-media/
+# -------------------------
+# Node / Frontend (必要な場合)
+# -------------------------
+**/node_modules/
+**/dist/
+**/build/
 
-# Node（使っていれば）
-node_modules/
-NUL
-
-# DB data (ignore everything under .docker/db/data)
+# -------------------------
+# Docker / Local volumes
+# -------------------------
 .docker/db/data/
 
-# Logs
-backend/logs/
-# local artifacts
-
-
-
-
-# VS Code (track only settings.json)
-.vscode/*
-!.vscode/settings.json
-
-# VS Code (track only settings.json)
-!.vscode/
-.vscode/*
-!.vscode/settings.json
+# ---------------
+# Local artifacts
+# ---------------
+*.local
