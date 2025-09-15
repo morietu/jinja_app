@@ -78,3 +78,4 @@ pytest.xml
 # Local artifacts
 # ---------------
 *.local
+!/.env.example
