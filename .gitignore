@@ -24,6 +24,7 @@ htmlcov/
 # 環境ファイル（秘匿）
 .env
 .env.*
+!.env.example
 runserver*.log
 
 # Django
@@ -54,3 +55,12 @@ backend/logs/
 !.vscode/
 .vscode/*
 !.vscode/settings.json
+
+# Allow example env files
+!.env.example
+!**/
+.env.example
+node_modules
+
+# allow shrine-app/.env.example
+!shrine-app/.env.example
