@@ -2,17 +2,28 @@ import os
 import logging
 from typing import Dict, Any, Optional, Tuple
 import requests
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+API_KEY = (
+    os.getenv("GOOGLE_PLACES_API_KEY")
+    or os.getenv("GOOGLE_MAPS_API_KEY")
+    or getattr(settings, "GOOGLE_PLACES_API_KEY", None)
+    or getattr(settings, "GOOGLE_MAPS_API_KEY", None)
+)
 
 
 class GooglePlacesClient:
     BASE_URL = "https://maps.googleapis.com/maps/api/place"
 
     def __init__(self, api_key: Optional[str] = None, timeout: Optional[float] = None):
-        self.api_key = api_key or os.getenv("GOOGLE_PLACES_API_KEY")
+        self.api_key = api_key or API_KEY
         if not self.api_key:
-            raise RuntimeError("GOOGLE_PLACES_API_KEY is not set")
+            raise RuntimeError(
+                "Google Places API key is not set. "
+                "Set GOOGLE_PLACES_API_KEY (or GOOGLE_MAPS_API_KEY)."
+            )
         self.timeout = timeout if timeout is not None else float(
             os.getenv("GOOGLE_PLACES_TIMEOUT", "8.0")
         )
@@ -21,7 +32,12 @@ class GooglePlacesClient:
         url = f"{self.BASE_URL}/{path}/json"
         q = {"key": self.api_key, **params}
         resp = requests.get(url, params=q, timeout=self.timeout)
-        logger.info("Places upstream[%s]: %s", path, resp.url)
+        # APIキーがログに出ないようマスク
+        try:
+            safe_url = resp.url.replace(self.api_key, "****")
+        except Exception:
+            safe_url = "<masked>"
+        logger.info("Places upstream[%s] %s", path, safe_url)
         resp.raise_for_status()
         return resp
 
@@ -315,10 +331,27 @@ def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
     return _client().photo(photo_reference, **kwargs)
 
 
-def details(place_id: str, **kwargs):
-    # 既存の place_details をそのまま呼ぶ
+def details(place_id: str, *args, **kwargs):
+    """
+    Backward-compat layer:
+    - details(place_id, "a,b,c")         # 旧: 位置引数で fields 文字列
+    - details(place_id, ["a","b","c"])   # 旧: 配列で fields
+    - details(place_id, {"fields":"a,b","language":"ja"})  # 旧: dict まとめ渡し
+    - details(place_id, fields="a,b", language="ja")       # 新
+    """
+    if args:
+        first = args[0]
+        if isinstance(first, dict):
+            # 旧スタイル: 第2引数がパラメータ dict
+            kwargs.update(first)
+        else:
+            # 旧スタイル: 第2引数が fields（文字列 or 配列）
+            if "fields" not in kwargs:
+                if isinstance(first, (list, tuple)):
+                    kwargs["fields"] = ",".join(first)
+                else:
+                    kwargs["fields"] = str(first)
     return _client().place_details(place_id, **kwargs)
-
 
 def find_place_text(input_text: str, **kwargs) -> Dict[str, Any]:
     return _client().find_place_from_text(input_text, **kwargs)

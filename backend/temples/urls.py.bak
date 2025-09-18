@@ -1,0 +1,61 @@
+app_name = "temples"
+
+from django.urls import path, include, re_path
+from rest_framework.routers import DefaultRouter
+
+# ← 動的 import はやめて “固定 import” に戻す
+from .api_views import (
+    ShrineViewSet,
+    FavoriteViewSet,
+    PublicGoshuinViewSet,
+    GoshuinViewSet,
+    MyGoshuinViewSet,
+    NearbyShrinesView,
+    PlacesSearchView,
+    PlacesTextSearchPagedView,
+    PlacesNearbySearchView,
+    PlacesPhotoProxyView,
+    PlacesFindPlaceView,
+    PlacesDetailView,
+    RouteAPIView,
+)
+from .views import PopularShrinesView, shrine_detail, shrine_route
+
+# ---- DRF Routers ----
+router = DefaultRouter()
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
+router.register(r"shrines", ShrineViewSet, basename="shrine")
+router.register(r"goshuin/public", PublicGoshuinViewSet, basename="goshuin-public")
+router.register(r"goshuin", GoshuinViewSet, basename="goshuin")
+
+my_router = DefaultRouter()
+my_router.register(r"goshuin", MyGoshuinViewSet, basename="my-goshuin")
+
+urlpatterns = [
+    # まず router を先に入れる（HTML と競合させない）
+    path("", include(router.urls)),
+    path("my/", include(my_router.urls)),
+
+    # --- Shrine 拡張(API) ---
+    path("shrines/popular/", PopularShrinesView.as_view(), name="popular-shrines"),
+    path("shrines/nearby/",  NearbyShrinesView.as_view(),  name="shrines-nearby"),
+
+    # --- ルート計算 ---
+    path("route/", RouteAPIView.as_view(), name="route_api"),
+
+    # --- Places API ---
+    path("places/find_place/",    PlacesFindPlaceView.as_view(),       name="places_find_place"),
+    path("places/search/",        PlacesSearchView.as_view(),          name="places_search"),
+    path("places/text_search/",   PlacesTextSearchPagedView.as_view(), name="places_text_search"),
+    path("places/nearby_search/", PlacesNearbySearchView.as_view(),    name="places_nearby_search"),
+    path("places/photo/",         PlacesPhotoProxyView.as_view(),      name="places_photo"),
+    re_path(
+        r"^places/(?P<place_id>[A-Za-z0-9._=-]{10,200})/$",
+        PlacesDetailView.as_view(),
+        name="places_detail",
+    ),
+
+    # --- HTMLページ（APIと競合しないプレフィックスに移動）---
+    path("html/shrines/<int:pk>/",       shrine_detail, name="shrine_detail_html"),
+    path("html/shrines/<int:pk>/route/", shrine_route,  name="shrine_route_html"),
+]

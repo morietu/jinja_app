@@ -177,6 +177,12 @@ sequenceDiagram
   DB-->>API: Favorite
   API-->>C: 201 Created（Favorite JSON）
 ```
+### Services
+- `places_import.py`: Google Places Details → Shrine永続化（idempotent, optional favorite）
+
+### API
+- `POST /api/shrines/import_from_place/`: 個別保存
+- `POST /api/shrines/bulk_import/`: 一括保存（お気に入り一覧から）
 
 ## 環境変数（例・抜粋）
 

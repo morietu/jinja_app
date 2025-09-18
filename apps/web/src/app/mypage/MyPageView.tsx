@@ -13,6 +13,7 @@ import { getCurrentUser, updateUser, type UserProfile } from "@/lib/api/users";
 import { getConciergeHistory, type ConciergeHistory } from "@/lib/api/concierge";
 import { refreshAccessToken } from "@/lib/api/auth";
 import { getGoshuin, type Goshuin } from "@/lib/api/goshuin";
+import { removeFavoriteByPk, removeFavoriteByShrineId } from "@/lib/api/favorites";
 
 export default function MyPageView({ initialTab }: { initialTab?: string }) {
   // ★ Shrine[] → Favorite[] に変更
@@ -26,68 +27,77 @@ export default function MyPageView({ initialTab }: { initialTab?: string }) {
   const router = useRouter();
   const goshuinRef = useRef<HTMLDivElement>(null);
 
-  // ?tab=goshuin の初期スクロール
-  useEffect(() => {
-    if (initialTab === "goshuin") {
-      goshuinRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const refreshFavorites = async () => {
+    try {
+      const favs = await getFavorites();
+      setFavorites(Array.isArray(favs) ? favs : []);
+    } catch {
+      setFavorites([]);
     }
-  }, [initialTab]);
+  };
 
-  // 認証チェック & 初期データ取得
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const token =
-          localStorage.getItem("access_token") || (await refreshAccessToken());
-        if (!token) {
-          router.push("/login");
-          return;
-        }
+  // ★ 上の useEffect：初回呼び出しはしない。可視化イベントだけ残す
+useEffect(() => {
+  const onVis = () => {
+    if (document.visibilityState === "visible") {
+      refreshFavorites(); // タブ復帰時だけ再取得
+    }
+  };
+  document.addEventListener("visibilitychange", onVis);
+  return () => document.removeEventListener("visibilitychange", onVis);
+}, []);
 
-        // user / goshuin / history はまとめて取得
-        const [userData, gos, hist] = await Promise.all([
-          getCurrentUser(),
-          getGoshuin(),
-          getConciergeHistory(),
-        ]);
-
-        if (!mounted) return;
-
-        if (!userData) {
-          setError("未ログインです");
-          return;
-        }
-
-        setUser(userData);
-        setGoshuin(gos);
-        setHistory(hist);
-
-        // favorites は個別に取得（失敗しても致命ではない）
-        try {
-          const favs = await getFavorites();
-          if (mounted) setFavorites(favs);
-        } catch {
-          if (mounted) setFavorites([]);
-        }
-      } catch (err: any) {
-        console.error("データ取得エラー:", err);
-        if (err?.response?.status === 401) {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          router.push("/login");
-          return;
-        }
-        setError("データの取得に失敗しました");
-      } finally {
-        if (mounted) setLoading(false);
+// ★ 下の“大きい方”の useEffect：初回ロードはここで favorites を 1 回だけ取得
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    try {
+      const token =
+        localStorage.getItem("access_token") || (await refreshAccessToken());
+      if (!token) {
+        router.push("/login");
+        return;
       }
-    })();
 
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
+      const [userData, gos, hist] = await Promise.all([
+        getCurrentUser(),
+        getGoshuin(),
+        getConciergeHistory(),
+      ]);
+      if (!mounted) return;
+
+      if (!userData) {
+        setError("未ログインです");
+        return;
+      }
+
+      setUser(userData);
+      setGoshuin(gos);
+      setHistory(hist);
+
+      // ▼ ここを refreshFavorites に寄せる（重複排除）
+      await refreshFavorites();
+
+    } catch (err: any) {
+      console.error("データ取得エラー:", err);
+      if (err?.response?.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      setError("データの取得に失敗しました");
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  })();
+
+  return () => {
+    mounted = false;
+  };
+}, [router]);
+
 
   const handleSave = async () => {
     if (!user) return;
@@ -191,61 +201,89 @@ export default function MyPageView({ initialTab }: { initialTab?: string }) {
       </section>
 
       {/* お気に入り神社（Favorite[] → Shrine 表示） */}
-      <section className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-4">お気に入り神社</h2>
+<section className="bg-white p-6 rounded-lg shadow">
+  <h2 className="text-xl font-semibold mb-4">お気に入り神社</h2>
 
-        {favorites.length === 0 ? (
-          <div className="flex flex-col items-center text-gray-500">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-12 w-12 mb-2 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <p>お気に入りの神社はまだありません</p>
-          </div>
-        ) : (
-          <ul className="grid gap-4">
-            {favorites.map((f) => {
-              const shrineObj: Shrine | null =
-                f && typeof f.shrine === "object" && f.shrine
-                  ? (f.shrine as Shrine)
-                  : null;
-              const shrineId =
-                typeof f.shrine === "number"
-                  ? f.shrine
-                  : (f.shrine as any)?.id ?? null;
+  {favorites.length === 0 ? (
+    <div className="flex flex-col items-center text-gray-500">
+      <p>お気に入りの神社はまだありません</p>
+      <Link href="/concierge" className="mt-2 text-blue-600 underline">
+        コンシェルジュで探す →
+      </Link>
+    </div>
+  ) : (
+    <ul className="grid gap-4">
+      {favorites.map((f) => {
+        // shrine オブジェクト or ID を取り出す
+        const shrineObj =
+          f && typeof f.shrine === "object" && f.shrine ? (f.shrine as Shrine) : null;
+        const shrineId =
+          typeof f.shrine === "number" ? f.shrine : (shrineObj as any)?.id ?? null;
 
-              return (
-                <li key={f.id}>
-                  {shrineObj ? (
-                    <ShrineCard shrine={shrineObj} />
-                  ) : shrineId ? (
-                    <div className="rounded border p-4">
-                      <p className="text-sm text-gray-600 mb-2">
-                        このお気に入りは神社詳細の完全情報を含んでいません。
-                      </p>
-                      <Link
-                        href={`/shrines/${shrineId}`}
-                        className="inline-block px-3 py-1 bg-blue-600 text-white rounded"
-                      >
-                        神社の詳細を見る
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="rounded border p-4 text-gray-500">
-                      参照先が不明なお気に入りです（id: {f.id}）
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+        // 解除用ハンドラ（f をクロージャで捕まえる or 引数渡し）
+        const handleUnfavorite = async () => {
+          try {
+            if (f.id) {
+              await removeFavoriteByPk(f.id);
+            } else if (shrineId) {
+              await removeFavoriteByShrineId(shrineId);
+            }
+            setFavorites((prev) => prev.filter((x) => x.id !== f.id));
+          } catch (e) {
+            alert("解除に失敗しました");
+            console.error(e);
+          }
+        };
+
+        return (
+          <li key={f.id} className="rounded border p-4">
+            {shrineObj ? (
+              <>
+                <ShrineCard
+                  shrine={shrineObj}
+                  favoritePk={f.id}     // ShrineCard 側のトグルでも解除可能
+                  initialFav={true}
+                />
+                <div className="mt-2">
+                  <button
+                    onClick={handleUnfavorite}
+                    className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+                  >
+                    お気に入り解除
+                  </button>
+                </div>
+              </>
+            ) : shrineId ? (
+              <>
+                <div className="mb-2 text-sm text-gray-600">
+                  このお気に入りは神社の完全情報を含んでいません。
+                </div>
+                <Link
+                  href={`/shrines/${shrineId}`}
+                  className="inline-block px-3 py-1 bg-blue-600 text-white rounded"
+                >
+                  神社の詳細を見る
+                </Link>
+                <div className="mt-2">
+                  <button
+                    onClick={handleUnfavorite}
+                    className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+                  >
+                    お気に入り解除
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-gray-500">
+                参照先が不明なお気に入りです（id: {f.id}）
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</section>
 
       {/* 御朱印帳 */}
       <section ref={goshuinRef} className="bg-white p-6 rounded-lg shadow">

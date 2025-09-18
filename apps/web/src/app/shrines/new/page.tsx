@@ -36,20 +36,26 @@ export default function NewShrinePage() {
     );
   };
 
-  // 住所から緯度経度を自動取得
+  // 住所から緯度経度を自動取得（Mapbox は外部APIなので素の fetch を使う）
   const geocodeAddress = async (address: string) => {
-    const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-        address
-      )}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`
+    const url = new URL(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json`
     );
+    url.searchParams.set("access_token", process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "");
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("language", "ja");
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error(`Mapbox HTTP ${res.status}`);
     const data = await res.json();
-    if (data.features?.length > 0) {
-      const [lon, lat] = data.features[0].center;
+    const feat = data?.features?.[0];
+    if (feat?.center?.length === 2) {
+      const [lon, lat] = feat.center;
       return { latitude: lat as number, longitude: lon as number };
     }
     throw new Error("住所から位置を取得できませんでした");
   };
+  
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });

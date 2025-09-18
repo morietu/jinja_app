@@ -71,15 +71,14 @@ DB_PASSWORD = os.getenv("DJANGO_DB_PASSWORD", "jdb50515")
 if USE_GIS:
     DATABASES = {
         "default": {
-            "ENGINE": "django.contrib.gis.db.backends.postgis",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
-            "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
+            "ENGINE": "django.contrib.gis.db.backends.postgis",  # ← ここが重要！
+            "NAME": "jinja_app",
+            "USER": "",          # OSユーザー（morietsu）を使うなら空でOK
+            "PASSWORD": "",
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+            "CONN_MAX_AGE": 60,
             "OPTIONS": {"connect_timeout": 5},
-            "TEST": {"NAME": f"test_{DB_NAME}"},
         }
     }
 else:
@@ -161,7 +160,7 @@ PROJ_LIB  = _env_proj_lib
 # ========= 基本設定 =========
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-key")
 DEBUG = True
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 LANGUAGE_CODE = "ja"
 TIME_ZONE = "Asia/Tokyo"
@@ -181,11 +180,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "django_filters",
 
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
-    "corsheaders",
+    #"corsheaders",
 
     # Local apps
     "users",
@@ -210,24 +210,29 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
-    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon":           os.getenv("THROTTLE_ANON", "30/min"),
-        "user":           os.getenv("THROTTLE_USER", "120/min"),
-        "places":         os.getenv("THROTTLE_PLACES", "60/min"),
-        "places_burst":   PLACES_THROTTLE_BURST,
-        "places_sustain": PLACES_THROTTLE_SUSTAIN,
-        "concierge": "20/hour",
+        "anon":      os.getenv("THROTTLE_ANON", "30/min"),
+        "user":      os.getenv("THROTTLE_USER", "120/min"),
+        "concierge": os.getenv("THROTTLE_CONCIERGE", "8/min"),
+        "places":    os.getenv("THROTTLE_PLACES", "60/min"),
     },
     "DEFAULT_ROUTER_TRAILING_SLASH": "/?",
+    "DEFAULT_PAGINATION_CLASS": None,
 }
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+}
+# 使うなら:
+# REST_FRAMEWORK["DEFAULT_PAGINATION_CLASS"] = "rest_framework.pagination.PageNumberPagination"
+# REST_FRAMEWORK["PAGE_SIZE"] = 100
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
@@ -288,16 +293,31 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # ========= CORS =========
 from corsheaders.defaults import default_headers, default_methods
-
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:19006",      # Expo Web
+    "http://localhost:19006",   # Expo Web
     "http://127.0.0.1:19006",
-    "http://localhost:8081", "http://127.0.0.1:8081",
-    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+]
+SESSION_COOKIE_SAMESITE = "None"  # クロスサイトなら
+SESSION_COOKIE_SECURE = True      # https 前提。ローカル http の場合は工夫が必要
 # CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
@@ -392,3 +412,21 @@ LOGGING = {
 }
 
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "1") == "1"
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
+
+# EBUG = True  # ← 開発
+DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+
+# 既存の設定を上書き（開発時のみ）
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    # Secure=False のとき SameSite=None はブラウザに拒否されるため Lax へ
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+else:
+    # 本番は必ず Secure+None
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SAMESITE = "None"

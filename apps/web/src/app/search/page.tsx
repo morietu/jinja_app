@@ -2,6 +2,7 @@
 import SearchBar from "@/components/SearchBar";
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
+import { apiFetch } from "@/lib/api/serverFetch";
 
 type SearchParams = { keyword?: string; locationbias?: string };
 
@@ -12,7 +13,7 @@ const API = (
   "http://localhost:8000"
 ).replace(/\/$/, "");
 
-// /api/places/find_place/ を叩く（将来差し替えはここだけ）
+// /api/places/find/ を叩く（将来差し替えはここだけ）
 async function fetchPlaces(params: { keyword: string; locationbias?: string }) {
   const usp = new URLSearchParams({
     input: params.keyword,
@@ -22,9 +23,7 @@ async function fetchPlaces(params: { keyword: string; locationbias?: string }) {
   });
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  const r = await fetch(`${API}/api/places/find_place/?${usp.toString()}`, {
-    cache: "no-store",
-  });
+  const r = await apiFetch(`places/find/?${usp.toString()}`, { cache: "no-store" });
   if (!r.ok) return { results: [] as any[] };
   return r.json();
 }
