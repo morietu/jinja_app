@@ -19,7 +19,7 @@ export function setAuthToken(token: string | null) {
 export const API = process.env.NEXT_PUBLIC_API_BASE!;
 
 export async function getPopular(limit=6) {
-  const r = await fetch(`${API}/api/shrines/popular/?limit=${limit}`, { cache: "no-store" });
+  const r = await apiFetch(`shrines/popular/?limit=${limit}`, { cache: "no-store" });
   return r.json();
 }
 
@@ -30,6 +30,6 @@ export async function findPlace(params: { input: string; language?: string; loca
     locationbias: params.locationbias ?? "",
     fields: params.fields ?? "place_id,name,geometry,formatted_address,photos,rating,user_ratings_total",
   });
-  const r = await fetch(`${API}/api/places/find_place/?${usp.toString()}`, { cache: "no-store" });
+  const r = await apiFetch(`places/find_place/?${usp.toString()}`, { cache: "no-store" });
   return r.json();
 }

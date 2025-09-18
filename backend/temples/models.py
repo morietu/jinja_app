@@ -149,7 +149,9 @@ class Favorite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        unique_together = ("user", "shrine")
+        ordering = ("-created_at",)
+        
         constraints = [
             # 片方だけ必須（XOR）
             CheckConstraint(
@@ -171,6 +173,9 @@ class Favorite(models.Model):
                 name="uq_favorite_user_place",
                 condition=Q(place_id__isnull=False),
             ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "created_at"], name="idx_fav_user_created"),
         ]
 
     def __str__(self) -> str:

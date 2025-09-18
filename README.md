@@ -20,6 +20,42 @@
 ### AIレイヤー
 - **OpenAI Responses API**（Structured Outputs）
 - 干支・四柱推命診断ロジック
+- **モデル**: OpenAI Responses API（Structured Outputs）
+- **役割**: 自由文の要望＋現在地から、候補（DB/Places）を取り込み **「一押し1件＋近場2件（距離昇順）」** をJSONで返す
+- **フォールバック**: OpenAI未設定/失敗時は距離順トップ3で返却（安全運用）
+
+### APIエンドポイント
+- `POST /api/concierge/chat/` … 会話入力 → LLMがツールを使って最終プラン(JSON)を返す  
+- `POST /api/concierge/plan/` … フォーム入力（構造化）→ 参拝プラン(JSON)
+
+### LLM設定（.env）
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+LLM_TEMPERATURE=0.2
+LLM_CACHE_TTL_S=600
+LLM_COORD_ROUND=3
+LLM_RETRIES=2
+LLM_BACKOFF_S=0.5
+LLM_PROMPT_VERSION=v1
+
+## LLM 設定
+- モデル: `OPENAI_MODEL`（例: gpt-4.1-mini）
+- 温度: `LLM_TEMPERATURE`（既定 0.2）
+- （任意）出力上限: `LLM_MAX_OUTPUT_TOKENS`（SDK対応時）
+- キャッシュ: `LLM_CACHE_TTL_S`（同一質問＋座標は再利用）
+- ログ保護: `LLM_COORD_ROUND`（緯度経度の丸め桁）
+- 機能フラグ: `LLM_ENABLE_PLACES`（Places補完の有効/無効）
+- リトライ: `LLM_RETRIES` / `LLM_BACKOFF_S`
+- プロンプトver: `LLM_PROMPT_VERSION`（回帰用メタ）
+
+
+### DB取り込み（お気に入りから）
+- コンシェルジュ結果（Places由来）から**「＋ DBへ取り込む」**でワンタップ保存。
+- エンドポイント
+  - `POST /api/shrines/import_from_place/`（body: `{ place_id, favorite?: true }`）
+  - `POST /api/shrines/bulk_import/`（body: `{ place_ids: string[] }`）
+- `place_id`ユニークで重複登録を防止。成功時は（ログイン中なら）自動でお気に入り登録。
 
 ### 外部サービス
 - Google Maps / Places (New) API
@@ -169,3 +205,21 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
 ```bash
 docker compose up -d db web
 docker compose exec -T web sh -lc "pip install -q pytest pytest-django && pytest -q"
+
+
+# 1) プロジェクトの backend ディレクトリへ
+cd ~/Desktop/jinja_app/backend
+
+# 2) 仮想環境を有効化（すでに .venv ならスキップ可）
+source ../.venv/bin/activate
+
+# 3) 依存を入れて（初回だけ）
+pip install -r requirements.txt
+
+# 4) マイグレーション（DB準備）
+python manage.py migrate
+
+# 5) 開発サーバー起動（デフォルト: 127.0.0.1:8000）
+python manage.py runserver
+# もしくは明示ポートで
+# python manage.py runserver 127.0.0.1:8000

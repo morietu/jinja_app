@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, type UserProfile } from "@/lib/api/users";
-import { setAuthToken } from "@/lib/api/client";
+import { setAuthToken } from "@/lib/apiClient";
 
 export function useAuth() {
   const [user, setUser] = useState<UserProfile | null>(null);

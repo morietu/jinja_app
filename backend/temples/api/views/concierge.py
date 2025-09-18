@@ -14,6 +14,7 @@ from rest_framework import status, generics, permissions, serializers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from temples.llm.orchestrator import chat_to_plan
 
 from temples.models import Shrine, ConciergeHistory, GoriyakuTag
 from temples.api.serializers.concierge import (
@@ -24,6 +25,21 @@ from temples.api.serializers.concierge import (
 )
 from temples.geocoding.client import GeocodingClient, GeocodingError
 
+class ConciergeChatView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []  # CSRF回避のためセッション認証を外す
+    throttle_scope = "concierge"
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request):
+        q = (request.data.get("query") or "").strip()
+        lat = request.data.get("lat"); lng = request.data.get("lng")
+        transport = (request.data.get("transport") or "walking").lower()
+        if not q or lat is None or lng is None:
+            return Response({"detail": "query, lat, lng are required"}, status=400)
+        plan = chat_to_plan(q, float(lat), float(lng), transport)
+        return Response(plan, status=200)
+    
 
 class ConciergeRecommendationsView(APIView):
     """

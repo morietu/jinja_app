@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
+import os, requests
 import json
 import hashlib
 import logging
@@ -18,6 +18,8 @@ from django.utils import timezone
 from ..models import PlaceRef
 from . import google_places  # 低レベルHTTPクライアント（関数型）に統一
 from urllib.parse import urlencode
+
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,26 @@ __all__ = [
     "text_search", "nearby_search", "details", "photo",
     "text_search_first",
 ]
+
+class PlacesService:
+    BASE = "https://maps.googleapis.com/maps/api/place"
+
+    def text_search(self, lat: float, lng: float, query: str, radius: int = 7000):
+        """周辺の神社候補を取得（Text Search）。"""
+        if not GOOGLE_MAPS_API_KEY:
+            return []  # キー未設定なら空
+        url = f"{self.BASE}/textsearch/json"
+        params = {
+            "query": query,
+            "location": f"{lat},{lng}",
+            "radius": radius,
+            "language": "ja",
+            "key": GOOGLE_MAPS_API_KEY,
+        }
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        return data.get("results", [])
 
 # ----------------------------
 # 内部ユーティリティ

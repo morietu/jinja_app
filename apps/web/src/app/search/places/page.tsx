@@ -17,9 +17,7 @@ async function fetchPlaces(params: SearchParams) {
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
   // 相対パスでバックエンドへ（rewrites が効く）
-  const r = await fetch(`/api/places/find_place/?${usp.toString()}`, {
-    cache: "no-store",
-  });
+  const r = await apiFetch(`places/find/?${usp.toString()}`, { cache: "no-store" });
   if (!r.ok) return { results: [] as any[] };
   return r.json();
 }

@@ -26,7 +26,7 @@ export async function createShrine(input: CreateShrineInput) {
   };
 
   const base = process.env.API_BASE_URL ?? "http://localhost:8000/api";
-  const res = await fetch(`${base}/shrines/`, {
+  const res = await apiFetch(`shrines/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // 認証が必要なら Cookie/Authorization をここで付与
