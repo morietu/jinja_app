@@ -40,3 +40,8 @@ from .api_views_concierge import ConciergeChatView  # 既にある場合は無�
 urlpatterns += [
     path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
 ]
+
+# --- force new concierge endpoint to take precedence ---
+from django.urls import path as _path   # 既存 path と衝突回避の別名
+from .api_views_concierge import ConciergeChatView as _ConciergeChatViewNew
+urlpatterns = [_path("concierge/chat/", _ConciergeChatViewNew.as_view(), name="concierge-chat")] + urlpatterns
