@@ -103,3 +103,10 @@ cookies.txt
 
 # local scratch
 c.txt
+
+# local scratch
+c.txt
+
+.venv/
+apps/web/src/app/api/debug/
+c.txt
