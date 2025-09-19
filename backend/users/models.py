@@ -1,13 +1,17 @@
-from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 from django.db import models
-from django.utils import timezone
 
-class User(AbstractUser):
-    nickname = models.CharField(max_length=50, default="", blank=True)  # 表示名
-    bio = models.TextField(blank=True, null=True)           # 自己紹介（将来用）
-    icon = models.ImageField(upload_to="user_icons/", blank=True, null=True)  # アイコン
-    is_public = models.BooleanField(default=True)           # 公開/非公開
-    created_at = models.DateTimeField(default=timezone.now)
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    nickname = models.CharField(max_length=64, blank=True, default="")
+    is_public = models.BooleanField(default=True)
+    bio = models.TextField(blank=True, null=True)
+    icon = models.ImageField(upload_to="icons/", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.username or self.nickname
+        return self.nickname or self.user.get_username()

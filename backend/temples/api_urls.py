@@ -17,7 +17,7 @@ router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
 
-app_name = "temples"
+app_name = "temples
 
 urlpatterns = [
     # APIView 系（順不同でOK。prefix はここで統一）

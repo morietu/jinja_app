@@ -2,7 +2,7 @@
 from pathlib import Path
 import os
 import sys
-from datetime import timedelta
+
 
 if sys.platform == "darwin":
     # macOS (Homebrew) 環境: GeoDjango が確実に見つけられるようヒントを付与
@@ -185,7 +185,7 @@ INSTALLED_APPS = [
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
-    #"corsheaders",
+    "corsheaders",
 
     # Local apps
     "users",
@@ -227,26 +227,20 @@ REST_FRAMEWORK = {
 }
 from datetime import timedelta
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-}
-# 使うなら:
-# REST_FRAMEWORK["DEFAULT_PAGINATION_CLASS"] = "rest_framework.pagination.PageNumberPagination"
-# REST_FRAMEWORK["PAGE_SIZE"] = 100
-
-SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-AUTH_USER_MODEL = "users.User"
+
+
+AUTH_USER_MODEL = 'auth.User'  # 規定ユーザーに戻す
 
 # ========= ミドルウェア =========
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",  # CommonMiddleware より前
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -293,15 +287,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # ========= CORS =========
 from corsheaders.defaults import default_headers, default_methods
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:19006",   # Expo Web
-    "http://127.0.0.1:19006",
-    "http://localhost:8081",
-    "http://127.0.0.1:8081",
-]
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -310,8 +296,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
 ]
-SESSION_COOKIE_SAMESITE = "None"  # クロスサイトなら
-SESSION_COOKIE_SECURE = True      # https 前提。ローカル http の場合は工夫が必要
 # CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -414,8 +398,8 @@ LOGGING = {
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "1") == "1"
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
 
-# EBUG = True  # ← 開発
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+
+DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"  # ここだけで管理
 
 # 既存の設定を上書き（開発時のみ）
 if DEBUG:
