@@ -1,131 +1,128 @@
+// apps/web/src/components/maps/RouteMap.tsx
 "use client";
 
-import { Loader } from "@googlemaps/js-api-loader";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
-type LatLng = { lat: number; lng: number };
-
-type Props = {
-  origin: LatLng;
-  destination: LatLng;
-  defaultMode?: "WALKING" | "DRIVING" | "BICYCLING" | "TRANSIT";
-  zoom?: number;
-  height?: number | string; // px or "384px"
-};
+type GmLatLng = google.maps.LatLngLiteral;
+type GmLocation = GmLatLng | { placeId: string };
 
 export default function RouteMap({
   origin,
   destination,
-  defaultMode = "WALKING",
+  // google.maps.TravelMode のユニオンをそのまま受ける
+  travelMode = "WALKING" as google.maps.TravelMode,
   zoom = 14,
-  height = 384,
-}: Props) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
-
-  const containerRef = useRef<HTMLDivElement>(null);
+}: {
+  origin: GmLocation | null;
+  destination: GmLocation | null;
+  travelMode?: google.maps.TravelMode;
+  zoom?: number;
+}) {
+  const divRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const svcRef = useRef<google.maps.DirectionsService | null>(null);
   const renRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const startRef = useRef<google.maps.Marker | null>(null);
+  const endRef = useRef<google.maps.Marker | null>(null);
 
-  // UI用の移動手段（prop名と衝突しないように travelMode に統一）
-  const [travelMode, setTravelMode] = useState<
-    "WALKING" | "DRIVING" | "BICYCLING" | "TRANSIT"
-  >(defaultMode);
+  const setMarker = useCallback(
+    (
+      ref: React.MutableRefObject<google.maps.Marker | null>,
+      pos: GmLatLng | null,
+      title: string
+    ) => {
+      const g = (window as any).google as typeof google | undefined;
+      if (!g || !mapRef.current) return;
 
-  // ① Maps をロードして地図を1回だけ初期化
+      if (ref.current) {
+        ref.current.setMap(null);
+        ref.current = null;
+      }
+      if (pos) {
+        ref.current = new g.maps.Marker({
+          position: pos,
+          map: mapRef.current,
+          title,
+        });
+      }
+    },
+    []
+  );
+
+  // 初期化
   useEffect(() => {
-    if (!apiKey || !containerRef.current || mapRef.current) return;
+    const g = (window as any).google as typeof google | undefined;
+    if (!g || !divRef.current) return;
 
-    const loader = new Loader({ apiKey, version: "weekly" });
-    let cancelled = false;
-
-    loader.load().then(() => {
-      if (cancelled || !containerRef.current) return;
-
-      mapRef.current = new google.maps.Map(containerRef.current, {
-        center: origin,
+    if (!mapRef.current) {
+      mapRef.current = new g.maps.Map(divRef.current, {
         zoom,
-        mapId,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        clickableIcons: false,
-        gestureHandling: "greedy",
+        center: { lat: 35.681236, lng: 139.767125 }, // デフォ: 東京駅
       });
+    } else {
+      mapRef.current.setZoom(zoom);
+    }
 
-      svcRef.current = new google.maps.DirectionsService();
-      renRef.current = new google.maps.DirectionsRenderer({ suppressMarkers: false });
-      renRef.current.setMap(mapRef.current!);
-    });
+    if (!svcRef.current) svcRef.current = new g.maps.DirectionsService();
+    if (!renRef.current) {
+      renRef.current = new g.maps.DirectionsRenderer({ suppressMarkers: true });
+      renRef.current.setMap(mapRef.current);
+    }
 
     return () => {
-      cancelled = true;
       renRef.current?.setMap(null);
+      renRef.current = null;
+      svcRef.current = null;
+      startRef.current?.setMap(null);
+      startRef.current = null;
+      endRef.current?.setMap(null);
+      endRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, mapId, zoom]);
+  }, [zoom]);
 
-  // ② ルートを更新（origin/destination/mode が変わったとき）
+  // ルート計算
   useEffect(() => {
-    const map = mapRef.current;
-    const svc = svcRef.current;
-    const ren = renRef.current;
-    if (!map || !svc || !ren) return; // 未初期化なら何もしない
+    const g = (window as any).google as typeof google | undefined;
+    if (!g || !svcRef.current || !renRef.current) return;
     if (!origin || !destination) return;
 
-    const gmMode =
-      travelMode === "DRIVING" ? google.maps.TravelMode.DRIVING :
-      travelMode === "BICYCLING" ? google.maps.TravelMode.BICYCLING :
-      travelMode === "TRANSIT" ? google.maps.TravelMode.TRANSIT :
-      google.maps.TravelMode.WALKING;
+    const toLatLng = (o: GmLocation): GmLatLng | null =>
+      "placeId" in o ? null : (o as GmLatLng);
 
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(origin);
-    bounds.extend(destination);
+    const req: google.maps.DirectionsRequest = {
+      origin,
+      destination,
+      travelMode,
+    };
 
-    svc.route(
-      { origin, destination, travelMode: gmMode, provideRouteAlternatives: false },
-      (result, status) => {
-        if (status === "OK" && result) {
-          ren.setDirections(result);
-          try {
-            map.fitBounds(bounds);
-          } catch {
-            map.setCenter(origin);
-            map.setZoom(zoom);
+    svcRef.current.route(
+      req,
+      (res: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
+        if (status === g.maps.DirectionsStatus.OK && res) {
+          renRef.current!.setDirections(res);
+
+          const leg = res.routes[0]?.legs?.[0];
+          const oPos = toLatLng(origin) ?? leg?.start_location?.toJSON?.() ?? null;
+          const dPos = toLatLng(destination) ?? leg?.end_location?.toJSON?.() ?? null;
+
+          setMarker(startRef, oPos, "出発");
+          setMarker(endRef, dPos, "到着");
+
+          if (mapRef.current && oPos && dPos) {
+            const bounds = new g.maps.LatLngBounds();
+            bounds.extend(oPos);
+            bounds.extend(dPos);
+            mapRef.current.fitBounds(bounds);
           }
         } else {
-          console.error("Directions failed:", status);
-          map.setCenter(origin);
-          map.setZoom(zoom);
+          // 失敗時はルート消去＆分かる範囲でマーカーのみ
+          renRef.current!.setDirections({ routes: [] } as any);
+          setMarker(startRef, toLatLng(origin), "出発");
+          setMarker(endRef, toLatLng(destination), "到着");
         }
       }
     );
-  }, [origin, destination, travelMode, zoom]);
+  }, [origin, destination, travelMode, setMarker]);
 
-  return (
-    <div className="w-full">
-      <div className="mb-2">
-        <label className="mr-2 font-semibold">移動手段:</label>
-        <select
-          value={travelMode}
-          onChange={(e) =>
-            setTravelMode(e.target.value as "WALKING" | "DRIVING" | "BICYCLING" | "TRANSIT")
-          }
-          className="border p-1 rounded"
-        >
-          <option value="WALKING">徒歩</option>
-          <option value="DRIVING">車</option>
-          <option value="BICYCLING">自転車</option>
-          <option value="TRANSIT">公共交通</option>
-        </select>
-      </div>
-      <div
-        ref={containerRef}
-        className="w-full border rounded"
-        style={{ height: typeof height === "number" ? `${height}px` : height }}
-      />
-    </div>
-  );
+  return <div ref={divRef} className="w-full h-80 rounded border" />;
 }

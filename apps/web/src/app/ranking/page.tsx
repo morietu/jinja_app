@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 // ★お気に入りボタン（簡易）
 function FavButton({ shrineId }: { shrineId: number }) {
-  const { fav, busy, toggle } = useFavorite(String(shrineId), false);
+  const { fav, busy, toggle } = useFavorite({ shrineId, initial: false });
   return (
     <button onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
       {busy ? "…" : fav ? "★" : "☆"}

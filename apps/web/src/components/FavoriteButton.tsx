@@ -9,7 +9,7 @@ export default function FavoriteButton({
   shrineId: number;
   initialFav?: boolean;
 }) {
-  const { fav, busy, toggle } = useFavorite(String(shrineId), initialFav ?? false);
+  const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
   return (
     <button

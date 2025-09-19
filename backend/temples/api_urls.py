@@ -1,6 +1,7 @@
 # backend/temples/api_urls.py
 from django.urls import path
 from rest_framework.routers import DefaultRouter
+from temples.api.views.concierge import ConciergeChatView
 from .api_views import (
     PublicGoshuinViewSet, MyGoshuinViewSet,
     ShrineViewSet, FavoriteViewSet,
@@ -16,12 +17,13 @@ router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
 
-app_name = "temples"
+app_name = "temples
 
 urlpatterns = [
     # APIView 系（順不同でOK。prefix はここで統一）
     path("shrines/nearby/", NearbyShrinesView.as_view(), name="shrines-nearby"),
     path("concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
+    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
     path("route/", RouteAPIView.as_view(), name="route"),
 
     # Places 系

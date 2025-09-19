@@ -19,3 +19,14 @@
 
 - **Django Admin** で神社・御朱印・ユーザー管理
 - **集計バッチ** でランキングを生成
+
+### 開発用ショートカット（zsh）
+```zsh
+jwt_login     # ログインして ACCESS/REFRESH を環境変数に
+jwt_status    # 長さを確認
+jwt_refresh   # ACCESS を更新
+jwt_logout    # トークンをクリア
+
+# お気に入り操作
+fav_add_shrine 1
+curl -s "$FAV_BASE/" -H "Authorization: Bearer $ACCESS" | jq .

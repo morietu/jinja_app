@@ -1,11 +1,12 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import User
 
+try:
+    from .models import UserProfile
 
-@admin.register(User)
-class CustomUserAdmin(UserAdmin):
-    """カスタムユーザー管理画面"""
-    fieldsets = UserAdmin.fieldsets + (
-        ("追加情報", {"fields": ("nickname",)}),
-    )
+    @admin.register(UserProfile)
+    class UserProfileAdmin(admin.ModelAdmin):
+        list_display = ("user", "nickname", "is_public", "created_at")
+except Exception:
+    # UserProfile が無いプロジェクトでも落ちないようにする
+    pass
+
