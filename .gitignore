@@ -69,3 +69,34 @@ node_modules
 /shrine-app/ios/
 /shrine-app/android/
 /shrine-app/.expo/
+# local junk
+apps/web/cookies.txt
+apps/web/c.txt
+backend/media/
+# --- Python / venv ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
+# --- local env files ---
+.env
+*.env
+backend/.env
+backend/.env.*
+.env.local
+.env.*.local
+
+# --- OS / Editor ---
+.DS_Store
+*.swp
+
+# --- build / archives ---
+dist/
+build/
+*.tar.gz
+
+# --- misc ---
+cookies.txt
