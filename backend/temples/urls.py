@@ -32,3 +32,11 @@ urlpatterns = [
     # 最後に router を include
     path("", include(router.urls)),
 ]
+
+# --- concierge endpoint (scaffold) ---
+from django.urls import path  # 既にある場合は無視されます
+from .api_views_concierge import ConciergeChatView  # 既にある場合は無視されます
+
+urlpatterns += [
+    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
+]
