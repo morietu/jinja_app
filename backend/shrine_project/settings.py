@@ -2,7 +2,18 @@
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
+# 既存の環境変数を優先しつつ、最初に見つかった .env を読む
+for name in (".env.local", ".env.dev", ".env"):
+    p = BASE_DIR / name
+    if p.exists():
+        load_dotenv(p, override=True)  # 既に export 済みの値は上書きしない
+        os.environ.setdefault("ENV_FILE", str(p))  # どれを読んだかメモ
+        break
 
 if sys.platform == "darwin":
     # macOS (Homebrew) 環境: GeoDjango が確実に見つけられるようヒントを付与
@@ -23,12 +34,12 @@ _PROJ_LIB_D  = _CONDA_PREFIX / "Library" / "share" / "proj"
 
 
 
-# ========= .env の読込（最初に1回だけ。OS環境変数を優先: override=False）=========
+# ========= .env の読込（最初に1回だけ。OS環境変数を優先: override=True）=========
 for candidate in (REPO_ROOT / ".env.dev", REPO_ROOT / ".env"):
     if candidate.exists():
         try:
             from dotenv import load_dotenv  # optional
-            load_dotenv(dotenv_path=candidate, override=False)
+            load_dotenv(dotenv_path=candidate, override=True)
         except Exception:
             pass
 # ← ここで定義に移動（.envを読んだ“後”に評価）
