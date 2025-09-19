@@ -1,95 +1,112 @@
+// apps/web/src/components/views/MyPageView.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
 
-// 仮の型
-type Shrine = {
-  id: number;
-  name_jp: string;
-  address: string;
-};
+export default function MyPageView() {
+  const [user, setUser] = useState<UserMe | null>(null);
+  const [form, setForm] = useState({
+    nickname: "",
+    is_public: true,
+  });
 
-type Visit = {
-  id: number;
-  shrine: Shrine;
-  visited_at: string;
-};
-
-export default function MyPageView({ onBack }: { onBack: () => void }) {
-  const [favorites, setFavorites] = useState<Shrine[]>([]);
-  const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        // TODO: API接続に置き換え
-        setFavorites([
-          { id: 1, name_jp: "明治神宮", address: "東京都渋谷区代々木神園町1-1" },
-        ]);
-        setVisits([
-          {
-            id: 1,
-            shrine: { id: 2, name_jp: "伏見稲荷大社", address: "京都市伏見区" },
-            visited_at: "2025-08-25",
-          },
-        ]);
-      } finally {
-        setLoading(false);
+    (async () => {
+      setLoading(true);
+      const me = await getCurrentUser();
+      if (me) {
+        setUser(me);
+        setForm({
+          nickname: me.profile.nickname ?? "",
+          is_public: !!me.profile.is_public,
+        });
       }
-    }
-    loadData();
+      setLoading(false);
+    })();
   }, []);
 
-  if (loading) return <p className="p-4">読み込み中...</p>;
+  const dirty = useMemo(() => {
+    if (!user) return false;
+    return (
+      (form.nickname ?? "") !== (user.profile.nickname ?? "") ||
+      !!form.is_public !== !!user.profile.is_public
+    );
+  }, [form, user]);
+
+  const handleSave = async () => {
+    if (!user || !dirty || saving) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      if ((form.nickname ?? "") !== (user.profile.nickname ?? "")) payload.nickname = form.nickname;
+      if (!!form.is_public !== !!user.profile.is_public) payload.is_public = form.is_public;
+
+      const updated = await updateUser(payload);
+      setUser(updated);
+      setForm({
+        nickname: updated.profile.nickname ?? "",
+        is_public: !!updated.profile.is_public,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (!user) return;
+    setForm({
+      nickname: user.profile.nickname ?? "",
+      is_public: !!user.profile.is_public,
+    });
+  };
+
+  if (loading) return <div className="p-4 text-sm text-gray-500">読み込み中...</div>;
+  if (!user)   return <div className="p-4 text-sm text-red-600">未ログインです。</div>;
 
   return (
-    <div className="p-6 space-y-8">
-      <button onClick={onBack} className="text-blue-500 mb-4">← 戻る</button>
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium mb-1">ニックネーム</label>
+        <input
+          type="text"
+          value={form.nickname}
+          onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
+          disabled={saving}
+          className="w-full border rounded px-3 py-2"
+        />
+      </div>
 
-      {/* プロフィール */}
-      <section>
-        <h2 className="text-xl font-bold mb-4">プロフィール</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>ユーザー名 (仮)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>ここに自己紹介やアイコンを表示予定</p>
-          </CardContent>
-        </Card>
-      </section>
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={form.is_public}
+          onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))}
+          disabled={saving}
+        />
+        <span>プロフィールを公開</span>
+      </label>
 
-      {/* お気に入り神社 */}
-      <section>
-        <h2 className="text-xl font-bold mb-4">お気に入り神社</h2>
-        <div className="space-y-3">
-          {favorites.map((shrine) => (
-            <Card key={shrine.id}>
-              <CardHeader>
-                <CardTitle>{shrine.name_jp}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">{shrine.address}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* 参拝履歴 */}
-      <section>
-        <h2 className="text-xl font-bold mb-4">参拝履歴</h2>
-        <ul className="space-y-2">
-          {visits.map((visit) => (
-            <li key={visit.id} className="border rounded p-3">
-              <p className="font-semibold">{visit.shrine.name_jp}</p>
-              <p className="text-sm text-gray-500">{visit.visited_at}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={!dirty || saving}
+          className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+        >
+          {saving ? "保存中..." : "保存"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={!dirty || saving}
+          className="px-4 py-2 rounded border"
+        >
+          変更を破棄
+        </button>
+      </div>
     </div>
   );
 }

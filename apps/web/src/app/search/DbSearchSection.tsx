@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ShrineCard from "@/components/ShrineCard";
-import api from "@/lib/apiClient";
+import api from "@/lib/api/client";
 import { getShrines, type Shrine } from "@/lib/api/shrines";
 import type { GoriyakuTag } from "@/lib/api/types";
 

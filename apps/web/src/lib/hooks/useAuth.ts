@@ -3,11 +3,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser, type UserProfile } from "@/lib/api/users";
-import { setAuthToken } from "@/lib/apiClient";
+import { getCurrentUser, type UserMe } from "@/lib/api/users";
+import { setAuthToken } from "@/lib/api/client";
 
 export function useAuth() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserMe | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();

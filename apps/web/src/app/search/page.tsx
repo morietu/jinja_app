@@ -1,40 +1,30 @@
-// apps/web/src/app/search/page.tsx
+// src/app/search/page.tsx
 import SearchBar from "@/components/SearchBar";
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
-import { apiFetch } from "@/lib/api/serverFetch";
+import { apiGet } from "@/lib/api/http";
 
 type SearchParams = { keyword?: string; locationbias?: string };
 
-// バックエンドの絶対URL（末尾スラッシュ除去）
-const API = (
-  process.env.NEXT_PUBLIC_API ??
-  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ??
-  "http://localhost:8000"
-).replace(/\/$/, "");
-
-// /api/places/find/ を叩く（将来差し替えはここだけ）
+// ★ ここを B(find, POST) → A(search, GET) に変更
 async function fetchPlaces(params: { keyword: string; locationbias?: string }) {
-  const usp = new URLSearchParams({
-    input: params.keyword,
-    language: "ja",
-    fields:
-      "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon",
-  });
+  const usp = new URLSearchParams();
+  usp.set("q", params.keyword);                 // ← Aは input ではなく q
+  usp.set("language", "ja");
+  // fields はサーバ側で固定なら省略可。必要なら付ける：
+  usp.set("fields", "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon");
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  const r = await apiFetch(`places/find/?${usp.toString()}`, { cache: "no-store" });
-  if (!r.ok) return { results: [] as any[] };
-  return r.json();
+  // axios 統一：/api 経由（末尾スラ重要）
+  return apiGet<{ results: any[] }>(`/places/search/?${usp.toString()}`);
 }
 
 export default async function SearchPage({
   searchParams,
 }: {
-  // ★ Next 15: Promise を await
-  searchParams: Promise<SearchParams>;
+  searchParams?: SearchParams;
 }) {
-  const sp = await searchParams;
+  const sp = searchParams ?? {};
   const keyword = (sp.keyword ?? "").trim();
   const locationbias = sp.locationbias ?? "";
 
@@ -42,27 +32,16 @@ export default async function SearchPage({
     ? await fetchPlaces({ keyword, locationbias })
     : { results: [] as any[] };
 
-  const results: any[] = Array.isArray((data as any).results)
-    ? (data as any).results
-    : [];
+  const results: any[] = Array.isArray(data.results) ? data.results : [];
 
   return (
     <main className="p-4 max-w-3xl mx-auto space-y-6">
       <h1 className="text-xl font-bold">検索結果</h1>
-
-      {/* ★ 初期値は props で渡す */}
       <SearchBar initialKeyword={keyword} />
-
-      {!keyword && (
-        <p className="text-gray-500">キーワードを入力して検索してください。</p>
-      )}
-
+      {!keyword && <p className="text-gray-500">キーワードを入力して検索してください。</p>}
       {keyword && results.length === 0 && (
-        <p className="text-gray-500">
-          「{keyword}」に一致する候補が見つかりませんでした。条件（地名や表記）を変えてお試しください。
-        </p>
+        <p className="text-gray-500">「{keyword}」に一致する候補が見つかりませんでした。条件（地名や表記）を変えてお試しください。</p>
       )}
-
       <div className="grid gap-3">
         {results.map((r: any) => {
           const place = {
@@ -75,21 +54,13 @@ export default async function SearchPage({
             lat: r.lat ?? r.geometry?.location?.lat,
             lng: r.lng ?? r.geometry?.location?.lng,
           };
-
           const mapsUrl =
             place.lat && place.lng
-              ? gmapsDirUrl({
-                  dest: { lat: place.lat, lng: place.lng },
-                  mode: "walk",
-                })
+              ? gmapsDirUrl({ dest: { lat: place.lat, lng: place.lng }, mode: "walk" })
               : null;
-
           const planHref =
             `/plan?query=${encodeURIComponent(place.name)}` +
-            (locationbias
-              ? `&locationbias=${encodeURIComponent(locationbias)}`
-              : "");
-
+            (locationbias ? `&locationbias=${encodeURIComponent(locationbias)}` : "");
           return (
             <div key={place.place_id ?? place.name} className="space-y-2">
               <PlaceCard p={place} />
