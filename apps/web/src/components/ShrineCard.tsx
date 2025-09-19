@@ -1,25 +1,37 @@
-// apps/web/src/components/ShrineCard.tsx
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { useFavorite } from "@/hooks/useFavorite";
 import { useAuth } from "@/lib/hooks/useAuth";
-import type { Shrine } from "@/lib/api/shrines";
+import { useFavorite } from "@/hooks/useFavorite";
 
-type Props = {
-  shrine: Shrine | null | undefined;
-  initialFav?: boolean;
-  onToggled?: (isFav: boolean) => void;
+type ShrineLite = {
+  id?: number | string;
+  place_id?: string | null;
+  name_jp?: string;
+  name?: string;
+  address?: string;
+  goriyaku_tags?: { id: number; name: string }[];
+  is_favorite?: boolean;
+  isFavorite?: boolean;
 };
 
-const IS_DEMO =
-  process.env.NEXT_PUBLIC_DEMO_MODE === "1" ||
-  process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+type Props = {
+  shrine: ShrineLite;
+  favoritePk?: number | null;   // マイページから渡せると削除高速化
+  initialFav?: boolean;         // 未指定時は is_favorite / isFavorite を吸収
+  readOnly?: boolean;           // trueでトグル無効（閲覧専用）
+  onToggled?: (next: boolean) => void;
+};
 
-export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
+export default function ShrineCard({
+  shrine,
+  favoritePk = null,
+  initialFav,
+  readOnly = false,
+  onToggled,
+}: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -27,20 +39,31 @@ export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
 
   if (!shrine) return null;
 
-  // initial の決定（APIの命名揺れ is_favorite / isFavorite 両対応）
-  const rawInit =
+  // 初期fav（命名ゆれ吸収）
+  const init =
     typeof initialFav === "boolean"
       ? initialFav
-      : (shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false;
-  const init = Boolean(rawInit);
+      : ((shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false);
 
-  const shrineId = shrine?.id != null ? String(shrine.id) : null;
+  // shrineId 正規化（正の整数のみ）
+  const shrineIdNum =
+    typeof shrine.id === "number" && Number.isInteger(shrine.id) && shrine.id > 0
+      ? shrine.id
+      : typeof shrine.id === "string" && /^\d+$/.test(shrine.id)
+      ? Number(shrine.id)
+      : undefined;
 
-  // 通常は useFavorite を使用。デモ時はローカル state で UI だけ切替
-  const { fav, busy, toggle } = useFavorite(shrineId ?? "", init ?? false);
-  const [demoFav, setDemoFav] = useState(init);
-  const activeFav = IS_DEMO ? demoFav : fav;
-  const activeBusy = IS_DEMO ? false : busy;
+  const placeId = shrine.place_id ?? undefined;
+  const canFav = !!shrineIdNum || !!placeId; // 手掛かりが無ければ操作しない
+
+  // フック（呼ぶのは canFav が true のときだけ）
+  const { fav, busy, toggle } = useFavorite({
+    shrineId: shrineIdNum,
+    placeId,
+    initial: Boolean(init),
+    initialFavoritePk: favoritePk ?? null,
+    disabled: !canFav,
+  });
 
   const goLoginWithReturn = () => {
     const next = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
@@ -48,77 +71,71 @@ export default function ShrineCard({ shrine, initialFav, onToggled }: Props) {
   };
 
   const handleClick = async () => {
-    if (!shrineId) return;
+    if (readOnly) return;
     if (!isAuthenticated) {
       goLoginWithReturn();
       return;
     }
+    if (!canFav) return;
 
-    // デモモード：APIを叩かずUIだけトグル
-    if (IS_DEMO) {
-      const next = !demoFav;
-      setDemoFav(next);
+    try {
+      const next = !fav;
+      await toggle();     // 楽観更新＋失敗時ロールバックはフック側
       onToggled?.(next);
-      return;
+    } catch (e) {
+      console.error("お気に入りトグル失敗:", e);
+      alert("お気に入りの更新に失敗しました");
     }
-
-    // 本番：useFavorite に委譲（内部で楽観更新＋ロールバック）
-    const next = !fav;
-    await toggle();
-    onToggled?.(next);
   };
 
+  // ▼ ここから下は「必要」です（UI描画）
   return (
     <Card className="hover:shadow-md transition">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div>
           <CardTitle>
-            <Link href={`/shrines/${shrine.id}`} className="text-blue-600 hover:underline">
-              {(shrine as any)?.name_jp ?? (shrine as any)?.name ?? "神社"}
+            <Link
+              href={shrineIdNum ? `/shrines/${shrineIdNum}` : "#"}
+              className={shrineIdNum ? "text-blue-600 hover:underline" : "text-gray-500 cursor-default"}
+              aria-disabled={!shrineIdNum}
+            >
+              {shrine.name_jp ?? shrine.name ?? "神社"}
             </Link>
           </CardTitle>
-          <CardDescription>{(shrine as any)?.address ?? ""}</CardDescription>
+          <CardDescription>{shrine.address ?? ""}</CardDescription>
         </div>
 
-        {/* ★ お気に入りトグル */}
         <button
           onClick={handleClick}
-          disabled={activeBusy || !shrineId}
-          aria-pressed={activeFav}
-          aria-label={activeFav ? "お気に入り解除" : "お気に入り追加"}
+          disabled={readOnly || busy || !canFav}
+          aria-pressed={fav}
+          aria-label={fav ? "お気に入り解除" : "お気に入り追加"}
           title={
-            isAuthenticated
-              ? activeFav
-                ? "お気に入り解除"
-                : "お気に入り追加"
+            readOnly
+              ? "一覧の閲覧専用です"
+              : isAuthenticated
+              ? (fav ? "お気に入り解除" : "お気に入り追加")
               : "ログインでお気に入りが使えます"
           }
           className={`px-3 py-1 rounded text-sm ${
-            isAuthenticated
-              ? activeFav
+            readOnly || !canFav
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : isAuthenticated
+              ? fav
                 ? "bg-red-500 text-white hover:bg-red-600"
                 : "bg-gray-200 hover:bg-gray-300"
               : "bg-gray-100 text-gray-400 hover:bg-gray-200"
           }`}
           data-testid="fav-toggle"
         >
-          {activeBusy
-            ? "処理中..."
-            : isAuthenticated
-            ? activeFav
-              ? "お気に入り解除"
-              : "お気に入り追加"
-            : "ログインでお気に入り"}
+          {busy ? "処理中..." : fav ? "お気に入り解除" : "お気に入り追加"}
         </button>
       </CardHeader>
 
       <CardContent>
-        {(shrine as any)?.goriyaku && (
-          <p className="text-sm mb-2">ご利益: {(shrine as any).goriyaku}</p>
-        )}
-        {!!(shrine as any)?.goriyaku_tags?.length && (
+        {!!shrine.goriyaku_tags?.length && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {(shrine as any).goriyaku_tags.map((tag: any) => (
+            {shrine.goriyaku_tags.map((tag) => (
               <span key={tag.id} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
                 {tag.name}
               </span>

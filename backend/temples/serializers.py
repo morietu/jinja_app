@@ -7,7 +7,7 @@ from .models import Shrine, Favorite, Goshuin  # ← temples.models の重複imp
 class ShrineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shrine
-        fields = ["id", "name_jp", "address", "latitude", "longitude"]
+        fields = ["id", "name_jp", "name_romaji", "address", "latitude", "longitude"]
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
