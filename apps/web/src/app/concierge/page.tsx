@@ -4,7 +4,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api from "@/lib/apiClient";               // ← ここが重要: 直URL禁止
+import api from "@/lib/api/client";               // ← ここが重要: 直URL禁止
 import { useFavorite } from "@/hooks/useFavorite";
 
 const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false });
@@ -57,7 +57,7 @@ function fmtDistanceKm(km?: number) {
 
 // 簡易★ボタン（初期はfalseでOK）
 function FavButton({ shrineId }: { shrineId: number }) {
-  const { fav, busy, toggle } = useFavorite(String(shrineId), false);
+  const { fav, busy, toggle } = useFavorite({ shrineId, initial: false });
   return (
     <button onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
       {busy ? "…" : fav ? "★" : "☆"}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import api from "@/lib/apiClient";
+import api from "@/lib/api/client";
 import { createFavoriteByShrineId } from "@/lib/api/favorites";
 import { useFavorite } from "@/hooks/useFavorite"; // ★ 追加
 
@@ -34,11 +34,12 @@ export default function ConciergeCard({
   const [err, setErr] = useState<string | null>(null);
 
   // お気に入りの追加/削除/トグルはフックに一元化
-  const { fav, busy, add, remove, toggle, setFav } = useFavorite({
+  const { fav, busy, add, remove, toggle } = useFavorite({
     shrineId: s.id ?? undefined,        // あれば優先
     placeId: s.place_id ?? undefined,   // なければ place から作成してお気に入りまで
     initial: false,
   });
+
 
   const km = (s.distance_m / 1000).toFixed(1);
   const isPrimary = index === 0;
@@ -59,12 +60,9 @@ export default function ConciergeCard({
       if (!shrineId) throw new Error("取り込みレスポンスに shrine_id がありません。");
 
       // お気に入りへ（401 は createFavoriteByShrineId 内で自動リフレッシュ）
-      await createFavoriteByShrineId(shrineId);
-
-      // UI 反映
-      setImported(true);
-      setFav(true); // 楽観更新と整合
-      onImported?.({ id: shrineId, place_id: s.place_id });
+      await add();                 // フック経由でお気に入り登録＆状態更新
+     setImported(true);
+     onImported?.({ id: shrineId, place_id: s.place_id });
     } catch (e: any) {
       const msg =
         e?.response?.data?.detail ||

@@ -1,46 +1,39 @@
-// apps/web/src/lib/apiClient.ts
-import axios from "axios";
+// apps/web/src/lib/api/users.ts
+import { apiGet, apiPatch, apiPatchForm, isAuthError } from "@/lib/api/http";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api";
+export type UserMe = {
+  id: number;
+  username: string;
+  email?: string | null;
+  first_name?: string;
+  last_name?: string;
+  profile: {
+    nickname?: string | null;
+    is_public: boolean;
+    bio?: string | null;
+    icon_url?: string | null;
+  };
+};
 
-const api = axios.create({
-  baseURL: API_BASE.replace(/\/+$/, ""), // 末尾スラッシュ除去
-});
-
-// 現在のアクセストークンを保持（SSR安全）
-let currentToken: string | null = null;
-export function setAuthToken(token: string | null) {
-  currentToken = token;
-  if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
-  else delete api.defaults.headers.common.Authorization;
-}
-
-// auth.ts から注入される 401 ハンドラ（循環依存を回避）
-let on401: (() => Promise<boolean>) | null = null;
-export function set401Handler(handler: () => Promise<boolean>) {
-  on401 = handler;
-}
-
-// 401 が来たら 1 回だけリフレッシュして再試行
-let refreshing: Promise<boolean> | null = null;
-api.interceptors.response.use(
-  (r) => r,
-  async (err) => {
-    const status = err.response?.status;
-    const cfg = err.config;
-
-    if (status === 401 && on401 && !cfg?._retried) {
-      if (!refreshing) refreshing = on401().finally(() => (refreshing = null));
-      const ok = await refreshing;
-      if (ok) {
-        cfg._retried = true;
-        // setAuthToken が内部で defaults を更新している前提
-        return api(cfg);
-      }
-    }
-    return Promise.reject(err);
+export async function getCurrentUser(): Promise<UserMe | null> {
+  try {
+    return await apiGet<UserMe>("/users/me/");
+  } catch (e: any) {
+    if (isAuthError(e)) return null;
+    // ネットワーク等は“未ログイン相当”で握りたいならここで null を返す
+    if (/Network|ECONN|Failed to fetch/i.test(String(e?.message ?? ""))) return null;
+    throw e;
   }
-);
+}
 
-export default api;
+/** nickname / is_public / bio の部分更新 */
+export function updateUser(payload: Partial<{ nickname: string; is_public: boolean; bio: string | null }>) {
+  return apiPatch<UserMe>("/users/me/", payload);
+}
+
+/** プロフィール画像アップロード（multipart） */
+export function updateMeIcon(file: File) {
+  const form = new FormData();
+  form.append("icon", file);
+  return apiPatchForm<UserMe>("/users/me/", form);
+}

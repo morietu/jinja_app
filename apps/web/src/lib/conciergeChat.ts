@@ -1,5 +1,5 @@
 // apps/web/src/lib/conciergeChat.ts
-import api from "@/lib/apiClient";
+import api from "@/lib/api/client";
 
 type Transport = "walking" | "driving" | "transit";
 

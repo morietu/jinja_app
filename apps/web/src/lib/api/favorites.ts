@@ -1,137 +1,85 @@
 // apps/web/src/lib/api/favorites.ts
-import api from "@/lib/apiClient";               // ブリッジ経由で統一
-import { refreshAccessToken } from "./auth";
-import type { Shrine } from "../api/shrines";
+import { apiGet, apiPost, apiDelete, isAuthError } from "@/lib/api/http";
 
-const EP = "/favorites/";
-
-export type FavoriteItem = {
+// ---- 型（最終形：フック等で使う形）----
+export type Favorite = {
   id: number;
+  shrine: number | null;        // shrine の PK
   place_id?: string | null;
-  place?: { place_id?: string | null; name?: string } | null;
-  shrine?: { id: number; name_jp?: string } | null;
   created_at?: string;
 };
 
-// ---- 401時だけ1回リトライ ----
-async function withAuthRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err: any) {
-    if (err?.response?.status === 401) {
-      const ok = await refreshAccessToken();
-      if (ok) return await fn();
-    }
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[favorites] api error", err?.response?.status, err?.response?.data || err?.message);
-    }
-    throw err;
-  }
-}
-
-// ====== 基本CRUD ======
-export async function listFavorites(): Promise<FavoriteItem[]> {
-  const { data } = await withAuthRetry(() => api.get(EP));
-  return data as FavoriteItem[];
-}
-
-export async function addFavoriteByShrineId(shrineId: number) {
-  const { data } = await withAuthRetry(() => api.post(EP, { shrine: shrineId }));
-  return data as FavoriteItem;
-}
-
-export async function addFavoriteByPlaceId(placeId: string) {
-  const { shrineId } = await withAuthRetry(() => api.post(EP, { place_id: placeId }));
-  return await addFavoriteByShrineId(shrineId);
-}
-
-export async function removeFavoriteById(favId: number) {
-  await withAuthRetry(() => api.delete(`${EP}${favId}/`));
-}
-
-export async function removeFavoriteByPlaceId(placeId: string) {
-  const items = await listFavorites();
-  const hit = items.find((f) => f.place_id === placeId || f.place?.place_id === placeId);
-  if (hit) await removeFavoriteById(hit.id);
-}
-
-export async function removeFavoriteByShrineId(shrineId: number): Promise<void> {
-  const items = await listFavorites();
-  const hit = items.find((f) => f.shrine?.id === shrineId);
-  if (hit) await removeFavoriteById(hit.id);
-}
-
-export async function isFavoritedByPlaceId(placeId: string): Promise<boolean> {
-  const items = await listFavorites();
-  return items.some((f) => f.place_id === placeId || f.place?.place_id === placeId);
-}
-
-export async function isFavoritedByShrineId(shrineId: number): Promise<boolean> {
-  const items = await listFavorites();
-  return items.some((f) => f.shrine?.id === shrineId);
-}
-
-// ====== 便利系 ======
-export type Favorite = {
-  id: number;
-  shrine: number | { id: number } | Shrine;
-};
-
+// 一覧（正規の公開関数）
 export async function getFavorites(): Promise<Favorite[]> {
-  const list = await listFavorites();
-  return list.map((x) => ({
-    id: x.id,
-    shrine: x.shrine?.id ?? (x.shrine as any) ?? 0,
-  }));
+  // サーバは normalized を返している想定。もし生データならここで整形してください。
+  return apiGet<Favorite[]>("/favorites/");
 }
 
-async function ensureShrineFromPlace(placeId: string) {
-  // ← GET ではなく POST に
-  
-  try {
-    const { data } = await api.post("/places/find/", { params: { place_id: placeId } });
-    const shrineId = data?.shrine_id ?? data?.shrine?.id ?? data?.id;
-    if (!shrineId) throw new Error("shrineId not found in /places/find/ (GET)");
-    return { shrineId, shrine: data?.shrine ?? null };
-  } catch (e: any) {
-    if (e?.response?.status === 405) {
-      const { data } = await api.post("/places/find/", { place_id: placeId });
-      const shrineId = data?.shrine_id ?? data?.shrine?.id ?? data?.id;
-      if (!shrineId) throw new Error("shrineId not found in /places/find/ (POST)");
-      return { shrineId, shrine: data?.shrine ?? null };
-    }
-    throw e;
+// 追加（神社ID から）
+export async function createFavoriteByShrineId(shrineId: number): Promise<Favorite> {
+  return apiPost<Favorite>("/favorites/", { shrine: shrineId });
+}
+
+// 削除（Favorite PK で）
+export async function deleteFavorite(id: number): Promise<void> {
+  await apiDelete(`/favorites/${id}/`);
+}
+
+// トグル（存在すれば削除、無ければ作成）
+export async function toggleFavorite(getId: () => Promise<number | null>, shrineId: number) {
+  const existingId = await getId();
+  if (existingId) {
+    await deleteFavorite(existingId);
+    return { added: false as const };
   }
+  const f = await createFavoriteByShrineId(shrineId);
+  return { added: true as const, favorite: f };
 }
 
-
-export async function importFromPlace(placeId: string, alsoFavorite = false) {
-  const { shrineId, shrine } = await ensureShrineFromPlace(placeId);
-  if (alsoFavorite) await addFavoriteByShrineId(shrineId);
-  return shrine;
+// UI で 401 を握りたいときの補助
+export function isFavoritesAuthError(e: unknown) {
+  return isAuthError(e);
 }
 
-export async function createFavoriteByPlaceId(placeId: string) {
-  const { shrineId } = await ensureShrineFromPlace(placeId);
-  if (!shrineId) throw new Error("Could not resolve shrineId from placeId");
-  await addFavoriteByShrineId(shrineId);
+/* =========================
+   互換レイヤー（旧API名の復活）
+   ========================= */
+
+// 旧名: removeFavoriteByPk → 新名: deleteFavorite
+export async function removeFavoriteByPk(favoritePk: number) {
+  return deleteFavorite(favoritePk);
 }
 
-// ====== 旧API名互換（呼び出し側を触らずに済むように）======
-export async function addFavorite(shrineId: number): Promise<void> {
-  await addFavoriteByShrineId(shrineId);
+// 旧名: removeFavoriteByShrineId
+export async function removeFavoriteByShrineId(shrineId: number) {
+  const list = await getFavorites();
+  const hit = list.find((f) => f.shrine === shrineId);
+  if (hit) await deleteFavorite(hit.id);
 }
 
-export async function addFavoriteReturning(shrineId: number): Promise<Favorite> {
-  const item = await addFavoriteByShrineId(shrineId);
-  return { id: item.id, shrine: item.shrine?.id ?? 0 };
+// 旧名: removeFavoriteByPlaceId
+export async function removeFavoriteByPlaceId(placeId: string) {
+  const list = await getFavorites();
+  const hit = list.find((f) => f.place_id === placeId);
+  if (hit) await deleteFavorite(hit.id);
 }
 
-export async function removeFavoriteByPk(favoritePk: number): Promise<void> {
-  await removeFavoriteById(favoritePk);
+// 旧: placeId → shrine を作成（必要ならお気に入り化）
+// shrines.ts が再輸出していたので維持します。
+export type ImportResult = unknown;
+export async function importFromPlace(placeId: string, alsoFavorite = false): Promise<ImportResult> {
+  // バックエンドの /places/find/ は { shrine_id?, shrine? } を返す想定
+  const data = await apiPost<any>("/places/find/", { place_id: placeId });
+  const shrineId: number | null = data?.shrine_id ?? data?.shrine?.id ?? data?.id ?? null;
+  if (!shrineId) throw new Error("shrineId not found in /places/find/");
+  if (alsoFavorite) await createFavoriteByShrineId(shrineId);
+  return data?.shrine ?? { id: shrineId };
 }
 
-// ★不足していた互換エクスポート
-export async function createFavoriteByShrineId(shrineId: number) {
-  await addFavoriteByShrineId(shrineId);
+// 便宜上：placeId からお気に入りを作る（旧実装互換）
+export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
+  const data = await apiPost<any>("/places/find/", { place_id: placeId });
+  const shrineId: number | null = data?.shrine_id ?? data?.shrine?.id ?? data?.id ?? null;
+  if (!shrineId) throw new Error("shrineId not found in /places/find/");
+  return createFavoriteByShrineId(shrineId);
 }
