@@ -1,67 +1,76 @@
-# temples/services/concierge.py 今の指示はこれで合ってる？
+from __future__ import annotations
+
 import os
+import logging
 from typing import TypedDict, List, Literal, Optional, Dict, Any
+from temples.services import google_places as GP
+from temples.llm.backfill import fill_locations
+
+from .places import places_client  # ← 統一して使う
+
+log = logging.getLogger(__name__)
+
+MAX_RADIUS_M = 50_000
 
 
 
-# --- PlacesService import (robust) ------------------------------------------
-# 1) もし本当に PlacesService クラスが用意されていればそれを使う
-try:
-    from .places import PlacesService as _ImportedPlacesService  # type: ignore[attr-defined]
-except Exception:
-    _ImportedPlacesService = None
 
-# 2) なければ google_places にクラスがあるか試す（あれば alias）
-if _ImportedPlacesService is None:
-    try:
-        from .google_places import GooglePlacesService as _ImportedPlacesService  # type: ignore[attr-defined]
-    except Exception:
-        _ImportedPlacesService = None
+def _calc_radius_m(*, radius_m: Optional[int], radius_km: Optional[float]) -> int:
+    if radius_km is not None:
+        return int(radius_km * 1000)
+    if radius_m is not None:
+        return min(int(radius_m), MAX_RADIUS_M)
+    return 3000  # デフォルト 3km
 
-# 3) それでも無ければ、モジュール関数を包む**薄いアダプタ**を定義
-if _ImportedPlacesService is None:
-    from . import places as _places_mod
+def _locationbias(lat: float, lng: float, radius_m: int) -> str:
+    return f"circle:{radius_m}@{lat},{lng}"
 
-    def _safe_call(func_name: str, **kwargs):
-        fn = getattr(_places_mod, func_name, None)
-        if fn is None:
-            # 想定外でも壊さない：空結果を返して上流で graceful に扱う
-            return {"results": []}
-        return fn(**kwargs)
+def _short_label_from_details(details: Dict[str, Any]) -> Optional[str]:
+    comps = details.get("address_components", []) or []
 
-    class PlacesService:  # adapter
-        def find_place(self, **kwargs):
-            return _safe_call("find_place", **kwargs)
+    def _get(types: List[str]) -> Optional[str]:
+        for t in types:
+            c = next((c for c in comps if t in c.get("types", [])), None)
+            if c:
+                return c.get("short_name") or c.get("long_name")
+        return None
 
-        def nearby_search(self, **kwargs):
-            return _safe_call("nearby_search", **kwargs)
-else:
-    # 正規のクラスが見つかったケース
-    PlacesService = _ImportedPlacesService
-# --- Types --------------------------------------------------------------------
-Mode = Literal["walk", "car"]  # UIでは "walk" / "car" を採用（内部で route_hints に合わせて変換）
+    locality = _get(["locality", "administrative_area_level_2"])
+    sublocal = _get(["sublocality", "sublocality_level_1"])
+
+    if locality and sublocal:
+        return f"{locality}{sublocal}"
+    if locality:
+        return locality
+
+    fmt = details.get("formatted_address")
+    if fmt and " " not in fmt:
+        return fmt[:6]
+    return None
+
+
+# ---- Types -------------------------------------------------------------------
+Mode = Literal["walk", "car"]
 
 class ShrineCandidate(TypedDict):
     name: str
-    area_hint: str  # 例: "浅草 台東区"
+    area_hint: str
     reason: str
 
 class PlanResult(TypedDict):
     mode: Mode
     main: ShrineCandidate
-    nearby: List[ShrineCandidate]  # 2件
+    nearby: List[ShrineCandidate]
 
-
-# --- AI(ダミー) ---------------------------------------------------------------
+# ---- AI(ダミー) --------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 SYSTEM_PROMPT = """あなたは神社参拝のコンシェルジュです。
 入力（現在地/ご利益/移動手段/所要時間）から、参拝ルート案（メイン1＋近隣2）を日本語で考えます。
-ただし出力はアプリ側でPlace正規化するため、名称（通称可）・エリア目安・理由の3点だけをJSONで返すこと。
+ただし出力はアプリ側でPlace正規化するため、名称・エリア目安・理由の3点だけをJSONで返すこと。
 """
 
 def make_plan_dummy(benefit: str, mode: Mode) -> PlanResult:
-    # ★ダミー：まずは画面とAPIを通す
     return {
         "mode": mode,
         "main":   {"name": "浅草神社", "area_hint": "浅草 台東区", "reason": f"{benefit}で人気"},
@@ -78,36 +87,22 @@ def make_plan(
     mode: Mode,
     time_limit: Optional[str] = None
 ) -> PlanResult:
-    """
-    将来的に OpenAI Responses API（Structured Outputs）に置き換え。
-    OPENAI_API_KEY が無ければダミーで返す。
-    """
     if not OPENAI_API_KEY:
         return make_plan_dummy(benefit, mode)
-
-    # ↓将来の本番接続（placeholder）
-    # from openai import OpenAI
-    # client = OpenAI(api_key=OPENAI_API_KEY)
-    # resp = client.responses.create(
-    #     model="gpt-4.1-mini",
-    #     input=[ ... ],
-    #     response_format={"type":"json_object", "schema": ...}
-    # )
-    # return json.loads(resp.output[0].content[0].text)
     return make_plan_dummy(benefit, mode)
 
-
-# --- Concierge Service --------------------------------------------------------
+# ---- Concierge Service -------------------------------------------------------
 class ConciergeService:
     def __init__(self):
-        self.places = PlacesService()
+        
+
+        # 統一：places_client を直接使う
+        self.places = places_client
 
     def _route_mode_from_ui(self, mode: Mode) -> Literal["walk", "drive"]:
-        """
-        ルーティングAPIのモードに合わせて変換。
-        UIでは "car" を使うが、ルートヒントは "drive" にする。
-        """
         return "walk" if mode == "walk" else "drive"
+
+    # temples/services/concierge.py
 
     def build_plan(
         self,
@@ -117,105 +112,110 @@ class ConciergeService:
         locationbias: str,
         transportation: str
     ) -> Dict[str, Any]:
-        """
-        Placesの find_place を用いてメイン神社を特定し、
-        周辺2件を nearby_search で補完。/api/route/ に渡せる route_hints を返す。
-        transportation は UI起点の "walk" | "car" を想定。
-        """
-        # 1) メイン神社：find_place
-        main = self.places.find_place(
+
+                # 1) Find Place（tests が self.places.find_place をモックする想定）
+        fp = self.places.find_place(
             input=query,
             language=language,
             locationbias=locationbias,
-            fields=[
-                "place_id", "name", "geometry", "formatted_address", "types",
-                "photos", "opening_hours", "rating", "user_ratings_total", "icon"
-            ],
+            fields="place_id,name,formatted_address,geometry",
         )
-
-        if not main or not main.get("results"):
+        fp_candidates = fp.get("candidates") or fp.get("results") or []
+        if not fp_candidates:
+            ui_mode: Mode = transportation if transportation in ("walk", "car") else "walk"
             return {
                 "query": query,
-                "transportation": transportation,
+                "transportation": ui_mode,
                 "main": None,
                 "alternatives": [],
-                "route_hints": {"mode": self._route_mode_from_ui(transportation if transportation in ("walk", "car") else "walk"),
-                                "waypoints": []},
+                "route_hints": {"mode": self._route_mode_from_ui(ui_mode), "waypoints": []},
             }
 
-        main_item = main["results"][0]  # 最上位
-        # 整形（バックエンド標準形）
+        # ★★★ ここから【あなたの差分】に置き換え ★★★
+        cand = fp_candidates[0]
+        place_id = cand.get("place_id")
+        # まず候補から取り出す（lat/lng が無い等の不足だけ Details で補完）
+        name = cand.get("name")
+        addr = cand.get("formatted_address") or cand.get("address")
+        gloc = (cand.get("geometry") or {}).get("location") or {}
+        lat = cand.get("lat") if cand.get("lat") is not None else gloc.get("lat")
+        lng = cand.get("lng") if cand.get("lng") is not None else gloc.get("lng")
+        rating = cand.get("rating")
+        reviews = cand.get("user_ratings_total")
+        icon = cand.get("icon")
+
+        # 不足があれば Details で補完（失敗しても落とさない）
+        if (lat is None or lng is None or addr is None) and place_id:
+            try:
+                det = self.places.details(
+                    place_id=place_id,
+                    language=language,
+                    fields="place_id,name,formatted_address,geometry,rating,user_ratings_total,photos,icon",
+                )
+                res_det = det.get("result") or det
+                if addr is None:
+                    addr = res_det.get("formatted_address") or addr
+                dloc = (res_det.get("geometry") or {}).get("location") or {}
+                lat = lat if lat is not None else dloc.get("lat")
+                lng = lng if lng is not None else dloc.get("lng")
+                rating = rating if rating is not None else res_det.get("rating")
+                reviews = reviews if reviews is not None else res_det.get("user_ratings_total")
+                icon = icon if icon is not None else res_det.get("icon")
+            except Exception:
+                pass  # そのまま候補だけで続行
+
+        # main 用の統一フォーマット
         main_fmt = {
-            "place_id": main_item.get("place_id"),
-            "name": main_item.get("name"),
-            "address": main_item.get("address") or main_item.get("formatted_address"),
-            "location": {
-                "lat": main_item.get("lat")
-                    or (main_item.get("geometry", {}).get("location", {}).get("lat")),
-                "lng": main_item.get("lng")
-                    or (main_item.get("geometry", {}).get("location", {}).get("lng")),
-            },
-            "rating": main_item.get("rating"),
-            "user_ratings_total": main_item.get("user_ratings_total"),
-            "open_now": main_item.get("open_now"),
-            "photo_reference": main_item.get("photo_reference"),
-            "icon": main_item.get("icon"),
+            "place_id": place_id,
+            "name": name,
+            "address": addr,
+            "location": {"lat": lat, "lng": lng},
+            "rating": rating,
+            "user_ratings_total": reviews,
+            "icon": icon,
         }
+        # ★★★ ここまで差分 ★★★
 
-        # 2) 周辺候補：nearby_search（宗教施設系）
-        center_lat = main_fmt["location"]["lat"]
-        center_lng = main_fmt["location"]["lng"]
-
+        # 2) 周辺検索（place_of_worship で包括）
+        center = f"{main_fmt['location']['lat']},{main_fmt['location']['lng']}"
         nearby = self.places.nearby_search(
-            location=f"{center_lat},{center_lng}",
+            location=center,
             radius=1500,
             language=language,
-            # Google Places のtypeは1つのみ指定：包括的に place_of_worship
             type="place_of_worship",
         )
 
         alts: List[Dict[str, Any]] = []
         if nearby and nearby.get("results"):
-            # 同一 place_id を除外し、rating降順→距離昇順などの簡易スコア
             items = [r for r in nearby["results"] if r.get("place_id") != main_fmt["place_id"]]
-            # distance_m が無い場合もあるのでセーフティに
-            def _dist(v: Any) -> float:
+
+            def _safe_float(v: Any, default: float = 0.0) -> float:
                 try:
                     return float(v)
                 except Exception:
-                    return 1e9
+                    return default
 
-            def _rating(v: Any) -> float:
-                try:
-                    return float(v)
-                except Exception:
-                    return 0.0
-
-            items.sort(key=lambda r: (-_rating(r.get("rating")), _dist(r.get("distance_m"))))
+            items.sort(key=lambda r: (-_safe_float(r.get("rating")), _safe_float(r.get("distance_m"), 1e9)))
             for r in items[:2]:
+                gl = (r.get("geometry") or {}).get("location") or {}
                 alts.append({
                     "place_id": r.get("place_id"),
                     "name": r.get("name"),
-                    "address": r.get("address") or r.get("vicinity"),
-                    "location": {
-                        "lat": r.get("lat") or r.get("geometry", {}).get("location", {}).get("lat"),
-                        "lng": r.get("lng") or r.get("geometry", {}).get("location", {}).get("lng"),
-                    },
+                    "address": r.get("vicinity") or r.get("formatted_address"),
+                    "location": {"lat": gl.get("lat"), "lng": gl.get("lng")},
                     "rating": r.get("rating"),
                     "user_ratings_total": r.get("user_ratings_total"),
                 })
 
-        # 3) ルートヒント（出発地はクライアントが現在地を付与）
+        # 3) ルートヒント
         ui_mode: Mode = transportation if transportation in ("walk", "car") else "walk"
-        route_mode = self._route_mode_from_ui(ui_mode)
-
         return {
             "query": query,
-            "transportation": ui_mode,  # "walk" | "car"
+            "transportation": ui_mode,
             "main": main_fmt,
             "alternatives": alts,
             "route_hints": {
-                "mode": route_mode,  # "walk" or "drive"
+                "mode": self._route_mode_from_ui(ui_mode),
                 "waypoints": [{
                     "type": "destination",
                     "place_id": main_fmt["place_id"],
