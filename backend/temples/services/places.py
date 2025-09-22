@@ -19,6 +19,8 @@ from ..models import PlaceRef
 from . import google_places  # 低レベルHTTPクライアント（関数型）に統一
 from urllib.parse import urlencode
 
+req_history = google_places.req_history
+
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 logger = logging.getLogger(__name__)
@@ -43,6 +45,15 @@ __all__ = [
 
 class PlacesService:
     BASE = "https://maps.googleapis.com/maps/api/place"
+
+    # fields を "a,b,c" に正規化
+    def _join_fields(fields):
+        if not fields:
+            return None
+        if isinstance(fields, str):
+            return fields
+        return ",".join(fields)
+
 
     def text_search(self, lat: float, lng: float, query: str, radius: int = 7000):
         """周辺の神社候補を取得（Text Search）。"""
@@ -77,6 +88,9 @@ def _get_or_set(ns: str, payload: Dict[str, Any], fetcher, ttl: int):
     data = fetcher()
     cache.set(key, data, ttl)
     return data, False
+
+
+
 
 class PlacesError(Exception):
     """Places系のアプリ内エラー。status にHTTP相当を入れてビュー側で使う。"""
@@ -340,16 +354,62 @@ def nearby_search(*args, **kwargs):
         }
     return places_nearby_search(_norm_params(params))
 
+def _join_fields(fields):
+    if not fields:
+        return None
+    if isinstance(fields, str):
+        return fields
+    return ",".join(fields)
+
+def find_place(
+    *, input: str, inputtype: str, language: str = "ja",
+    locationbias: Optional[str] = None, fields: Optional[str | list] = None,
+    sessiontoken: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Find Place from Text の薄いラッパ。
+    - 低レイヤ: google_places.find_place_text(query, ...)
+    - 戻りは Google 本家に合わせて `candidates` キーを付与する（tests/concierge が期待）
+    """
+    params = {
+        "language": language,
+        "locationbias": locationbias,
+        "fields": _join_fields(fields),
+        "sessiontoken": sessiontoken,
+    }
+    # None は渡さない
+    params = {k: v for k, v in params.items() if v is not None}
+    # 低レイヤは第1引数にクエリ、他はキーワード引数
+    data = _wrap_call(google_places.find_place_text, input, **params)
+    # `results` → `candidates` へ正規化
+    if "candidates" not in data:
+        data = dict(data)
+        data["candidates"] = data.get("results", [])
+    return data
+
+# details は旧API互換シムの形に一本化（places_details を呼ぶ）
 def details(place_id=None, params=None, **kwargs):
     """旧API互換: temples.services.places.details(place_id, params)"""
     if place_id is None:
         place_id = kwargs.get("place_id")
     p = params or {
         "language": kwargs.get("language"),
-        "fields": kwargs.get("fields"),
+        "fields": _join_fields(kwargs.get("fields")),
     }
     p = {k: p.get(k) for k in ("language", "fields") if p.get(k) is not None}
     return places_details(place_id, p)
+
+# 既存の text_search / nearby_search をメソッド化した薄いクライアント
+class _PlacesClient:
+    def find_place(self, **kw): return find_place(**kw)
+    def details(self, **kw): return details(**kw)
+    def text_search(self, **kw): return text_search(**kw)          # ← 既存関数名に合わせて
+    def nearby_search(self, **kw): return nearby_search(**kw)      # ← 既存関数名に合わせて
+
+# シングルトンをエクスポート（concierge から import される）
+places_client = _PlacesClient()
+
+
 
 def photo(photo_reference=None, maxwidth=800, **kwargs):
     """旧API互換: temples.services.places.photo(...)"""
@@ -574,3 +634,26 @@ def _find_exact_from_text_nearby(
     best = hits[0][1]
     _dbg("inject.hit", name=best.get("name"), place_id=best.get("place_id"))
     return best
+
+def findplacefromtext(*, input, language=None, locationbias=None, fields=None):
+    """
+    Google Places API: Find Place From Text
+    https://maps.googleapis.com/maps/api/place/findplacefromtext/json
+    """
+    url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+    params = {
+        "key": settings.GOOGLE_MAPS_API_KEY,
+        "input": input,
+        "inputtype": "textquery",
+    }
+    if language:
+        params["language"] = language
+    if locationbias:
+        params["locationbias"] = locationbias
+    if fields:
+        params["fields"] = fields
+
+    _log_upstream("findplacefromtext", url, params)  # 既存と同じログ様式
+    resp = requests.get(url, params=params, timeout=_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
