@@ -1,58 +1,58 @@
-import uuid
+# temples/tests/factories.py
+import factory
+from factory.django import DjangoModelFactory  # <-- you were missing this
 from django.contrib.auth import get_user_model
-from django.db import models
-from temples.models import Shrine
+from temples.models import Shrine  # adjust if your import path differs
 
-def make_user(username=None, password="p", **extra):
-    User = get_user_model()
-    username = username or f"u-{uuid.uuid4().hex[:6]}"
-    return User.objects.create_user(username=username, password=password, **extra)
+User = get_user_model()
 
-def make_shrine(**overrides):
-    # owner/user は取り出して保持（FK/M2M に使う）
-    owner = overrides.pop("owner", None) or overrides.pop("user", None)
+class UserFactory(DjangoModelFactory):
+    class Meta:
+        model = User
+    username = factory.Sequence(lambda n: f"user{n}")
 
-    fields = {f.name for f in Shrine._meta.fields}
-    data = {}
+def make_user(username="user", password="p"):
+    u = UserFactory(username=username)
+    u.set_password(password)
+    u.save()
+    return u
 
-    # name → name_jp の互換
-    name = overrides.pop("name", None)
-    if name is not None:
-        if "name" in fields:
-            data["name"] = name
-        elif "name_jp" in fields:
-            data["name_jp"] = name
-    else:
-        if "name" in fields:
-            data["name"] = "テスト神社"
-        elif "name_jp" in fields:
-            data["name_jp"] = "テスト神社"
+class ShrineFactory(DjangoModelFactory):
+    class Meta:
+        model = Shrine
 
-    # address がモデルにあればデフォルトを補う
-    if "address" in fields and "address" not in overrides:
-        data["address"] = "東京都テスト区1-1-1"
+    # Provide safe defaults that satisfy NOT NULLs
+    name_jp  = factory.Sequence(lambda n: f"S{n}")
+    address  = "東京都テスト区1-1-1"
+    latitude = 35.0
+    longitude = 139.0
 
-    # User FK フィールド名を推測してセット（存在する場合）
-    owner_fk_field = None
-    for f in Shrine._meta.fields:
-        if isinstance(f, models.ForeignKey):
-            model = getattr(getattr(f, "remote_field", None), "model", None)
-            if model and "user" in model.__name__.lower():
-                owner_fk_field = f.name
-                break
-    if owner and owner_fk_field:
-        data[owner_fk_field] = owner
+def make_shrine(**kw):
+    """
+    Test helper that accepts test-friendly kwargs and maps them to model fields.
+    Accepted aliases:
+      - name  -> name_jp
+      - owner/user are swallowed (don’t pass to model)
+    """
+    mapped = dict(kw)
 
-    # 実在フィールドのみ上書き
-    for k, v in overrides.items():
-        if k in fields:
-            data[k] = v
+    # Map alias fields expected by tests
+    if "name" in mapped:
+        mapped["name_jp"] = mapped.pop("name")
 
-    shrine = Shrine.objects.create(**data)
+    # Do NOT forward owner/user into model (Shrine has no such field)
+    _owner = mapped.pop("owner", None)
+    _user  = mapped.pop("user", None)
 
-    # M2M owners があれば追加
-    owners_rel = getattr(shrine, "owners", None)
-    if owner and owners_rel is not None and hasattr(owners_rel, "add"):
-        owners_rel.add(owner)
+    # Ensure non-null coords if caller left them out
+    mapped.setdefault("latitude", 35.0)
+    mapped.setdefault("longitude", 139.0)
+
+    shrine = ShrineFactory(**mapped)
+
+    # If the model ever gains an owner field, attach it defensively
+    if (_owner or _user) and hasattr(shrine, "owner_id"):
+        shrine.owner = _owner or _user
+        shrine.save()
 
     return shrine

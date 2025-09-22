@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+import re
 
 # ---------- 基本の正規化 ----------
 def _first_list_in_dict(d: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -78,3 +79,16 @@ def complete_recommendations(data: Dict[str, Any], query: str = "", candidates: 
                         r["location"] = loc2
                         break
     return {"recommendations": recs}
+
+
+def _pick_location_from_candidate(c: Dict[str, Any]) -> str:
+    for key in ("formatted_address","vicinity","address","location","addr","address1"):
+        v = c.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    parts = [c.get(k,"") for k in ("prefecture","city","ward","town","chome","block","building")]
+    parts = [p for p in parts if isinstance(p,str) and p.strip()]
+    return " ".join(parts)
+
+def _norm_name(x: str) -> str:
+    return re.sub(r"\s+", "", (x or "")).lower()
