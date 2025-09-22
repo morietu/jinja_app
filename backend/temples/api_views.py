@@ -30,7 +30,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication  # 認証が必要な所だけで使用
 
-
+from temples.services.concierge import fill_locations
 
 
 from temples.llm.orchestrator import chat_to_plan
@@ -44,6 +44,8 @@ from .api.serializers import FavoriteSerializer, FavoriteUpsertSerializer
 # 上流呼び出しは google_places に統一
 from .services import google_places as gp
 from .services.places import get_or_sync_place, PlacesError
+
+from .services.concierge import fill_locations
 
 # ---- 定数・ユーティリティ -----------------------------------------------------
 REPLACEMENT_CHAR = "\ufffd"
@@ -696,6 +698,25 @@ class ConciergeHistoryView(APIView):
     def get(self, request):
         # ひとまず空配列でOK。必要なら最近のプランなどを返す実装に置き換え。
         return Response([], status=200)
+
+class ConciergePlanView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        lat = float(request.data.get("lat"))
+        lng = float(request.data.get("lng"))
+        radius_m = request.data.get("radius_m")
+        radius_km = request.data.get("radius_km")
+
+        bias = {"lat": lat, "lng": lng, "radius": radius_m, "radius_km": radius_km}
+
+        # LLM候補が無い場合のデフォルト1件
+        data = {"recommendations": request.data.get("candidates") or [{"name": "赤坂氷川神社"}]}
+
+        # ★ FindPlace→Details で location を backfill（req_history に findplacefromtext を残す）
+        data = fill_locations(data, candidates=data["recommendations"], bias=bias, shorten=True)
+
+        return Response(data, status=200)
 
 
 class RankingView(APIView):

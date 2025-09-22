@@ -4,6 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import index, favicon
+from temples.api_views_places import ConciergePlanView
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView, TokenRefreshView, TokenVerifyView
@@ -12,12 +13,12 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
-
     path("admin/", admin.site.urls),
 
     # アプリのAPI
-    path("api/", include("temples.urls")),
-    path("api/", include("users.api.urls")),   # ← ここだけで /api/users/me/ が生える
+    path("api/", include("users.api.urls")),
+    path("api/", include(("temples.urls", "temples"), namespace="temples")),
+    path("api/concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
 
     # SimpleJWT（フロントが使っているのはこっち）
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
