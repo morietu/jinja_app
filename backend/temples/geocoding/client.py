@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import os
 import typing as t
-import requests
 from dataclasses import dataclass
+
+import requests
+
 
 @dataclass
 class GeocodeResult:
@@ -13,8 +16,10 @@ class GeocodeResult:
     provider: str
     raw: dict
 
+
 class GeocodingError(Exception):
     pass
+
 
 class GeocodingClient:
     def __init__(self, session: t.Optional[requests.Session] = None):
@@ -101,7 +106,7 @@ class GeocodingClient:
 
         data = resp.json()
         out: list[GeocodeResult] = []
-        for top in (data.get("results") or []):
+        for top in data.get("results") or []:
             geom = top.get("geometry") or {}
             lat, lng = geom.get("lat"), geom.get("lng")
             if lat is None or lng is None:

@@ -1,8 +1,9 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
 
 class AuthFlowTests(TestCase):
     def setUp(self):
@@ -17,7 +18,11 @@ class AuthFlowTests(TestCase):
         self.assertTemplateUsed(resp, "registration/login.html")
 
     def test_register_creates_user_and_redirects_to_mypage(self):
-        data = {"username": "etsuko", "password1": "Str0ngPass!123", "password2": "Str0ngPass!123"}
+        data = {
+            "username": "etsuko",
+            "password1": "Str0ngPass!123",
+            "password2": "Str0ngPass!123",
+        }
         resp = self.client.post(self.register_url, data, follow=False)
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.headers.get("Location"), self.mypage_url)
@@ -32,7 +37,7 @@ class AuthFlowTests(TestCase):
         self.assertIn("next=", resp.headers.get("Location"))
 
     def test_login_then_mypage(self):
-        user = User.objects.create_user(username="taro", password="xYz-12345")
+        User.objects.create_user(username="taro", password="xYz-12345")
         resp = self.client.post(self.login_url, {"username": "taro", "password": "xYz-12345"})
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.headers.get("Location"), self.mypage_url)
@@ -40,7 +45,7 @@ class AuthFlowTests(TestCase):
         self.assertEqual(resp2.status_code, 200)
 
     def test_logout_requires_post(self):
-        user = User.objects.create_user(username="jiro", password="xYz-12345")
+        User.objects.create_user(username="jiro", password="xYz-12345")
         self.client.post(self.login_url, {"username": "jiro", "password": "xYz-12345"})
         resp_get = self.client.get(self.logout_url)
         self.assertEqual(resp_get.status_code, 405)

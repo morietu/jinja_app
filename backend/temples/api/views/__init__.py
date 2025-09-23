@@ -1,9 +1,9 @@
-# backend/temples/api/views/__init__.py
-from .shrine import ShrineViewSet, GoriyakuTagViewSet
-from .visit import VisitCreateView, UserVisitListView
 from .favorite import FavoriteToggleView, UserFavoriteListView
 from .ranking import RankingAPIView
 from .route import RouteView
+from .search import search
+from .shrine import GoriyakuTagViewSet, ShrineViewSet
+from .visit import UserVisitListView, VisitCreateView
 
 __all__ = [
     "ShrineViewSet",
@@ -14,4 +14,5 @@ __all__ = [
     "UserFavoriteListView",
     "RankingAPIView",
     "RouteView",
+    "search",
 ]

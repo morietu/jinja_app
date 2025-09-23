@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import os
 import logging
-from typing import TypedDict, List, Literal, Optional, Dict, Any
-from temples.services import google_places as GP
-from temples.llm.backfill import fill_locations
+import os
+from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 from .places import places_client  # ← 統一して使う
 
 log = logging.getLogger(__name__)
 
 MAX_RADIUS_M = 50_000
-
-
 
 
 def _calc_radius_m(*, radius_m: Optional[int], radius_km: Optional[float]) -> int:
@@ -22,8 +18,10 @@ def _calc_radius_m(*, radius_m: Optional[int], radius_km: Optional[float]) -> in
         return min(int(radius_m), MAX_RADIUS_M)
     return 3000  # デフォルト 3km
 
+
 def _locationbias(lat: float, lng: float, radius_m: int) -> str:
     return f"circle:{radius_m}@{lat},{lng}"
+
 
 def _short_label_from_details(details: Dict[str, Any]) -> Optional[str]:
     comps = details.get("address_components", []) or []
@@ -52,15 +50,18 @@ def _short_label_from_details(details: Dict[str, Any]) -> Optional[str]:
 # ---- Types -------------------------------------------------------------------
 Mode = Literal["walk", "car"]
 
+
 class ShrineCandidate(TypedDict):
     name: str
     area_hint: str
     reason: str
 
+
 class PlanResult(TypedDict):
     mode: Mode
     main: ShrineCandidate
     nearby: List[ShrineCandidate]
+
 
 # ---- AI(ダミー) --------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -70,32 +71,41 @@ SYSTEM_PROMPT = """あなたは神社参拝のコンシェルジュです。
 ただし出力はアプリ側でPlace正規化するため、名称・エリア目安・理由の3点だけをJSONで返すこと。
 """
 
+
 def make_plan_dummy(benefit: str, mode: Mode) -> PlanResult:
     return {
         "mode": mode,
-        "main":   {"name": "浅草神社", "area_hint": "浅草 台東区", "reason": f"{benefit}で人気"},
+        "main": {
+            "name": "浅草神社",
+            "area_hint": "浅草 台東区",
+            "reason": f"{benefit}で人気",
+        },
         "nearby": [
-            {"name": "浅草寺",   "area_hint": "浅草 台東区", "reason": "同エリアで回遊しやすい"},
+            {
+                "name": "浅草寺",
+                "area_hint": "浅草 台東区",
+                "reason": "同エリアで回遊しやすい",
+            },
             {"name": "今戸神社", "area_hint": "台東区 近隣", "reason": "縁結びで有名"},
         ],
     }
+
 
 def make_plan(
     current_lat: Optional[float],
     current_lng: Optional[float],
     benefit: str,
     mode: Mode,
-    time_limit: Optional[str] = None
+    time_limit: Optional[str] = None,
 ) -> PlanResult:
     if not OPENAI_API_KEY:
         return make_plan_dummy(benefit, mode)
     return make_plan_dummy(benefit, mode)
 
+
 # ---- Concierge Service -------------------------------------------------------
 class ConciergeService:
     def __init__(self):
-        
-
         # 統一：places_client を直接使う
         self.places = places_client
 
@@ -105,15 +115,9 @@ class ConciergeService:
     # temples/services/concierge.py
 
     def build_plan(
-        self,
-        *,
-        query: str,
-        language: str,
-        locationbias: str,
-        transportation: str
+        self, *, query: str, language: str, locationbias: str, transportation: str
     ) -> Dict[str, Any]:
-
-                # 1) Find Place（tests が self.places.find_place をモックする想定）
+        # 1) Find Place（tests が self.places.find_place をモックする想定）
         fp = self.places.find_place(
             input=query,
             language=language,
@@ -128,7 +132,10 @@ class ConciergeService:
                 "transportation": ui_mode,
                 "main": None,
                 "alternatives": [],
-                "route_hints": {"mode": self._route_mode_from_ui(ui_mode), "waypoints": []},
+                "route_hints": {
+                    "mode": self._route_mode_from_ui(ui_mode),
+                    "waypoints": [],
+                },
             }
 
         # ★★★ ここから【あなたの差分】に置き換え ★★★
@@ -195,17 +202,24 @@ class ConciergeService:
                 except Exception:
                     return default
 
-            items.sort(key=lambda r: (-_safe_float(r.get("rating")), _safe_float(r.get("distance_m"), 1e9)))
+            items.sort(
+                key=lambda r: (
+                    -_safe_float(r.get("rating")),
+                    _safe_float(r.get("distance_m"), 1e9),
+                )
+            )
             for r in items[:2]:
                 gl = (r.get("geometry") or {}).get("location") or {}
-                alts.append({
-                    "place_id": r.get("place_id"),
-                    "name": r.get("name"),
-                    "address": r.get("vicinity") or r.get("formatted_address"),
-                    "location": {"lat": gl.get("lat"), "lng": gl.get("lng")},
-                    "rating": r.get("rating"),
-                    "user_ratings_total": r.get("user_ratings_total"),
-                })
+                alts.append(
+                    {
+                        "place_id": r.get("place_id"),
+                        "name": r.get("name"),
+                        "address": r.get("vicinity") or r.get("formatted_address"),
+                        "location": {"lat": gl.get("lat"), "lng": gl.get("lng")},
+                        "rating": r.get("rating"),
+                        "user_ratings_total": r.get("user_ratings_total"),
+                    }
+                )
 
         # 3) ルートヒント
         ui_mode: Mode = transportation if transportation in ("walk", "car") else "walk"
@@ -216,11 +230,13 @@ class ConciergeService:
             "alternatives": alts,
             "route_hints": {
                 "mode": self._route_mode_from_ui(ui_mode),
-                "waypoints": [{
-                    "type": "destination",
-                    "place_id": main_fmt["place_id"],
-                    "lat": main_fmt["location"]["lat"],
-                    "lng": main_fmt["location"]["lng"],
-                }],
+                "waypoints": [
+                    {
+                        "type": "destination",
+                        "place_id": main_fmt["place_id"],
+                        "lat": main_fmt["location"]["lat"],
+                        "lng": main_fmt["location"]["lng"],
+                    }
+                ],
             },
         }

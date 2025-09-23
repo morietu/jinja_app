@@ -1,18 +1,18 @@
 # temples/services/google_places.py
-
+import logging
 import os
 import sys
-import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-from typing import List, Tuple, Dict, Any
 
 # ===== Request history recorder (for tests) =====
 # tests 側の fixture はこの list を毎テストごとにクリアして使う
 req_history: List[Tuple[str, Dict[str, Any]]] = []
+
 
 def _record(url: str, params: Dict[str, Any]) -> None:
     # tests でアサートしやすいよう shallow copy を残す
@@ -21,6 +21,8 @@ def _record(url: str, params: Dict[str, Any]) -> None:
     except Exception:
         # 記録はテスト補助なので本処理を邪魔しない
         pass
+
+
 # ------------------------------------------------------------
 # req_history: places 側を唯一の真実にする（読み取りは動的に）
 # ------------------------------------------------------------
@@ -28,23 +30,27 @@ def _get_places_history() -> list:
     """常に temples.services.places.req_history（list）を返す。無ければ作る。"""
     try:
         from . import places as _PLACES
+
         if not hasattr(_PLACES, "req_history") or not isinstance(_PLACES.req_history, list):
             _PLACES.req_history = []
         return _PLACES.req_history
     except Exception:
         # 超初期のみフォールバック
         return globals().setdefault("_fallback_req_history", [])
-    
+
+
 def __getattr__(name: str):
     # google_places.req_history を参照されたら常に places 側の箱を返す
     if name == "req_history":
         return _get_places_history()
     raise AttributeError(name)
 
+
 # ↑の関数“外”で必ず束縛しておく（tests 側の import タイミング対策）
 req_history = _get_places_history()
 try:
     import temples.services as _PKG
+
     _PKG.req_history = req_history
 except Exception:
     pass
@@ -60,7 +66,9 @@ API_KEY = (
 )
 
 try:
-    from temples.services.places import text_search_first as text_search_first  # noqa: F401
+    from temples.services.places import (
+        text_search_first as text_search_first,
+    )  # noqa: F401
 except Exception:
     text_search_first = None
 
@@ -134,6 +142,7 @@ def _push_req_history(url: str, params: dict) -> None:
     pm_hist = None
     try:
         from . import places as pm  # type: ignore
+
         pm_hist = getattr(pm, "req_history", None)
         if not isinstance(pm_hist, list):
             pm_hist = []
@@ -147,6 +156,7 @@ def _push_req_history(url: str, params: dict) -> None:
     pkg_hist = None
     try:
         import temples.services as pkg  # type: ignore
+
         pkg_hist = getattr(pkg, "req_history", None)
         if not isinstance(pkg_hist, list):
             pkg_hist = []
@@ -189,6 +199,8 @@ def _push_req_history(url: str, params: dict) -> None:
             pkg.req_history = canonical
     except Exception:
         pass
+
+
 # ------------------------------------------------------------
 # 高レベルクライアント
 # ------------------------------------------------------------
@@ -202,8 +214,8 @@ class GooglePlacesClient:
                 "Google Places API key is not set. "
                 "Set GOOGLE_PLACES_API_KEY (or GOOGLE_MAPS_API_KEY)."
             )
-        self.timeout = timeout if timeout is not None else float(
-            os.getenv("GOOGLE_PLACES_TIMEOUT", "8.0")
+        self.timeout = (
+            timeout if timeout is not None else float(os.getenv("GOOGLE_PLACES_TIMEOUT", "8.0"))
         )
 
     def _get(self, path: str, params: Dict[str, Any]) -> requests.Response:
@@ -237,7 +249,7 @@ class GooglePlacesClient:
     @staticmethod
     def _normalize_result(r: Dict[str, Any]) -> Dict[str, Any]:
         geometry = r.get("geometry") or {}
-        loc = (geometry.get("location") or {})
+        loc = geometry.get("location") or {}
         photos = r.get("photos") or []
         first_photo_ref = (photos[0] or {}).get("photo_reference") if photos else None
         return {
@@ -289,7 +301,11 @@ class GooglePlacesClient:
         data = self._get("textsearch", params).json()
         status = data.get("status")
         if status not in ("OK", "ZERO_RESULTS"):
-            logger.error("Places text_search error: %s, msg=%s", status, data.get("error_message"))
+            logger.error(
+                "Places text_search error: %s, msg=%s",
+                status,
+                data.get("error_message"),
+            )
             self._ensure_ok(data)
         results = [self._normalize_result(r) for r in data.get("results", [])]
         return {"results": results, "status": status}, data.get("next_page_token")
@@ -320,7 +336,11 @@ class GooglePlacesClient:
         data = self._get("nearbysearch", params).json()
         status = data.get("status")
         if status not in ("OK", "ZERO_RESULTS"):
-            logger.error("Places nearby_search error: %s, msg=%s", status, data.get("error_message"))
+            logger.error(
+                "Places nearby_search error: %s, msg=%s",
+                status,
+                data.get("error_message"),
+            )
             self._ensure_ok(data)
         results = [self._normalize_result(r) for r in data.get("results", [])]
         return {"results": results, "status": status}, data.get("next_page_token")
@@ -337,7 +357,11 @@ class GooglePlacesClient:
             params["fields"] = fields
         data = self._get("details", params).json()
         if data.get("status") not in ("OK", "ZERO_RESULTS"):
-            logger.error("Places details error: %s, msg=%s", data.get("status"), data.get("error_message"))
+            logger.error(
+                "Places details error: %s, msg=%s",
+                data.get("status"),
+                data.get("error_message"),
+            )
             self._ensure_ok(data)
         return data.get("result", {})
 
@@ -376,6 +400,7 @@ class GooglePlacesClient:
 # ------------------------------------------------------------
 _TIMEOUT = 10
 
+
 def _log_upstream(kind: str, url: str, params: dict):
     masked = dict(params or {})
     if "key" in masked:
@@ -383,9 +408,17 @@ def _log_upstream(kind: str, url: str, params: dict):
     qs = "&".join(f"{k}={v}" for k, v in masked.items() if v is not None)
     print(f"Places upstream[{kind}] {url}?{qs}", file=sys.stderr)
 
-def textsearch(*, query: str, language: str | None = None, region: str | None = None,
-               location: str | None = None, radius: int | None = None, type: str | None = None,
-               pagetoken: str | None = None):
+
+def textsearch(
+    *,
+    query: str,
+    language: str | None = None,
+    region: str | None = None,
+    location: str | None = None,
+    radius: int | None = None,
+    type: str | None = None,
+    pagetoken: str | None = None,
+):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
         "key": API_KEY,
@@ -404,6 +437,7 @@ def textsearch(*, query: str, language: str | None = None, region: str | None = 
     resp.raise_for_status()
     return resp.json()
 
+
 def details(*, place_id: str, language: str | None = None, fields: str | None = None):
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
@@ -419,8 +453,14 @@ def details(*, place_id: str, language: str | None = None, fields: str | None = 
     resp.raise_for_status()
     return resp.json()
 
-def findplacefromtext(*, input: str, language: str | None = None,
-                      locationbias: str | None = None, fields: str | None = None):
+
+def findplacefromtext(
+    *,
+    input: str,
+    language: str | None = None,
+    locationbias: str | None = None,
+    fields: str | None = None,
+):
     url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
     params = {
         "key": API_KEY,
@@ -437,22 +477,28 @@ def findplacefromtext(*, input: str, language: str | None = None,
     resp.raise_for_status()
     return resp.json()
 
+
 # 互換エイリアス
 def find_place_from_text(**kw):  # noqa: N802
     return findplacefromtext(**kw)
+
+
 def find_place(**kw):
     return findplacefromtext(**kw)
+
 
 # ------------------------------------------------------------
 # ラッパ（後方互換）
 # ------------------------------------------------------------
 _client_singleton: Optional[GooglePlacesClient] = None
 
+
 def _client() -> GooglePlacesClient:
     global _client_singleton
     if _client_singleton is None:
         _client_singleton = GooglePlacesClient()
     return _client_singleton
+
 
 def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
     if isinstance(query_or_params, dict):
@@ -488,6 +534,7 @@ def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
         data, _ = _client().text_search(query, **kwargs)
         return data
 
+
 def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
     if isinstance(params_or_none, dict):
         p = dict(params_or_none)
@@ -516,11 +563,14 @@ def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
         data, _ = _client().nearby_search(**kwargs)
         return data
 
+
 def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
     return _client().place_details(place_id, **kwargs)
 
+
 def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
     return _client().photo(photo_reference, **kwargs)
+
 
 __all__ = [
     "GooglePlacesClient",

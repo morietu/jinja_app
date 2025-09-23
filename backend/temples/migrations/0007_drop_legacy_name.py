@@ -4,10 +4,8 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0006_remove_shrine_name_alter_shrine_owner'),
+        ("temples", "0006_remove_shrine_name_alter_shrine_owner"),
     ]
 
-    operations = [
-    ]
+    operations = []

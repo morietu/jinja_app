@@ -36,4 +36,3 @@ jobs:
           DJANGO_SETTINGS_MODULE: shrine_project.settings
           PYTHONPATH: ./backend
         run: python backend/manage.py test -v 2
-

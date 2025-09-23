@@ -1,20 +1,21 @@
 from django.conf import settings
 from django.db import migrations, models
 
+
 class Migration(migrations.Migration):
     dependencies = [
-        ('temples', '0014_finalize_drop_legacy_name'),
+        ("temples", "0014_finalize_drop_legacy_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
     operations = [
         migrations.AlterUniqueTogether(
-            name='favorite',
+            name="favorite",
             unique_together=set(),
         ),
         migrations.SeparateDatabaseAndState(
             state_operations=[
-                migrations.RemoveField(model_name='shrine', name='name'),
-                migrations.RemoveField(model_name='shrine', name='owner'),
+                migrations.RemoveField(model_name="shrine", name="name"),
+                migrations.RemoveField(model_name="shrine", name="owner"),
             ],
             database_operations=[
                 migrations.RunSQL(
@@ -28,10 +29,10 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.AddConstraint(
-            model_name='favorite',
+            model_name="favorite",
             constraint=models.UniqueConstraint(
-                fields=('user', 'shrine'),
-                name='uq_favorite_user_shrine',
+                fields=("user", "shrine"),
+                name="uq_favorite_user_shrine",
             ),
         ),
     ]

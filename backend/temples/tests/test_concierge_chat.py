@@ -1,6 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
+
 @pytest.mark.django_db
 def test_concierge_chat_returns_200():
     c = APIClient()

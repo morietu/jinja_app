@@ -1,29 +1,29 @@
 # backend/temples/api/views/concierge.py
 from __future__ import annotations
 
+import json
 import os
 import re
-import json
-from openai import OpenAI
 
-from django.db.models import Prefetch
-from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
-
-from rest_framework import status, generics, permissions, serializers
+from django.contrib.gis.geos import Point
+from django.db.models import Prefetch
+from openai import OpenAI
+from rest_framework import generics, permissions, serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from temples.llm.orchestrator import chat_to_plan
 
-from temples.models import Shrine, ConciergeHistory, GoriyakuTag
 from temples.api.serializers.concierge import (
-    ShrineNearbySerializer,
+    ConciergeHistorySerializer,
     ConciergeRecommendationsQuery,
     ConciergeRecommendationsResponse,
-    ConciergeHistorySerializer,
+    ShrineNearbySerializer,
 )
 from temples.geocoding.client import GeocodingClient, GeocodingError
+from temples.llm.orchestrator import chat_to_plan
+from temples.models import ConciergeHistory, GoriyakuTag, Shrine
+
 
 class ConciergeChatView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -33,13 +33,14 @@ class ConciergeChatView(APIView):
 
     def post(self, request):
         q = (request.data.get("query") or "").strip()
-        lat = request.data.get("lat"); lng = request.data.get("lng")
+        lat = request.data.get("lat")
+        lng = request.data.get("lng")
         transport = (request.data.get("transport") or "walking").lower()
         if not q or lat is None or lng is None:
             return Response({"detail": "query, lat, lng are required"}, status=400)
         plan = chat_to_plan(q, float(lat), float(lng), transport)
         return Response(plan, status=200)
-    
+
 
 class ConciergeRecommendationsView(APIView):
     """
@@ -50,6 +51,7 @@ class ConciergeRecommendationsView(APIView):
       - limit: 件数(既定3, 最大10)
     レスポンスは ConciergeRecommendationsResponse 形式
     """
+
     authentication_classes: list = []
     permission_classes: list = []
 
@@ -88,8 +90,7 @@ class ConciergeRecommendationsView(APIView):
 
         # ベースQuery（座標未設定は除外）
         qs = (
-            Shrine.objects
-            .exclude(latitude__isnull=True)
+            Shrine.objects.exclude(latitude__isnull=True)
             .exclude(longitude__isnull=True)
             .exclude(location__isnull=True)
             .prefetch_related(
@@ -117,13 +118,13 @@ class ConciergeRecommendationsView(APIView):
             }
             if origin_point and hasattr(s, "distance") and s.distance is not None:
                 # GeoDjango の Distance は .m でメートル（バックエンドの実装環境によっては単位なしの場合あり）
-                item["distance_m"] = float(s.distance.m) if hasattr(s.distance, "m") else float(s.distance)
+                item["distance_m"] = (
+                    float(s.distance.m) if hasattr(s.distance, "m") else float(s.distance)
+                )
             item["goriyaku_tags"] = [{"id": t.id, "name": t.name} for t in s.goriyaku_tags.all()]
             rows.append(item)
 
-        data = {
-            "results": ShrineNearbySerializer(rows, many=True).data
-        }
+        data = {"results": ShrineNearbySerializer(rows, many=True).data}
         if origin_point is not None:
             data["origin"] = {"lat": origin_point.y, "lng": origin_point.x}
             if origin_label:
@@ -159,6 +160,7 @@ class ConciergeAPIView(APIView):
       body: { birth_year, birth_month?, birth_day?, theme? }
       return: { recommendation, reason, tags[], shrine_id? }
     """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -170,12 +172,25 @@ class ConciergeAPIView(APIView):
         birth_day = ser.validated_data.get("birth_day")
         theme = ser.validated_data.get("theme", "総合運")
 
-        zodiac_animals = ["申", "酉", "戌", "亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未"]
+        zodiac_animals = [
+            "申",
+            "酉",
+            "戌",
+            "亥",
+            "子",
+            "丑",
+            "寅",
+            "卯",
+            "辰",
+            "巳",
+            "午",
+            "未",
+        ]
         zodiac = zodiac_animals[birth_year % 12]
 
         prompt = f"""
         あなたは日本の神社コンシェルジュです。
-        ユーザーの生年月日は {birth_year}年{birth_month or ''}月{birth_day or ''}日 です。
+        ユーザーの生年月日は {birth_year}年{birth_month or ""}月{birth_day or ""}日 です。
         干支は {zodiac} です。
         相談テーマは「{theme}」です。
 
@@ -196,7 +211,10 @@ class ConciergeAPIView(APIView):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a helpful Shinto shrine concierge."},
+                    {
+                        "role": "system",
+                        "content": "You are a helpful Shinto shrine concierge.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,

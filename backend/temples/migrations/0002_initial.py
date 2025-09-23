@@ -6,81 +6,127 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('temples', '0001_initial'),
+        ("temples", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='conciergehistory',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='concierge_histories', to=settings.AUTH_USER_MODEL),
+            model_name="conciergehistory",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="concierge_histories",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='favorite',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorite_shrines', to=settings.AUTH_USER_MODEL),
+            model_name="favorite",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="favorite_shrines",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='goshuin',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+            model_name="goshuin",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+            ),
         ),
         migrations.AddField(
-            model_name='shrine',
-            name='goriyaku_tags',
-            field=models.ManyToManyField(blank=True, related_name='shrines', to='temples.goriyakutag'),
+            model_name="shrine",
+            name="goriyaku_tags",
+            field=models.ManyToManyField(
+                blank=True, related_name="shrines", to="temples.goriyakutag"
+            ),
         ),
         migrations.AddField(
-            model_name='rankinglog',
-            name='shrine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ranking_logs', to='temples.shrine'),
+            model_name="rankinglog",
+            name="shrine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="ranking_logs",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='goshuin',
-            name='shrine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='goshuins', to='temples.shrine'),
+            model_name="goshuin",
+            name="shrine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="goshuins",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='favorite',
-            name='shrine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='temples.shrine'),
+            model_name="favorite",
+            name="shrine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="favorited_by",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='conciergehistory',
-            name='shrine',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='recommended_histories', to='temples.shrine'),
+            model_name="conciergehistory",
+            name="shrine",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="recommended_histories",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='viewlike',
-            name='shrine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='viewlikes', to='temples.shrine'),
+            model_name="viewlike",
+            name="shrine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="viewlikes",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='viewlike',
-            name='user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL),
+            model_name="viewlike",
+            name="user",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='visit',
-            name='shrine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='visits', to='temples.shrine'),
+            model_name="visit",
+            name="shrine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="visits",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddField(
-            model_name='visit',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='visits', to=settings.AUTH_USER_MODEL),
+            model_name="visit",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="visits",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='rankinglog',
-            unique_together={('shrine', 'date')},
+            name="rankinglog",
+            unique_together={("shrine", "date")},
         ),
         migrations.AlterUniqueTogether(
-            name='favorite',
-            unique_together={('user', 'shrine')},
+            name="favorite",
+            unique_together={("user", "shrine")},
         ),
     ]

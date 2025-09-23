@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import logging
+
 from django.conf import settings
+from django.contrib.gis.geos import Point
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.contrib.gis.geos import Point
-from .models import Shrine
+
 from .geocoding.client import GeocodingClient, GeocodingError
+from .models import Shrine
 
 logger = logging.getLogger(__name__)
 
 # --- ユーティリティ -------------------------------------------------
+
 
 def _compose_address(obj) -> str | None:
     """モデルに address 系フィールドが複数あってもベストエフォートで結合。"""
@@ -21,7 +24,16 @@ def _compose_address(obj) -> str | None:
                 return v
 
     parts = []
-    for k in ("postal_code", "prefecture", "city", "ward", "town", "street", "address1", "address2"):
+    for k in (
+        "postal_code",
+        "prefecture",
+        "city",
+        "ward",
+        "town",
+        "street",
+        "address1",
+        "address2",
+    ):
         if hasattr(obj, k):
             v = str(getattr(obj, k) or "").strip()
             if v:
@@ -40,7 +52,9 @@ def _normalize_address_safe(s: str) -> str:
     except Exception:
         return s
 
+
 # --- メインハンドラ -------------------------------------------------
+
 
 @receiver(pre_save, sender=Shrine)
 def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
@@ -92,6 +106,7 @@ def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
     instance.longitude = float(res.lon)
     instance.location = Point(res.lon, res.lat, srid=4326)
 
+
 @receiver(pre_save, sender=Shrine)
 def _fill_latlng_if_missing(sender, instance: Shrine, **kwargs):
     # すでに埋まっていれば何もしない
@@ -102,7 +117,11 @@ def _fill_latlng_if_missing(sender, instance: Shrine, **kwargs):
     try:
         if getattr(instance, "address", None):
             geo = geocode_address(instance.address)
-            if geo and getattr(geo, "lat", None) is not None and getattr(geo, "lon", None) is not None:
+            if (
+                geo
+                and getattr(geo, "lat", None) is not None
+                and getattr(geo, "lon", None) is not None
+            ):
                 instance.latitude = geo.lat
                 instance.longitude = geo.lon
                 return

@@ -1,15 +1,21 @@
 import json
 import pytest
 
+
 # 1) area → geocode → findplace の locationbias を検証（あなたのテストをそのまま利用）
 @pytest.mark.django_db
 def test_chat_backfills_short_location(client, settings, monkeypatch):
     settings.GOOGLE_MAPS_API_KEY = "dummy"
 
     class _R:
-        def __init__(self, payload): self._p = payload
-        def json(self): return self._p
-        def raise_for_status(self): return None
+        def __init__(self, payload):
+            self._p = payload
+
+        def json(self):
+            return self._p
+
+        def raise_for_status(self):
+            return None
 
     last_findplace_params = {}
 
@@ -18,12 +24,14 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
         params = params or {}
         if "geocode" in url:
             # "港区赤坂" を座標化
-            return _R({"results":[{"geometry":{"location":{"lat":35.671,"lng":139.736}}}]})
+            return _R({"results": [{"geometry": {"location": {"lat": 35.671, "lng": 139.736}}}]})
         if "findplacefromtext" in url:
             last_findplace_params = dict(params)  # locationbias 検証用
-            return _R({"candidates":[{"place_id":"PID_AKASAKA"}]})
+            return _R({"candidates": [{"place_id": "PID_AKASAKA"}]})
         if "place/details" in url:
-            return _R({"result":{"formatted_address":"日本、〒107-0052 東京都港区赤坂6丁目10−12"}})
+            return _R(
+                {"result": {"formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12"}}
+            )
         return _R({})
 
     monkeypatch.setattr("temples.llm.backfill.requests.get", fake_get)
@@ -31,11 +39,13 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
 
     res = client.post(
         "/api/concierge/chat/",
-        data=json.dumps({
-            "query": "縁結び 徒歩",
-            "area": "港区赤坂",
-            "candidates": [{"name":"赤坂氷川神社"}]
-        }),
+        data=json.dumps(
+            {
+                "query": "縁結び 徒歩",
+                "area": "港区赤坂",
+                "candidates": [{"name": "赤坂氷川神社"}],
+            }
+        ),
         content_type="application/json",
     )
     assert res.status_code == 200
@@ -54,6 +64,7 @@ def test_radius_km_bias_passthrough(client, settings, monkeypatch):
 
     # Orchestrator の LLM 結果を固定
     from temples.llm.orchestrator import ConciergeOrchestrator
+
     monkeypatch.setattr(
         ConciergeOrchestrator,
         "suggest",
@@ -64,20 +75,26 @@ def test_radius_km_bias_passthrough(client, settings, monkeypatch):
 
     # _lookup_address_by_name に渡る bias を捕捉
     import temples.llm.backfill as bf
+
     seen = {}
+
     def fake_lookup(name, bias=None, lang="ja"):
         seen["bias"] = bias
         return "東京都港区赤坂6丁目10−12"
+
     monkeypatch.setattr(bf, "_lookup_address_by_name", fake_lookup)
 
     res = client.post(
         "/api/concierge/chat/",
-        data=json.dumps({
-            "query": "縁結び 徒歩",
-            "lat": 35.6812, "lng": 139.7671,
-            "radius_km": 5,  # 5km → 5000m
-            "candidates": [{"name":"赤坂氷川神社"}]
-        }),
+        data=json.dumps(
+            {
+                "query": "縁結び 徒歩",
+                "lat": 35.6812,
+                "lng": 139.7671,
+                "radius_km": 5,  # 5km → 5000m
+                "candidates": [{"name": "赤坂氷川神社"}],
+            }
+        ),
         content_type="application/json",
     )
     assert res.status_code == 200
@@ -92,6 +109,7 @@ def test_candidate_formatted_address_is_used(client, settings, monkeypatch):
     settings.GOOGLE_MAPS_API_KEY = "dummy"
 
     from temples.llm.orchestrator import ConciergeOrchestrator
+
     monkeypatch.setattr(
         ConciergeOrchestrator,
         "suggest",
@@ -102,12 +120,17 @@ def test_candidate_formatted_address_is_used(client, settings, monkeypatch):
 
     res = client.post(
         "/api/concierge/chat/",
-        data=json.dumps({
-            "query": "縁結び 徒歩",
-            "candidates": [
-                {"name": "赤坂氷川神社", "formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12"}
-            ],
-        }),
+        data=json.dumps(
+            {
+                "query": "縁結び 徒歩",
+                "candidates": [
+                    {
+                        "name": "赤坂氷川神社",
+                        "formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12",
+                    }
+                ],
+            }
+        ),
         content_type="application/json",
     )
     assert res.status_code == 200
