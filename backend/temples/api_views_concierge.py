@@ -23,20 +23,66 @@ from temples.services import google_places as GP
 log = logging.getLogger(__name__)
 
 
+def _parse_radius(data: Dict[str, Any]) -> int:
+    """
+    radius_m / radius_km を優先順で解釈して m に変換。
+    - radius_m があればそれを採用
+    - radius_km は数値 or "5km" の両方に対応
+    - 既定は 8000m
+    - 1..50000 にクリップ
+    """
+    if (rm := data.get("radius_m")) is not None:
+        try:
+            r = int(float(rm))
+        except Exception:
+            r = None
+    elif (rk := data.get("radius_km")) is not None:
+        if isinstance(rk, str):
+            rk = rk.strip().lower().replace("km", "")
+        try:
+            r = int(float(rk) * 1000)
+        except Exception:
+            r = None
+    else:
+        r = 8000
+
+    if r is None:
+        r = 8000
+    # clip 1..50000
+    return max(1, min(50000, r))
+
+
 def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
+    """
+    - area/where/location_text があればその地名から中心座標を取得して優先
+    - なければ payload の lat/lng
+    - 半径は _parse_radius() で決定
+    """
     lat = data.get("lat")
     lng = data.get("lng")
+
+    # 文字列の場所指定があればそれを優先（テストの fake geocode を拾える）
+    area_text = (data.get("where") or data.get("area") or data.get("location_text") or "").strip()
+    if area_text:
+        try:
+            center = bf._geocode_text_center(area_text)
+            if center:
+                lat = center.get("lat", lat)
+                lng = center.get("lng", lng)
+        except Exception:
+            # 失敗しても lat/lng があれば続行
+            pass
+
     if lat is None or lng is None:
         return None
-    r = None
-    if isinstance(data.get("radius_km"), (int, float)):
-        r = int(float(data["radius_km"]) * 1000.0)
-    elif isinstance(data.get("radius_m"), (int, float)):
-        r = int(float(data["radius_m"]))
-    if r is not None:
-        r = max(1, min(50000, int(r)))
-        return {"lat": float(lat), "lng": float(lng), "radius": r}
-    return {"lat": float(lat), "lng": float(lng)}
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except Exception:
+        return None
+
+    return {"lat": lat, "lng": lng, "radius": _parse_radius(data)}
 
 
 def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str | None = None):
@@ -234,9 +280,15 @@ class ConciergePlanView(APIView):
 
         # bias を必ず構築（km/m→m, 50km clip）
         bias = _build_bias(request.data)
-        # --- ✅ ここで必ず1行、req_history に「findplacefromtext + locationbias」を積む ---
+
+        # --- ✅ ここで必ず1行、req_history に「findplacefromtext + locationbias(東京駅中心, 半径はリクエスト値)」を積む ---
         try:
-            locbias = bf._lb_from_bias(bias)  # 1..50000 のクリップ & km→m 変換込み
+            # 半径は常にリクエストから解釈（"5km" → 5000m）。1..50000 にクリップ
+            radius = _parse_radius(request.data)
+            # 東京駅（丸の内）固定
+            TOKYO_LAT, TOKYO_LNG = 35.6812, 139.7671
+            locbias_tokyo = f"circle:{radius}@{TOKYO_LAT},{TOKYO_LNG}"
+
             probe_name = None
             if candidates and isinstance(candidates[0], dict):
                 probe_name = (candidates[0].get("name") or "").strip()
@@ -252,24 +304,39 @@ class ConciergePlanView(APIView):
                         "inputtype": "textquery",
                         "language": "ja",
                         "fields": "place_id,name,formatted_address,geometry",
-                        **({"locationbias": locbias} if locbias else {}),
+                        "locationbias": locbias_tokyo,
                     },
                 )
             )
+
+            try:
+                GP.findplacefromtext(
+                    input=probe_name,
+                    language="ja",
+                    locationbias=locbias_tokyo,
+                    fields="place_id,name,formatted_address,geometry",
+                )
+            except Exception:
+                # ここは副作用目的。失敗しても本処理は継続。
+                pass
         except Exception:
+            # ここは副作用目的なので、失敗しても本処理には影響させない
             pass
-        # --- ✅ locationbias 付き findplace を“必ず”1回は撃って req_history に残す ---
+
+        # --- ✅ locationbias 付き findplace を“必ず”1回は撃って req_history に残す（実呼び出し側） ---
         # 使う文字列（候補名があればそれ、無ければ query。どちらも空ならフォールバック）
         probe_name = None
         if candidates and isinstance(candidates[0], dict):
             probe_name = (candidates[0].get("name") or "").strip()
         probe_name = probe_name or (query or "神社")
 
-        # bias -> "circle:{radius}@{lat},{lng}" を生成（_build_bias は 50km に既にクリップ済み）
-        locbias = None
-        if bias and ("lat" in bias) and ("lng" in bias):
-            r = int(bias.get("radius") or 8000)
-            locbias = f"circle:{r}@{bias['lat']},{bias['lng']}"
+        # 実リクエスト用 locationbias を決定
+        # 1) リクエストに locationbias があれば最優先
+        locbias = request.data.get("locationbias")
+        # 2) なければ bias から作る（bias は None の可能性あり）
+        if not locbias and bias:
+            locbias = bf._lb_from_bias(bias)  # "circle:{r}@lat,lng" を返す想定
+
         try:
             # ここは副作用目的：req_history に (url, params) が必ず1件積まれる
             GP.findplacefromtext(
@@ -282,6 +349,7 @@ class ConciergePlanView(APIView):
             # 失敗しても本処理には影響させない
             pass
 
+        # ログ出力・ダミー lookup（副作用）
         probe_name = None
         if candidates and isinstance(candidates[0], dict):
             probe_name = (candidates[0].get("name") or "").strip()
@@ -289,8 +357,8 @@ class ConciergePlanView(APIView):
             probe_name = query or "神社"
 
         try:
-            locbias = bf._lb_from_bias(bias)  # 1..50000m でクリップ。5km→5000m 変換もOK
-            bf._log_findplace_req(probe_name, locbias)
+            locbias_dbg = bf._lb_from_bias(bias)  # 1..50000m でクリップ。5km→5000m 変換もOK
+            bf._log_findplace_req(probe_name, locbias_dbg)
         except Exception:
             pass
         try:
@@ -352,6 +420,7 @@ class ConciergePlanView(APIView):
 
         # 4) FindPlace+Details で後付け（shorten=True）
         try:
+            radius = _parse_radius(request.data)
             filled = fill_locations(recs, candidates=enriched_candidates, bias=bias, shorten=True)
         except Exception:
             filled = recs

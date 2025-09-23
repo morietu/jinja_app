@@ -39,7 +39,14 @@ def test_fill_locations_prefers_candidate_address_without_requests(req_history):
 
 
 def test_api_radius_km_5km_passed(client, endpoint_path, req_history):
-    payload = {...}
+    payload = {
+        "query": "縁結び 徒歩",
+        "language": "ja",
+        "lat": 35.0,
+        "lng": 135.0,
+        "radius_km": "5km",
+        "transportation": "walk",
+    }
     res = client.post(endpoint_path, data=json.dumps(payload), content_type="application/json")
     # 👇 ここで確認
     print(
