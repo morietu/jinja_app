@@ -1,10 +1,13 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.utils import timezone
 from datetime import timedelta
+
 from django.db.models import Count, Q
-from temples.models import Shrine
+from django.utils import timezone
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from temples.models import Shrine
+
 
 class RankingAPIView(APIView):
     permission_classes = [AllowAny]
@@ -19,18 +22,15 @@ class RankingAPIView(APIView):
 
         since_date = timezone.now() - timedelta(days=days)
 
-        shrines = (
-            Shrine.objects.all()
-            .annotate(
-                visit_count=Count(
-                    "visits",
-                    filter=Q(visits__visited_at__gte=since_date),
-                ),
-                favorite_count=Count(
-                    "favorited_by",
-                    filter=Q(favorited_by__created_at__gte=since_date),
-                ),
-            )
+        shrines = Shrine.objects.all().annotate(
+            visit_count=Count(
+                "visits",
+                filter=Q(visits__visited_at__gte=since_date),
+            ),
+            favorite_count=Count(
+                "favorited_by",
+                filter=Q(favorited_by__created_at__gte=since_date),
+            ),
         )
 
         results = [
@@ -43,9 +43,7 @@ class RankingAPIView(APIView):
                 "score": shrine.visit_count + shrine.favorite_count,
                 "visit_count": shrine.visit_count,
                 "favorite_count": shrine.favorite_count,
-                "goriyaku_tags": [
-                    {"id": t.id, "name": t.name} for t in shrine.goriyaku_tags.all()
-                ],
+                "goriyaku_tags": [{"id": t.id, "name": t.name} for t in shrine.goriyaku_tags.all()],
             }
             for shrine in shrines
         ]

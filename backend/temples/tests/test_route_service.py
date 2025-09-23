@@ -1,12 +1,13 @@
 import pytest
 from temples.route_service import Point, build_route
 
+
 @pytest.mark.parametrize("mode", ["walking", "driving"])
 def test_build_route_returns_legs_and_totals(mode):
     origin = Point(lat=35.68, lng=139.76)  # 東京駅あたり
     destinations = [
-        Point(lat=35.67, lng=139.71),      # 目的地1
-        Point(lat=35.66, lng=139.70),      # 目的地2
+        Point(lat=35.67, lng=139.71),  # 目的地1
+        Point(lat=35.66, lng=139.70),  # 目的地2
     ]
 
     result = build_route(mode, origin, destinations)

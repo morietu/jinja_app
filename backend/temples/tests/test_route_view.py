@@ -1,11 +1,13 @@
 from .factories import make_user, make_shrine
+
 # temples/tests/test_route_view.py
 import os
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-User = get_user_model()
 from temples.models import Shrine
+
+User = get_user_model()
 
 
 class RouteViewTests(TestCase):

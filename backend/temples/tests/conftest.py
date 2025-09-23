@@ -1,11 +1,13 @@
 # temples/tests/conftest.py
-import os, pytest, responses as httpmock
+import os
+import pytest
+import responses as httpmock
 from rest_framework.test import APIClient
 import decimal
 from decimal import Decimal
 import contextlib
-import pytest
 from django.db.models.signals import pre_save
+
 
 # --- 既存の自動ジオコーディングをモックして Shrine の lat/lng を埋める ---
 @pytest.fixture(autouse=True, scope="session")
@@ -20,16 +22,17 @@ def _block_real_http():
         yield
 
 
-
 # --- テストが参照する追加フィクスチャ ---
 @pytest.fixture
 def api_client():
     return APIClient()
 
+
 @pytest.fixture
 def endpoint_path():
     # concierge エンドポイントのベースパス
     return "/api/concierge/plan/"
+
 
 @pytest.fixture
 def req_history(monkeypatch):
@@ -56,10 +59,12 @@ def req_history(monkeypatch):
         # 念のため元に戻す（他テストへの影響防止）
         monkeypatch.setattr(google_places, "_log_upstream", orig, raising=True)
 
+
 @pytest.fixture
 def shrine_has_location():
     # マーカー用（テスト内で使われるだけ）。ここでは何もしない。
     return True
+
 
 @pytest.fixture(autouse=True)
 def _mock_geocode(monkeypatch):
@@ -87,6 +92,7 @@ def _mock_geocode(monkeypatch):
     monkeypatch.setattr(_geo_mod, "geocode_address", fake_geocode_address, raising=False)
     yield
 
+
 def _ensure_shrine_coords():
     """テスト中、Shrine に座標が無ければデフォルトを入れる（IntegrityError回避）"""
     from temples.models import Shrine
@@ -103,6 +109,7 @@ def _ensure_shrine_coords():
     finally:
         pre_save.disconnect(_inject, sender=Shrine)
 
+
 def _ensure_shrine_coords(db):
     """
     テスト中、Shrine に座標が無ければデフォルト値を自動補完して IntegrityError を回避。
@@ -113,7 +120,7 @@ def _ensure_shrine_coords(db):
     def _inject(sender, instance, **kwargs):
         if isinstance(instance, Shrine):
             if instance.latitude is None:
-                instance.latitude = Decimal("35.681236")   # 東京駅あたり
+                instance.latitude = Decimal("35.681236")  # 東京駅あたり
             if instance.longitude is None:
                 instance.longitude = Decimal("139.767125")
 

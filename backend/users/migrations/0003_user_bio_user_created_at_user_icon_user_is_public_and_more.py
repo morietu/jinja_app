@@ -5,35 +5,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0002_remove_user_is_public_alter_user_nickname'),
+        ("users", "0002_remove_user_is_public_alter_user_nickname"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='bio',
+            model_name="user",
+            name="bio",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='user',
-            name='created_at',
+            model_name="user",
+            name="created_at",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
-            model_name='user',
-            name='icon',
-            field=models.ImageField(blank=True, null=True, upload_to='user_icons/'),
+            model_name="user",
+            name="icon",
+            field=models.ImageField(blank=True, null=True, upload_to="user_icons/"),
         ),
         migrations.AddField(
-            model_name='user',
-            name='is_public',
+            model_name="user",
+            name="is_public",
             field=models.BooleanField(default=True),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='nickname',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="user",
+            name="nickname",
+            field=models.CharField(blank=True, default="", max_length=50),
         ),
     ]

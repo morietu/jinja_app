@@ -1,19 +1,22 @@
 # backend/temples/views/places.py
 from typing import Optional
-from rest_framework.views import APIView
+
+from django.http import HttpResponse
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework import status
-from django.http import HttpResponse
+from rest_framework.views import APIView
 
 from temples import services  # services.__init__ で places_* をエクスポートしている想定
 from temples.services.places import PlacesError  # 例外をHTTPへ正規化
+
 
 # ---------- helpers ----------
 def _to_bool(v: Optional[str]) -> bool:
     if v is None:
         return False
     return str(v).strip().lower() in {"1", "true", "yes", "on"}
+
 
 def _to_float(v: Optional[str]) -> Optional[float]:
     if v in (None, ""):
@@ -22,6 +25,7 @@ def _to_float(v: Optional[str]) -> Optional[float]:
         return float(v)
     except ValueError:
         return None
+
 
 def _to_int(v: Optional[str]) -> Optional[int]:
     if v in (None, ""):
@@ -37,6 +41,7 @@ class DualScopedThrottleView(APIView):
     places_burst + places_sustain の二段スロットルを同時適用
     settings.REST_FRAMEWORK.DEFAULT_THROTTLE_RATES のキーと一致している必要あり
     """
+
     throttle_classes = [ScopedRateThrottle, ScopedRateThrottle]
     throttle_scope = "places_burst"
 
@@ -119,7 +124,10 @@ class PlacesPhotoProxyView(DualScopedThrottleView):
         try:
             ref = request.query_params.get("photo_reference")
             if not ref:
-                return Response({"detail": "photo_reference は必須です"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "photo_reference は必須です"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             maxwidth = _to_int(request.query_params.get("maxwidth")) or 800
             content, content_type, max_age = services.places_photo(ref, maxwidth)

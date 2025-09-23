@@ -1,11 +1,10 @@
 # backend/temples/api_views.py
 # -*- coding: utf-8 -*-
-import json
 import re
 import unicodedata
-from typing import List, Dict, Any
+from math import asin, cos, radians, sin, sqrt  # math 全体ではなく必要関数のみ
+from typing import Any, Dict, List
 from urllib.parse import unquote_to_bytes
-from math import radians, sin, cos, asin, sqrt  # math 全体ではなく必要関数のみ
 
 from django.conf import settings
 from django.core.cache import cache
@@ -14,50 +13,42 @@ from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotAllowed
-from django.views import View
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-
-
-from rest_framework.filters import SearchFilter, OrderingFilter
-
-from rest_framework import status, viewsets, permissions, serializers
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.throttling import ScopedRateThrottle
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework import permissions, serializers, status, viewsets
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import AllowAny
-from rest_framework_simplejwt.authentication import JWTAuthentication  # 認証が必要な所だけで使用
-
-from temples.services.concierge import fill_locations
-
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework_simplejwt.authentication import (
+    JWTAuthentication,
+)  # 認証が必要な所だけで使用
 
 from temples.llm.orchestrator import chat_to_plan
 
-import requests
-
-from .models import Shrine, Goshuin, Favorite, PlaceRef
-from .serializers import ShrineSerializer, GoshuinSerializer
 from .api.serializers import FavoriteSerializer, FavoriteUpsertSerializer
+from .models import Favorite, Goshuin, PlaceRef, Shrine
+from .serializers import GoshuinSerializer, ShrineSerializer
 
 # 上流呼び出しは google_places に統一
 from .services import google_places as gp
-from .services.places import get_or_sync_place, PlacesError
+from .services.places import PlacesError, get_or_sync_place
 
-from .services.concierge import fill_locations
+# from temples.services.concierge import fill_locations
 
 # ---- 定数・ユーティリティ -----------------------------------------------------
 REPLACEMENT_CHAR = "\ufffd"
 MAX_Q = getattr(settings, "PLACES_MAX_QUERY_LEN", 200)
 EARTH_KM = 6371.0088
 
+
 def haversine_km(lat1, lon1, lat2, lon2) -> float:
     lat1, lon1, lat2, lon2 = float(lat1), float(lon1), float(lat2), float(lon2)
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
-    a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
     return 2 * EARTH_KM * asin(sqrt(a))
+
 
 def _maybe_fix_mojibake(s: str) -> str:
     try:
@@ -66,6 +57,7 @@ def _maybe_fix_mojibake(s: str) -> str:
     except Exception:
         pass
     return s
+
 
 def _robust_get_query_param(request, name: str) -> str:
     val = (request.GET.get(name) or "").strip()
@@ -86,6 +78,7 @@ def _robust_get_query_param(request, name: str) -> str:
         except Exception:
             continue
     return val
+
 
 def _parse_locationbias_center_and_radius(lb: str):
     if not lb:
@@ -108,8 +101,10 @@ def _parse_locationbias_center_and_radius(lb: str):
         pass
     return None, None, None
 
+
 def _normalize_name(s: str) -> str:
     return re.sub(r"\s+", "", (s or "")).lower()
+
 
 def _name_equals_query(name: str, q: str) -> bool:
     def norm(x: str) -> str:
@@ -118,7 +113,9 @@ def _name_equals_query(name: str, q: str) -> bool:
         x = unicodedata.normalize("NFKC", x)
         x = re.sub(r"\s+", "", x).lower()
         return x
+
     return norm(name) == norm(q)
+
 
 def _is_shinto_shrine_row(r: dict) -> bool:
     types = set(r.get("types") or [])
@@ -127,7 +124,15 @@ def _is_shinto_shrine_row(r: dict) -> bool:
     if "buddhist_temple" in types:
         return False
     jp_keywords = ("神社", "稲荷", "八幡", "天神", "天満宮", "神宮")
-    en_keywords = ("shinto_shrine", "jinja", "jingu", "hachiman", "inari", "tenjin", "shrine")
+    en_keywords = (
+        "shinto_shrine",
+        "jinja",
+        "jingu",
+        "hachiman",
+        "inari",
+        "tenjin",
+        "shrine",
+    )
     if "shinto_shrine" in types:
         return True
     if any(k in name for k in jp_keywords):
@@ -135,6 +140,7 @@ def _is_shinto_shrine_row(r: dict) -> bool:
     if any(k in lname for k in en_keywords) and ("temple" not in lname):
         return True
     return False
+
 
 def _distance2_from(center, r: dict) -> float:
     if not center:
@@ -148,15 +154,22 @@ def _distance2_from(center, r: dict) -> float:
         return 1e18
     return (lat - center[0]) ** 2 + (lng - center[1]) ** 2
 
+
 def _match_bucket(name: str, q: str) -> int:
-    if _name_equals_query(name, q): return 0
+    if _name_equals_query(name, q):
+        return 0
     n = _normalize_name(name)
     qn = _normalize_name(q)
-    if not qn: return 3
-    if n == qn: return 0
-    if n.startswith(qn): return 1
-    if qn in n: return 2
+    if not qn:
+        return 3
+    if n == qn:
+        return 0
+    if n.startswith(qn):
+        return 1
+    if qn in n:
+        return 2
     return 3
+
 
 def _sort_results_for_query(results, q: str, center=None):
     def key(r):
@@ -166,45 +179,83 @@ def _sort_results_for_query(results, q: str, center=None):
             -(r.get("rating") or 0),
             -(r.get("user_ratings_total") or 0),
         )
+
     return sorted(results or [], key=key)
 
+
 def _inject_exact_match(q: str, location: str, radius_i: int, data: dict):
-    if not (q and location and radius_i and isinstance(data, dict) and isinstance(data.get("results"), list)):
+    if not (
+        q
+        and location
+        and radius_i
+        and isinstance(data, dict)
+        and isinstance(data.get("results"), list)
+    ):
         return
     results = data["results"]
     if any(_name_equals_query(r.get("name"), q) for r in results):
         return
     try:
         exacts = []
+
         def _collect(rows):
             for r in rows or []:
                 if _is_shinto_shrine_row(r) and _name_equals_query(r.get("name"), q):
                     exacts.append(r)
+
         try:
             fp = gp.find_place_text(
-                q, language="ja", locationbias=f"circle:{radius_i}@{location}",
+                q,
+                language="ja",
+                locationbias=f"circle:{radius_i}@{location}",
                 fields="place_id,name,geometry,types,rating,user_ratings_total",
             )
             _collect(fp.get("results"))
         except Exception:
             pass
-        _collect(gp.text_search(query=q, location=location, radius=radius_i, language="ja", region="jp").get("results"))
+        _collect(
+            gp.text_search(
+                query=q, location=location, radius=radius_i, language="ja", region="jp"
+            ).get("results")
+        )
         if not exacts and "神社" not in q:
-            _collect(gp.text_search(query=f"{q} 神社", location=location, radius=radius_i, language="ja", region="jp").get("results"))
+            _collect(
+                gp.text_search(
+                    query=f"{q} 神社",
+                    location=location,
+                    radius=radius_i,
+                    language="ja",
+                    region="jp",
+                ).get("results")
+            )
         if not exacts:
-            _collect(gp.nearby_search(location=location, radius=radius_i, keyword=q, opennow=False, type_=None, language="ja").get("results"))
+            _collect(
+                gp.nearby_search(
+                    location=location,
+                    radius=radius_i,
+                    keyword=q,
+                    opennow=False,
+                    type_=None,
+                    language="ja",
+                ).get("results")
+            )
         if not exacts:
             return
-        best = max(exacts, key=lambda r: ((r.get("rating") or 0), (r.get("user_ratings_total") or 0)))
+        best = max(
+            exacts,
+            key=lambda r: ((r.get("rating") or 0), (r.get("user_ratings_total") or 0)),
+        )
         existing_ids = {r.get("place_id") for r in results}
         if best.get("place_id") not in existing_ids:
             results.insert(0, best)
     except Exception:
         pass
 
+
 # ---- 近隣神社検索 -------------------------------------------------------------
 class NearbyShrinesView(APIView):
     permission_classes = [AllowAny]
+
     def get(self, request):
         try:
             lat = float(request.GET.get("lat"))
@@ -225,14 +276,12 @@ class NearbyShrinesView(APIView):
         lat_delta = radius_km / 110.574
         lng_den = 111.320 * max(0.000001, cos(radians(lat)))
         lng_delta = radius_km / lng_den
-        qs = (
-            Shrine.objects
-            .filter(
-                Q(latitude__gte=lat - lat_delta) & Q(latitude__lte=lat + lat_delta) &
-                Q(longitude__gte=lng - lng_delta) & Q(longitude__lte=lng + lng_delta)
-            )
-            .values("id", "name_jp", "address", "latitude", "longitude")
-        )
+        qs = Shrine.objects.filter(
+            Q(latitude__gte=lat - lat_delta)
+            & Q(latitude__lte=lat + lat_delta)
+            & Q(longitude__gte=lng - lng_delta)
+            & Q(longitude__lte=lng + lng_delta)
+        ).values("id", "name_jp", "address", "latitude", "longitude")
         items: List[Dict[str, Any]] = []
         for s in qs:
             d = haversine_km(lat, lng, s["latitude"], s["longitude"])
@@ -242,16 +291,21 @@ class NearbyShrinesView(APIView):
         items.sort(key=lambda x: x["distance"])
         return Response(items[:limit], status=status.HTTP_200_OK)
 
+
 # ---- Places API（検索・ページング・Nearby・写真・詳細） -----------------------
 PLACE_ID_RE = re.compile(r"^[A-Za-z0-9._=-]{10,200}$")
+
 
 class PlacesSearchView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
+
     def get(self, request, *args, **kwargs):
-        q = (_robust_get_query_param(request, "q") or _robust_get_query_param(request, "query") or "").strip()
+        q = (
+            _robust_get_query_param(request, "q") or _robust_get_query_param(request, "query") or ""
+        ).strip()
         if not q:
             return Response({"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST)
         q = q[:MAX_Q]
@@ -264,9 +318,14 @@ class PlacesSearchView(APIView):
             try:
                 radius_i = int(radius_param)
             except (TypeError, ValueError):
-                return Response({"detail": "radius must be int"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "radius must be int"}, status=status.HTTP_400_BAD_REQUEST
+                )
             if radius_i < 1:
-                return Response({"detail": "radius must be >= 1"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "radius must be >= 1"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             radius_i = min(radius_i, 50000)
         q_bias = q if ("神社" in q) else f"{q} 神社"
         try:
@@ -291,7 +350,14 @@ class PlacesSearchView(APIView):
             if location and radius_i:
                 _inject_exact_match(q, location, radius_i, data)
             if not data["results"] and location and radius_i:
-                nb = gp.nearby_search(location=location, radius=radius_i, keyword=q or "神社", opennow=False, type_=None, language="ja")
+                nb = gp.nearby_search(
+                    location=location,
+                    radius=radius_i,
+                    keyword=q or "神社",
+                    opennow=False,
+                    type_=None,
+                    language="ja",
+                )
                 nb_filtered = [r for r in (nb.get("results") or []) if _is_shinto_shrine_row(r)]
                 nb["results"] = _sort_results_for_query(nb_filtered, q, center=center)
                 if nb["results"]:
@@ -301,14 +367,18 @@ class PlacesSearchView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
+
 class PlacesTextSearchPagedView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
+
     def get(self, request):
         pagetoken = request.GET.get("pagetoken")
-        q = (_robust_get_query_param(request, "q") or _robust_get_query_param(request, "query") or "").strip()
+        q = (
+            _robust_get_query_param(request, "q") or _robust_get_query_param(request, "query") or ""
+        ).strip()
         if not pagetoken and not q:
             return Response({"detail": "q is required"}, status=status.HTTP_400_BAD_REQUEST)
         q = q[:MAX_Q]
@@ -331,7 +401,14 @@ class PlacesTextSearchPagedView(APIView):
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
         try:
-            search_kwargs = dict(query=q_bias, location=eff_location, radius=eff_radius_i, pagetoken=pagetoken, language="ja", region="jp")
+            search_kwargs = dict(
+                query=q_bias,
+                location=eff_location,
+                radius=eff_radius_i,
+                pagetoken=pagetoken,
+                language="ja",
+                region="jp",
+            )
             data = gp.text_search(**search_kwargs)
             filtered = [r for r in (data.get("results") or []) if _is_shinto_shrine_row(r)]
             center = None
@@ -349,11 +426,13 @@ class PlacesTextSearchPagedView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
+
 class PlacesNearbySearchView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
+
     def get(self, request):
         pagetoken = request.GET.get("pagetoken")
         keyword = (_robust_get_query_param(request, "keyword") or "神社").strip()
@@ -365,22 +444,33 @@ class PlacesNearbySearchView(APIView):
             lng = request.GET.get("lng")
             radius = request.GET.get("radius")
             if lat is None or lng is None or radius is None:
-                return Response({"detail": "lat, lng, radius are required (unless pagetoken provided)"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "lat, lng, radius are required (unless pagetoken provided)"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             try:
                 clat, clng = float(lat), float(lng)
                 radius_i = int(radius)
             except ValueError:
-                return Response({"detail": "lat/lng must be float, radius must be int"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "lat/lng must be float, radius must be int"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             location = f"{lat},{lng}"
             center = (clat, clng)
         else:
             location = None
             radius_i = 0
         try:
-            data = gp.nearby_search(location=location, radius=radius_i, keyword=keyword, type_=None,
-                                    opennow=opennow, pagetoken=pagetoken, language="ja")
+            data = gp.nearby_search(
+                location=location,
+                radius=radius_i,
+                keyword=keyword,
+                type_=None,
+                opennow=opennow,
+                pagetoken=pagetoken,
+                language="ja",
+            )
             raw = data.get("results") or []
             filtered = [r for r in raw if _is_shinto_shrine_row(r)]
             data["results"] = _sort_results_for_query(filtered, keyword, center=center)
@@ -388,7 +478,13 @@ class PlacesNearbySearchView(APIView):
                 _inject_exact_match(keyword, location, radius_i, data)
             if not data["results"] and location and radius_i and not pagetoken:
                 q_bias = keyword if ("神社" in keyword) else f"{keyword} 神社"
-                ts = gp.text_search(query=q_bias, location=location, radius=radius_i, language="ja", region="jp")
+                ts = gp.text_search(
+                    query=q_bias,
+                    location=location,
+                    radius=radius_i,
+                    language="ja",
+                    region="jp",
+                )
                 ts_filtered = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
                 ts["results"] = _sort_results_for_query(ts_filtered, keyword, center=center)
                 return Response(ts, status=status.HTTP_200_OK)
@@ -396,16 +492,21 @@ class PlacesNearbySearchView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
+
 @method_decorator(cache_page(getattr(settings, "PLACES_PHOTO_CACHE_SECONDS", 86400)), name="get")
 class PlacesPhotoProxyView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
+
     def get(self, request, *args, **kwargs):
         ref = request.query_params.get("photo_reference")
         if not ref:
-            return Response({"detail": "photo_reference is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "photo_reference is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         maxwidth = request.query_params.get("maxwidth")
         maxheight = request.query_params.get("maxheight")
         maxwidth = int(maxwidth) if maxwidth else None
@@ -413,21 +514,32 @@ class PlacesPhotoProxyView(APIView):
         try:
             body, content_type = gp.photo(ref, maxwidth=maxwidth, maxheight=maxheight)
             resp = HttpResponse(body, content_type=content_type, status=status.HTTP_200_OK)
-            resp["Cache-Control"] = f"public, max-age={int(getattr(settings, 'PLACES_PHOTO_CACHE_SECONDS', 86400))}"
+            resp["Cache-Control"] = (
+                f"public, max-age={int(getattr(settings, 'PLACES_PHOTO_CACHE_SECONDS', 86400))}"
+            )
             return resp
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
 
 class PlacesDetailView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
+
     def get(self, request, place_id: str):
         if not re.match(r"^[A-Za-z0-9._=-]{10,200}$", place_id):
-            return Response({"detail": "invalid place_id format"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "invalid place_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            details = gp.place_details(place_id, language="ja", fields="place_id,name,formatted_address,geometry")
+            details = gp.place_details(
+                place_id,
+                language="ja",
+                fields="place_id,name,formatted_address,geometry",
+            )
             location = (details.get("geometry") or {}).get("location") or {}
             data = {
                 "place_id": details.get("place_id"),
@@ -438,9 +550,11 @@ class PlacesDetailView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
-        
+
+
 # ---- Places: place_id から Shrine を取得/作成 --------------------------------
 PLACE_ID_RE = re.compile(r"^[A-Za-z0-9._=-]{10,200}$")
+
 
 class PlacesFindPlaceView(APIView):
     """
@@ -450,6 +564,7 @@ class PlacesFindPlaceView(APIView):
     - 既に Shrine が紐付いていればそれを返す
     - 無ければ PlaceRef の name/address/latitude/longitude から Shrine を作成し、PlaceRef に紐付けて返す
     """
+
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -506,18 +621,21 @@ class PlacesFindPlaceView(APIView):
             # ここで丸めて 500。メッセージは出す
             return Response({"detail": "internal error", "error": str(e)}, status=500)
 
+
 # ---- Shrine / Favorite / Goshuin API -----------------------------------------
 class ShrineViewSet(ReadOnlyModelViewSet):
     """
     /api/shrines/ 一覧・詳細（安全版）
     """
+
     queryset = Shrine.objects.all().order_by("id")
     serializer_class = ShrineSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["address"]         # 例
-    search_fields = ["name_jp", "address"] # 例
+    filterset_fields = ["address"]  # 例
+    search_fields = ["name_jp", "address"]  # 例
     ordering_fields = ["id"]
+
 
 class FavoriteViewSet(viewsets.ModelViewSet):
     serializer_class = FavoriteSerializer
@@ -525,7 +643,9 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Favorite.objects.select_related("shrine").filter(user=self.request.user).order_by("-id")
+        return (
+            Favorite.objects.select_related("shrine").filter(user=self.request.user).order_by("-id")
+        )
 
     def get_serializer_class(self):
         if self.request.method in ("POST", "PUT", "PATCH"):
@@ -540,13 +660,19 @@ class FavoriteViewSet(viewsets.ModelViewSet):
         place_id = data.get("place_id")
 
         if not shrine_id and not place_id:
-            return Response({"detail": "either shrine_id or place_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "either shrine_id or place_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             # ---- place_id でお気に入り追加（PlaceRef 同期 → Favorite(place_id=PlaceRef.pk)）----
             if place_id:
                 if not PLACE_ID_RE.match(place_id):
-                    return Response({"detail": "invalid place_id format"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"detail": "invalid place_id format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 # PlaceRef を同期/取得（services.places.get_or_sync_place）
                 pr = get_or_sync_place(place_id)
@@ -559,7 +685,10 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
                 # Serializer に PlaceRef を渡して展開させる場合のコンテキスト
                 payload = FavoriteSerializer(obj, context={"places": {pr.pk: pr}}).data
-                return Response(payload, status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK))
+                return Response(
+                    payload,
+                    status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK),
+                )
 
             # ---- shrine_id でお気に入り追加 ----
             obj, created = Favorite.objects.get_or_create(
@@ -567,11 +696,13 @@ class FavoriteViewSet(viewsets.ModelViewSet):
                 shrine_id=int(shrine_id),
             )
             payload = FavoriteSerializer(obj).data
-            return Response(payload, status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK))
+            return Response(
+                payload,
+                status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK),
+            )
 
         except PlacesError as e:
             return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
-        
 
 
 class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
@@ -579,16 +710,20 @@ class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = GoshuinSerializer
     permission_classes = [AllowAny]
 
+
 class MyGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = GoshuinSerializer
     authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
+
     def get_queryset(self):
         return Goshuin.objects.filter(user=self.request.user).select_related("shrine")
+
 
 class GoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = GoshuinSerializer
     permission_classes = [AllowAny]
+
     def get_queryset(self):
         qs = Goshuin.objects.select_related("shrine")
         user = getattr(self.request, "user", None)
@@ -596,61 +731,91 @@ class GoshuinViewSet(viewsets.ReadOnlyModelViewSet):
             return qs.filter(is_public=True) | qs.filter(user=user)
         return qs.filter(is_public=True)
 
+
 # ---- ルート API（ダミー距離計算） ---------------------------------------------
 class LatLngSerializer(serializers.Serializer):
     lat = serializers.FloatField()
     lng = serializers.FloatField()
+
     def validate_lat(self, v):
         if not (-90.0 <= v <= 90.0):
             raise serializers.ValidationError("lat out of range")
         return v
+
     def validate_lng(self, v):
         if not (-180.0 <= v <= 180.0):
             raise serializers.ValidationError("lng out of range")
         return v
 
+
 class RouteRequestSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(choices=["walking", "driving", "bicycling", "transit"])
     origin = LatLngSerializer()
     destinations = LatLngSerializer(many=True, allow_empty=False)
+
     def validate_destinations(self, value):
         if len(value) > 5:
             raise serializers.ValidationError("too many destinations")
         return value
 
+
 class RouteAPIView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
+
     def post(self, request):
         s = RouteRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         data = s.validated_data
+
         def haversine_m(a: dict, b: dict) -> float:
             R = 6371000.0
             lat1, lon1 = radians(a["lat"]), radians(a["lng"])
             lat2, lon2 = radians(b["lat"]), radians(b["lng"])
             dlat = lat2 - lat1
             dlon = lon2 - lon1
-            h = sin(dlat/2) ** 2 + cos(lat1)*cos(lat2)*sin(dlon/2) ** 2
+            h = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
             return 2 * R * asin(sqrt(h))
-        speed_mps = {"walking": 1.3, "bicycling": 5.5, "driving": 13.9, "transit": 8.33}[data["mode"]]
+
+        speed_mps = {
+            "walking": 1.3,
+            "bicycling": 5.5,
+            "driving": 13.9,
+            "transit": 8.33,
+        }[data["mode"]]
         legs, total_m, total_s = [], 0.0, 0.0
         current = data["origin"]
         for d in data["destinations"]:
             dist = haversine_m(current, d)
             dur = dist / speed_mps
-            legs.append({"origin": current, "destination": d, "distance_m": int(dist), "duration_s": int(dur)})
+            legs.append(
+                {
+                    "origin": current,
+                    "destination": d,
+                    "distance_m": int(dist),
+                    "duration_s": int(dur),
+                }
+            )
             total_m += dist
             total_s += dur
             current = d
         provider = getattr(settings, "ROUTE_PROVIDER", "dummy")
-        return Response({
-            "ok": True, "provider": provider,
-            "mode": data["mode"], "origin": data["origin"], "destinations": data["destinations"],
-            "legs": legs, "distance_m_total": int(total_m), "duration_s_total": int(total_s),
-        }, status=status.HTTP_200_OK)
-# --- stub: PlacesFindPlaceView (urlsのimport解決用) ---
+        return Response(
+            {
+                "ok": True,
+                "provider": provider,
+                "mode": data["mode"],
+                "origin": data["origin"],
+                "destinations": data["destinations"],
+                "legs": legs,
+                "distance_m_total": int(total_m),
+                "duration_s_total": int(total_s),
+            },
+            status=status.HTTP_200_OK,
+        )
 
+
+# --- stub: PlacesFindPlaceView (urlsのimport解決用) ---
 
 
 class ConciergeChatView(APIView):
@@ -658,7 +823,8 @@ class ConciergeChatView(APIView):
     POST /api/concierge/chat/
     Body: {"message": str, "location": {"lat": float, "lng": float}, "transport": "walking"|"driving"|"transit"}
     """
-    authentication_classes = []          # 匿名OK（MVP）
+
+    authentication_classes = []  # 匿名OK（MVP）
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "concierge"
@@ -685,19 +851,25 @@ class ConciergeChatView(APIView):
 
     def get(self, request):
         # 動作確認用
-        return Response({"ok": True, "hint": "POST JSON: {message, location:{lat,lng}, transport}"}, status=200)
+        return Response(
+            {"ok": True, "hint": "POST JSON: {message, location:{lat,lng}, transport}"},
+            status=200,
+        )
+
 
 class ConciergeHistoryView(APIView):
     """
     GET /api/temples/concierge/history/
     フロント既存実装に合わせた互換スタブ。必要なら後でDB連携に差し替え。
     """
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         # ひとまず空配列でOK。必要なら最近のプランなどを返す実装に置き換え。
         return Response([], status=200)
+
 
 class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
@@ -723,6 +895,7 @@ class RankingView(APIView):
     """
     GET /api/ranking/?limit=3&lat=35.6&lng=139.7
     """
+
     authentication_classes = []
     permission_classes = [AllowAny]
 
@@ -738,9 +911,7 @@ class RankingView(APIView):
         qs = Shrine.objects.all().order_by("-popular_score", "-favorites_30d", "id")
 
         # topN を先に確定（距離ソートはしない。距離は返すだけ）
-        rows = list(
-            qs.values("id", "name_jp", "address", "latitude", "longitude")[:limit]
-        )
+        rows = list(qs.values("id", "name_jp", "address", "latitude", "longitude")[:limit])
 
         # 距離（任意）
         lat = request.GET.get("lat")
@@ -750,7 +921,9 @@ class RankingView(APIView):
                 clat, clng = float(lat), float(lng)
                 for r in rows:
                     if r["latitude"] is not None and r["longitude"] is not None:
-                        r["distance_km"] = round(haversine_km(clat, clng, r["latitude"], r["longitude"]), 3)
+                        r["distance_km"] = round(
+                            haversine_km(clat, clng, r["latitude"], r["longitude"]), 3
+                        )
             except Exception:
                 # 壊れてても無視
                 pass

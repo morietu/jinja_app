@@ -1,25 +1,33 @@
-from django.http import HttpResponse
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-
-from typing import Any, Dict, Optional
 import logging
 import re
+from typing import Any, Dict, Optional
 
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.views import APIView
+
+import temples.services.places as places_svc
 from temples.llm.backfill import fill_locations
 from temples.services import google_places as GP
-import temples.services.places as places_svc
+
+# 既にこのモジュールで places サービスに触っている名前に合わせて import
+try:
+    # どちらかの表記に合わせて
+    from temples.services import places as places_svc
+except Exception:
+    import temples.services.places as places_svc
 
 logger = logging.getLogger(__name__)
 
 try:
     # tests が monkeypatch するフック（このモジュール上のシンボルにしておく）
-    from temples.services.places import text_search_first as text_search_first  # noqa: F401
+    from temples.services.places import (
+        text_search_first as text_search_first,
+    )  # noqa: F401
 except Exception:  # pragma: no cover
     text_search_first = None
 
@@ -27,6 +35,7 @@ except Exception:  # pragma: no cover
 # helpers
 # -----------------------------
 _LB_RE = re.compile(r"^circle:(\d+)@([0-9.+-]+),([0-9.+-]+)$")
+
 
 def _parse_locationbias(s: Optional[str]):
     if not s:
@@ -40,7 +49,10 @@ def _parse_locationbias(s: Optional[str]):
 
 # temples/api_views_places.py
 
-def _normalize_candidate(cand: Dict[str, Any], *, lang: str = "ja", locationbias: Optional[str] = None) -> Dict[str, Any]:
+
+def _normalize_candidate(
+    cand: Dict[str, Any], *, lang: str = "ja", locationbias: Optional[str] = None
+) -> Dict[str, Any]:
     name_only = (cand.get("name") or "").strip()
     area = (cand.get("area_hint") or "").strip()
     query_with_area = f"{name_only} {area}".strip() if area else name_only
@@ -88,8 +100,10 @@ def _normalize_candidate(cand: Dict[str, Any], *, lang: str = "ja", locationbias
             q = query_with_area or name_only
             if loc:
                 lat, lng, r = loc
-                results = GP.textsearch(q, language=lang, region="jp",
-                                        location=f"{lat},{lng}", radius=r) or []
+                results = (
+                    GP.textsearch(q, language=lang, region="jp", location=f"{lat},{lng}", radius=r)
+                    or []
+                )
             else:
                 results = GP.textsearch(q, language=lang, region="jp") or []
             if results:
@@ -114,6 +128,7 @@ def _normalize_candidate(cand: Dict[str, Any], *, lang: str = "ja", locationbias
         "location": hit.get("location") or cand.get("location"),
     }
 
+
 # -----------------------------
 # Concierge Plan
 # -----------------------------
@@ -123,7 +138,8 @@ class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
 
     def _build_bias(self, data: Dict[str, Any]) -> Optional[Dict[str, float]]:
-        lat = data.get("lat"); lng = data.get("lng")
+        lat = data.get("lat")
+        lng = data.get("lng")
         if lat is None or lng is None:
             return None
         r = None
@@ -137,7 +153,11 @@ class ConciergePlanView(APIView):
                 _, _, r = p
         if r is None:
             return {"lat": float(lat), "lng": float(lng)}
-        return {"lat": float(lat), "lng": float(lng), "radius": max(1, min(50000, int(r)))}
+        return {
+            "lat": float(lat),
+            "lng": float(lng),
+            "radius": max(1, min(50000, int(r))),
+        }
 
     def post(self, request):
         query = request.data.get("query")
@@ -161,10 +181,14 @@ class ConciergePlanView(APIView):
         cands = request.data.get("candidates") or []
         if cands:
             bias = self._build_bias(request.data)
-            out = fill_locations({"recommendations": cands}, candidates=cands, bias=bias, shorten=True)
+            out = fill_locations(
+                {"recommendations": cands}, candidates=cands, bias=bias, shorten=True
+            )
             resp["data"] = out
 
         return Response(resp)
+
+
 # -----------------------------
 # Places APIs (他は変更なし)
 # -----------------------------
@@ -225,6 +249,7 @@ class PlacesPhotoProxyView(APIView):
 
 class PlaceDetailView(APIView):
     """GET /api/places/<place_id>/ : 必ず {place_id, location:{lat,lng}} を返す"""
+
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
     throttle_scope = "places"
@@ -237,3 +262,24 @@ class PlaceDetailView(APIView):
         payload["place_id"] = base.get("place_id") or place_id
         payload["location"] = {"lat": geom.get("lat"), "lng": geom.get("lng")}
         return Response(payload)
+
+
+def place_photo(request):
+    """
+    GET /api/places/photo/?photo_reference=...&maxwidth=800
+    -> Google Places Photo プロキシ（キャッシュはサービス層で済ませる設計）
+    """
+    ref = request.GET.get("photo_reference")
+    if not ref:
+        return HttpResponseBadRequest("photo_reference is required")
+    try:
+        maxwidth = int(request.GET.get("maxwidth", "800"))
+    except ValueError:
+        return HttpResponseBadRequest("maxwidth must be integer")
+
+    content, content_type, max_age = places_svc.places_photo(ref, maxwidth)
+    resp = HttpResponse(content, content_type=content_type)
+    # サービス層契約に従って Cache-Control を付与
+    if max_age:
+        resp["Cache-Control"] = f"public, max-age={max_age}"
+    return resp

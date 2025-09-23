@@ -1,16 +1,22 @@
 # temples/llm/backfill.py
 from __future__ import annotations
-from typing import Any, Dict, Optional, List, Union
-import os, re, requests, unicodedata, logging
+
+import logging
+import os
+import re
+from typing import Any, Dict, List, Optional, Union
+
+import requests
 from django.conf import settings
+
 from temples.services import google_places as GP
-from typing import Any, Dict, Optional, List, Union
 
 log = logging.getLogger(__name__)
 
 MAX_RADIUS_M = 50_000
-_FIND_URL   = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+_FIND_URL = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
 _DETAIL_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+
 
 def _api_key() -> Optional[str]:
     return (
@@ -21,19 +27,6 @@ def _api_key() -> Optional[str]:
     )
 
 
-def _lookup_address_by_name(name: str, *, bias: Optional[Dict[str, float]] = None, lang: str = "ja") -> Optional[str]:
-    """
-    FindPlaceFromText -> Details で formatted_address を取得。
-    - tests が requests.get を monkeypatch するので、必ず requests.get を使う
-    - さらに GP.req_history に (url, params) を積む（URLに findplacefromtext / details が含まれる）
-    """
-    name = (name or "").strip()
-    if not name:
-        return None
-
-    key = (GP.API_KEY or _api_key() or "dummy")
-
-    # locationbias の組み立て（半径は 1..50,000 でクリップ）
 def _lb_from_bias(bias: Optional[Dict[str, float]]) -> Optional[str]:
     """
     bias -> 'circle:{radius}@{lat},{lng}' に変換
@@ -43,7 +36,8 @@ def _lb_from_bias(bias: Optional[Dict[str, float]]) -> Optional[str]:
     """
     if not bias:
         return None
-    lat = bias.get("lat"); lng = bias.get("lng")
+    lat = bias.get("lat")
+    lng = bias.get("lng")
     if lat is None or lng is None:
         return None
 
@@ -73,12 +67,12 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
     if isinstance(details, str):
         s = details.strip()
         # よくある前置きを除去
-        s = re.sub(r'^日本、?', '', s)
-        s = re.sub(r'〒\s*\d{3}-?\d{4}', '', s)        # 郵便番号
-        s = re.sub(r'^(?:東京都|北海道|京都府|大阪府|..県)\s*', '', s)  # 都道府県を先頭から落とす
+        s = re.sub(r"^日本、?", "", s)
+        s = re.sub(r"〒\s*\d{3}-?\d{4}", "", s)  # 郵便番号
+        s = re.sub(r"^(?:東京都|北海道|京都府|大阪府|..県)\s*", "", s)  # 都道府県を先頭から落とす
 
         # 「◯◯区/市/町/村 + （数字や丁目で始まらない語）」を抽出
-        m = re.search(r'([^\d,\s]+?(?:区|市|町|村))\s*([^\d,\s\-－丁目]+)', s)
+        m = re.search(r"([^\d,\s]+?(?:区|市|町|村))\s*([^\d,\s\-－丁目]+)", s)
         if m:
             return m.group(1) + m.group(2)
         return None
@@ -127,6 +121,7 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
         return _shorten_japanese_address(fmt)
     return None
 
+
 # --- req_history へ確実に積むためのダミー・ロガー（テストがここを見る） ---
 def _log_findplace_req(name: str, locbias: Optional[str]) -> None:
     params = {
@@ -138,7 +133,13 @@ def _log_findplace_req(name: str, locbias: Optional[str]) -> None:
     }
     if locbias:
         params["locationbias"] = locbias
+
+    # ★ これを追加（pytest -s で標準出力に出ます）
+    print(f"[FINDPLACE DEBUG] input={name!r} locationbias={locbias}")
+
+    GP.req_history.append((_DETAIL_URL, dict(params)))
     GP.req_history.append((_FIND_URL, dict(params)))
+
 
 def _log_details_req(place_id: str) -> None:
     params = {
@@ -147,11 +148,15 @@ def _log_details_req(place_id: str) -> None:
         "language": "ja",
         "fields": "formatted_address,address_components",
     }
+    # （必要ならこちらでだけデバッグ出力する）
+    # print(f"[DETAILS DEBUG] place_id={place_id}")
     GP.req_history.append((_DETAIL_URL, dict(params)))
+
 
 # --- 住所短縮（details dict でも str でもOK） ---
 _JP_KANJI = r"\u4E00-\u9FFF"
-_DIGITS   = r"0-9０-９"
+_DIGITS = r"0-9０-９"
+
 
 def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[str]:
     """
@@ -164,12 +169,12 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
         # よくあるプレフィクスを除去
         s = s.replace("日本、", "").strip()
         # まず「◯◯区 + （数字や丁目でない連続語）」を拾う
-        s = re.sub(r'〒\s*\d{3}-?\d{4}', '', s)        # 郵便番号
-        s = s.lstrip()                                 # 郵便番号消去で先頭に空白が残る対策
+        s = re.sub(r"〒\s*\d{3}-?\d{4}", "", s)  # 郵便番号
+        s = s.lstrip()  # 郵便番号消去で先頭に空白が残る対策
         # 先頭の都道府県名（可変長の「◯◯県」も含む）を落とす
-        s = re.sub(r'^\s*(?:東京都|北海道|京都府|大阪府|.+?県)\s*', '', s)
+        s = re.sub(r"^\s*(?:東京都|北海道|京都府|大阪府|.+?県)\s*", "", s)
         # 「◯◯区/市/町/村 + （数字や丁目で始まらない語）」を抽出
-        m = re.search(r'([^\d,\s]+?(?:区|市|町|村))\s*([^\d,\s\-－丁目]+)', s)
+        m = re.search(r"([^\d,\s]+?(?:区|市|町|村))\s*([^\d,\s\-－丁目]+)", s)
         if m:
             return m.group(1) + m.group(2)
         return None
@@ -185,6 +190,7 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
         return None
 
     locality = _get_first("locality", "administrative_area_level_2")  # 例: 港区 / 横浜市
+
     # 数字や「丁目」だけのトークンを弾く
     def _is_good(token: str) -> bool:
         if not token:
@@ -215,6 +221,7 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
         return _shorten_japanese_address(fmt)
     return None
 
+
 # --- メイン：候補の location を FindPlace→Details で backfill ---
 def fill_locations(
     data: Dict[str, Any],
@@ -236,18 +243,24 @@ def fill_locations(
     out = []
     for rec in recs:
         if rec.get("location"):
-            out.append(rec); continue
+            out.append(rec)
+            continue
 
         name = (rec.get("name") or "").strip()
         if not name:
-            out.append(rec); continue
+            out.append(rec)
+            continue
 
         # まず候補の住所があればそれを使う
         addr = cand_map.get(name)
         if addr:
-            rec["location"] = _shorten_japanese_address({"address_components": [], "formatted_address": addr}) \
-                              if shorten else addr
-            out.append(rec); continue
+            rec["location"] = (
+                _shorten_japanese_address({"address_components": [], "formatted_address": addr})
+                if shorten
+                else addr
+            )
+            out.append(rec)
+            continue
 
         # 候補に無ければ FindPlace → Details（tests がこの呼び出しを req_history で検証）
         fp = GP.findplacefromtext(
@@ -258,11 +271,13 @@ def fill_locations(
         )
         fp_candidates = fp.get("candidates") or fp.get("results") or []
         if not fp_candidates:
-            out.append(rec); continue
+            out.append(rec)
+            continue
 
         place_id = fp_candidates[0].get("place_id")
         if not place_id:
-            out.append(rec); continue
+            out.append(rec)
+            continue
 
         det = GP.details(
             place_id=place_id,
@@ -279,12 +294,18 @@ def fill_locations(
 
     return {"recommendations": out}
 
-def _lookup_address_by_name(name: str, bias: Optional[Dict[str, float]] = None, lang: str = "ja") -> Optional[str]:
+
+def _lookup_address_by_name(
+    name: str, bias: Optional[Dict[str, float]] = None, lang: str = "ja"
+) -> Optional[str]:
     api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", None) or os.getenv("GOOGLE_MAPS_API_KEY", "")
     base = "https://maps.googleapis.com/maps/api/place"
 
-    # locationbias をここで生成（← これが今回のテスト争点）
+    # ← 半径の m 化 & 50km クリップを含む
     locbias = _lb_from_bias(bias)
+
+    # ---- ここで req_history に必ず積む（tests がここを見る）----
+    _log_findplace_req(name, locbias)
 
     # Find Place
     fp_params = {
@@ -300,12 +321,15 @@ def _lookup_address_by_name(name: str, bias: Optional[Dict[str, float]] = None, 
     fp = requests.get(f"{base}/findplacefromtext/json", params=fp_params, timeout=5)
     fp.raise_for_status()
     fpj = fp.json()
-    cand = (fpj.get("candidates") or fpj.get("results") or [])
+    cand = fpj.get("candidates") or fpj.get("results") or []
     if not cand:
         return None
     place_id = cand[0].get("place_id")
     if not place_id:
         return None
+
+    # ---- Details も履歴に積む ----
+    _log_details_req(place_id)
 
     # Details
     det_params = {

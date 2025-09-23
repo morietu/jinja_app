@@ -23,10 +23,13 @@ def backfill_location_from_latlng(apps, schema_editor):
                 pass
     # ログは不要（migrate出力を汚さないため）
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
-        ("temples", "0019_favorite_favorite_exactly_one_target"),  # ← 直前の番号に合わせて調整
+        (
+            "temples",
+            "0019_favorite_favorite_exactly_one_target",
+        ),  # ← 直前の番号に合わせて調整
     ]
 
     operations = [
@@ -50,7 +53,6 @@ class Migration(migrations.Migration):
             name="last_popular_calc_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
-        
         migrations.AddIndex(
             model_name="shrine",
             index=models.Index(fields=["popular_score"], name="shrine_popular_idx"),
