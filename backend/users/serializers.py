@@ -4,16 +4,28 @@ from .models import UserProfile
 
 User = get_user_model()
 
+
 class MeSerializer(serializers.ModelSerializer):
-    nickname   = serializers.CharField(source="profile.nickname", allow_blank=True, required=False)
-    is_public  = serializers.BooleanField(source="profile.is_public", required=False)
-    bio        = serializers.CharField(source="profile.bio", allow_blank=True, allow_null=True, required=False)
-    icon       = serializers.ImageField(source="profile.icon", allow_null=True, required=False)
+    nickname = serializers.CharField(source="profile.nickname", allow_blank=True, required=False)
+    is_public = serializers.BooleanField(source="profile.is_public", required=False)
+    bio = serializers.CharField(
+        source="profile.bio", allow_blank=True, allow_null=True, required=False
+    )
+    icon = serializers.ImageField(source="profile.icon", allow_null=True, required=False)
     created_at = serializers.DateTimeField(source="profile.created_at", read_only=True)
 
     class Meta:
-        model  = User
-        fields = ("id", "username", "email", "nickname", "is_public", "bio", "icon", "created_at")
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "nickname",
+            "is_public",
+            "bio",
+            "icon",
+            "created_at",
+        )
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})

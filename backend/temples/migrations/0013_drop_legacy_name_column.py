@@ -4,10 +4,8 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0012_drop_name_notnull_last'),
+        ("temples", "0012_drop_name_notnull_last"),
     ]
 
-    operations = [
-    ]
+    operations = []

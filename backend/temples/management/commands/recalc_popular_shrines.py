@@ -1,12 +1,15 @@
 # backend/temples/management/commands/recalc_popular_shrines.py
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from django.db.models import Count
-from temples.models import Shrine, Favorite  # Favorite に created_at が必要
+from django.utils import timezone
+
+from temples.models import Favorite, Shrine  # Favorite に created_at が必要
 
 W_VIEW = 1.0
-W_FAV  = 5.0
+W_FAV = 5.0
+
 
 class Command(BaseCommand):
     help = "Recalculate popularity fields for shrines (last N days)."

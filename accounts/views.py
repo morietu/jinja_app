@@ -1,16 +1,15 @@
 from django.contrib import messages
-from django.contrib.auth.views import LoginView, LogoutView
-
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import redirect, render
 from django.views import View
+
 
 class RegisterView(View):
     template_name = "accounts/register.html"
 
-    
     def get(self, request):
         form = UserCreationForm()
         return render(request, self.template_name, {"form": form})
@@ -25,7 +24,6 @@ class RegisterView(View):
         return render(request, self.template_name, {"form": form})
 
 
-
 # 追加: ログイン/ログアウトでメッセージ
 class MyLoginView(LoginView):
     def form_valid(self, form):
@@ -33,8 +31,9 @@ class MyLoginView(LoginView):
         messages.info(self.request, "ログインしました。")
         return resp
 
+
 class MyLogoutView(LogoutView):
-# LogoutViewはPOSTでのログアウトが推奨/既定（GETは不可）なので、そのままdispatchでOK
+    # LogoutViewはPOSTでのログアウトが推奨/既定（GETは不可）なので、そのままdispatchでOK
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
         messages.info(request, "ログアウトしました。")

@@ -5,23 +5,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0023_fix_str_methods_and_indexes'),
+        ("temples", "0023_fix_str_methods_and_indexes"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='favorite',
-            options={'ordering': ('-created_at',)},
+            name="favorite",
+            options={"ordering": ("-created_at",)},
         ),
         migrations.AlterUniqueTogether(
-            name='favorite',
-            unique_together={('user', 'shrine')},
+            name="favorite",
+            unique_together={("user", "shrine")},
         ),
         migrations.AddIndex(
-            model_name='favorite',
-            index=models.Index(fields=['user', 'created_at'], name='idx_fav_user_created'),
+            model_name="favorite",
+            index=models.Index(fields=["user", "created_at"], name="idx_fav_user_created"),
         ),
     ]

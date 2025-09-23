@@ -1,6 +1,7 @@
 # users/apps.py
 from django.apps import AppConfig
 
+
 class UsersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "users"
@@ -25,5 +26,5 @@ class UsersConfig(AppConfig):
             ensure_profile,
             sender=User,
             dispatch_uid="users.ensure_profile",  # ← 重複防止
-            weak=False,                           # ← GC対策
+            weak=False,  # ← GC対策
         )

@@ -5,16 +5,15 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0004_enforce_nonnull_shrine_fields'),
+        ("temples", "0004_enforce_nonnull_shrine_fields"),
     ]
 
     operations = [
-        migrations.RunSQL('CREATE EXTENSION IF NOT EXISTS postgis;'),
+        migrations.RunSQL("CREATE EXTENSION IF NOT EXISTS postgis;"),
         migrations.AddField(
-            model_name='shrine',
-            name='location',
+            model_name="shrine",
+            name="location",
             field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
         ),
     ]

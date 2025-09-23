@@ -1,6 +1,7 @@
 # backend/shrine_project/cache_keys.py
 from hashlib import md5
 
+
 def memcache_safe_key(key: str, key_prefix: str, version: int) -> str:
     """
     memcached が要求する ASCII & 250文字以下の制約を満たすキーを返す。

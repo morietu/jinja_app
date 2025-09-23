@@ -5,27 +5,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0017_remove_favorite_uq_favorite_user_shrine_and_more'),
+        ("temples", "0017_remove_favorite_uq_favorite_user_shrine_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='favorite',
-            name='uq_favorite_user_shrine',
+            model_name="favorite",
+            name="uq_favorite_user_shrine",
         ),
         migrations.RemoveConstraint(
-            model_name='favorite',
-            name='uq_favorite_user_place',
+            model_name="favorite",
+            name="uq_favorite_user_place",
         ),
         migrations.AddConstraint(
-            model_name='favorite',
-            constraint=models.UniqueConstraint(condition=models.Q(('shrine__isnull', False)), fields=('user', 'shrine'), name='uq_favorite_user_shrine'),
+            model_name="favorite",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("shrine__isnull", False)),
+                fields=("user", "shrine"),
+                name="uq_favorite_user_shrine",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='favorite',
-            constraint=models.UniqueConstraint(condition=models.Q(('place_id__isnull', False)), fields=('user', 'place_id'), name='uq_favorite_user_place'),
+            model_name="favorite",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("place_id__isnull", False)),
+                fields=("user", "place_id"),
+                name="uq_favorite_user_place",
+            ),
         ),
     ]

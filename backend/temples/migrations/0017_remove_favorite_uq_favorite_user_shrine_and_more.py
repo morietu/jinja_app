@@ -6,33 +6,46 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0016_placeref_alter_goriyakutag_options_and_more'),
+        ("temples", "0016_placeref_alter_goriyakutag_options_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='favorite',
-            name='uq_favorite_user_shrine',
+            model_name="favorite",
+            name="uq_favorite_user_shrine",
         ),
         migrations.AddField(
-            model_name='favorite',
-            name='place_id',
+            model_name="favorite",
+            name="place_id",
             field=models.CharField(blank=True, db_index=True, max_length=128, null=True),
         ),
         migrations.AlterField(
-            model_name='favorite',
-            name='shrine',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='temples.shrine'),
+            model_name="favorite",
+            name="shrine",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="favorited_by",
+                to="temples.shrine",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='favorite',
-            constraint=models.UniqueConstraint(condition=models.Q(('shrine', None), _negated=True), fields=('user', 'shrine'), name='uq_favorite_user_shrine'),
+            model_name="favorite",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("shrine", None), _negated=True),
+                fields=("user", "shrine"),
+                name="uq_favorite_user_shrine",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='favorite',
-            constraint=models.UniqueConstraint(condition=models.Q(('place_id', None), _negated=True), fields=('user', 'place_id'), name='uq_favorite_user_place'),
+            model_name="favorite",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("place_id", None), _negated=True),
+                fields=("user", "place_id"),
+                name="uq_favorite_user_place",
+            ),
         ),
     ]

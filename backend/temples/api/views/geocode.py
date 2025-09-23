@@ -1,10 +1,15 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from temples.api.serializers.geocode import (
+    GeocodeResponseSerializer,
+    GeocodeResultSerializer,
+)
 from temples.geocoding.client import GeocodingClient, GeocodingError
-from temples.api.serializers.geocode import GeocodeResultSerializer, GeocodeResponseSerializer
 
 _GOOD_PRECISIONS = {"rooftop", "street"}
+
 
 class GeocodeView(APIView):
     authentication_classes = []
@@ -27,7 +32,10 @@ class GeocodeView(APIView):
         except GeocodingError as e:
             return Response({"message": f"geocoding failed: {e}"}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"message": f"unexpected error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"message": f"unexpected error: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         if not candidates:
             data = {"candidates": [], "message": "not found"}

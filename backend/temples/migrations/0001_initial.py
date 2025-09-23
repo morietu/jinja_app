@@ -5,100 +5,211 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='ConciergeHistory',
+            name="ConciergeHistory",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('reason', models.TextField()),
-                ('tags', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("reason", models.TextField()),
+                ("tags", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Favorite',
+            name="Favorite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='GoriyakuTag',
+            name="GoriyakuTag",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50, unique=True)),
-                ('category', models.CharField(choices=[('ご利益', '願望・テーマ別'), ('神格', '祭神の種類'), ('地域', '地域や役割')], default='ご利益', max_length=50)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=50, unique=True)),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("ご利益", "願望・テーマ別"),
+                            ("神格", "祭神の種類"),
+                            ("地域", "地域や役割"),
+                        ],
+                        default="ご利益",
+                        max_length=50,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Goshuin',
+            name="Goshuin",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(blank=True, max_length=100)),
-                ('image1', models.ImageField(blank=True, null=True, upload_to='goshuin/')),
-                ('image2', models.ImageField(blank=True, null=True, upload_to='goshuin/')),
-                ('image3', models.ImageField(blank=True, null=True, upload_to='goshuin/')),
-                ('is_public', models.BooleanField(default=True)),
-                ('likes', models.PositiveIntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=100)),
+                (
+                    "image1",
+                    models.ImageField(blank=True, null=True, upload_to="goshuin/"),
+                ),
+                (
+                    "image2",
+                    models.ImageField(blank=True, null=True, upload_to="goshuin/"),
+                ),
+                (
+                    "image3",
+                    models.ImageField(blank=True, null=True, upload_to="goshuin/"),
+                ),
+                ("is_public", models.BooleanField(default=True)),
+                ("likes", models.PositiveIntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
-            name='RankingLog',
+            name="RankingLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField(default=django.utils.timezone.now)),
-                ('view_count', models.PositiveIntegerField(default=0)),
-                ('like_count', models.PositiveIntegerField(default=0)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField(default=django.utils.timezone.now)),
+                ("view_count", models.PositiveIntegerField(default=0)),
+                ("like_count", models.PositiveIntegerField(default=0)),
             ],
         ),
         migrations.CreateModel(
-            name='Shrine',
+            name="Shrine",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name_jp', models.CharField(max_length=100)),
-                ('name_romaji', models.CharField(blank=True, max_length=100, null=True)),
-                ('address', models.CharField(blank=True, max_length=255, null=True)),
-                ('latitude', models.FloatField(blank=True, null=True)),
-                ('longitude', models.FloatField(blank=True, null=True)),
-                ('goriyaku', models.TextField(blank=True, default='', help_text='ご利益（自由メモ）', null=True)),
-                ('sajin', models.TextField(blank=True, default='', help_text='祭神', null=True)),
-                ('description', models.TextField(blank=True, null=True)),
-                ('element', models.CharField(blank=True, help_text='五行属性: 木火土金水', max_length=10, null=True)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name_jp", models.CharField(max_length=100)),
+                (
+                    "name_romaji",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
+                ("address", models.CharField(blank=True, max_length=255, null=True)),
+                ("latitude", models.FloatField(blank=True, null=True)),
+                ("longitude", models.FloatField(blank=True, null=True)),
+                (
+                    "goriyaku",
+                    models.TextField(
+                        blank=True,
+                        default="",
+                        help_text="ご利益（自由メモ）",
+                        null=True,
+                    ),
+                ),
+                (
+                    "sajin",
+                    models.TextField(blank=True, default="", help_text="祭神", null=True),
+                ),
+                ("description", models.TextField(blank=True, null=True)),
+                (
+                    "element",
+                    models.CharField(
+                        blank=True,
+                        help_text="五行属性: 木火土金水",
+                        max_length=10,
+                        null=True,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
         ),
         migrations.CreateModel(
-            name='ViewLike',
+            name="ViewLike",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_like', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("is_like", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Visit',
+            name="Visit",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('visited_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('note', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('added', 'Added'), ('removed', 'Removed')], default='added', max_length=10)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("visited_at", models.DateTimeField(default=django.utils.timezone.now)),
+                ("note", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("added", "Added"), ("removed", "Removed")],
+                        default="added",
+                        max_length=10,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-visited_at'],
+                "ordering": ["-visited_at"],
             },
         ),
     ]

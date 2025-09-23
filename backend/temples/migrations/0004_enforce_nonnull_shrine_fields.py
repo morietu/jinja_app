@@ -2,29 +2,28 @@
 
 from django.db import migrations, models
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
-        ('temples', '0003_shrine_name_shrine_owner'),
+        ("temples", "0003_shrine_name_shrine_owner"),
     ]
 
     operations = [
         # ※ DBには既に location 列があるため、AddField(location) は削除
         # ※ 0003 を fake 済みのため、name/owner の RemoveField も削除
-
         migrations.AlterField(
-            model_name='shrine',
-            name='address',
+            model_name="shrine",
+            name="address",
             field=models.CharField(max_length=255),
         ),
         migrations.AlterField(
-            model_name='shrine',
-            name='latitude',
+            model_name="shrine",
+            name="latitude",
             field=models.FloatField(),
         ),
         migrations.AlterField(
-            model_name='shrine',
-            name='longitude',
+            model_name="shrine",
+            name="longitude",
             field=models.FloatField(),
         ),
     ]

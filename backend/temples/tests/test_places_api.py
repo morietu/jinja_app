@@ -6,8 +6,9 @@ pytestmark = pytest.mark.django_db
 
 need_key = pytest.mark.skipif(
     not os.environ.get("GOOGLE_PLACES_API_KEY"),
-    reason="GOOGLE_PLACES_API_KEY is not set"
+    reason="GOOGLE_PLACES_API_KEY is not set",
 )
+
 
 @need_key
 def test_places_search_ok():
@@ -16,6 +17,7 @@ def test_places_search_ok():
     assert res.status_code == 200
     j = res.json()
     assert "status" in j and "results" in j
+
 
 @need_key
 def test_places_detail_ok():
