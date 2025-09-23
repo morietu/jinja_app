@@ -1,112 +1,58 @@
-# Python
+# ===== Python / Django =====
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *.egg-info/
-build/
-dist/
-
-# 仮想環境
+*.egg
 .venv/
+venv/
+db.sqlite3
+*.sqlite3
 
-# テスト・ツール
-.tox/
+# Test / coverage
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
+.tox/
 .coverage*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# IDE・OS
-.vscode/
-.idea/
-.DS_Store
-
-# 環境ファイル（秘匿）
+# ===== 環境ファイル =====
 .env
 .env.*
 !.env.example
-runserver*.log
 
-# Django
-*.sqlite3
-db.sqlite3
-staticfiles/
-media/
-
-# Node（使っていれば）
-node_modules/
-NUL
-
-# DB data (ignore everything under .docker/db/data)
-.docker/db/data/
-
-# Logs
-backend/logs/
-# local artifacts
-
-
-
-
-# VS Code (track only settings.json)
-.vscode/*
-!.vscode/settings.json
-
-# VS Code (track only settings.json)
-!.vscode/
-.vscode/*
-!.vscode/settings.json
-
-# Allow example env files
-!.env.example
-!**/
-.env.example
-node_modules
-
-# allow shrine-app/.env.example
-!shrine-app/.env.example
-
-# Expo native outputs
-/shrine-app/ios/
-/shrine-app/android/
-/shrine-app/.expo/
-# local junk
-apps/web/cookies.txt
-apps/web/c.txt
-backend/media/
-# --- Python / venv ---
-.venv/
-venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-*.egg
-
-# --- local env files ---
-.env
-*.env
-backend/.env
-backend/.env.*
-.env.local
-.env.*.local
-
-# --- OS / Editor ---
+# ===== OS / Editor =====
 .DS_Store
 *.swp
+.vscode/
+.idea/
 
-# --- build / archives ---
+# ===== Build / Archives =====
 dist/
 build/
 *.tar.gz
 
-# --- misc ---
+# ===== Logs / Media / Static =====
+runserver*.log
+backend/logs/
+backend/media/
+staticfiles/
+
+# ===== Node / Frontend =====
+node_modules/
+apps/**/node_modules/
+
+# ===== Expo (shrine-app) =====
+/shrine-app/ios/
+/shrine-app/android/
+/shrine-app/.expo/
+/shrine-app/.expo-shared/
+
+# ===== Docker (local db data) =====
+.docker/db/data/
+
+# ===== Local scratch =====
 cookies.txt
-
-# local scratch
-c.txt
-
-# local scratch
-c.txt
-
-.venv/
-apps/web/src/app/api/debug/
 c.txt
