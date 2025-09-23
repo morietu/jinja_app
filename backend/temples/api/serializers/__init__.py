@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from temples.models import Favorite, Shrine, PlaceRef
+
+from temples.models import Favorite, PlaceRef, Shrine
 from temples.services.places import get_or_sync_place
+
 
 # --- Shrine を素直に読むためのシリアライザ ---
 class ShrineSerializer(serializers.ModelSerializer):
@@ -23,10 +25,11 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def get_place(self, obj):
         if not obj.place_id:
             return None
-        pr = (PlaceRef.objects
-              .filter(pk=obj.place_id)
-              .only("place_id", "name", "address", "latitude", "longitude")
-              .first())
+        pr = (
+            PlaceRef.objects.filter(pk=obj.place_id)
+            .only("place_id", "name", "address", "latitude", "longitude")
+            .first()
+        )
         if not pr:
             return None
         return {

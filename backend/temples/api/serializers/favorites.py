@@ -1,11 +1,14 @@
 # backend/temples/api/serializers/favorites.py
 
+import re
+
 from rest_framework import serializers
-from temples.models import Favorite, Shrine, PlaceRef
+
+from temples.models import Favorite, PlaceRef, Shrine
 from temples.services.places import get_or_sync_place
 
-import re
 PLACE_ID_RE = re.compile(r"^[A-Za-z0-9._=-]{10,200}$")
+
 
 class ShrineSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +18,7 @@ class ShrineSerializer(serializers.ModelSerializer):
 
 class FavoriteSerializer(serializers.ModelSerializer):
     shrine = ShrineSerializer(read_only=True)
-    place  = serializers.SerializerMethodField()
+    place = serializers.SerializerMethodField()
 
     class Meta:
         model = Favorite
@@ -32,10 +35,11 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
         # フォールバック（単体取得：N+1は list() 側で回避済み）
         if pr is None:
-            pr = (PlaceRef.objects
-                  .filter(pk=obj.place_id)
-                  .only("place_id", "name", "address", "latitude", "longitude")
-                  .first())
+            pr = (
+                PlaceRef.objects.filter(pk=obj.place_id)
+                .only("place_id", "name", "address", "latitude", "longitude")
+                .first()
+            )
             if pr is None:
                 return None
 

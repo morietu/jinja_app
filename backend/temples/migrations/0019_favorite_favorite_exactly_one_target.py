@@ -5,15 +5,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0018_remove_favorite_uq_favorite_user_shrine_and_more'),
+        ("temples", "0018_remove_favorite_uq_favorite_user_shrine_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='favorite',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('shrine__isnull', False), ('place_id__isnull', True)), models.Q(('shrine__isnull', True), ('place_id__isnull', False)), _connector='OR'), name='favorite_exactly_one_target'),
+            model_name="favorite",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("shrine__isnull", False), ("place_id__isnull", True)),
+                    models.Q(("shrine__isnull", True), ("place_id__isnull", False)),
+                    _connector="OR",
+                ),
+                name="favorite_exactly_one_target",
+            ),
         ),
     ]

@@ -6,21 +6,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0002_initial'),
+        ("temples", "0002_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='shrine',
-            name='name',
-            field=models.CharField(blank=True, default='', max_length=255),
+            model_name="shrine",
+            name="name",
+            field=models.CharField(blank=True, default="", max_length=255),
         ),
         migrations.AddField(
-            model_name='shrine',
-            name='owner',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='shrines', to=settings.AUTH_USER_MODEL),
+            model_name="shrine",
+            name="owner",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="shrines",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

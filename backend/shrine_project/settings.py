@@ -1,8 +1,30 @@
 # backend/shrine_project/settings.py
-from pathlib import Path
 import os
 import sys
+from datetime import timedelta
+from pathlib import Path
+
+from corsheaders.defaults import default_headers, default_methods
 from dotenv import load_dotenv
+
+
+# 運用で切替しやすいように
+def _env_bool(name: str, default: bool) -> bool:
+    v = os.getenv(name)
+    if v is None:
+        return default
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_float(name: str, default: float) -> float:
+    v = os.getenv(name)
+    if v is None:
+        return default
+    try:
+        return float(v)
+    except ValueError:
+        return default
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -14,6 +36,14 @@ for name in (".env.local", ".env.dev", ".env"):
         load_dotenv(p, override=True)  # 既に export 済みの値は上書きしない
         os.environ.setdefault("ENV_FILE", str(p))  # どれを読んだかメモ
         break
+# ← .env 読み込みが終わった“後”で評価
+ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
+LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
+LUCK_BASE_FIELD = "popular_score"  # スコアのベースに使うフィールド
+LUCK_FLAG_FIELD = ""  # 真偽フラグが無いので空（= 未使用）
+LUCK_BONUS_ELEMENT = "金運"  # element が一致したらボーナス付与
+# 予備: ID 指定で強制付与したい場合
+LUCK_BONUS_IDS = []  # 例: [2, 99]
 
 if sys.platform == "darwin":
     # macOS (Homebrew) 環境: GeoDjango が確実に見つけられるようヒントを付与
@@ -28,10 +58,9 @@ REPO_ROOT = BASE_DIR.parent
 
 # ========= conda 環境の DLL / データパス =========
 _CONDA_PREFIX = Path(sys.prefix)  # 例: C:\Users\user\Miniforge3\envs\jinja_app_py311
-_DLL_DIR     = _CONDA_PREFIX / "Library" / "bin"
+_DLL_DIR = _CONDA_PREFIX / "Library" / "bin"
 _GDAL_DATA_D = _CONDA_PREFIX / "Library" / "share" / "gdal"
-_PROJ_LIB_D  = _CONDA_PREFIX / "Library" / "share" / "proj"
-
+_PROJ_LIB_D = _CONDA_PREFIX / "Library" / "share" / "proj"
 
 
 # ========= .env の読込（最初に1回だけ。OS環境変数を優先: override=True）=========
@@ -39,6 +68,7 @@ for candidate in (REPO_ROOT / ".env.dev", REPO_ROOT / ".env"):
     if candidate.exists():
         try:
             from dotenv import load_dotenv  # optional
+
             load_dotenv(dotenv_path=candidate, override=True)
         except Exception:
             pass
@@ -57,7 +87,9 @@ def in_docker() -> bool:
     except Exception:
         return False
 
+
 IS_PYTEST = "PYTEST_CURRENT_TEST" in os.environ
+
 
 def pick_db_host() -> str:
     """
@@ -84,7 +116,7 @@ if USE_GIS:
         "default": {
             "ENGINE": "django.contrib.gis.db.backends.postgis",  # ← ここが重要！
             "NAME": "jinja_app",
-            "USER": "",          # OSユーザー（morietsu）を使うなら空でOK
+            "USER": "",  # OSユーザー（morietsu）を使うなら空でOK
             "PASSWORD": "",
             "HOST": "127.0.0.1",
             "PORT": "5432",
@@ -119,9 +151,8 @@ def _sanitize_redis_url(url: str) -> str:
         return ""
     return url
 
+
 REDIS_URL = _sanitize_redis_url(os.getenv("REDIS_URL", ""))
-
-
 
 
 # ========= 効いている設定の確認（必要時のみ）=========
@@ -131,6 +162,7 @@ if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
 # ========= GDAL/GEOS の DLL ヒント（Windows のみ）=========
 if sys.platform == "win32":
     from pathlib import Path
+
     _CONDA_PREFIX = Path(sys.prefix)
     _DLL_DIR = _CONDA_PREFIX / "Library" / "bin"
 
@@ -150,12 +182,9 @@ if sys.platform == "win32":
 # 「環境変数があれば上書き、無ければ既定を残す」合流ロジックにする
 GDAL_LIBRARY_PATH = os.getenv(
     "GDAL_LIBRARY_PATH",
-    globals().get("GDAL_LIBRARY_PATH")  # 例: macOS Homebrew の既定
+    globals().get("GDAL_LIBRARY_PATH"),  # 例: macOS Homebrew の既定
 )
-GEOS_LIBRARY_PATH = os.getenv(
-    "GEOS_LIBRARY_PATH",
-    globals().get("GEOS_LIBRARY_PATH")
-)
+GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH", globals().get("GEOS_LIBRARY_PATH"))
 # GDAL_DATA / PROJ_LIB は基本は環境変数で渡す想定。
 # Windows(Conda) では該当ディレクトリが存在すればフォールバック。
 _env_gdal_data = os.getenv("GDAL_DATA")
@@ -166,7 +195,7 @@ if not _env_proj_lib and sys.platform == "win32" and _PROJ_LIB_D.exists():
     _env_proj_lib = str(_PROJ_LIB_D)
 # 参考: これらは settings 変数として持つ必要はないが、デバッグ用に保持してもOK
 GDAL_DATA = _env_gdal_data
-PROJ_LIB  = _env_proj_lib
+PROJ_LIB = _env_proj_lib
 
 # ========= 基本設定 =========
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-key")
@@ -182,7 +211,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ========= アプリ =========
 INSTALLED_APPS = [
     "favorites",
-
     # Django built-ins
     "django.contrib.admin",
     "django.contrib.auth",
@@ -192,12 +220,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django_filters",
-
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
-
     # Local apps
     "users",
     "temples.apps.TemplesConfig",
@@ -205,14 +231,18 @@ INSTALLED_APPS = [
 
 # USE_GIS の時だけ GeoDjango を有効化（リストを締めた“後”に挿入）
 if USE_GIS and "django.contrib.gis" not in INSTALLED_APPS:
-    insert_pos = INSTALLED_APPS.index("django.contrib.postgres") + 1 if "django.contrib.postgres" in INSTALLED_APPS else len(INSTALLED_APPS)
+    insert_pos = (
+        INSTALLED_APPS.index("django.contrib.postgres") + 1
+        if "django.contrib.postgres" in INSTALLED_APPS
+        else len(INSTALLED_APPS)
+    )
     INSTALLED_APPS.insert(insert_pos, "django.contrib.gis")
 
 # ========= DRF / 認可 =========
-PLACES_THROTTLE_BURST   = os.getenv("PLACES_THROTTLE_BURST",   "30/min")
+PLACES_THROTTLE_BURST = os.getenv("PLACES_THROTTLE_BURST", "30/min")
 PLACES_THROTTLE_SUSTAIN = os.getenv("PLACES_THROTTLE_SUSTAIN", "1000/day")
-PLACES_TEXT_DEFAULT_LOCATION = "35.71,139.80"   # "lat,lng" 文字列
-PLACES_TEXT_DEFAULT_RADIUS_M = 3000             # メートル
+PLACES_TEXT_DEFAULT_LOCATION = "35.71,139.80"  # "lat,lng" 文字列
+PLACES_TEXT_DEFAULT_RADIUS_M = 3000  # メートル
 
 
 REST_FRAMEWORK = {
@@ -228,15 +258,25 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon":      os.getenv("THROTTLE_ANON", "30/min"),
-        "user":      os.getenv("THROTTLE_USER", "120/min"),
+        "anon": os.getenv("THROTTLE_ANON", "30/min"),
+        "user": os.getenv("THROTTLE_USER", "120/min"),
         "concierge": os.getenv("THROTTLE_CONCIERGE", "8/min"),
-        "places":    os.getenv("THROTTLE_PLACES", "60/min"),
+        "places": os.getenv("THROTTLE_PLACES", "60/min"),
     },
     "DEFAULT_ROUTER_TRAILING_SLASH": "/?",
     "DEFAULT_PAGINATION_CLASS": None,
 }
-from datetime import timedelta
+if IS_PYTEST:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+        {
+            "anon": "1000/min",
+            "user": "1000/min",
+            "concierge": "1000/min",
+            "places": "1000/min",
+        }
+    )
+
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -245,8 +285,7 @@ SIMPLE_JWT = {
 }
 
 
-
-AUTH_USER_MODEL = 'auth.User'  # 規定ユーザーに戻す
+AUTH_USER_MODEL = "auth.User"  # 規定ユーザーに戻す
 
 # ========= ミドルウェア =========
 MIDDLEWARE = [
@@ -274,6 +313,7 @@ _context_processors = [
 # 任意: 存在する場合だけ独自 CP を追加
 try:
     import importlib
+
     importlib.import_module("shrine_project.context_processors")
     _context_processors.append("shrine_project.context_processors.maps_api_key")
 except Exception:
@@ -297,7 +337,6 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # ========= CORS =========
-from corsheaders.defaults import default_headers, default_methods
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
@@ -324,9 +363,6 @@ CORS_ALLOW_METHODS = list(default_methods)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
-
-
-
 # ----------------------------------------
 # Cache 設定（pytest中は LocMem を強制、普段は REDIS_URL があり redis クライアントが入っていれば Redis）
 # ----------------------------------------
@@ -346,7 +382,6 @@ def _build_cache():
     # ここでは上で決めたモジュール変数 REDIS_URL を使う（os.getenv で読み直さない）
     if REDIS_URL:
         try:
-            import redis  # Django 純正の RedisCache が使うクライアント
             return {
                 "default": {
                     "BACKEND": "django.core.cache.backends.redis.RedisCache",
@@ -370,16 +405,16 @@ def _build_cache():
         }
     }
 
-CACHES = _build_cache()
 
+CACHES = _build_cache()
 
 
 # 確認ログ（任意）
 if os.getenv("PRINT_EFFECTIVE_SETTINGS") == "1":
     from django.conf import settings as _s
+
     print("[settings] Cache BACKEND:", _s.CACHES["default"]["BACKEND"], flush=True)
     print("[settings] Cache LOCATION:", _s.CACHES["default"].get("LOCATION"), flush=True)
-
 
 
 # --- logging ---

@@ -1,10 +1,10 @@
-from rest_framework import generics, permissions, status, viewsets
-from rest_framework.permissions import AllowAny
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from temples.models import Shrine, Visit
+
 from temples.api.serializers.visit import VisitSerializer
+from temples.models import Shrine, Visit
 
 
 class VisitCreateView(APIView):
@@ -17,12 +17,16 @@ class VisitCreateView(APIView):
         if not created:
             visit.delete()
             return Response(
-                {"status": "removed", "shrine": {"id": shrine.id, "name_jp": shrine.name_jp}},
-                status=status.HTTP_200_OK
+                {
+                    "status": "removed",
+                    "shrine": {"id": shrine.id, "name_jp": shrine.name_jp},
+                },
+                status=status.HTTP_200_OK,
             )
 
         return Response(
-            {"status": "added", "shrine": {"id": shrine.id, "name_jp": shrine.name_jp}}, status=status.HTTP_201_CREATED
+            {"status": "added", "shrine": {"id": shrine.id, "name_jp": shrine.name_jp}},
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -32,10 +36,7 @@ class UserVisitListView(generics.ListAPIView):
 
     def get_queryset(self):
         return (
-            Visit.objects
-            .filter(user=self.request.user)
+            Visit.objects.filter(user=self.request.user)
             .select_related("shrine")
             .order_by("-visited_at")
         )
-
-

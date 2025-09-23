@@ -5,6 +5,7 @@ from users.models import UserProfile
 
 User = get_user_model()
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
     # 未設定なら None を返し、設定済みなら URL を返す（DRF の ImageField は安全）
     icon = serializers.ImageField(read_only=True)
@@ -33,6 +34,7 @@ class UserMeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "email", "first_name", "last_name", "profile")
+
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("temples", "0022_goshuinimage_like_remove_viewlike_shrine_and_more"),
     ]
@@ -20,8 +19,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="shrine",
-            index=models.Index(
-                fields=["latitude", "longitude"], name="idx_shrine_lat_lng"
-            ),
+            index=models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
         ),
     ]

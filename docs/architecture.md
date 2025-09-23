@@ -1,6 +1,6 @@
 # 🏗️ architecture.md — AI参拝ナビ（神社_app）アーキテクチャ概要
 
-本ドキュメントは、プロジェクト全体構成・主要コンポーネント・API・データモデル・運用観点を簡潔にまとめたものです。  
+本ドキュメントは、プロジェクト全体構成・主要コンポーネント・API・データモデル・運用観点を簡潔にまとめたものです。
 実装の詳細は各ディレクトリ配下の README / ソースコードを参照してください。
 
 ---
@@ -127,7 +127,7 @@ flowchart LR
 
 ### API制限・キャッシュ設定
 - **スロットル**: places, places_burst, places_sustain, concierge 等
-- **既定の検索バイアス**: 
+- **既定の検索バイアス**:
   - `PLACES_TEXT_DEFAULT_LOCATION`
   - `PLACES_TEXT_DEFAULT_RADIUS_M`
 
@@ -136,7 +136,7 @@ flowchart LR
 ### Web（Next.js / App Router）
 
 - **API クライアント**: `apps/web/lib/api.ts` に集約（axios）
-- **機能**: 
+- **機能**:
   - 検索・神社カード・お気に入りトグル（実装中）
   - ルート表示（実装予定）
 - **UI**: Tailwind + shadcn/ui（モバイルファースト）
@@ -144,7 +144,7 @@ flowchart LR
 ### Mobile（Expo）
 
 - **API**: Web と共有方針（`EXPO_PUBLIC_API_BASE`）
-- **機能予定**: 
+- **機能予定**:
   - 近隣神社（expo-location）
   - 御朱印投稿（expo-image-picker）
 

@@ -6,9 +6,8 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('temples', '0005_remove_shrine_name_remove_shrine_owner_and_more'),
+        ("temples", "0005_remove_shrine_name_remove_shrine_owner_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

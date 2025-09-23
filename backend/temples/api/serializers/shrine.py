@@ -1,6 +1,7 @@
 # temples/api/serializers/shrine.py
 from rest_framework import serializers
-from temples.models import Shrine, Visit, GoriyakuTag, Favorite
+
+from temples.models import Favorite, GoriyakuTag, Shrine, Visit
 
 
 class GoriyakuTagSerializer(serializers.ModelSerializer):
@@ -11,6 +12,7 @@ class GoriyakuTagSerializer(serializers.ModelSerializer):
 
 class _AddressValidationMixin:
     """住所必須 & 前後空白除去の共通化"""
+
     def validate_address(self, v):
         v = (v or "").strip()
         if not v:
@@ -30,7 +32,13 @@ class ShrineListSerializer(_AddressValidationMixin, serializers.ModelSerializer)
     class Meta:
         model = Shrine
         fields = "__all__"  # 明示宣言した SerializerMethodField も含まれる
-        read_only_fields = ("latitude", "longitude", "location", "created_at", "updated_at")
+        read_only_fields = (
+            "latitude",
+            "longitude",
+            "location",
+            "created_at",
+            "updated_at",
+        )
 
     def get_is_favorite(self, obj):
         user = self._get_user()
@@ -47,7 +55,13 @@ class ShrineDetailSerializer(_AddressValidationMixin, serializers.ModelSerialize
     class Meta:
         model = Shrine
         fields = "__all__"
-        read_only_fields = ("latitude", "longitude", "location", "created_at", "updated_at")
+        read_only_fields = (
+            "latitude",
+            "longitude",
+            "location",
+            "created_at",
+            "updated_at",
+        )
 
     def get_is_favorite(self, obj):
         user = self._get_user()

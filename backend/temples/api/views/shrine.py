@@ -1,8 +1,14 @@
 # shrine.py
-from rest_framework import viewsets, permissions
 from django.db.models import Q
-from temples.models import Shrine, GoriyakuTag
-from temples.api.serializers.shrine import ShrineListSerializer, ShrineDetailSerializer, GoriyakuTagSerializer
+from rest_framework import permissions, viewsets
+
+from temples.api.serializers.shrine import (
+    GoriyakuTagSerializer,
+    ShrineDetailSerializer,
+    ShrineListSerializer,
+)
+from temples.models import GoriyakuTag, Shrine
+
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Shrine.objects.all()
@@ -17,19 +23,17 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
         q = params.get("q")
         if q:
             queryset = queryset.filter(
-                Q(name_jp__icontains=q) |
-                Q(name_romaji__icontains=q) |
-                Q(address__icontains=q) |
-                Q(goriyaku__icontains=q) |
-                Q(goriyaku_tags__name__icontains=q)
+                Q(name_jp__icontains=q)
+                | Q(name_romaji__icontains=q)
+                | Q(address__icontains=q)
+                | Q(goriyaku__icontains=q)
+                | Q(goriyaku_tags__name__icontains=q)
             )
 
         # 旧: 名前検索
         name = params.get("name")
         if name:
-            queryset = queryset.filter(
-                Q(name_jp__icontains=name) | Q(name_romaji__icontains=name)
-            )
+            queryset = queryset.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
 
         # 旧: ご利益タグ
         goriyaku = params.getlist("goriyaku")

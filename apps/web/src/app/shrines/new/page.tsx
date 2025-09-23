@@ -55,7 +55,7 @@ export default function NewShrinePage() {
     }
     throw new Error("住所から位置を取得できませんでした");
   };
-  
+
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });

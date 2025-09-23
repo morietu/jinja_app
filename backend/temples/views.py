@@ -4,9 +4,8 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Dict
 import re
-
+from typing import Any, Dict
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -19,18 +18,24 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import cache_page
+from django.views.generic import TemplateView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Shrine
-from .route_service import Point as RoutePoint, build_route
-
-from .serializers import RouteRequestSerializer, ShrineSerializer
 from temples.services import google_places as GP
 
+from .models import Shrine
+from .route_service import Point as RoutePoint
+from .route_service import build_route
+from .serializers import RouteRequestSerializer, ShrineSerializer
+
 logger = logging.getLogger(__name__)
+
+
+class ShrineListView(TemplateView):
+    template_name = "temples/list.html"
 
 
 # -----------------------------
@@ -80,6 +85,7 @@ def _is_shrine_owner(user, shrine) -> bool:
 
     return False
 
+
 def _parse_locationbias(s: str | None):
     if not s:
         return None
@@ -91,23 +97,29 @@ def _parse_locationbias(s: str | None):
     lng = float(m.group(3))
     return lat, lng, r
 
-def _normalize_candidate(cand: Dict[str, Any], *, lang: str = "ja", locationbias: str | None = None) -> Dict[str, Any]:
+
+def _normalize_candidate(
+    cand: Dict[str, Any], *, lang: str = "ja", locationbias: str | None = None
+) -> Dict[str, Any]:
     """
     name + area_hint を textsearch。locationbias があれば location/radius を付与してバイアス。
     """
-    query = f"{cand.get('name','')} {cand.get('area_hint','')}".strip()
+    query = f"{cand.get('name', '')} {cand.get('area_hint', '')}".strip()
     hit: Dict[str, Any] | None = None
     try:
         loc = _parse_locationbias(locationbias)
         if loc:
             lat, lng, r = loc
-            results = GP.textsearch(
-                query,
-                language=lang,
-                region="jp",
-                location=f"{lat},{lng}",
-                radius=r,
-            ) or []
+            results = (
+                GP.textsearch(
+                    query,
+                    language=lang,
+                    region="jp",
+                    location=f"{lat},{lng}",
+                    radius=r,
+                )
+                or []
+            )
         else:
             results = GP.textsearch(query, language=lang, region="jp") or []
         if results:
@@ -237,6 +249,7 @@ class PopularShrinesView(ListAPIView):
     - ?near=lat,lng & radius_km=R があれば bbox で絞り、近似距離でセカンダリソート
     - **レスポンスは {"items":[...]}**（テストがこちらを期待）
     """
+
     permission_classes = [AllowAny]
     throttle_scope = "places"
     serializer_class = ShrineSerializer
@@ -272,14 +285,19 @@ class PopularShrinesView(ListAPIView):
                 lat_delta = r_km / 111.32
                 lng_delta = r_km / (111.32 * max(0.000001, math.cos(math.radians(lat))))
 
-                qs = qs.filter(
-                    latitude__gte=lat - lat_delta,
-                    latitude__lte=lat + lat_delta,
-                    longitude__gte=lng - lng_delta,
-                    longitude__lte=lng + lng_delta,
-                ).annotate(
-                    _approx_deg=Abs(F("latitude") - Value(lat)) + Abs(F("longitude") - Value(lng))
-                ).order_by(*order_by, "_approx_deg")
+                qs = (
+                    qs.filter(
+                        latitude__gte=lat - lat_delta,
+                        latitude__lte=lat + lat_delta,
+                        longitude__gte=lng - lng_delta,
+                        longitude__lte=lng + lng_delta,
+                    )
+                    .annotate(
+                        _approx_deg=Abs(F("latitude") - Value(lat))
+                        + Abs(F("longitude") - Value(lng))
+                    )
+                    .order_by(*order_by, "_approx_deg")
+                )
             except Exception:
                 # パラメータ不正は無視
                 pass
@@ -307,6 +325,7 @@ class RouteAPIView(APIView):
     POST /api/route/
     認証は MVP 段階では無し（必要になれば JWT に差し替え）
     """
+
     authentication_classes: list[Any] = []
     permission_classes = [AllowAny]
 
@@ -321,5 +340,3 @@ class RouteAPIView(APIView):
 
         # Serializer での再検証は省略（クライアント合意のスキーマで返す）
         return Response(result)
-
-
