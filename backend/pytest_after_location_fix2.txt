@@ -1,0 +1,7 @@
+TemplesConfig.ready(): signals loaded
+Places upstream[findplacefromtext] https://maps.googleapis.com/maps/api/place/findplacefromtext/json?key=****&inputtype=textquery&input=浅草神社&language=ja&locationbias=circle:8000@35.6812,139.7671&fields=place_id,name,formatted_address,geometry
+Places upstream[findplacefromtext] https://maps.googleapis.com/maps/api/place/findplacefromtext/json?key=****&inputtype=textquery&input=浅草神社&language=ja&locationbias=circle:1500@35.715,139.797&fields=place_id,name,formatted_address,geometry
+[FINDPLACE DEBUG] input='浅草神社' locationbias=None
+[FINDPLACE DEBUG] input='浅草神社' locationbias=None
+[FINDPLACE DEBUG] input='赤坂氷川神社' locationbias=None
+.

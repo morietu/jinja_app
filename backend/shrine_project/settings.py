@@ -302,7 +302,8 @@ if IS_PYTEST:
             "anon": "1000/min",
             "user": "1000/min",
             "concierge": "1000/min",
-            "places": "1000/min",
+            # places はテストで確実に 429 を検出できるよう低く固定
+            "places": os.getenv("THROTTLE_PLACES_TEST", "1/min"),
         }
     )
 
@@ -493,3 +494,7 @@ else:
 
 
 TESTING = "PYTEST_CURRENT_TEST" in os.environ
+
+# pytest 実行時は自動ジオコーディングを無効化して外部API呼び出しを防ぐ
+if IS_PYTEST:
+    AUTO_GEOCODE_ON_SAVE = False
