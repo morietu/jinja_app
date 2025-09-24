@@ -1,9 +1,7 @@
 from django.db import migrations
-from django.contrib.gis.db.models import PointField
 
 
-def _enable_postgis(apps, schema_editor):
-    # PostgreSQL のときだけ PostGIS を有効化。SQLite/Spatialite では何もしない
+def _maybe_enable_postgis(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
     with schema_editor.connection.cursor() as cur:
@@ -11,15 +9,8 @@ def _enable_postgis(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ("temples", "0024_alter_favorite_options_and_more"),
-    ]
-
+    dependencies = [("temples", "0024_alter_favorite_options_and_more")]
     operations = [
-        migrations.RunPython(_enable_postgis, migrations.RunPython.noop),
-        migrations.AddField(
-            model_name="shrine",
-            name="location",
-            field=PointField(srid=4326, null=True, blank=True),
-        ),
+        migrations.RunPython(_maybe_enable_postgis, reverse_code=migrations.RunPython.noop),
+        # ※ もしここに AddField(location) が入っていたら削除。location は別の既存 migration で追加する
     ]

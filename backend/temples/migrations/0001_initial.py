@@ -5,31 +5,12 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
-def _enable_postgis(apps, schema_editor):
-    """
-    pytest(Spatialite) では実行しない。PostgreSQL のときだけ拡張を有効化。
-    """
-    if schema_editor.connection.vendor != "postgresql":
-        return
-    with schema_editor.connection.cursor() as cur:
-        cur.execute("CREATE EXTENSION IF NOT EXISTS postgis")
-
-
-def _disable_postgis(apps, schema_editor):
-    if schema_editor.connection.vendor != "postgresql":
-        return
-    with schema_editor.connection.cursor() as cur:
-        cur.execute("DROP EXTENSION IF EXISTS postgis")
-
-
 class Migration(migrations.Migration):
     initial = True
 
     dependencies = []
 
     operations = [
-        # ← ここで PostGIS を（PostgreSQL のときだけ）有効化
-        migrations.RunPython(_enable_postgis, _disable_postgis),
         migrations.CreateModel(
             name="ConciergeHistory",
             fields=[
