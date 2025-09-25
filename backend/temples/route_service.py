@@ -68,8 +68,8 @@ def build_route(mode: Mode, origin: Point, destinations: List[Point]) -> Dict:
         leg = adapter.get_leg(mode, current, dest)
         legs.append(leg)
         current = dest
-    distance_total = sum(l["distance_m"] for l in legs)
-    duration_total = sum(l["duration_s"] for l in legs)
+    distance_total = sum(leg["distance_m"] for leg in legs)
+    duration_total = sum(leg["duration_s"] for leg in legs)
     return {
         "mode": mode,
         "legs": legs,

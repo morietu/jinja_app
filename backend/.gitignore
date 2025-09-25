@@ -1,2 +1,4 @@
 pytest-*.txt
 .pytest_cache/
+*pytest*.txt
+snippet.txt

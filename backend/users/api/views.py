@@ -1,10 +1,10 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-
 from users.models import UserProfile
+
 from .serializers import UserMeSerializer, UserProfileUpdateSerializer
 
 

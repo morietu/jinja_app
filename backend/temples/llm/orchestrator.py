@@ -92,7 +92,7 @@ def _extract_markdown_list(text: str):
     箇条書き表現から {name, reason} を抽出して recommendations に落とす。
     """
     items = []
-    lines = [l.rstrip() for l in text.splitlines()]
+    lines = [line.rstrip() for line in text.splitlines()]
     for line in lines:
         s = line.strip()
         if not s:
@@ -106,8 +106,8 @@ def _extract_markdown_list(text: str):
                 items.append({"name": name, "reason": reason})
     # タイトル行→次行が理由 の簡易対応
     if not items:
-        for i, l in enumerate(lines[:-1]):
-            m = re.match(r"^(?:[-*+]|\d+[\).])\s*\*\*(.+?)\*\*\s*$", l.strip())
+        for i, line in enumerate(lines[:-1]):
+            m = re.match(r"^(?:[-*+]|\d+[\).])\s*\*\*(.+?)\*\*\s*$", line.strip())
             if m:
                 name = (m.group(1) or "").strip()
                 reason = lines[i + 1].strip()

@@ -1,7 +1,6 @@
 from typing import List
 
 from rest_framework import serializers
-
 from temples.models import Favorite, Goshuin, Shrine
 
 

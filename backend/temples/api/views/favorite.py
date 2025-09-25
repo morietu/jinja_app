@@ -2,9 +2,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from temples.api.serializers.shrine import ShrineListSerializer
-from temples.models import Shrine
+from temples.models import Favorite, Shrine
 
 
 class FavoriteToggleView(APIView):

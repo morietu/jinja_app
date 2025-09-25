@@ -2,6 +2,7 @@ import logging
 import re
 from typing import Any, Dict, Optional
 
+import temples.services.places as places_svc
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -9,8 +10,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
-
-import temples.services.places as places_svc
 from temples.llm.backfill import fill_locations
 from temples.services import google_places as GP
 

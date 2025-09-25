@@ -1,0 +1,33 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["temples", "shrine_project", "users"]
+extend-exclude = [
+  "temples/migrations",
+  "tmp_*.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "C90"]
+extend-ignore = ["E501", "E203"]
+
+[tool.ruff.lint.per-file-ignores]
+"temples/migrations/*.py" = ["F401", "F811", "I001"]
+"temples/tests/**" = ["I001", "F401", "E402", "F841"]
+"tmp_*.py" = ["I001", "E402", "F401"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+warn_return_any = false
+warn_unreachable = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+exclude = ["migrations"]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]

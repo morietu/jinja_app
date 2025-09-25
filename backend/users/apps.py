@@ -7,10 +7,10 @@ class UsersConfig(AppConfig):
     name = "users"
 
     def ready(self):
-        import users.signals  # 画像クリーンアップ等のシグナル
 
         from django.contrib.auth import get_user_model
         from django.db.models.signals import post_save
+
         from .models import UserProfile
 
         User = get_user_model()

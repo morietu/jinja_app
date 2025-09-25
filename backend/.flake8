@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 120
+extend-ignore = E203,W503
+per-file-ignores =
+    temples/migrations/*.py: F401,E501
+    users/migrations/*.py: F401,E501
+    temples/tests/**: F401,F841,E402,E501
+    tmp_*.py: F401,E402

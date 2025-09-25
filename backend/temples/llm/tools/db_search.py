@@ -4,7 +4,6 @@ from typing import Any, Dict, List
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.db.models import QuerySet
-
 from temples.models import Shrine
 
 
