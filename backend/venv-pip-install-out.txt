@@ -1,0 +1,18 @@
+Collecting ruff
+  Using cached ruff-0.13.1-py3-none-macosx_11_0_arm64.whl.metadata (25 kB)
+Collecting mypy
+  Downloading mypy-1.18.2-cp311-cp311-macosx_11_0_arm64.whl.metadata (2.2 kB)
+Requirement already satisfied: typing_extensions>=4.6.0 in ./.venv/lib/python3.11/site-packages (from mypy) (4.15.0)
+Requirement already satisfied: mypy_extensions>=1.0.0 in ./.venv/lib/python3.11/site-packages (from mypy) (1.1.0)
+Requirement already satisfied: pathspec>=0.9.0 in ./.venv/lib/python3.11/site-packages (from mypy) (0.12.1)
+Using cached ruff-0.13.1-py3-none-macosx_11_0_arm64.whl (12.2 MB)
+Downloading mypy-1.18.2-cp311-cp311-macosx_11_0_arm64.whl (11.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.8/11.8 MB 11.3 MB/s  0:00:01
+Installing collected packages: ruff, mypy
+
+Successfully installed mypy-1.18.2 ruff-0.13.1
+Requirement already satisfied: ruff in ./.venv/lib/python3.11/site-packages (0.13.1)
+Requirement already satisfied: mypy in ./.venv/lib/python3.11/site-packages (1.18.2)
+Requirement already satisfied: typing_extensions>=4.6.0 in ./.venv/lib/python3.11/site-packages (from mypy) (4.15.0)
+Requirement already satisfied: mypy_extensions>=1.0.0 in ./.venv/lib/python3.11/site-packages (from mypy) (1.1.0)
+Requirement already satisfied: pathspec>=0.9.0 in ./.venv/lib/python3.11/site-packages (from mypy) (0.12.1)

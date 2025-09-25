@@ -8,7 +8,23 @@ from decimal import Decimal
 import pytest
 import responses as httpmock
 from django.db.models.signals import pre_save
+from django.db import connection
 from rest_framework.test import APIClient
+
+
+def _has_postgis():
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT postgis_version();")
+            cur.fetchone()
+        return True
+    except Exception:
+        return False
+
+
+def pytest_runtest_setup(item):
+    if "postgis" in item.keywords and not _has_postgis():
+        pytest.skip("PostGIS is not available in this environment.")
 
 
 # ---- ネットワーク遮断（CIのみ・localhostだけ通す）----

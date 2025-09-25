@@ -4,7 +4,11 @@ from rest_framework.routers import DefaultRouter
 
 from temples.api.views.search import search  # 既存の search 関数を再利用
 
-from .api_views import FavoriteViewSet, RouteAPIView  # ← ShrineViewSet は router から外す
+from .api_views import (  # ← ShrineViewSet は router から外す
+    FavoriteViewSet,
+    RouteAPIView,
+    ShrineNearbyView,
+)
 from .api_views_concierge import ConciergeChatView, ConciergePlanView
 from .api_views_places import (
     PlaceDetailView,
@@ -35,6 +39,7 @@ urlpatterns = [
     path("shrines/<int:pk>/", shrine_detail, name="shrine_detail"),
     path("shrines/<int:pk>/route/", shrine_route, name="shrine_route"),
     path("search/", search, name="search"),
+    path("shrines/nearby", ShrineNearbyView.as_view(), name="shrines-nearby"),
     # その後に Router
     path("", include(router.urls)),
     # places

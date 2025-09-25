@@ -1,0 +1,246 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-8.3.4, pluggy-1.6.0 -- /Users/morietsu/Desktop/jinja_app/backend/.venv/bin/python
+cachedir: .pytest_cache
+django: version: 5.2.5, settings: shrine_project.settings (from env)
+rootdir: /Users/morietsu/Desktop/jinja_app/backend
+configfile: pytest.ini
+plugins: anyio-4.11.0, Faker-37.8.0, django-4.9.0, requests-mock-1.12.1
+collecting ... collected 43 items / 1 skipped
+
+temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan ERROR [  2%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_post_concierge_plan __________________
+
+request = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+django_test_environment = None
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x10481f0e0>
+django_db_use_migrations = True, django_db_keepdb = True
+django_db_createdb = True, django_db_modify_db_settings = None
+
+    @pytest.fixture(scope="session")
+    def django_db_setup(
+        request: pytest.FixtureRequest,
+        django_test_environment: None,
+        django_db_blocker: DjangoDbBlocker,
+        django_db_use_migrations: bool,
+        django_db_keepdb: bool,
+        django_db_createdb: bool,
+        django_db_modify_db_settings: None,
+    ) -> Generator[None, None, None]:
+        """Top level fixture to ensure test databases are available"""
+        from django.test.utils import setup_databases, teardown_databases
+
+        setup_databases_args = {}
+
+        if not django_db_use_migrations:
+            _disable_migrations()
+
+        if django_db_keepdb and not django_db_createdb:
+            setup_databases_args["keepdb"] = True
+
+        with django_db_blocker.unblock():
+>           db_cfg = setup_databases(
+                verbosity=request.config.option.verbose,
+                interactive=False,
+                **setup_databases_args,
+            )
+
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x10481f0e0>
+django_db_createdb = True
+django_db_keepdb = True
+django_db_modify_db_settings = None
+django_db_use_migrations = True
+django_test_environment = None
+request    = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+setup_databases = <function setup_databases at 0x1179f8360>
+setup_databases_args = {}
+teardown_databases = <function teardown_databases at 0x1179f85e0>
+
+.venv/lib/python3.13/site-packages/pytest_django/fixtures.py:144:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.13/site-packages/django/test/utils.py:204: in setup_databases
+    connection.creation.create_test_db(
+        alias      = 'default'
+        aliases    = ['default']
+        connection = <DatabaseWrapper vendor='sqlite' alias='default'>
+        db_name    = '/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3'
+        debug_sql  = False
+        first_alias = 'default'
+        interactive = False
+        keepdb     = False
+        kwargs     = {}
+        mirrored_aliases = {}
+        old_names  = [(<DatabaseWrapper vendor='sqlite' alias='default'>, '/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', True)]
+        parallel   = 0
+        serialize_connections = []
+        serialized_aliases = None
+        test_databases = {('/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', 'default'): ('/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', ['default'])}
+        time_keeper = <django.test.utils.NullTimeKeeper object at 0x122185400>
+        verbosity  = 1
+.venv/lib/python3.13/site-packages/django/db/backends/base/creation.py:78: in create_test_db
+    call_command(
+        action     = 'Creating'
+        autoclobber = True
+        call_command = <function call_command at 0x104fdef20>
+        keepdb     = False
+        self       = <django.db.backends.sqlite3.creation.DatabaseCreation object at 0x1176c41a0>
+        serialize  = False
+        test_database_name = 'file:memorydb_default?mode=memory&cache=shared'
+        verbosity  = 1
+.venv/lib/python3.13/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+        app_name   = 'django.core'
+        arg_options = {'database': 'default', 'interactive': False, 'run_syncdb': True, 'verbosity': 0}
+        args       = ()
+        command    = <django.core.management.commands.migrate.Command object at 0x122278ad0>
+        command_name = 'migrate'
+        defaults   = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        dest_parameters = {'app_label', 'check_unapplied', 'database', 'fake', 'fake_initial', 'force_color', ...}
+        get_actions = <function call_command.<locals>.get_actions at 0x12229a660>
+        mutually_exclusive_required_options = set()
+        opt        = _StoreTrueAction(option_strings=['--prune'], dest='prune', nargs=0, const=True, default=False, type=None, choices=None, required=False, help='Delete nonexistent migrations from the django_migrations table.', metavar=None, deprecated=False)
+        opt_mapping = {'check': 'check_unapplied', 'database': 'database', 'fake': 'fake', 'fake_initial': 'fake_initial', ...}
+        options    = {'database': 'default', 'interactive': False, 'run_syncdb': True, 'verbosity': 0}
+        parse_args = []
+        parser     = CommandParser(prog=' migrate', usage=None, description='Updates database schema. Manages both apps with migrations and....', formatter_class=<class 'django.core.management.base.DjangoHelpFormatter'>, conflict_handler='error', add_help=True)
+        parser_actions = [_HelpAction(option_strings=['-h', '--help'], dest='help', nargs=0, const=None, default='==SUPPRESS==', type=None, cho...e, required=False, help='Display a full stack trace on CommandError exceptions.', metavar=None, deprecated=False), ...]
+        stealth_options = {'stderr', 'stdout'}
+        unknown_options = set()
+        valid_options = {'app_label', 'check', 'check_unapplied', 'database', 'fake', 'fake_initial', ...}
+.venv/lib/python3.13/site-packages/django/core/management/base.py:460: in execute
+    output = self.handle(*args, **options)
+        args       = ()
+        options    = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        self       = <django.core.management.commands.migrate.Command object at 0x122278ad0>
+.venv/lib/python3.13/site-packages/django/core/management/base.py:107: in wrapper
+    res = handle_func(*args, **kwargs)
+        args       = (<django.core.management.commands.migrate.Command object at 0x122278ad0>,)
+        handle_func = <function Command.handle at 0x12229a160>
+        kwargs     = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        saved_locale = 'ja'
+        translation = <module 'django.utils.translation' from '/Users/morietsu/Desktop/jinja_app/backend/.venv/lib/python3.13/site-packages/django/utils/translation/__init__.py'>
+.venv/lib/python3.13/site-packages/django/core/management/commands/migrate.py:353: in handle
+    post_migrate_state = executor.migrate(
+        app_config = <TemplesConfig: temples>
+        args       = ()
+        conflicts  = {}
+        connection = <DatabaseWrapper vendor='sqlite' alias='default'>
+        database   = 'default'
+        executor   = <django.db.migrations.executor.MigrationExecutor object at 0x122279550>
+        fake       = False
+        fake_initial = False
+        options    = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        pre_migrate_apps = <django.db.migrations.state.StateApps object at 0x1222da900>
+        pre_migrate_state = <django.db.migrations.state.ProjectState object at 0x1222797f0>
+        run_syncdb = {'corsheaders', 'django_filters', 'favorites', 'gis', 'messages', 'postgres', ...}
+        self       = <django.core.management.commands.migrate.Command object at 0x122278ad0>
+        target_app_labels_only = True
+        targets    = [('admin', '0003_logentry_add_action_flag_choices'), ('auth', '0012_alter_user_first_name_max_length'), ('contenttypes...me'), ('sessions', '0001_initial'), ('temples', '0026_add_shrine_location'), ('users', '0004_userprofile_delete_user')]
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:135: in migrate
+    state = self._migrate_all_forwards(
+        all_backwards = False
+        all_forwards = True
+        fake       = False
+        fake_initial = False
+        full_plan  = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x122279550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1228007d0>
+        targets    = [('admin', '0003_logentry_add_action_flag_choices'), ('auth', '0012_alter_user_first_name_max_length'), ('contenttypes...me'), ('sessions', '0001_initial'), ('temples', '0026_add_shrine_location'), ('users', '0004_userprofile_delete_user')]
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:167: in _migrate_all_forwards
+    state = self.apply_migration(
+        _          = False
+        fake       = False
+        fake_initial = False
+        full_plan  = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        migration  = <Migration temples.0026_add_shrine_location>
+        migrations_to_run = {<Migration users.0001_initial>, <Migration users.0003_user_bio_user_created_at_user_icon_user_is_public_and_more>, <M...lic_alter_user_nickname>, <Migration users.0004_userprofile_delete_user>, <Migration temples.0026_add_shrine_location>}
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x122279550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1228007d0>
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:255: in apply_migration
+    state = migration.apply(state, schema_editor)
+        fake       = False
+        fake_initial = False
+        migration  = <Migration temples.0026_add_shrine_location>
+        migration_recorded = False
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x122279550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1228007d0>
+.venv/lib/python3.13/site-packages/django/db/migrations/migration.py:132: in apply
+    operation.database_forwards(
+        atomic_operation = True
+        collect_sql = False
+        old_state  = <django.db.migrations.state.ProjectState object at 0x1222c7e00>
+        operation  = <RunPython <function _ensure_location_field at 0x1222c1ee0> reverse_code=<function RunPython.noop at 0x105201760>>
+        project_state = <django.db.migrations.state.ProjectState object at 0x1228007d0>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+        self       = <Migration temples.0026_add_shrine_location>
+.venv/lib/python3.13/site-packages/django/db/migrations/operations/special.py:196: in database_forwards
+    self.code(from_state.apps, schema_editor)
+        app_label  = 'temples'
+        from_state = <django.db.migrations.state.ProjectState object at 0x1222c7e00>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+        self       = <RunPython <function _ensure_location_field at 0x1222c1ee0> reverse_code=<function RunPython.noop at 0x105201760>>
+        to_state   = <django.db.migrations.state.ProjectState object at 0x1228007d0>
+temples/migrations/0026_add_shrine_location.py:29: in _ensure_location_field
+    schema_editor.add_field(Shrine, field)
+        Shrine     = <class '__fake__.Shrine'>
+        apps       = <django.db.migrations.state.StateApps object at 0x1228d9860>
+        connection = <DatabaseWrapper vendor='sqlite' alias='default'>
+        cursor     = <django.db.backends.utils.CursorWrapper object at 0x1231a28d0>
+        existing_cols = ['id', 'name_jp', 'name_romaji', 'address', 'latitude', 'longitude', ...]
+        field      = <django.contrib.gis.db.models.fields.PointField>
+        gis_models = <module 'django.contrib.gis.db.models' from '/Users/morietsu/Desktop/jinja_app/backend/.venv/lib/python3.13/site-packages/django/contrib/gis/db/models/__init__.py'>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+        table_name = 'temples_shrine'
+.venv/lib/python3.13/site-packages/django/contrib/gis/db/backends/spatialite/schema.py:117: in add_field
+    self.column_sql(model, field)
+        GeometryField = <class 'django.contrib.gis.db.models.fields.GeometryField'>
+        __class__  = <class 'django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor'>
+        field      = <django.contrib.gis.db.models.fields.PointField>
+        model      = <class '__fake__.Shrine'>
+        self       = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+model = <class '__fake__.Shrine'>
+field = <django.contrib.gis.db.models.fields.PointField>
+include_default = False
+
+    def column_sql(self, model, field, include_default=False):
+        from django.contrib.gis.db.models import GeometryField
+
+        if not isinstance(field, GeometryField):
+            return super().column_sql(model, field, include_default)
+
+        # Geometry columns are created by the `AddGeometryColumn` function
+        self.geometry_sql.append(
+            self.sql_add_geometry_column
+            % {
+                "table": self.geo_quote_name(model._meta.db_table),
+>               "column": self.geo_quote_name(field.column),
+                "srid": field.srid,
+                "geom_type": self.geo_quote_name(field.geom_type),
+                "dim": field.dim,
+                "null": int(not field.null),
+            }
+        )
+E       AttributeError: 'PointField' object has no attribute 'column'. Did you mean: 'db_column'?
+
+GeometryField = <class 'django.contrib.gis.db.models.fields.GeometryField'>
+__class__  = <class 'django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor'>
+field      = <django.contrib.gis.db.models.fields.PointField>
+include_default = False
+model      = <class '__fake__.Shrine'>
+self       = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x12336e5d0>
+
+.venv/lib/python3.13/site-packages/django/contrib/gis/db/backends/spatialite/schema.py:50: AttributeError
+---------------------------- Captured stderr setup -----------------------------
+Creating test database for alias 'default'...
+=========================== short test summary info ============================
+ERROR temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 1 skipped, 1 error in 0.86s ==========================

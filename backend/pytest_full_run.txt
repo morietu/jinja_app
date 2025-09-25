@@ -1,0 +1,550 @@
+......s...........FFFFFss..F..FF.......FF..                              [100%]
+=================================== FAILURES ===================================
+________________________ test_favorites_crud_happy_path ________________________
+
+    @pytest.mark.django_db
+    def test_favorites_crud_happy_path():
+        u = make_user("apiu", password="p")
+>       s = make_shrine(name="Fav Shrine", owner=u)
+
+temples/tests/test_favorites_api.py:17:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11d610440>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+________________________ test_favorites_are_user_scoped ________________________
+
+    @pytest.mark.django_db
+    def test_favorites_are_user_scoped():
+        owner = make_user("owner", password="p")
+        other = make_user("other", password="p")
+>       s = make_shrine(name="Scoped Shrine", owner=owner)
+
+temples/tests/test_favorites_api.py:51:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x10fd45bd0>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+___________________________ test_post_is_idempotent ____________________________
+
+    @pytest.mark.django_db
+    def test_post_is_idempotent():
+        user = make_user("alice", password="pw")
+>       s = make_shrine(name="Idem Shrine", owner=user)
+
+temples/tests/test_favorites_api_idempotency.py:17:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11a35a0d0>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+______________ ShrinePermissionTests.test_non_owner_cannot_route _______________
+
+self = <backend.temples.tests.test_permissions.ShrinePermissionTests testMethod=test_non_owner_cannot_route>
+
+    def setUp(self):
+        self.u1 = make_user("u1", password="p")
+        self.u2 = make_user("u2", password="p")
+>       self.s1 = make_shrine(name="S1", owner=self.u1)
+
+temples/tests/test_permissions.py:14:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11cdf6fd0>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+___________ ShrinePermissionTests.test_non_owner_cannot_view_detail ____________
+
+self = <backend.temples.tests.test_permissions.ShrinePermissionTests testMethod=test_non_owner_cannot_view_detail>
+
+    def setUp(self):
+        self.u1 = make_user("u1", password="p")
+        self.u2 = make_user("u2", password="p")
+>       self.s1 = make_shrine(name="S1", owner=self.u1)
+
+temples/tests/test_permissions.py:14:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11cdf6520>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+_________________________ test_nearby_search_throttled _________________________
+
+settings = <pytest_django.fixtures.SettingsWrapper object at 0x11d615370>
+
+    @pytest.mark.django_db
+    def test_nearby_search_throttled(settings):
+        """
+        スロットル発動を確認する。
+        （環境変数や settings で 30/min などに設定済み前提）
+        """
+        client = APIClient()
+
+        # 実呼び出しはモックして速くする（結果は何でもよい）
+        with patch("temples.services.google_places.nearby_search") as mock_call:
+            mock_call.return_value = {
+                "status": "OK",
+                "results": [],
+                "next_page_token": None,
+            }
+
+            got_429 = False
+            # 連打すると 429 になるはず（レート次第で回数は多少前後OK）
+            for _ in range(80):
+                res = client.get(
+                    "/api/places/nearby_search/",
+                    {"lat": 35.0, "lng": 139.0, "radius": 1000},
+                )
+                if res.status_code == 429:
+                    got_429 = True
+                    break
+
+>           assert got_429, (
+                "Too Many Requests(429) が返らない — "
+                "settings.REST_FRAMEWORK のスロットル設定を確認してください"
+            )
+E           AssertionError: Too Many Requests(429) が返らない — settings.REST_FRAMEWORK のスロットル設定を確認してください
+E           assert False
+
+temples/tests/test_places_cache_and_throttle.py:82: AssertionError
+_______________ test_recommend_shrines_applies_bonus_and_orders ________________
+
+settings = <pytest_django.fixtures.SettingsWrapper object at 0x11d665480>
+
+    def test_recommend_shrines_applies_bonus_and_orders(settings):
+        settings.ENABLE_LUCK_BONUS = True
+        settings.LUCK_BONUS_POINT = 10.0
+
+        qs_like = [
+            _mk_obj(1, 50, False),
+            _mk_obj(2, 45, True),  # +10 => 55
+            _mk_obj(3, 60, False),
+        ]
+>       ids_scores = recommend_shrines(qs_like)
+
+temples/tests/test_recommendation_adapter.py:20:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+qs = [namespace(id=1, base_score=50, luck_bonus_flag=False), namespace(id=2, base_score=45, luck_bonus_flag=True), namespace(id=3, base_score=60, luck_bonus_flag=False)]
+
+    def recommend_shrines(
+        qs: QuerySet,
+        *,
+        enable_luck_bonus: bool | None = None,
+        base_field: str | None = None,
+        element_for_bonus: str | None = None,
+        bonus_point: float | None = None,
+    ) -> List[Tuple[int, float]]:
+        """
+        Shrine QuerySet から (id, score) のリストを返す。
+        - score は base_field をベースに、条件一致でボーナスを加点
+        - 返値は score 降順、同点時 id 昇順で安定ソート
+        """
+        # 設定値のデフォルトを安全に参照（env は使わない）
+        enable = (
+            enable_luck_bonus
+            if enable_luck_bonus is not None
+            else getattr(settings, "ENABLE_LUCK_BONUS", True)
+        )
+        base = base_field or getattr(settings, "LUCK_BASE_FIELD", "popular_score")
+        bonus_elem = element_for_bonus or getattr(settings, "LUCK_BONUS_ELEMENT", "金運")
+        bonus = float(
+            bonus_point if bonus_point is not None else getattr(settings, "LUCK_BONUS_POINT", 10.0)
+        )
+
+        # 必要なフィールドだけ取り出す
+>       rows = qs.values_list("id", base, "element")
+E       AttributeError: 'list' object has no attribute 'values_list'
+
+temples/services/recommendation.py:36: AttributeError
+_____________________ test_recommend_shrines_disable_bonus _____________________
+
+settings = <pytest_django.fixtures.SettingsWrapper object at 0x11d5a1260>
+
+    def test_recommend_shrines_disable_bonus(settings):
+        settings.ENABLE_LUCK_BONUS = False
+        settings.LUCK_BONUS_POINT = 10.0
+
+        qs_like = [
+            _mk_obj(1, 50, False),
+            _mk_obj(2, 45, True),  # ただしボーナス無効
+            _mk_obj(3, 60, False),
+        ]
+>       ids_scores = recommend_shrines(qs_like)
+
+temples/tests/test_recommendation_adapter.py:33:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+qs = [namespace(id=1, base_score=50, luck_bonus_flag=False), namespace(id=2, base_score=45, luck_bonus_flag=True), namespace(id=3, base_score=60, luck_bonus_flag=False)]
+
+    def recommend_shrines(
+        qs: QuerySet,
+        *,
+        enable_luck_bonus: bool | None = None,
+        base_field: str | None = None,
+        element_for_bonus: str | None = None,
+        bonus_point: float | None = None,
+    ) -> List[Tuple[int, float]]:
+        """
+        Shrine QuerySet から (id, score) のリストを返す。
+        - score は base_field をベースに、条件一致でボーナスを加点
+        - 返値は score 降順、同点時 id 昇順で安定ソート
+        """
+        # 設定値のデフォルトを安全に参照（env は使わない）
+        enable = (
+            enable_luck_bonus
+            if enable_luck_bonus is not None
+            else getattr(settings, "ENABLE_LUCK_BONUS", True)
+        )
+        base = base_field or getattr(settings, "LUCK_BASE_FIELD", "popular_score")
+        bonus_elem = element_for_bonus or getattr(settings, "LUCK_BONUS_ELEMENT", "金運")
+        bonus = float(
+            bonus_point if bonus_point is not None else getattr(settings, "LUCK_BONUS_POINT", 10.0)
+        )
+
+        # 必要なフィールドだけ取り出す
+>       rows = qs.values_list("id", base, "element")
+E       AttributeError: 'list' object has no attribute 'values_list'
+
+temples/services/recommendation.py:36: AttributeError
+____________ RouteViewTests.test_requires_login_redirects_to_login _____________
+
+self = <backend.temples.tests.test_route_view.RouteViewTests testMethod=test_requires_login_redirects_to_login>
+
+    def setUp(self):
+        # テンプレで <script ... key=...> を出すために一時キーを設定
+        os.environ["GOOGLE_MAPS_API_KEY"] = "test-key"
+        # 最小のユーザー＆神社
+        self.user = make_user(username="u", password="p")
+>       self.shrine = make_shrine(name="S1", owner=self.user)
+
+temples/tests/test_route_view.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11d66b770>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+________ RouteViewTests.test_route_page_renders_with_script_and_map_div ________
+
+self = <backend.temples.tests.test_route_view.RouteViewTests testMethod=test_route_page_renders_with_script_and_map_div>
+
+    def setUp(self):
+        # テンプレで <script ... key=...> を出すために一時キーを設定
+        os.environ["GOOGLE_MAPS_API_KEY"] = "test-key"
+        # 最小のユーザー＆神社
+        self.user = make_user(username="u", password="p")
+>       self.shrine = make_shrine(name="S1", owner=self.user)
+
+temples/tests/test_route_view.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+temples/tests/factories.py:56: in make_shrine
+    shrine = ShrineFactory(**mapped)
+.venv/lib/python3.13/site-packages/factory/base.py:43: in __call__
+    return cls.create(**kwargs)
+.venv/lib/python3.13/site-packages/factory/base.py:539: in create
+    return cls._generate(enums.CREATE_STRATEGY, kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:122: in _generate
+    return super()._generate(strategy, params)
+.venv/lib/python3.13/site-packages/factory/base.py:468: in _generate
+    return step.build()
+.venv/lib/python3.13/site-packages/factory/builder.py:274: in build
+    instance = self.factory_meta.instantiate(
+.venv/lib/python3.13/site-packages/factory/base.py:320: in instantiate
+    return self.factory._create(model, *args, **kwargs)
+.venv/lib/python3.13/site-packages/factory/django.py:175: in _create
+    return manager.create(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:663: in create
+    obj.save(force_insert=True, using=self.db)
+temples/models.py:117: in save
+    super().save(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/db/models/base.py:902: in save
+    self.save_base(
+.venv/lib/python3.13/site-packages/django/db/models/base.py:988: in save_base
+    pre_save.send(
+.venv/lib/python3.13/site-packages/django/dispatch/dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+temples/signals.py:94: in auto_geocode_on_save
+    client = GeocodingClient()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <temples.geocoding.client.GeocodingClient object at 0x11d5a1d00>
+session = None
+
+    def __init__(self, session: t.Optional[requests.Session] = None):
+        self.session = session or requests.Session()
+        self.provider = os.getenv("GEOCODER_PROVIDER", "opencage").lower()
+        self.api_key = os.getenv("GEOCODER_API_KEY", "")
+        if not self.api_key:
+>           raise GeocodingError("GEOCODER_API_KEY が設定されていません。")
+E           temples.geocoding.client.GeocodingError: GEOCODER_API_KEY が設定されていません。
+
+temples/geocoding/client.py:30: GeocodingError
+----------------------------- Captured stderr call -----------------------------
+auto_geocode_on_save: geocode failed: GEOCODER_API_KEY が設定されていません。
+=========================== short test summary info ============================
+FAILED temples/tests/test_favorites_api.py::test_favorites_crud_happy_path - ...
+FAILED temples/tests/test_favorites_api.py::test_favorites_are_user_scoped - ...
+FAILED temples/tests/test_favorites_api_idempotency.py::test_post_is_idempotent
+FAILED temples/tests/test_permissions.py::ShrinePermissionTests::test_non_owner_cannot_route
+FAILED temples/tests/test_permissions.py::ShrinePermissionTests::test_non_owner_cannot_view_detail
+FAILED temples/tests/test_places_cache_and_throttle.py::test_nearby_search_throttled
+FAILED temples/tests/test_recommendation_adapter.py::test_recommend_shrines_applies_bonus_and_orders
+FAILED temples/tests/test_recommendation_adapter.py::test_recommend_shrines_disable_bonus
+FAILED temples/tests/test_route_view.py::RouteViewTests::test_requires_login_redirects_to_login
+FAILED temples/tests/test_route_view.py::RouteViewTests::test_route_page_renders_with_script_and_map_div

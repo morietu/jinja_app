@@ -7,7 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 import temples.services.places as places_svc
@@ -206,7 +206,7 @@ class PlacesTextSearchView(APIView):
 
 class PlacesNearbySearchView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
 
     def get(self, request):

@@ -1,0 +1,136 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-8.3.4, pluggy-1.6.0 -- /Users/morietsu/Desktop/jinja_app/backend/.venv/bin/python
+cachedir: .pytest_cache
+django: version: 5.2.5, settings: shrine_project.settings (from env)
+rootdir: /Users/morietsu/Desktop/jinja_app/backend
+configfile: pytest.ini
+plugins: anyio-4.11.0, Faker-37.8.0, django-4.9.0, requests-mock-1.12.1
+collecting ... collected 43 items / 1 skipped
+
+temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan ERROR [  2%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_post_concierge_plan __________________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10d4792b0>
+sql = 'SELECT "temples_shrine"."id", "temples_shrine"."name_jp", "temples_shrine"."name_romaji", "temples_shrine"."address",...ine"."popular_score", "temples_shrine"."last_popular_calc_at" FROM "temples_shrine" ORDER BY "temples_shrine"."id" ASC'
+params = ()
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='sqlite' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10d4792b0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+
+.venv/lib/python3.13/site-packages/django/db/backends/utils.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <django.db.backends.sqlite3.base.SQLiteCursorWrapper object at 0x10d390a70>
+query = 'SELECT "temples_shrine"."id", "temples_shrine"."name_jp", "temples_shrine"."name_romaji", "temples_shrine"."address",...ine"."popular_score", "temples_shrine"."last_popular_calc_at" FROM "temples_shrine" ORDER BY "temples_shrine"."id" ASC'
+params = ()
+
+    def execute(self, query, params=None):
+        if params is None:
+            return super().execute(query)
+        # Extract names if params is a mapping, i.e. "pyformat" style is used.
+        param_names = list(params) if isinstance(params, Mapping) else None
+        query = self.convert_query(query, param_names=param_names)
+>       return super().execute(query, params)
+E       sqlite3.OperationalError: no such column: temples_shrine.location
+
+.venv/lib/python3.13/site-packages/django/db/backends/sqlite3/base.py:360: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+django_test_environment = None
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x10240f0e0>
+django_db_use_migrations = True, django_db_keepdb = True
+django_db_createdb = True, django_db_modify_db_settings = None
+
+    @pytest.fixture(scope="session")
+    def django_db_setup(
+        request: pytest.FixtureRequest,
+        django_test_environment: None,
+        django_db_blocker: DjangoDbBlocker,
+        django_db_use_migrations: bool,
+        django_db_keepdb: bool,
+        django_db_createdb: bool,
+        django_db_modify_db_settings: None,
+    ) -> Generator[None, None, None]:
+        """Top level fixture to ensure test databases are available"""
+        from django.test.utils import setup_databases, teardown_databases
+
+        setup_databases_args = {}
+
+        if not django_db_use_migrations:
+            _disable_migrations()
+
+        if django_db_keepdb and not django_db_createdb:
+            setup_databases_args["keepdb"] = True
+
+        with django_db_blocker.unblock():
+>           db_cfg = setup_databases(
+                verbosity=request.config.option.verbose,
+                interactive=False,
+                **setup_databases_args,
+            )
+
+.venv/lib/python3.13/site-packages/pytest_django/fixtures.py:144:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.13/site-packages/django/test/utils.py:239: in setup_databases
+    serialize_connection.creation.serialize_db_to_string()
+.venv/lib/python3.13/site-packages/django/db/backends/base/creation.py:145: in serialize_db_to_string
+    serializers.serialize("json", get_objects(), indent=None, stream=out)
+.venv/lib/python3.13/site-packages/django/core/serializers/__init__.py:134: in serialize
+    s.serialize(queryset, **options)
+.venv/lib/python3.13/site-packages/django/core/serializers/base.py:109: in serialize
+    for count, obj in enumerate(queryset, start=1):
+.venv/lib/python3.13/site-packages/django/db/backends/base/creation.py:141: in get_objects
+    yield from queryset.iterator(chunk_size=chunk_size)
+.venv/lib/python3.13/site-packages/django/db/models/query.py:502: in _iterator
+    yield from iterable
+.venv/lib/python3.13/site-packages/django/db/models/query.py:91: in __iter__
+    results = compiler.execute_sql(
+.venv/lib/python3.13/site-packages/django/db/models/sql/compiler.py:1623: in execute_sql
+    cursor.execute(sql, params)
+.venv/lib/python3.13/site-packages/django/db/backends/utils.py:79: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.13/site-packages/django/db/backends/utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.13/site-packages/django/db/backends/utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.13/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+.venv/lib/python3.13/site-packages/django/db/backends/utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <django.db.backends.sqlite3.base.SQLiteCursorWrapper object at 0x10d390a70>
+query = 'SELECT "temples_shrine"."id", "temples_shrine"."name_jp", "temples_shrine"."name_romaji", "temples_shrine"."address",...ine"."popular_score", "temples_shrine"."last_popular_calc_at" FROM "temples_shrine" ORDER BY "temples_shrine"."id" ASC'
+params = ()
+
+    def execute(self, query, params=None):
+        if params is None:
+            return super().execute(query)
+        # Extract names if params is a mapping, i.e. "pyformat" style is used.
+        param_names = list(params) if isinstance(params, Mapping) else None
+        query = self.convert_query(query, param_names=param_names)
+>       return super().execute(query, params)
+E       django.db.utils.OperationalError: no such column: temples_shrine.location
+
+.venv/lib/python3.13/site-packages/django/db/backends/sqlite3/base.py:360: OperationalError
+---------------------------- Captured stderr setup -----------------------------
+Creating test database for alias 'default'...
+=========================== short test summary info ============================
+ERROR temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 1 skipped, 1 error in 0.98s ==========================

@@ -7,6 +7,7 @@ import os
 import re
 from typing import Any, Dict
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -22,6 +23,7 @@ from django.views.generic import TemplateView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from temples.services import google_places as GP
@@ -251,6 +253,12 @@ class PopularShrinesView(ListAPIView):
     """
 
     permission_classes = [AllowAny]
+    # production: use ScopedRateThrottle with "places" scope
+    # pytest: disable throttling to avoid cross-test rate exhaustion
+    if getattr(settings, "IS_PYTEST", False):
+        throttle_classes = []
+    else:
+        throttle_classes = [ScopedRateThrottle]
     throttle_scope = "places"
     serializer_class = ShrineSerializer
 

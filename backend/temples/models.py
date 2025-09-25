@@ -64,7 +64,9 @@ class Shrine(models.Model):
     longitude = gis_models.FloatField(
         validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
-    location = gis_models.PointField(srid=4326, null=True, blank=True)  # 経度(x), 緯度(y)
+    location = gis_models.PointField(
+        srid=4326, null=True, blank=True, spatial_index=False
+    )  # 経度(x), 緯度(y)
 
     # ご利益・祭神など
     goriyaku = gis_models.TextField(
@@ -110,11 +112,42 @@ class Shrine(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        if self.latitude is not None and self.longitude is not None:
-            self.location = Point(self.longitude, self.latitude, srid=4326)
+        # 空文字 -> None 正規化（フォーム/管理画面対策）
+        def _norm(v):
+            return None if v in ("", None) else v
+
+        lat = _norm(self.latitude)
+        lng = _norm(self.longitude)
+
+        new_location = None
+        if lat is not None and lng is not None:
+            new_location = Point(float(lng), float(lat), srid=4326)
+
+        # 変化がある時だけ更新（無駄UPDATE回避）
+        if (self.location is None) != (new_location is None) or (
+            self.location is not None
+            and new_location is not None
+            and (self.location.x != new_location.x or self.location.y != new_location.y)
+        ):
+            self.location = new_location
+            # update_fields が指定されていれば location を足す
+            if "update_fields" in kwargs and kwargs["update_fields"] is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"])
+                kwargs["update_fields"].add("location")
+
+        # latitude/longitude の正規化も反映
+        if "update_fields" in kwargs and kwargs["update_fields"] is not None:
+            if "latitude" in kwargs["update_fields"]:
+                self.latitude = lat
+            if "longitude" in kwargs["update_fields"]:
+                self.longitude = lng
+            # set -> list に戻す
+            kwargs["update_fields"] = list(kwargs["update_fields"])
         else:
-            self.location = None
-        super().save(*args, **kwargs)
+            self.latitude = lat
+            self.longitude = lng
+
+        return super().save(*args, **kwargs)
 
 
 class Favorite(models.Model):
@@ -137,7 +170,6 @@ class Favorite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("user", "shrine")
         ordering = ("-created_at",)
 
         constraints = [
