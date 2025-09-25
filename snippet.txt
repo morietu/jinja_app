@@ -1,0 +1,43 @@
+F
+=================================== FAILURES ===================================
+__________________ test_api_accepts_area_string_and_shortens ___________________
+
+client = <django.test.client.Client object at 0x1120f1650>
+endpoint_path = '/api/concierge/plan/'
+req_history = [('https://maps.googleapis.com/maps/api/place/findplacefromtext/json', {'fields': 'place_id,name,formatted_address,geo...{'fields': 'place_id,name,formatted_address,geometry', 'input': '赤坂氷川神社', 'inputtype': 'textquery', 'key': None, ...})]
+
+    @pytest.mark.django_db
+    def test_api_accepts_area_string_and_shortens(client, endpoint_path, req_history):
+        payload = {
+            "query": "縁結び 徒歩",
+            "area": "港区赤坂",
+            "candidates": [{"name": "赤坂氷川神社"}],
+        }
+        res = client.post(endpoint_path, data=json.dumps(payload), content_type="application/json")
+        assert res.status_code == 200
+>       data = res.json()["data"]["recommendations"][0]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+backend/temples/tests/test_concierge.py:72: IndexError
+----------------------------- Captured stdout call -----------------------------
+[FINDPLACE DEBUG] input='赤坂氷川神社' locationbias=None
+[FINDPLACE DEBUG] input='赤坂氷川神社' locationbias=None
+[FINDPLACE DEBUG] input='赤坂氷川神社' locationbias=None
+----------------------------- Captured stderr call -----------------------------
+Places upstream[findplacefromtext] https://maps.googleapis.com/maps/api/place/findplacefromtext/json?key=****&inputtype=textquery&input=赤坂氷川神社&language=ja&locationbias=circle:8000@35.6812,139.7671&fields=place_id,name,formatted_address,geometry
+Places upstream[findplacefromtext] https://maps.googleapis.com/maps/api/place/findplacefromtext/json?key=****&inputtype=textquery&input=赤坂氷川神社&language=ja&fields=place_id,name,formatted_address,geometry
+=============================== warnings summary ===============================
+backend/temples/tests/test_nearby_api.py:6
+  /Users/morietsu/Desktop/jinja_app/backend/temples/tests/test_nearby_api.py:6: PytestUnknownMarkWarning: Unknown pytest.mark.postgis - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.postgis  # PostGIS前提
+
+backend/temples/tests/test_nearby_query.py:5
+  /Users/morietsu/Desktop/jinja_app/backend/temples/tests/test_nearby_query.py:5: PytestUnknownMarkWarning: Unknown pytest.mark.postgis - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.postgis
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/temples/tests/test_concierge.py::test_api_accepts_area_string_and_shortens
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 1 skipped, 50 deselected, 2 warnings in 0.96s
