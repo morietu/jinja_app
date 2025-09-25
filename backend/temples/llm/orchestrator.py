@@ -12,6 +12,14 @@ from .prompts import SYSTEM_PROMPT
 from .schemas import complete_recommendations, normalize_recs
 
 
+def chat_to_plan(message: str, candidates: list[dict] | None = None) -> dict:
+    """
+    Back-compat shim expected by older tests/imports.
+    旧API互換: message を query とみなし、recommendations 形式を返す。
+    """
+    return ConciergeOrchestrator().suggest(query=message, candidates=candidates or [])
+
+
 def _extract_json(text: str):
     if not isinstance(text, str):
         return None
