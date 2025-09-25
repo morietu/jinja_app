@@ -6,7 +6,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-
 from temples import services  # services.__init__ で places_* をエクスポートしている想定
 from temples.services.places import PlacesError  # 例外をHTTPへ正規化
 

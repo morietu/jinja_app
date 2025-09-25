@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import requests
 from django.conf import settings
-
 from temples.services import google_places as GP
 
 log = logging.getLogger(__name__)

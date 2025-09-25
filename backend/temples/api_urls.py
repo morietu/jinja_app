@@ -1,7 +1,6 @@
 # backend/temples/api_urls.py
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-
 from temples.api.views.concierge import ConciergeChatView
 
 from .api_views import (

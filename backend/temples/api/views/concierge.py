@@ -12,8 +12,8 @@ from openai import OpenAI
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-
 from temples.api.serializers.concierge import (
     ConciergeHistorySerializer,
     ConciergeRecommendationsQuery,

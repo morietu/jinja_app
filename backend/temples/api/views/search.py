@@ -1,6 +1,5 @@
 from django.db.models import Case, IntegerField, When
 from django.http import JsonResponse
-
 from temples.models import Shrine
 from temples.services.recommendation import recommend_shrines
 

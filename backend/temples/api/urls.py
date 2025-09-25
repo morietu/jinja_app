@@ -1,7 +1,6 @@
 # backend/temples/api/urls.py
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-
 from temples.api.views import (
     FavoriteToggleView,
     RankingAPIView,

@@ -1,7 +1,6 @@
 # backend/temples/urls.py
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-
 from temples.api.views.search import search  # 既存の search 関数を再利用
 
 from .api_views import (  # ← ShrineViewSet は router から外す

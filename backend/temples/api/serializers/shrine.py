@@ -1,6 +1,5 @@
 # temples/api/serializers/shrine.py
 from rest_framework import serializers
-
 from temples.models import Favorite, GoriyakuTag, Shrine, Visit
 
 
