@@ -15,5 +15,4 @@ djangorestframework-simplejwt>=5.3
 requests>=2.31.0
 # httpx は 0.27 系で固定（0.28 での破壊変更を避ける）
 httpx>=0.27.0,<0.28.0
-openai==1.40.0
-pydantic>=2.7
+openai==1.40.*

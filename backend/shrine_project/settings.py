@@ -15,7 +15,7 @@ REPO_ROOT = BASE_DIR.parent
 for name in (".env.local", ".env.dev", ".env"):
     p = REPO_ROOT / name if (REPO_ROOT / name).exists() else BASE_DIR / name
     if p.exists():
-        load_dotenv(p, override=True)  # 既存の環境変数より .env を優先したいなら True
+        load_dotenv(p, override=True)
         os.environ.setdefault("ENV_FILE", str(p))
         break
 
@@ -26,6 +26,9 @@ def _is_pytest() -> bool:
         return True
     argv = " ".join(sys.argv).lower()
     return ("pytest" in argv) or ("py.test" in argv)
+
+
+IS_PYTEST = _is_pytest()
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -45,8 +48,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-IS_PYTEST = _is_pytest()
-USE_GIS = _env_bool("USE_GIS", False)  # ← NameError の原因を解消
+USE_GIS = _env_bool("USE_GIS", False)
+
+# feature/develop: small feature flags
+ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
+LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
+LUCK_BASE_FIELD = "popular_score"
+LUCK_FLAG_FIELD = ""
+LUCK_BONUS_ELEMENT = "金運"
+LUCK_BONUS_IDS = []
+
 
 # ========= macOS の GDAL/GEOS/PROJ ヒント =========
 if sys.platform == "darwin":
@@ -54,6 +65,7 @@ if sys.platform == "darwin":
     os.environ.setdefault("PROJ_LIB", "/opt/homebrew/share/proj")
     GDAL_LIBRARY_PATH = "/opt/homebrew/opt/gdal/lib/libgdal.dylib"
     GEOS_LIBRARY_PATH = "/opt/homebrew/opt/geos/lib/libgeos_c.dylib"
+
 
 # Windows 用のフォールバック情報（保持だけ）
 _CONDA_PREFIX = Path(sys.prefix)
@@ -91,9 +103,10 @@ DB_USER = os.getenv("DJANGO_DB_USER", "admin")
 DB_PASSWORD = os.getenv("DJANGO_DB_PASSWORD", "jdb50515")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+
 # ========= データベース決定 =========
 if IS_PYTEST:
-    # ✅ pytest 中は常に Spatialite（GeoDjango）
+    # pytest 中は Spatialite (GeoDjango 有効)
     DATABASES = {
         "default": {
             "ENGINE": "django.contrib.gis.db.backends.spatialite",
@@ -106,9 +119,7 @@ if IS_PYTEST:
         )
     else:
         SPATIALITE_LIBRARY_PATH = os.environ.get("SPATIALITE_LIBRARY_PATH", "mod_spatialite.so")
-
 else:
-    # --- ベース定義 ---
     if DATABASE_URL:
         try:
             import dj_database_url
@@ -116,7 +127,7 @@ else:
             DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
         except Exception:
             # フォールバック
-            if DATABASE_URL.startswith("postgres"):
+            if DATABASE_URL and DATABASE_URL.startswith("postgres"):
                 DATABASES = {
                     "default": {
                         "ENGINE": "django.db.backends.postgresql",
@@ -135,28 +146,35 @@ else:
                     }
                 }
     else:
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": DB_NAME,
-                "USER": DB_USER,
-                "PASSWORD": DB_PASSWORD,
-                "HOST": DB_HOST,
-                "PORT": DB_PORT,
-                "CONN_MAX_AGE": 60,
-                "OPTIONS": {"connect_timeout": 5},
-                "TEST": {"NAME": f"test_{DB_NAME}"},
+        if USE_GIS:
+            # 本番/開発で GIS を使うとき（PostGIS）
+            DATABASES = {
+                "default": {
+                    "ENGINE": "django.contrib.gis.db.backends.postgis",
+                    "NAME": "jinja_app",
+                    "USER": "",
+                    "PASSWORD": "",
+                    "HOST": "127.0.0.1",
+                    "PORT": "5432",
+                    "CONN_MAX_AGE": 60,
+                    "OPTIONS": {"connect_timeout": 5},
+                }
             }
-        }
-
-    # --- ここがポイント：USE_GIS=1 のときは必ず PostGIS バックエンドへ ---
-    if USE_GIS:
-        # どんな ENGINE が入っていても postgis に差し替える
-        DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
-
-        # TEST DB も明示（DjangoはTESTセクションのENGINEを継承しない場合があるため）
-        DATABASES["default"].setdefault("TEST", {})
-        DATABASES["default"]["TEST"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+        else:
+            # 通常の PostgreSQL（GIS なし）
+            DATABASES = {
+                "default": {
+                    "ENGINE": "django.db.backends.postgresql",
+                    "NAME": DB_NAME,
+                    "USER": DB_USER,
+                    "PASSWORD": DB_PASSWORD,
+                    "HOST": DB_HOST,
+                    "PORT": DB_PORT,
+                    "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
+                    "OPTIONS": {"connect_timeout": 5},
+                    "TEST": {"NAME": f"test_{DB_NAME}"},
+                }
+            }
 
 
 # ========= キャッシュ =========
@@ -254,7 +272,8 @@ INSTALLED_APPS = [
     "users",
     "temples.apps.TemplesConfig",
 ]
-# ✅ pytest 中 または USE_GIS=1 のときだけ GeoDjango を追加
+
+# ✅ pytest 中 または USE_GIS=1 のときは GeoDjango を追加
 if (IS_PYTEST or USE_GIS) and "django.contrib.gis" not in INSTALLED_APPS:
     insert_pos = (
         INSTALLED_APPS.index("django.contrib.postgres") + 1

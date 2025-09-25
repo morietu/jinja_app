@@ -19,6 +19,9 @@ class Migration(migrations.Migration):
 
     ops = []
 
+    # Ensure PostGIS extension is created only on PostgreSQL backends at migrate time.
+    ops.append(migrations.RunPython(_maybe_enable_postgis, reverse_code=migrations.RunPython.noop))
+
     # Add GiST index only if GiSTIndex is importable and the model has 'location' field.
     def _maybe_add_gist_index(apps, schema_editor):
         if GiSTIndex is None:
@@ -33,7 +36,5 @@ class Migration(migrations.Migration):
         schema_editor.add_index(Shrine, index)
 
     ops.append(migrations.RunPython(_maybe_add_gist_index))
-    # Ensure PostGIS extension is created only on PostgreSQL backends at migrate time.
-    ops.append(migrations.RunPython(_maybe_enable_postgis))
 
     operations = ops

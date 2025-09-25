@@ -1,0 +1,9 @@
+trim trailing whitespace.................................................Passed
+fix end of files.........................................................Passed
+check for merge conflicts................................................Passed
+check yaml...........................................(no files to check)Skipped
+black................................................(no files to check)Skipped
+ruff.................................................(no files to check)Skipped
+[feat/backend-llm-module-refactor 68314eae] LLM/backfill: prefer recommendation address; add fallback tests, logging and CI
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 backend/git-add-out.txt
