@@ -8,7 +8,6 @@ from urllib.parse import unquote_to_bytes
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -25,6 +24,7 @@ from rest_framework_simplejwt.authentication import (
 )  # 認証が必要な所だけで使用
 
 from temples.llm.orchestrator import chat_to_plan
+from temples.queries import nearest_shrines
 
 from .api.serializers import FavoriteSerializer, FavoriteUpsertSerializer
 from .models import Favorite, Goshuin, PlaceRef, Shrine
@@ -253,43 +253,67 @@ def _inject_exact_match(q: str, location: str, radius_i: int, data: dict):
 
 
 # ---- 近隣神社検索 -------------------------------------------------------------
-class NearbyShrinesView(APIView):
+class ShrineNearbyView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        # === params ===
+        # 互換のため ?lng=... / ?lon=... どちらでもOKにする
+        lat_str = request.query_params.get("lat")
+        lng_str = request.query_params.get("lng") or request.query_params.get("lon")
+        radius_str = request.query_params.get("radius")  # 単位: m
+        limit_str = request.query_params.get("limit")
+
+        # 必須: lat/lng
         try:
-            lat = float(request.GET.get("lat"))
-            lng = float(request.GET.get("lng"))
+            lat = float(lat_str)
+            lng = float(lng_str)
         except (TypeError, ValueError):
-            return Response({"detail": "lat,lng は必須です"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "lat と lng（または lon）は必須です。数値で指定してください。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 任意: 半径 / 上限
         try:
-            radius_m = int(request.GET.get("radius", 1500))
+            radius_m = int(radius_str) if radius_str else None
         except ValueError:
-            radius_m = 1500
-        radius_m = max(100, min(radius_m, 10000))
-        radius_km = radius_m / 1000.0
+            radius_m = None
         try:
-            limit = int(request.GET.get("limit", 3))
+            limit = int(limit_str) if limit_str else 20
         except ValueError:
-            limit = 3
-        limit = max(1, min(limit, 20))
-        lat_delta = radius_km / 110.574
-        lng_den = 111.320 * max(0.000001, cos(radians(lat)))
-        lng_delta = radius_km / lng_den
-        qs = Shrine.objects.filter(
-            Q(latitude__gte=lat - lat_delta)
-            & Q(latitude__lte=lat + lat_delta)
-            & Q(longitude__gte=lng - lng_delta)
-            & Q(longitude__lte=lng + lng_delta)
-        ).values("id", "name_jp", "address", "latitude", "longitude")
-        items: List[Dict[str, Any]] = []
-        for s in qs:
-            d = haversine_km(lat, lng, s["latitude"], s["longitude"])
-            if d <= radius_km:
-                s["distance"] = round(d, 3)
-                items.append(s)
-        items.sort(key=lambda x: x["distance"])
-        return Response(items[:limit], status=status.HTTP_200_OK)
+            limit = 20
+
+        # サニタイズ
+        limit = max(1, min(limit, 50))  # 1..50
+        if radius_m is not None:
+            radius_m = max(50, min(radius_m, 30000))  # 50m..30km
+
+        # === query ===
+        qs = nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
+
+        # distance_m は queries.py で select している列名
+        rows = qs.values("id", "name_jp", "address", "latitude", "longitude", "distance_m")
+
+        # 丸め（お好みで）
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = r.pop("distance_m", None)
+            if d is not None:
+                # psycopg の数値→Decimal/float どちらでも受ける
+                d = float(d)
+            r["distance_m"] = round(d, 2) if d is not None else None
+            results.append(r)
+
+        return Response(
+            {
+                "count": len(results),
+                "center": {"lat": lat, "lng": lng},
+                "radius_m": radius_m,
+                "results": results,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---- Places API（検索・ページング・Nearby・写真・詳細） -----------------------

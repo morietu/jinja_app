@@ -9,6 +9,7 @@ try:
 except Exception:
     GinIndex = None
     GistIndex = None
+
 import django.db.models.deletion
 import django.utils.timezone
 from django.conf import settings
@@ -85,7 +86,7 @@ class Migration(migrations.Migration):
             name="date",
             field=models.DateField(default=django.utils.timezone.localdate),
         ),
-        # Add Postgres-specific indexes only if running against PostgreSQL.
+        # --- Keep: PlaceRef の JSON に対する GIN インデックス（PostgreSQL のときのみ） ---
         migrations.RunPython(
             lambda apps, schema_editor: (
                 schema_editor.add_index(
@@ -96,16 +97,17 @@ class Migration(migrations.Migration):
                 else None
             )
         ),
-        migrations.RunPython(
-            lambda apps, schema_editor: (
-                schema_editor.add_index(
-                    apps.get_model("temples", "Shrine"),
-                    GistIndex(fields=["location"], name="shrine_location_gist"),
-                )
-                if GistIndex is not None and schema_editor.connection.vendor == "postgresql"
-                else None
-            )
-        ),
+        # --- Removed: Shrine.location に対する GIST 追加（location は後の 0027 で追加されるため） ---
+        # migrations.RunPython(
+        #     lambda apps, schema_editor: (
+        #         schema_editor.add_index(
+        #             apps.get_model("temples", "Shrine"),
+        #             GistIndex(fields=["location"], name="shrine_location_gist"),
+        #         )
+        #         if GistIndex is not None and schema_editor.connection.vendor == "postgresql"
+        #         else None
+        #     )
+        # ),
         migrations.AddConstraint(
             model_name="rankinglog",
             constraint=models.UniqueConstraint(
