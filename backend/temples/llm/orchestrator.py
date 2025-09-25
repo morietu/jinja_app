@@ -96,11 +96,20 @@ class ConciergeOrchestrator:
                 if data is not None
                 else (_extract_markdown_list(text) or {"raw": text})
             )
-            return (
-                complete_recommendations(tmp, query=query, candidates=candidates)
-                if isinstance(tmp, dict) and "recommendations" in tmp
-                else tmp
-            )
+            # --- ここから追記: 最終フォールバックで recommendations を保証 ---
+            if isinstance(tmp, dict) and "recommendations" in tmp and tmp["recommendations"]:
+                return complete_recommendations(tmp, query=query, candidates=candidates)
+
+            # LLMが構造化に失敗した場合でも candidates から最低1件作る
+            recs = []
+            for i, c in enumerate(candidates):
+                name = c.get("name") or c.get("place_id") or "unknown"
+                recs.append(
+                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
+                )
+            if not recs:
+                recs = [{"name": "近隣の神社", "reason": ""}]
+            return {"recommendations": recs}
 
         # LLM不在のフォールバック：入力候補の順序をスコア化
         recs = []
