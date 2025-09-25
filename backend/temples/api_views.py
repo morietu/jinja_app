@@ -21,7 +21,6 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework_simplejwt.authentication import JWTAuthentication  # 認証が必要な所だけで使用
-
 from temples.llm.backfill import _shorten_japanese_address as _S
 from temples.llm.backfill import fill_locations
 from temples.llm.orchestrator import chat_to_plan

@@ -3,7 +3,6 @@
 import re
 
 from rest_framework import serializers
-
 from temples.models import Favorite, PlaceRef, Shrine
 from temples.services.places import get_or_sync_place
 

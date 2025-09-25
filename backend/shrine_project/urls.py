@@ -8,7 +8,6 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-
 from temples.api_views_concierge import ConciergePlanView
 
 from .views import favicon, index

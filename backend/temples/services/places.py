@@ -26,7 +26,16 @@ GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 logger = logging.getLogger(__name__)
 
+_TIMEOUT = 10  # seconds
+
 DEBUG_PLACES_RANKING = os.getenv("PLACES_DEBUG", "0").lower() in {"1", "true", "on"}
+
+
+def _log_upstream(name: str, url: str, params: dict) -> None:
+    masked = dict(params or {})
+    if "key" in masked:
+        masked["key"] = "****"
+    logger.info("Places upstream[%s] %s %s", name, url, masked)
 
 
 def _dbg(msg: str, **kv):

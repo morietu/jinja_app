@@ -1,17 +1,17 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth.forms import UserCreationForm
-from django.views import View
 from django.contrib.auth.decorators import login_required
-from rest_framework.views import APIView
-from rest_framework.response import Response
-
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from django.contrib.auth.forms import UserCreationForm
+from django.shortcuts import redirect, render
+from django.views import View
 from rest_framework.exceptions import NotAuthenticated, NotFound
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .serializers import MeSerializer
 
 
 class MeView(APIView):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated, IsAuthenticatedOrReadOnly]
 
     def get(self, request):
         if not request.user.is_authenticated:
@@ -50,7 +50,7 @@ class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = MeSerializer(request.user)
         return Response(serializer.data)
 
 

@@ -4,7 +4,6 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 from django.utils import timezone
-
 from temples.models import Favorite, Shrine  # Favorite に created_at が必要
 
 W_VIEW = 1.0
