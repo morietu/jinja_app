@@ -134,8 +134,11 @@ def _log_findplace_req(name: str, locbias: Optional[str]) -> None:
     if locbias:
         params["locationbias"] = locbias
 
-    # ★ これを追加（pytest -s で標準出力に出ます）
-    print(f"[FINDPLACE DEBUG] input={name!r} locationbias={locbias}")
+    # テストが req_history を使っているため、標準出力は残さずログへ出す
+    try:
+        log.debug("findplace request input=%r locationbias=%r", name, locbias)
+    except Exception:
+        pass
 
     GP.req_history.append((_DETAIL_URL, dict(params)))
     GP.req_history.append((_FIND_URL, dict(params)))
@@ -248,6 +251,17 @@ def fill_locations(
 
         name = (rec.get("name") or "").strip()
         if not name:
+            out.append(rec)
+            continue
+
+        # recommendation 自身に formatted_address/address があれば優先して location を埋める
+        fmt_addr = rec.get("formatted_address") or rec.get("address")
+        if fmt_addr:
+            rec["location"] = (
+                _shorten_japanese_address({"address_components": [], "formatted_address": fmt_addr})
+                if shorten
+                else fmt_addr
+            )
             out.append(rec)
             continue
 

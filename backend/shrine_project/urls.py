@@ -19,9 +19,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # アプリのAPI
     path("api/", include("users.api.urls")),
-    path("api/", include(("temples.urls", "temples"), namespace="temples_web")),
+    path("api/", include(("temples.urls", "temples"), namespace="temples")),
     path("api/concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
-    path("api/temples/", include(("temples.api.urls", "temples"), namespace="temples")),
+    path("api/temples/", include(("temples.api.urls", "temples"), namespace="temples_api")),
     # SimpleJWT（フロントが使っているのはこっち）
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),

@@ -18,6 +18,7 @@ src = ["backend"]
 exclude = [
   "backend/**/migrations/**",
   "backend/users/**",
+  "backend/tmp_debug*.py",
 ]
 # まずは致命系と import 整理だけに絞る
 lint.select = ["E", "F", "I"]

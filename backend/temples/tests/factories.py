@@ -1,8 +1,8 @@
 # temples/tests/factories.py
 import factory
-from factory.django import DjangoModelFactory  # <-- you were missing this
+from factory.django import DjangoModelFactory
 from django.contrib.auth import get_user_model
-from temples.models import Shrine  # adjust if your import path differs
+from temples.models import Shrine
 
 User = get_user_model()
 
@@ -25,39 +25,45 @@ class ShrineFactory(DjangoModelFactory):
     class Meta:
         model = Shrine
 
-    # Provide safe defaults that satisfy NOT NULLs
+    # NOT NULL を満たすデフォルト
     name_jp = factory.Sequence(lambda n: f"S{n}")
     address = "東京都テスト区1-1-1"
     latitude = 35.0
     longitude = 139.0
+    # Shrine.save() 側で lat/lng -> location が自動反映される想定
 
 
-def make_shrine(**kw):
+def make_shrine(*args, **kwargs):
     """
-    Test helper that accepts test-friendly kwargs and maps them to model fields.
-    Accepted aliases:
-      - name  -> name_jp
-      - owner/user are swallowed (don’t pass to model)
+    テスト用ヘルパ（柔軟な呼び方が可能）:
+      - 位置指定: make_shrine("名前", 35.6, 139.7, address="...")
+      - キーワード: make_shrine(name="名前", lat=..., lng=..., address="...")
+      - 既存互換: name -> name_jp にマッピング
     """
-    mapped = dict(kw)
+    # 位置を引数でも受けられるように
+    if len(args) >= 3:
+        name, lat, lng = args[:3]
+        kwargs.setdefault("name", name)
+        kwargs.setdefault("lat", lat)
+        kwargs.setdefault("lng", lng)
 
-    # Map alias fields expected by tests
+    mapped = dict(kwargs)
+
+    # エイリアスをモデル項目へマッピング
     if "name" in mapped:
         mapped["name_jp"] = mapped.pop("name")
+    if "lat" in mapped:
+        mapped["latitude"] = mapped.pop("lat")
+    if "lng" in mapped:
+        mapped["longitude"] = mapped.pop("lng")
 
-    # Do NOT forward owner/user into model (Shrine has no such field)
-    _owner = mapped.pop("owner", None)
-    _user = mapped.pop("user", None)
+    # 余計な引数は落とす（owner/user などモデルに無い物）
+    mapped.pop("owner", None)
+    mapped.pop("user", None)
 
-    # Ensure non-null coords if caller left them out
+    # デフォルト補完
+    mapped.setdefault("address", "東京都テスト区1-1-1")
     mapped.setdefault("latitude", 35.0)
     mapped.setdefault("longitude", 139.0)
 
-    shrine = ShrineFactory(**mapped)
-
-    # If the model ever gains an owner field, attach it defensively
-    if (_owner or _user) and hasattr(shrine, "owner_id"):
-        shrine.owner = _owner or _user
-        shrine.save()
-
-    return shrine
+    return ShrineFactory(**mapped)

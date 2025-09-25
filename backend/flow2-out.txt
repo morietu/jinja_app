@@ -1,0 +1,12 @@
+TemplesConfig.ready(): signals loaded
+=== start debug concierge flow ===
+bias: None
+llm_recs: {'recommendations': [{'id': 'PID_AKASAKA', 'name': '赤坂氷川神社', 'formatted_address': '東京都港区赤坂6-10-12', 'reason': 'dummy'}]}
+[FINDPLACE DEBUG] input='赤坂氷川神社' locationbias=None
+lookup addr for rec: None
+after lookup on recs: {'recommendations': [{'id': 'PID_AKASAKA', 'name': '赤坂氷川神社', 'formatted_address': '東京都港区赤坂6-10-12', 'reason': 'dummy'}]}
+enriched_candidates: [{'name': '赤坂氷川神社'}]
+Places upstream[findplacefromtext] https://maps.googleapis.com/maps/api/place/findplacefromtext/json?key=****&inputtype=textquery&input=赤坂氷川神社&language=ja&fields=place_id,name,formatted_address,geometry
+filled: {'recommendations': [{'id': 'PID_AKASAKA', 'name': '赤坂氷川神社', 'formatted_address': '東京都港区赤坂6-10-12', 'reason': 'dummy'}]}
+final recommendations: [{'id': 'PID_AKASAKA', 'name': '赤坂氷川神社', 'formatted_address': '東京都港区赤坂6-10-12', 'reason': 'dummy'}]
+=== done ===

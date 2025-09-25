@@ -1,0 +1,285 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-8.3.4, pluggy-1.6.0 -- /Users/morietsu/Desktop/jinja_app/backend/.venv/bin/python
+cachedir: .pytest_cache
+django: version: 5.2.5, settings: shrine_project.settings (from env)
+rootdir: /Users/morietsu/Desktop/jinja_app/backend
+configfile: pytest.ini
+plugins: anyio-4.11.0, Faker-37.8.0, django-4.9.0, requests-mock-1.12.1
+collecting ... collected 43 items / 1 skipped
+
+temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan ERROR [  2%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_post_concierge_plan __________________
+
+self = <Options for Shrine>, field_name = 'location'
+
+    def get_field(self, field_name):
+        """
+        Return a field instance given the name of a forward or reverse field.
+        """
+        try:
+            # In order to avoid premature loading of the relation tree
+            # (expensive) we prefer checking if the field is a forward field.
+            return self._forward_fields_map[field_name]
+        except KeyError:
+            # If the app registry is not ready, reverse fields are
+            # unavailable, therefore we throw a FieldDoesNotExist exception.
+            if not self.apps.models_ready:
+                raise FieldDoesNotExist(
+                    "%s has no field named '%s'. The app cache isn't ready yet, "
+                    "so if this is an auto-created related field, it won't "
+                    "be available yet." % (self.object_name, field_name)
+                )
+
+        try:
+            # Retrieve field instance by name from cached or just-computed
+            # field map.
+>           return self.fields_map[field_name]
+E           KeyError: 'location'
+
+field_name = 'location'
+self       = <Options for Shrine>
+
+.venv/lib/python3.13/site-packages/django/db/models/options.py:683: KeyError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+django_test_environment = None
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x1050db0e0>
+django_db_use_migrations = True, django_db_keepdb = True
+django_db_createdb = True, django_db_modify_db_settings = None
+
+    @pytest.fixture(scope="session")
+    def django_db_setup(
+        request: pytest.FixtureRequest,
+        django_test_environment: None,
+        django_db_blocker: DjangoDbBlocker,
+        django_db_use_migrations: bool,
+        django_db_keepdb: bool,
+        django_db_createdb: bool,
+        django_db_modify_db_settings: None,
+    ) -> Generator[None, None, None]:
+        """Top level fixture to ensure test databases are available"""
+        from django.test.utils import setup_databases, teardown_databases
+
+        setup_databases_args = {}
+
+        if not django_db_use_migrations:
+            _disable_migrations()
+
+        if django_db_keepdb and not django_db_createdb:
+            setup_databases_args["keepdb"] = True
+
+        with django_db_blocker.unblock():
+>           db_cfg = setup_databases(
+                verbosity=request.config.option.verbose,
+                interactive=False,
+                **setup_databases_args,
+            )
+
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x1050db0e0>
+django_db_createdb = True
+django_db_keepdb = True
+django_db_modify_db_settings = None
+django_db_use_migrations = True
+django_test_environment = None
+request    = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+setup_databases = <function setup_databases at 0x10e848360>
+setup_databases_args = {}
+teardown_databases = <function teardown_databases at 0x10e8485e0>
+
+.venv/lib/python3.13/site-packages/pytest_django/fixtures.py:144:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.13/site-packages/django/test/utils.py:204: in setup_databases
+    connection.creation.create_test_db(
+        alias      = 'default'
+        aliases    = ['default']
+        connection = <DatabaseWrapper vendor='sqlite' alias='default'>
+        db_name    = '/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3'
+        debug_sql  = False
+        first_alias = 'default'
+        interactive = False
+        keepdb     = False
+        kwargs     = {}
+        mirrored_aliases = {}
+        old_names  = [(<DatabaseWrapper vendor='sqlite' alias='default'>, '/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', True)]
+        parallel   = 0
+        serialize_connections = []
+        serialized_aliases = None
+        test_databases = {('/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', 'default'): ('/Users/morietsu/Desktop/jinja_app/backend/test_gis.sqlite3', ['default'])}
+        time_keeper = <django.test.utils.NullTimeKeeper object at 0x118db1400>
+        verbosity  = 1
+.venv/lib/python3.13/site-packages/django/db/backends/base/creation.py:78: in create_test_db
+    call_command(
+        action     = 'Creating'
+        autoclobber = True
+        call_command = <function call_command at 0x10589ef20>
+        keepdb     = False
+        self       = <django.db.backends.sqlite3.creation.DatabaseCreation object at 0x10e7641a0>
+        serialize  = False
+        test_database_name = 'file:memorydb_default?mode=memory&cache=shared'
+        verbosity  = 1
+.venv/lib/python3.13/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+        app_name   = 'django.core'
+        arg_options = {'database': 'default', 'interactive': False, 'run_syncdb': True, 'verbosity': 0}
+        args       = ()
+        command    = <django.core.management.commands.migrate.Command object at 0x119178ad0>
+        command_name = 'migrate'
+        defaults   = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        dest_parameters = {'app_label', 'check_unapplied', 'database', 'fake', 'fake_initial', 'force_color', ...}
+        get_actions = <function call_command.<locals>.get_actions at 0x11919a660>
+        mutually_exclusive_required_options = set()
+        opt        = _StoreTrueAction(option_strings=['--prune'], dest='prune', nargs=0, const=True, default=False, type=None, choices=None, required=False, help='Delete nonexistent migrations from the django_migrations table.', metavar=None, deprecated=False)
+        opt_mapping = {'check': 'check_unapplied', 'database': 'database', 'fake': 'fake', 'fake_initial': 'fake_initial', ...}
+        options    = {'database': 'default', 'interactive': False, 'run_syncdb': True, 'verbosity': 0}
+        parse_args = []
+        parser     = CommandParser(prog=' migrate', usage=None, description='Updates database schema. Manages both apps with migrations and....', formatter_class=<class 'django.core.management.base.DjangoHelpFormatter'>, conflict_handler='error', add_help=True)
+        parser_actions = [_HelpAction(option_strings=['-h', '--help'], dest='help', nargs=0, const=None, default='==SUPPRESS==', type=None, cho...e, required=False, help='Display a full stack trace on CommandError exceptions.', metavar=None, deprecated=False), ...]
+        stealth_options = {'stderr', 'stdout'}
+        unknown_options = set()
+        valid_options = {'app_label', 'check', 'check_unapplied', 'database', 'fake', 'fake_initial', ...}
+.venv/lib/python3.13/site-packages/django/core/management/base.py:460: in execute
+    output = self.handle(*args, **options)
+        args       = ()
+        options    = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        self       = <django.core.management.commands.migrate.Command object at 0x119178ad0>
+.venv/lib/python3.13/site-packages/django/core/management/base.py:107: in wrapper
+    res = handle_func(*args, **kwargs)
+        args       = (<django.core.management.commands.migrate.Command object at 0x119178ad0>,)
+        handle_func = <function Command.handle at 0x11919a160>
+        kwargs     = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        saved_locale = 'ja'
+        translation = <module 'django.utils.translation' from '/Users/morietsu/Desktop/jinja_app/backend/.venv/lib/python3.13/site-packages/django/utils/translation/__init__.py'>
+.venv/lib/python3.13/site-packages/django/core/management/commands/migrate.py:353: in handle
+    post_migrate_state = executor.migrate(
+        app_config = <TemplesConfig: temples>
+        args       = ()
+        conflicts  = {}
+        connection = <DatabaseWrapper vendor='sqlite' alias='default'>
+        database   = 'default'
+        executor   = <django.db.migrations.executor.MigrationExecutor object at 0x119179550>
+        fake       = False
+        fake_initial = False
+        options    = {'app_label': None, 'check_unapplied': False, 'database': 'default', 'fake': False, ...}
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        pre_migrate_apps = <django.db.migrations.state.StateApps object at 0x1191da7b0>
+        pre_migrate_state = <django.db.migrations.state.ProjectState object at 0x1191797f0>
+        run_syncdb = {'corsheaders', 'django_filters', 'favorites', 'gis', 'messages', 'postgres', ...}
+        self       = <django.core.management.commands.migrate.Command object at 0x119178ad0>
+        target_app_labels_only = True
+        targets    = [('admin', '0003_logentry_add_action_flag_choices'), ('auth', '0012_alter_user_first_name_max_length'), ('contenttypes...ions', '0001_initial'), ('temples', '0025_enable_postgis_and_add_location'), ('users', '0004_userprofile_delete_user')]
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:135: in migrate
+    state = self._migrate_all_forwards(
+        all_backwards = False
+        all_forwards = True
+        fake       = False
+        fake_initial = False
+        full_plan  = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x119179550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1191fc7d0>
+        targets    = [('admin', '0003_logentry_add_action_flag_choices'), ('auth', '0012_alter_user_first_name_max_length'), ('contenttypes...ions', '0001_initial'), ('temples', '0025_enable_postgis_and_add_location'), ('users', '0004_userprofile_delete_user')]
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:167: in _migrate_all_forwards
+    state = self.apply_migration(
+        _          = False
+        fake       = False
+        fake_initial = False
+        full_plan  = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        migration  = <Migration temples.0022_goshuinimage_like_remove_viewlike_shrine_and_more>
+        migrations_to_run = {<Migration users.0004_userprofile_delete_user>, <Migration users.0001_initial>, <Migration temples.0023_fix_str_metho...Migration temples.0025_enable_postgis_and_add_location>, <Migration temples.0024_alter_favorite_options_and_more>, ...}
+        plan       = [(<Migration contenttypes.0001_initial>, False), (<Migration auth.0001_initial>, False), (<Migration admin.0001_initia...n.0003_logentry_add_action_flag_choices>, False), (<Migration contenttypes.0002_remove_content_type_name>, False), ...]
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x119179550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1191fc7d0>
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:255: in apply_migration
+    state = migration.apply(state, schema_editor)
+        fake       = False
+        fake_initial = False
+        migration  = <Migration temples.0022_goshuinimage_like_remove_viewlike_shrine_and_more>
+        migration_recorded = False
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+        self       = <django.db.migrations.executor.MigrationExecutor object at 0x119179550>
+        state      = <django.db.migrations.state.ProjectState object at 0x1191fc7d0>
+.venv/lib/python3.13/site-packages/django/db/migrations/migration.py:132: in apply
+    operation.database_forwards(
+        atomic_operation = False
+        collect_sql = False
+        old_state  = <django.db.migrations.state.ProjectState object at 0x1191c2eb0>
+        operation  = <AddIndex  model_name='shrine', index=<GistIndex: fields=['location'] name='shrine_location_gist'>>
+        project_state = <django.db.migrations.state.ProjectState object at 0x1191fc7d0>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+        self       = <Migration temples.0022_goshuinimage_like_remove_viewlike_shrine_and_more>
+.venv/lib/python3.13/site-packages/django/db/migrations/operations/models.py:954: in database_forwards
+    schema_editor.add_index(model, self.index)
+        app_label  = 'temples'
+        from_state = <django.db.migrations.state.ProjectState object at 0x1191c2eb0>
+        model      = <class '__fake__.Shrine'>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+        self       = <AddIndex  model_name='shrine', index=<GistIndex: fields=['location'] name='shrine_location_gist'>>
+        to_state   = <django.db.migrations.state.ProjectState object at 0x1191fc7d0>
+.venv/lib/python3.13/site-packages/django/db/backends/base/schema.py:569: in add_index
+    self.execute(index.create_sql(model, self), params=None)
+        index      = <GistIndex: fields=['location'] name='shrine_location_gist'>
+        model      = <class '__fake__.Shrine'>
+        self       = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+.venv/lib/python3.13/site-packages/django/contrib/postgres/indexes.py:26: in create_sql
+    statement = super().create_sql(
+        __class__  = <class 'django.contrib.postgres.indexes.PostgresIndex'>
+        kwargs     = {}
+        model      = <class '__fake__.Shrine'>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+        self       = <GistIndex: fields=['location'] name='shrine_location_gist'>
+        using      = ''
+.venv/lib/python3.13/site-packages/django/db/models/indexes.py:112: in create_sql
+    model._meta.get_field(field_name)
+        condition  = None
+        include    = []
+        kwargs     = {}
+        model      = <class '__fake__.Shrine'>
+        schema_editor = <django.contrib.gis.db.backends.spatialite.schema.SpatialiteSchemaEditor object at 0x11a2478d0>
+        self       = <GistIndex: fields=['location'] name='shrine_location_gist'>
+        using      = ' USING gist'
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Options for Shrine>, field_name = 'location'
+
+    def get_field(self, field_name):
+        """
+        Return a field instance given the name of a forward or reverse field.
+        """
+        try:
+            # In order to avoid premature loading of the relation tree
+            # (expensive) we prefer checking if the field is a forward field.
+            return self._forward_fields_map[field_name]
+        except KeyError:
+            # If the app registry is not ready, reverse fields are
+            # unavailable, therefore we throw a FieldDoesNotExist exception.
+            if not self.apps.models_ready:
+                raise FieldDoesNotExist(
+                    "%s has no field named '%s'. The app cache isn't ready yet, "
+                    "so if this is an auto-created related field, it won't "
+                    "be available yet." % (self.object_name, field_name)
+                )
+
+        try:
+            # Retrieve field instance by name from cached or just-computed
+            # field map.
+            return self.fields_map[field_name]
+        except KeyError:
+>           raise FieldDoesNotExist(
+                "%s has no field named '%s'" % (self.object_name, field_name)
+            )
+E           django.core.exceptions.FieldDoesNotExist: Shrine has no field named 'location'
+
+field_name = 'location'
+self       = <Options for Shrine>
+
+.venv/lib/python3.13/site-packages/django/db/models/options.py:685: FieldDoesNotExist
+---------------------------- Captured stderr setup -----------------------------
+Creating test database for alias 'default'...
+=========================== short test summary info ============================
+ERROR temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 1 skipped, 1 error in 0.75s ==========================

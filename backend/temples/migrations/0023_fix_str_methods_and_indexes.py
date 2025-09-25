@@ -6,6 +6,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("temples", "0022_goshuinimage_like_remove_viewlike_shrine_and_more"),
+        # location を追加する 0025 を先に適用させる
+        # ("temples", "0025_enable_postgis_and_add_location"),
     ]
 
     operations = [

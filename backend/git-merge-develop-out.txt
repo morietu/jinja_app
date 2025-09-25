@@ -1,0 +1,11 @@
+Auto-merging backend/requirements-dev.txt
+CONFLICT (content): Merge conflict in backend/requirements-dev.txt
+Auto-merging backend/requirements.txt
+CONFLICT (content): Merge conflict in backend/requirements.txt
+Auto-merging backend/shrine_project/settings.py
+CONFLICT (content): Merge conflict in backend/shrine_project/settings.py
+Auto-merging backend/temples/migrations/0025_enable_postgis_and_add_location.py
+CONFLICT (add/add): Merge conflict in backend/temples/migrations/0025_enable_postgis_and_add_location.py
+Auto-merging backend/temples/tests/conftest.py
+CONFLICT (content): Merge conflict in backend/temples/tests/conftest.py
+Automatic merge failed; fix conflicts and then commit the result.
