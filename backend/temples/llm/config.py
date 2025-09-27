@@ -4,6 +4,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+
 
 def _getenv(key: str, default: str | None = None) -> str | None:
     val = os.getenv(key, default)
