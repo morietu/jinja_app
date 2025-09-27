@@ -14,3 +14,6 @@ SET timezone = 'Asia/Tokyo';
 -- SET lc_monetary = 'ja_JP.UTF-8';
 -- SET lc_numeric = 'ja_JP.UTF-8';
 -- SET lc_time = 'ja_JP.UTF-8';
+
+-- PostGIS を有効化
+CREATE EXTENSION IF NOT EXISTS postgis;

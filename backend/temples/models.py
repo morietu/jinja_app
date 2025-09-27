@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models  # PostGIS 対応
 from django.contrib.gis.geos import Point
-from django.contrib.postgres.indexes import GinIndex, GistIndex
+from django.contrib.postgres.indexes import GinIndex  # ← GistIndex は削除
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q
@@ -60,13 +60,16 @@ class Shrine(models.Model):
     address = gis_models.CharField(max_length=255)
 
     # 位置情報
-    latitude = gis_models.FloatField(validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
-    longitude = gis_models.FloatField(
-        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    latitude = gis_models.FloatField(
+        null=True, blank=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
     )
+    longitude = gis_models.FloatField(
+        null=True, blank=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
+    # ★ PointField を定義（自動で GIST インデックスが作られる）
     location = gis_models.PointField(
-        srid=4326, null=True, blank=True, spatial_index=False
-    )  # 経度(x), 緯度(y)
+        srid=4326, null=True, blank=True
+    )  # spatial_index=True がデフォルト
 
     # ご利益・祭神など
     goriyaku = gis_models.TextField(
@@ -75,7 +78,7 @@ class Shrine(models.Model):
     sajin = gis_models.TextField(help_text="祭神", blank=True, null=True, default="")
     description = gis_models.TextField(blank=True, null=True)
 
-    # 多対多: ご利益タグ（検索用）
+    # 多対多
     goriyaku_tags = gis_models.ManyToManyField("GoriyakuTag", related_name="shrines", blank=True)
 
     # 将来のAI用（五行・属性）
@@ -83,9 +86,8 @@ class Shrine(models.Model):
         max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
     )
 
-    # タイムスタンプ
     created_at = gis_models.DateTimeField(default=timezone.now)
-    updated_at = gis_models.DateTimeField(auto_now=True)
+    updated_at = gis_models.DateTimeField(auto_now=True)  # ★存在必須
 
     # 人気集計（直近30日）
     views_30d = gis_models.PositiveIntegerField(default=0)
@@ -101,18 +103,31 @@ class Shrine(models.Model):
         indexes = [
             models.Index(fields=["name_jp"]),
             models.Index(fields=["updated_at"]),
-            # 人気順の高速化（descはB-Treeで表現できないためクエリでORDER BY DESC、
-            # ここでは並び替えに寄与する一般Indexを付与）
             models.Index(fields=["popular_score"], name="shrine_popular_idx"),
-            # PointField の spatial_index=True で自動作成されるため省略可
-            GistIndex(fields=["location"], name="shrine_location_gist"),
+            # ↓ 手動の GIST は削除（PointField の自動インデックスに任せる）
+            # GistIndex(fields=["location"], name="shrine_location_gist"),
             models.Index(fields=["latitude"], name="idx_shrine_lat"),
             models.Index(fields=["longitude"], name="idx_shrine_lng"),
             models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
         ]
+        constraints = [
+            CheckConstraint(
+                check=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0), name="chk_lat_range"
+            ),
+            CheckConstraint(
+                check=Q(longitude__gte=-180.0) & Q(longitude__lte=180.0), name="chk_lng_range"
+            ),
+            CheckConstraint(
+                check=(
+                    Q(latitude__isnull=True, longitude__isnull=True)
+                    | Q(latitude__isnull=False, longitude__isnull=False)
+                ),
+                name="chk_lat_lng_both_or_none",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
-        # 空文字 -> None 正規化（フォーム/管理画面対策）
+        # ここは既存ロジックのまま（lat/lng → location を同期）
         def _norm(v):
             return None if v in ("", None) else v
 
@@ -123,25 +138,21 @@ class Shrine(models.Model):
         if lat is not None and lng is not None:
             new_location = Point(float(lng), float(lat), srid=4326)
 
-        # 変化がある時だけ更新（無駄UPDATE回避）
         if (self.location is None) != (new_location is None) or (
             self.location is not None
             and new_location is not None
             and (self.location.x != new_location.x or self.location.y != new_location.y)
         ):
             self.location = new_location
-            # update_fields が指定されていれば location を足す
             if "update_fields" in kwargs and kwargs["update_fields"] is not None:
                 kwargs["update_fields"] = set(kwargs["update_fields"])
                 kwargs["update_fields"].add("location")
 
-        # latitude/longitude の正規化も反映
         if "update_fields" in kwargs and kwargs["update_fields"] is not None:
             if "latitude" in kwargs["update_fields"]:
                 self.latitude = lat
             if "longitude" in kwargs["update_fields"]:
                 self.longitude = lng
-            # set -> list に戻す
             kwargs["update_fields"] = list(kwargs["update_fields"])
         else:
             self.latitude = lat
