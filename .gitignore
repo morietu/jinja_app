@@ -56,3 +56,4 @@ apps/**/node_modules/
 # ===== Local scratch =====
 cookies.txt
 c.txt
+.env.local

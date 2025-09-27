@@ -1,64 +1,56 @@
-# backend/temples/llm/schemas.py
 from __future__ import annotations
 
 from typing import Any, Dict, List
 
 
-def normalize_recs(data: Any, query: str = "") -> Dict[str, Any] | None:
+def normalize_recs(data: Dict[str, Any] | None, *, query: str = "") -> Dict[str, Any]:
     """
-    LLMが返したJSONらしきオブジェクトから { recommendations: [{name, reason, ...}], summary? } を抽出。
-    柔らかく吸収してminimumスキーマに寄せる。
+    LLMが返したJSONから {recommendations: [{name, reason, ...}], ...} に正規化。
+    想定キーがなければ空を返す。
     """
     if not isinstance(data, dict):
-        return None
-
-    # すでに recommendations があれば尊重
-    if "recommendations" in data and isinstance(data["recommendations"], list):
-        return {
-            "summary": data.get("summary", ""),
-            "recommendations": [
+        return {"recommendations": []}
+    recs: List[Dict[str, Any]] = []
+    cand = data.get("recommendations") or data.get("spots") or []
+    if isinstance(cand, list):
+        for it in cand:
+            if not isinstance(it, dict):
+                continue
+            name = (it.get("name") or "").strip()
+            if not name:
+                continue
+            recs.append(
                 {
-                    "name": (r.get("name") or r.get("title") or "").strip(),
-                    "reason": (r.get("reason") or r.get("why") or ""),
-                    "location": r.get("location") or "",
-                    "place_id": r.get("place_id"),
-                    "lat": r.get("lat"),
-                    "lng": r.get("lng"),
+                    "name": name,
+                    "reason": (it.get("reason") or data.get("summary") or "").strip(),
+                    "place_id": it.get("place_id"),
+                    "lat": it.get("lat"),
+                    "lng": it.get("lng"),
                 }
-                for r in data["recommendations"]
-                if isinstance(r, dict) and (r.get("name") or r.get("title"))
-            ],
-        }
-
-    # spots 形式（Planスキーマ寄り）も吸収
-    if "spots" in data and isinstance(data["spots"], list):
-        return {
-            "summary": data.get("summary", ""),
-            "recommendations": [
-                {
-                    "name": (s.get("name") or "").strip(),
-                    "reason": s.get("reason", ""),
-                    "location": "",
-                    "place_id": s.get("place_id"),
-                    "lat": s.get("lat"),
-                    "lng": s.get("lng"),
-                }
-                for s in data["spots"]
-                if isinstance(s, dict) and s.get("name")
-            ],
-        }
-
-    return None
+            )
+    return {"recommendations": recs}
 
 
 def complete_recommendations(
-    payload: Dict[str, Any], query: str = "", candidates: List[Dict[str, Any]] | None = None
+    payload: Dict[str, Any], *, query: str = "", candidates=None
 ) -> Dict[str, Any]:
     """
-    name/理由はあるが location/place_id が空などのケースに後段で補完するためのフック。
-    ここでは何もしない（将来、Places補完をここで実装）。
+    recommendations の shape を最終整形。上限3件に丸めるなど。
     """
-    payload = dict(payload or {})
     recs = payload.get("recommendations") or []
-    payload["recommendations"] = recs[:3]  # 上限3に丸める（UI想定）
-    return payload
+    if not isinstance(recs, list):
+        recs = []
+    # 先頭3件に丸め、必須キーだけ保証
+    out = []
+    for it in recs[:3]:
+        if isinstance(it, dict) and it.get("name"):
+            out.append(
+                {
+                    "name": it["name"],
+                    "reason": it.get("reason", ""),
+                    "place_id": it.get("place_id"),
+                    "lat": it.get("lat"),
+                    "lng": it.get("lng"),
+                }
+            )
+    return {"recommendations": out}

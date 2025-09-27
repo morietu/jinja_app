@@ -11,7 +11,11 @@ from .config import LLMConfig
 from .prompts import SYSTEM_PROMPT
 from .schemas import complete_recommendations, normalize_recs
 
+
 # 既存の chat_to_plan を置き換え
+def draft_plan(query: str, candidates: list[dict]) -> dict:
+    # まだ呼ばない。次ブランチで API 経由にするための置き場
+    return {"status": "stub", "query": query, "candidates": candidates}
 
 
 def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kwargs) -> dict:

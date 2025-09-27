@@ -3,12 +3,18 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .config import LLMConfig
+from openai import OpenAI
+
+from .config import OPENAI_API_KEY, LLMConfig
 
 PLACEHOLDER = {
     "role": "assistant",
     "content": "(LLM disabled or error: returning placeholder)",
 }
+
+
+def get_client() -> OpenAI:
+    return OpenAI(api_key=OPENAI_API_KEY)
 
 
 def make_openai_client(cfg: LLMConfig):

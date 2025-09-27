@@ -28,9 +28,6 @@ def _is_pytest() -> bool:
     return ("pytest" in argv) or ("py.test" in argv)
 
 
-IS_PYTEST = _is_pytest()
-
-
 def _env_bool(name: str, default: bool) -> bool:
     v = os.getenv(name)
     if v is None:
@@ -48,15 +45,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-USE_GIS = _env_bool("USE_GIS", False)
+IS_PYTEST = _is_pytest()
+USE_GIS = _env_bool("USE_GIS", True)  # ← 既定でGIS有効にしたい場合は True
 
 # feature/develop: small feature flags
-ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
-LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
-LUCK_BASE_FIELD = "popular_score"
-LUCK_FLAG_FIELD = ""
-LUCK_BONUS_ELEMENT = "金運"
-LUCK_BONUS_IDS = []
+# ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
+# LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
+# LUCK_BASE_FIELD = "popular_score"
+# LUCK_FLAG_FIELD = ""
+# LUCK_BONUS_ELEMENT = "金運"
+# LUCK_BONUS_IDS = []
 
 
 # ========= macOS の GDAL/GEOS/PROJ ヒント =========
@@ -151,13 +149,14 @@ else:
             DATABASES = {
                 "default": {
                     "ENGINE": "django.contrib.gis.db.backends.postgis",
-                    "NAME": "jinja_app",
-                    "USER": "",
-                    "PASSWORD": "",
-                    "HOST": "127.0.0.1",
-                    "PORT": "5432",
+                    "NAME": DB_NAME,  # ← 環境変数を使用
+                    "USER": DB_USER,  # ← 環境変数を使用
+                    "PASSWORD": DB_PASSWORD,  # ← 環境変数を使用
+                    "HOST": DB_HOST,  # ← 環境変数を使用
+                    "PORT": DB_PORT,  # ← 環境変数を使用
                     "CONN_MAX_AGE": 60,
                     "OPTIONS": {"connect_timeout": 5},
+                    "TEST": {"NAME": f"test_{DB_NAME}"},
                 }
             }
         else:
@@ -254,7 +253,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ========= INSTALLED_APPS =========
 INSTALLED_APPS = [
     "favorites",
-    "django.contrib.gis",
     # Django built-ins
     "django.contrib.admin",
     "django.contrib.auth",
@@ -409,12 +407,12 @@ LOGGING = {
 }
 
 # ========= 機能フラグ =========
-ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
-LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
-LUCK_BASE_FIELD = "popular_score"
-LUCK_FLAG_FIELD = ""
-LUCK_BONUS_ELEMENT = "金運"
-LUCK_BONUS_IDS = []
+# ENABLE_LUCK_BONUS = _env_bool("ENABLE_LUCK_BONUS", True)
+# LUCK_BONUS_POINT = _env_float("LUCK_BONUS_POINT", 10.0)
+# LUCK_BASE_FIELD = "popular_score"
+# LUCK_FLAG_FIELD = ""
+# LUCK_BONUS_ELEMENT = "金運"
+# LUCK_BONUS_IDS = []
 
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "1") == "1"
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
