@@ -1,16 +1,17 @@
 # backend/temples/views.py
 from __future__ import annotations
 
-import logging
 import math
 import os
-import re
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point, Polygon
+from django.contrib.gis.measure import D
 from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Abs
@@ -25,18 +26,56 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from temples.services import google_places as GP
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from .models import Shrine
 from .route_service import Point as RoutePoint
 from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
 
-logger = logging.getLogger(__name__)
-
 
 class ShrineListView(TemplateView):
     template_name = "temples/list.html"
+
+
+class ShrineViewSet(ReadOnlyModelViewSet):
+    queryset = Shrine.objects.all()
+    serializer_class = ShrineSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qp = self.request.query_params
+
+        # 半径検索: ?lat=&lng=&radius_km=
+        lat = qp.get("lat")
+        lng = qp.get("lng")
+        r_km = qp.get("radius_km")
+        if lat and lng and r_km:
+            try:
+                p = Point(float(lng), float(lat), srid=4326)
+                qs = qs.filter(location__distance_lte=(p, D(km=float(r_km))))
+                qs = qs.annotate(d=Distance("location", p)).order_by("d")
+            except ValueError:
+                # パラメータ不正は無視（全件へフォールバック）
+                pass
+
+        # BBox: ?min_lng=&min_lat=&max_lng=&max_lat=
+        min_lng = qp.get("min_lng")
+        min_lat = qp.get("min_lat")
+        max_lng = qp.get("max_lng")
+        max_lat = qp.get("max_lat")
+        if all([min_lng, min_lat, max_lng, max_lat]):
+            try:
+                bbox = Polygon.from_bbox(
+                    (float(min_lng), float(min_lat), float(max_lng), float(max_lat))
+                )
+                bbox.srid = 4326
+                qs = qs.filter(location__within=bbox)
+                # 距離注釈があれば order_by("d") を優先、それ以外はモデルの Meta.ordering に任せる
+            except ValueError:
+                pass
+
+        return qs
 
 
 # -----------------------------
@@ -87,65 +126,6 @@ def _is_shrine_owner(user, shrine) -> bool:
     return False
 
 
-def _parse_locationbias(s: str | None):
-    if not s:
-        return None
-    m = re.match(r"^circle:(\d+)@([0-9.+-]+),([0-9.+-]+)$", s.strip())
-    if not m:
-        return None
-    r = max(1, min(50000, int(m.group(1))))
-    lat = float(m.group(2))
-    lng = float(m.group(3))
-    return lat, lng, r
-
-
-def _normalize_candidate(
-    cand: Dict[str, Any], *, lang: str = "ja", locationbias: str | None = None
-) -> Dict[str, Any]:
-    """
-    name + area_hint を textsearch。locationbias があれば location/radius を付与してバイアス。
-    """
-    query = f"{cand.get('name', '')} {cand.get('area_hint', '')}".strip()
-    hit: Dict[str, Any] | None = None
-    try:
-        loc = _parse_locationbias(locationbias)
-        if loc:
-            lat, lng, r = loc
-            results = (
-                GP.textsearch(
-                    query,
-                    language=lang,
-                    region="jp",
-                    location=f"{lat},{lng}",
-                    radius=r,
-                )
-                or []
-            )
-        else:
-            results = GP.textsearch(query, language=lang, region="jp") or []
-        if results:
-            top = results[0]
-            hit = {
-                "place_id": top.get("place_id"),
-                "address": top.get("formatted_address") or top.get("address"),
-                "photo_url": top.get("photo_url"),
-                "location": top.get("geometry", {}).get("location"),
-            }
-    except Exception:
-        hit = None
-    hit = hit or {}
-
-    return {
-        "name": cand.get("name"),
-        "area_hint": cand.get("area_hint"),
-        "reason": cand.get("reason"),
-        "place_id": hit.get("place_id"),
-        "address": hit.get("address"),
-        "photo_url": hit.get("photo_url"),
-        "location": hit.get("location"),
-    }
-
-
 class ShrineDetailView(LoginRequiredMixin, View):
     def get(self, request, pk):
         s = get_object_or_404(Shrine, pk=pk)
@@ -161,14 +141,12 @@ class ShrineRouteView(LoginRequiredMixin, View):
 
         ok = _is_shrine_owner(request.user, s)
         if not ok:
-            # 所有者スキーマの有無
             has_user_fk = any(
                 isinstance(f, models.ForeignKey)
                 and getattr(getattr(f, "remote_field", None), "model", None) is get_user_model()
                 for f in s._meta.fields
             )
             has_owner_schema = has_user_fk or hasattr(s, "owners") or hasattr(s, "owner")
-            # ルート計算用パラメータ
             has_route_params = bool(request.GET.get("lat")) and bool(request.GET.get("lng"))
             # オーナー情報のスキーマが無い場合に限り、lat/lng があれば閲覧許可
             if not has_owner_schema and has_route_params:
@@ -232,13 +210,6 @@ def shrine_route(request, pk: int):
     return render(request, "temples/route.html", ctx)
 
 
-@login_required
-def favorite_toggle(request, pk: int):
-    # URL 解決用の最小応答
-    get_object_or_404(Shrine, pk=pk)
-    return HttpResponse("ok")
-
-
 # -----------------------------
 # Popular（モバイルHome用）
 # -----------------------------
@@ -254,10 +225,7 @@ class PopularShrinesView(ListAPIView):
     permission_classes = [AllowAny]
     # production: use ScopedRateThrottle with "places" scope
     # pytest: disable throttling to avoid cross-test rate exhaustion
-    if getattr(settings, "IS_PYTEST", False):
-        throttle_classes = []
-    else:
-        throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [] if getattr(settings, "IS_PYTEST", False) else [ScopedRateThrottle]
     throttle_scope = "places"
     serializer_class = ShrineSerializer
 
