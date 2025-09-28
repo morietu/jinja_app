@@ -57,7 +57,7 @@ jobs:
       - name: Install system deps (GDAL minimal)
         run: |
           sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev proj-bin
 
       - name: Install dependencies
         run: |
@@ -67,27 +67,30 @@ jobs:
 
       - name: Export env
         run: |
-          echo "DJANGO_DB_NAME=jinja_db" >> $GITHUB_ENV
-          echo "DJANGO_DB_USER=admin" >> $GITHUB_ENV
-          echo "DJANGO_DB_PASSWORD=" >> $GITHUB_ENV
-          echo "DJANGO_DB_HOST=127.0.0.1" >> $GITHUB_ENV
-          echo "DJANGO_DB_PORT=5432" >> $GITHUB_ENV
+          echo "DB_NAME=jinja_db" >> $GITHUB_ENV
+          echo "DB_USER=admin" >> $GITHUB_ENV
+          echo "DB_PASSWORD=" >> $GITHUB_ENV
+          echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
           echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
           echo "PLACES_THROTTLE_BURST=30/min" >> $GITHUB_ENV
           echo "PLACES_THROTTLE_SUSTAIN=1000/day" >> $GITHUB_ENV
           echo "PLACES_CACHE_TTL_SECONDS=90" >> $GITHUB_ENV
           echo "PLACES_PHOTO_CACHE_TTL_SECONDS=86400" >> $GITHUB_ENV
           echo "GOOGLE_DEFAULT_LANGUAGE=ja" >> $GITHUB_ENV
+          echo "USE_GIS=1" >> $GITHUB_ENV
+          echo "AUTO_GEOCODE_ON_SAVE=0" >> $GITHUB_ENV
+          echo "GEOCODER_PROVIDER=google" >> $GITHUB_ENV
+          echo "GOOGLE_MAPS_API_KEY=dummy-test-key" >> $GITHUB_ENV
+          echo "PRINT_EFFECTIVE_SETTINGS=1" >> $GITHUB_ENV
 
       - name: Wait for DB and enable PostGIS
-        env:
-          PGPASSWORD: ${{ env.DJANGO_DB_PASSWORD }}
         run: |
           for i in `seq 1 30`; do
             (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break
             echo "waiting for postgres..."; sleep 1
           done
-          psql -h 127.0.0.1 -U "$DJANGO_DB_USER" -d "$DJANGO_DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
       - name: Run migrations
         working-directory: backend
