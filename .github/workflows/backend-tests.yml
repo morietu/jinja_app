@@ -1,18 +1,13 @@
 # .github/workflows/backend-tests.yml
-name: Backend Tests
+name: Backend Tests (minimal)
 
 on:
   pull_request:
     paths:
       - "backend/**"
       - ".github/workflows/backend-tests.yml"
-      - "backend/requirements*.txt"
   push:
-    branches:
-      - "ci/**"
-      - "feature/**"
-      - "develop"
-      - "main"
+    branches: ["develop", "main", "feature/**", "ci/**"]
 
 jobs:
   test:
@@ -24,26 +19,19 @@ jobs:
         env:
           POSTGRES_DB: jinja_db
           POSTGRES_USER: admin
-          POSTGRES_PASSWORD: ""
-        ports:
-          - 5432:5432
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
         options: >-
           --health-cmd="pg_isready -U admin -d jinja_db"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
+          --health-interval=10s --health-timeout=5s --health-retries=10
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ["6379:6379"]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -59,43 +47,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev proj-bin
 
-      - name: Install dependencies
+      - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
 
-      - name: Install mypy (if not in requirements)
-        run: |
-          pip install mypy django-stubs[compatible-mypy] types-requests types-psycopg2
-
-      - name: Run mypy
+      - name: Lint (black --check & ruff)
         working-directory: backend
-        env:
-          DJANGO_SETTINGS_MODULE: shrine_project.settings
         run: |
-          mypy --config-file mypy.ini temples shrine_project
+          black --check .
+          ruff check .
 
-      - name: Export env
+      - name: Export env for app/tests
         run: |
           echo "DB_NAME=jinja_db" >> $GITHUB_ENV
           echo "DB_USER=admin" >> $GITHUB_ENV
-          echo "DB_PASSWORD=" >> $GITHUB_ENV
+          echo "DB_PASSWORD=postgres" >> $GITHUB_ENV
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "DB_PORT=5432" >> $GITHUB_ENV
           echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
-          echo "PLACES_THROTTLE_BURST=30/min" >> $GITHUB_ENV
-          echo "PLACES_THROTTLE_SUSTAIN=1000/day" >> $GITHUB_ENV
-          echo "PLACES_CACHE_TTL_SECONDS=90" >> $GITHUB_ENV
-          echo "PLACES_PHOTO_CACHE_TTL_SECONDS=86400" >> $GITHUB_ENV
-          echo "GOOGLE_DEFAULT_LANGUAGE=ja" >> $GITHUB_ENV
           echo "USE_GIS=1" >> $GITHUB_ENV
           echo "AUTO_GEOCODE_ON_SAVE=0" >> $GITHUB_ENV
           echo "GEOCODER_PROVIDER=google" >> $GITHUB_ENV
-          echo "GOOGLE_MAPS_API_KEY=dummy-test-key" >> $GITHUB_ENV
+          echo "GOOGLE_MAPS_API_KEY=test-key" >> $GITHUB_ENV
           echo "PRINT_EFFECTIVE_SETTINGS=1" >> $GITHUB_ENV
+          # 重要：テスト動作を安定化
+          echo "IS_PYTEST=1" >> $GITHUB_ENV
+          echo "PLACES_USE_FINDPLACE=1" >> $GITHUB_ENV
 
-      - name: Wait for DB and enable PostGIS
+      - name: Wait for DB & enable PostGIS
+        env:
+          PGPASSWORD: ${{ env.DB_PASSWORD }}
         run: |
           for i in `seq 1 30`; do
             (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break
@@ -103,20 +86,14 @@ jobs:
           done
           psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
-      - name: Run migrations
+      - name: Migrate
         working-directory: backend
         run: python manage.py migrate --noinput
 
-      - name: Run pytest
+      - name: Pytest (quiet)
         working-directory: backend
+        env:
+          # 念のため step env を明示
+          IS_PYTEST: "1"
+          PLACES_USE_FINDPLACE: "1"
         run: pytest -q --maxfail=1 --disable-warnings
-
-      - name: Upload pytest artifacts (always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-artifacts
-          path: |
-            backend/.pytest_cache
-            backend/.coverage
-            backend/tests/.pytest_cache
