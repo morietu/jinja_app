@@ -65,6 +65,17 @@ jobs:
           pip install -r backend/requirements.txt
           if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
 
+      - name: Install mypy (if not in requirements)
+        run: |
+          pip install mypy django-stubs[compatible-mypy] types-requests types-psycopg2
+
+      - name: Run mypy
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: shrine_project.settings
+        run: |
+          mypy --config-file mypy.ini temples shrine_project
+
       - name: Export env
         run: |
           echo "DB_NAME=jinja_db" >> $GITHUB_ENV

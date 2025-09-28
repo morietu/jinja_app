@@ -11,3 +11,6 @@ freezegun>=1.5.1
 factory_boy==3.3.3
 Faker==37.8.0
 responses>=0.25.0,<1.0
+django-stubs[compatible-mypy]
+types-requests
+types-psycopg2
