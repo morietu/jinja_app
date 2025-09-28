@@ -46,6 +46,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev proj-bin
+          sudo apt-get install -y postgresql-client
 
       - name: Install Python deps
         run: |
@@ -97,3 +98,12 @@ jobs:
           IS_PYTEST: "1"
           PLACES_USE_FINDPLACE: "1"
         run: pytest -q --maxfail=1 --disable-warnings
+
+      - name: Run mypy (allowlist)
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: shrine_project.settings
+        run: |
+          mypy --config-file mypy.ini \
+          temples/services/google_places.py \
+          temples/permissions.py
