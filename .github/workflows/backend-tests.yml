@@ -75,7 +75,7 @@ jobs:
           echo "DB_PORT=5432" >> $GITHUB_ENV
 
           echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
-          echo "USE_GIS=1" >> $GITHUB_ENV
+          echo "USE_GIS=0" >> $GITHUB_ENV
           echo "AUTO_GEOCODE_ON_SAVE=0" >> $GITHUB_ENV
           echo "GEOCODER_PROVIDER=google" >> $GITHUB_ENV
           echo "GOOGLE_MAPS_API_KEY=test-key" >> $GITHUB_ENV
