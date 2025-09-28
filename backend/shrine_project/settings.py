@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-key"
+
 
 # ========= .env を最優先で読み込む =========
 for name in (".env.local", ".env.dev", ".env"):
