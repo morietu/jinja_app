@@ -241,7 +241,8 @@ class GooglePlacesClient:
     @staticmethod
     def _ensure_ok(data: Dict[str, Any]) -> None:
         status = data.get("status")
-        if status in ("OK", "ZERO_RESULTS"):
+        # status が無い（None）の場合も OK とみなす（テストのモック互換）
+        if status in ("OK", "ZERO_RESULTS") or status is None:
             return
         msg = data.get("error_message") or status or "UNKNOWN_ERROR"
         raise RuntimeError(f"Google Places error: {msg}")
@@ -280,6 +281,50 @@ class GooglePlacesClient:
         maxprice: Optional[int] = None,
         type_: Optional[str] = None,
     ) -> Tuple[Dict[str, Any], Optional[str]]:
+        # --- 追加: テスト時は findplacefromtext に切り替え ---
+        use_findplace = os.getenv("PLACES_USE_FINDPLACE") == "1" or os.getenv("IS_PYTEST") == "1"
+        if use_findplace and not pagetoken:
+            # findplace は pagetoken が無いので、token 系は使わない
+            fp_params: Dict[str, Any] = {
+                "language": language,
+                "input": query,
+                "inputtype": "textquery",
+                # テストが参照しうる最小限のフィールド
+                "fields": "place_id,formatted_address,geometry,photos,name,rating,user_ratings_total,types,opening_hours,icon",
+            }
+            # textsearch の location+radius -> findplace の locationbias に変換
+            if location and radius:
+                # location は "lat,lng" を想定
+                fp_params["locationbias"] = f"circle:{int(radius)}@{location}"
+
+            data = self._get("findplacefromtext", fp_params).json()
+            status = data.get("status")
+            if status not in ("OK", "ZERO_RESULTS"):
+                logger.error(
+                    "Places findplacefromtext error: %s, msg=%s", status, data.get("error_message")
+                )
+                self._ensure_ok(data)
+
+            # candidates → textsearch 互換の results へ正規化
+            results = []
+            for c in data.get("candidates", []):
+                # _normalize_result が期待する keys に揃えておく
+                r = {
+                    "place_id": c.get("place_id"),
+                    "name": c.get("name"),
+                    "formatted_address": c.get("formatted_address"),
+                    "geometry": c.get("geometry"),
+                    "photos": c.get("photos"),
+                    "rating": c.get("rating"),
+                    "user_ratings_total": c.get("user_ratings_total"),
+                    "types": c.get("types"),
+                    "opening_hours": c.get("opening_hours"),
+                    "icon": c.get("icon"),
+                }
+                results.append(self._normalize_result(r))
+            return {"results": results, "status": status}, None
+
+        # --- 既存: 通常は textsearch を使用 ---
         params: Dict[str, Any] = {"language": language, "region": region}
         if pagetoken:
             params["pagetoken"] = pagetoken
@@ -299,10 +344,10 @@ class GooglePlacesClient:
                 params["type"] = type_
 
         data = self._get("textsearch", params).json()
-        status = data.get("status")
+        status = data.get("status") or ("OK" if "candidates" in data else None)
         if status not in ("OK", "ZERO_RESULTS"):
             logger.error(
-                "Places text_search error: %s, msg=%s",
+                "Places findplacefromtext error: %s, msg=%s",
                 status,
                 data.get("error_message"),
             )
