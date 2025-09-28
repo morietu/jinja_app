@@ -1,16 +1,24 @@
+# backend/requirements-dev.txt
 -r requirements.txt
 
+# test
 pytest==8.4.2
 pytest-django==4.11.1
 coverage==7.10.3
-ruff==0.12.8
-flake8>=7.0.0
-mypy>=1.10.0
+responses>=0.25.0,<1.0
 requests-mock>=1.12.1
 freezegun>=1.5.1
 factory_boy==3.3.3
 Faker==37.8.0
-responses>=0.25.0,<1.0
+
+# lint/format
+black>=24.3,<25
+ruff==0.12.8
+# flake8 は使っていないので外してOK（残したいならこのままでも害はない）
+# flake8>=7.0.0
+
+# type-check（今はCIで未使用だが手元や将来用に残すなら維持）
+mypy>=1.10.0
 django-stubs[compatible-mypy]
 types-requests
 types-psycopg2
