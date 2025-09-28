@@ -94,11 +94,12 @@ def pick_db_host() -> str:
 
 
 # ========= DB 環境変数 =========
-DB_HOST = pick_db_host()
-DB_PORT = os.getenv("DJANGO_DB_PORT", "5432")
-DB_NAME = os.getenv("DJANGO_DB_NAME", "jinja_db")
-DB_USER = os.getenv("DJANGO_DB_USER", "admin")
-DB_PASSWORD = os.getenv("DJANGO_DB_PASSWORD", "jdb50515")
+
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")  # ここは 'db' でもOK（サービス名解決）
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "jinja_db")
+DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "admin")
+DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 

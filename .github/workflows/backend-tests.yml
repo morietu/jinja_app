@@ -65,8 +65,15 @@ jobs:
           echo "DB_NAME=jinja_db" >> $GITHUB_ENV
           echo "DB_USER=admin" >> $GITHUB_ENV
           echo "DB_PASSWORD=postgres" >> $GITHUB_ENV
+          # 念のため同じ値を POSTGRES_* にも（settings が参照する場合の保険）
+          echo "POSTGRES_DB=jinja_db" >> $GITHUB_ENV
+          echo "POSTGRES_USER=admin" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=postgres" >> $GITHUB_ENV
+
+
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "DB_PORT=5432" >> $GITHUB_ENV
+
           echo "REDIS_URL=redis://127.0.0.1:6379/0" >> $GITHUB_ENV
           echo "USE_GIS=1" >> $GITHUB_ENV
           echo "AUTO_GEOCODE_ON_SAVE=0" >> $GITHUB_ENV
@@ -76,6 +83,9 @@ jobs:
           # 重要：テスト動作を安定化
           echo "IS_PYTEST=1" >> $GITHUB_ENV
           echo "PLACES_USE_FINDPLACE=1" >> $GITHUB_ENV
+
+          # 重要：DATABASE_URL を無効化（もし settings が優先する実装なら干渉されないようにする）
+          echo "DATABASE_URL=" >> $GITHUB_ENV
 
       - name: Wait for DB & enable PostGIS
         env:
