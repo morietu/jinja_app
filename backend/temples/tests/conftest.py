@@ -1,8 +1,8 @@
 # temples/tests/conftest.py
+import contextlib
 import os
 import re
 import json
-import contextlib
 from decimal import Decimal
 
 import pytest
@@ -37,6 +37,27 @@ def _block_real_http():
             yield
     else:
         yield
+
+
+def _disable_auto_geocode_signal():
+    if os.getenv("CI") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
+        try:
+            from temples.models import Shrine
+            from temples import signals as sig
+        except Exception:
+            yield
+            return
+        # dispatch_uid が一致しなくても外れるように try でラップ
+        with contextlib.suppress(Exception):
+            pre_save.disconnect(
+                sig.auto_geocode_on_save,
+                sender=Shrine,
+                dispatch_uid="temples.auto_geocode_on_save",
+            )
+        with contextlib.suppress(Exception):
+            # 念のため uid なしでも外す
+            pre_save.disconnect(sig.auto_geocode_on_save, sender=Shrine)
+    yield
 
 
 @pytest.fixture

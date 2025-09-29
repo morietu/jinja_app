@@ -75,7 +75,6 @@ jobs:
           django.setup()
           from django.conf import settings
           print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
-          # 実際に読み込まれた settings.py の物理パス
           mod = importlib.import_module(settings.SETTINGS_MODULE)
           print("settings file:", getattr(mod, "__file__", "<unknown>"))
           print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))

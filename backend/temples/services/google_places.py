@@ -1,4 +1,3 @@
-# temples/services/google_places.py
 import logging
 import os
 import sys
@@ -230,7 +229,7 @@ class GooglePlacesClient:
 
         # ログ（キーは伏字）
         try:
-            safe_url = resp.url.replace(self.api_key, "****")
+            safe_url = resp.url.replace(self.api_key or "", "****")
         except Exception:
             safe_url = "<masked>"
         logger.info("Places upstream[%s] %s", path, safe_url)
@@ -397,7 +396,7 @@ class GooglePlacesClient:
         language: str = "ja",
         fields: Optional[str] = None,
     ) -> Dict[str, Any]:
-        params: Dict[str, Any] = {"place_id": place_id, "language": language}
+        params = {"place_id": place_id, "language": language}
         if fields:
             params["fields"] = fields
         data = self._get("details", params).json()
