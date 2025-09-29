@@ -182,4 +182,22 @@ def _mock_google_places(http_mock):
         status=200,
     )
 
+    # conftest.py の _mock_google_places 内、Geocode の上でも下でもOK
+    http_mock.add(
+        httpmock.GET,
+        re.compile(r"https://maps\.googleapis\.com/maps/api/place/textsearch/json.*"),
+        json={
+            "status": "OK",
+            "results": [
+                {
+                    "name": "明治神宮",
+                    "place_id": "PID_MEIJI",
+                    "formatted_address": "東京都渋谷区代々木神園町1-1",
+                    "geometry": {"location": {"lat": 35.676, "lng": 139.699}},
+                }
+            ],
+            "next_page_token": None,
+        },
+        status=200,
+    )
     yield

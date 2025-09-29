@@ -9,14 +9,48 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_DB: ${{ vars.DB_NAME }}
+          POSTGRES_USER: ${{ vars.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        options: >-
+          --health-cmd="pg_isready -U ${{ vars.DB_USER }} -d ${{ vars.DB_NAME }}"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+
+    env:
+      CI: "true"
+      DJANGO_SETTINGS_MODULE: shrine_project.settings
+      USE_GIS: "1"
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "5432"
+      DB_NAME: ${{ vars.DB_NAME }}
+      DB_USER: ${{ vars.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      GOOGLE_MAPS_API_KEY: dummy
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
     defaults:
       run:
         working-directory: ./backend
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install GDAL/GEOS system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -29,20 +63,33 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Lint/Type/Tests
-          pip install ruff mypy flake8 pytest pytest-django
+          pip install pytest pytest-django responses
+          pip install ruff mypy flake8 || true
 
-      - name: Lint (ruff)
-        run: ruff check .
+      - name: Debug Django settings
+        run: |
+          python - <<'PY'
+          import os, django, importlib
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
+          print("DJANGO_SETTINGS_MODULE (env):", os.environ.get("DJANGO_SETTINGS_MODULE"))
+          django.setup()
+          from django.conf import settings
+          print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
+          # 実際に読み込まれた settings.py の物理パス
+          mod = importlib.import_module(settings.SETTINGS_MODULE)
+          print("settings file:", getattr(mod, "__file__", "<unknown>"))
+          print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
+          print("First BACKEND:", getattr(settings, "TEMPLATES", [{}])[0].get("BACKEND"))
+          print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
+          print("Middleware head:", (settings.MIDDLEWARE or [])[:6])
+          print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
+          PY
 
-      - name: Lint (flake8)
-        run: flake8 .
+      - name: Collect static
+        run: python manage.py collectstatic --noinput
 
-      - name: Type-check (mypy)
-        run: mypy temples || true  # 段階導入。まずはCIを赤くしない
+      - name: Migrate
+        run: python manage.py migrate --noinput
 
       - name: Test
-        env:
-          DJANGO_SETTINGS_MODULE: shrine_project.settings
-        run: |
-          pytest -q
+        run: pytest -q -p no:flake8

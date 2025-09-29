@@ -2,7 +2,13 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -16,6 +22,37 @@ urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
+    # --- debug whoami（常時有効 / 認証状態の簡易確認）---
+    path(
+        "api/_debug/whoami/",
+        lambda request: JsonResponse(
+            {
+                "is_authenticated": getattr(request.user, "is_authenticated", False),
+                "username": getattr(request.user, "username", None),
+                "is_superuser": getattr(request.user, "is_superuser", False),
+            }
+        ),
+    ),
+    # --- JWT 対応 whoami（Authorization: Bearer を解釈） ---
+    path(
+        "api/_debug/whoami_jwt/",
+        api_view(["GET"])(  # 関数化せずインラインでOK
+            authentication_classes([JWTAuthentication, SessionAuthentication])(
+                permission_classes([AllowAny])(
+                    lambda request: Response(
+                        {
+                            "auth_classes": ["JWT", "Session"],
+                            "is_authenticated": bool(
+                                getattr(request.user, "is_authenticated", False)
+                            ),
+                            "username": getattr(request.user, "username", None),
+                            "is_superuser": bool(getattr(request.user, "is_superuser", False)),
+                        }
+                    )
+                )
+            )
+        ),
+    ),
     # アプリのAPI
     path("api/", include("users.api.urls")),
     path("api/", include(("temples.urls", "temples"), namespace="temples")),
