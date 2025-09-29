@@ -5,11 +5,23 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+  ".venv",
+  "node_modules",
+  "build",
+  "dist",
+  "**/migrations/*",
+]
 
 [tool.ruff.lint]
 # まずは致命系＋import整形のみ
 select = ["E", "F", "I"]
 ignore = ["E501"]
+
+# （任意）ファイル単位で無視したいルール
+[tool.ruff.lint.per-file-ignores]
+"temples/migrations/*" = ["F401", "F811"]
+"temples/tests/**"     = ["F401", "F841", "E402"]
 
 # flake8 を使う場合は backend/.flake8 に置いてください。
 # pyproject.toml に置きたい場合は TOML 配列で:

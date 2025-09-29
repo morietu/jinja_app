@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-key"
 
 
 # ========= .env を最優先で読み込む =========
@@ -17,6 +16,7 @@ for name in (".env.local", ".env.dev", ".env"):
         load_dotenv(p, override=True)
         os.environ.setdefault("ENV_FILE", str(p))
         break
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-key"
 
 
 # ========= ヘルパ =========
@@ -89,6 +89,40 @@ INSTALLED_APPS = [
     "users",
     "temples.apps.TemplesConfig",
 ]
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    # CORS はドキュメント上、CommonMiddleware より前に置くのが推奨
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",  # ← 必須（E410）
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",  # ← 必須（E408）
+    "django.contrib.messages.middleware.MessageMiddleware",  # ← 必須（E409）
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+# Admin が要求する DjangoTemplates backend
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",  # ← 必須（E403）
+        "DIRS": [BASE_DIR / "templates"],  # なくても動くが作っておくと便利
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.i18n",
+                "django.template.context_processors.media",
+                "django.template.context_processors.static",
+                "django.template.context_processors.tz",
+            ],
+        },
+    },
+]
+
+ROOT_URLCONF = "shrine_project.urls"
+
 
 # ========= データベース設定 =========
 if os.getenv("CI") == "true":
@@ -186,3 +220,39 @@ if os.getenv("CI") == "true" or (IS_PYTEST and not DISABLE_GIS_FOR_TESTS) or USE
             else len(INSTALLED_APPS)
         )
         INSTALLED_APPS.insert(insert_pos, "django.contrib.gis")
+
+# （任意だが推奨）
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+# STATICFILES_DIRS = [BASE_DIR / "static"]
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+# DRF 認証を定義
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    # スロットル（スコープ単位）
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.ScopedRateThrottle",
+        # （任意）ここに Anon/User を入れておくと View 側で毎回指定しなくてよい
+        # "rest_framework.throttling.AnonRateThrottle",
+        # "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        # テストで 429 が出ることだけ保証したいなら少し小さめでもOK
+        "anon": "60/min",  # ← これが無くて落ちていた
+        "user": "120/min",  # （保険）UserRateThrottle 用
+        "concierge": "60/min",  # ← これも無くて落ちていた
+        "places": "30/min",  # 既存
+        # View で他に throttle_scope を使っていればここに追加
+        # "places_search": "30/min",
+        # "places_detail": "30/min",
+    },
+}
