@@ -10,7 +10,18 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
-    # ← ここを1個だけに統合
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_DB: ${{ vars.DB_NAME }}
+          POSTGRES_USER: ${{ vars.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        options: >-
+          --health-cmd="pg_isready -U ${{ vars.DB_USER }} -d ${{ vars.DB_NAME }}"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
@@ -24,18 +35,6 @@ jobs:
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-
-    services:
-      db:
-        image: postgis/postgis:16-3.4
-        ports: ["5432:5432"]
-        env:
-          POSTGRES_DB: ${{ vars.DB_NAME }}
-          POSTGRES_USER: ${{ vars.DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        options: >-
-          --health-cmd="pg_isready -U ${{ vars.DB_USER }} -d ${{ vars.DB_NAME }}"
-          --health-interval=10s --health-timeout=5s --health-retries=12
 
     defaults:
       run:
@@ -67,14 +66,20 @@ jobs:
           pip install pytest pytest-django responses
           pip install ruff mypy flake8 || true
 
-      # Lintは後回しでOK（まずはグリーン優先）
-      # - name: Lint (ruff)
-      #   run: ruff check .
-      # - name: Lint (flake8)
-      #   run: flake8 .
-
-      - name: Type-check (mypy)
-        run: mypy temples || true
+      - name: Debug Django settings
+        run: |
+          python - <<'PY'
+          import os, django
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
+          print("DJANGO_SETTINGS_MODULE (env):", os.environ.get("DJANGO_SETTINGS_MODULE"))
+          django.setup()
+          from django.conf import settings
+          print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
+          print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
+          print("First BACKEND:", getattr(settings, "TEMPLATES", [{}])[0].get("BACKEND"))
+          print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
+          print("Middleware head:", (settings.MIDDLEWARE or [])[:5])
+          PY
 
       - name: Collect static
         run: python manage.py collectstatic --noinput
@@ -84,17 +89,3 @@ jobs:
 
       - name: Test
         run: pytest -q -p no:flake8
-
-      - name: Debug Django settings
-        run: |
-          python - <<'PY'
-          import os, django
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
-          django.setup()
-          from django.conf import settings
-          print("SETTINGS_MODULE:", settings.SETTINGS_MODULE)
-          print("HAS_TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
-          print("FIRST_TEMPLATE_BACKEND:", getattr(settings, "TEMPLATES", [{}]) [0].get("BACKEND"))
-          print("HAS_MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
-          print("MIDDLEWARE_SAMPLE:", (settings.MIDDLEWARE or [])[:4])
-          PY
