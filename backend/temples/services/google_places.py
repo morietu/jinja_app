@@ -1,14 +1,58 @@
-from __future__ import annotations
-
 import logging
 import os
 import sys
-from typing import Any, Dict, MutableSequence, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# ===== Request history recorder (for tests) =====
+# tests 側の fixture はこの list を毎テストごとにクリアして使う
+req_history: List[Tuple[str, Dict[str, Any]]] = []
+
+
+def _record(url: str, params: Dict[str, Any]) -> None:
+    # tests でアサートしやすいよう shallow copy を残す
+    try:
+        req_history.append((url, dict(params or {})))
+    except Exception:
+        # 記録はテスト補助なので本処理を邪魔しない
+        pass
+
+
+# ------------------------------------------------------------
+# req_history: places 側を唯一の真実にする（読み取りは動的に）
+# ------------------------------------------------------------
+def _get_places_history() -> list:
+    """常に temples.services.places.req_history（list）を返す。無ければ作る。"""
+    try:
+        from . import places as _PLACES
+
+        if not hasattr(_PLACES, "req_history") or not isinstance(_PLACES.req_history, list):
+            _PLACES.req_history = []
+        return _PLACES.req_history
+    except Exception:
+        # 超初期のみフォールバック
+        return globals().setdefault("_fallback_req_history", [])
+
+
+def __getattr__(name: str):
+    # google_places.req_history を参照されたら常に places 側の箱を返す
+    if name == "req_history":
+        return _get_places_history()
+    raise AttributeError(name)
+
+
+# ↑の関数“外”で必ず束縛しておく（tests 側の import タイミング対策）
+req_history = _get_places_history()
+try:
+    import temples.services as _PKG
+
+    _PKG.req_history = req_history
+except Exception:
+    pass
 
 # ------------------------------------------------------------
 # API キー
@@ -20,31 +64,139 @@ API_KEY = (
     or getattr(settings, "GOOGLE_MAPS_API_KEY", None)
 )
 
+try:
+    from temples.services.places import (
+        text_search_first as text_search_first,
+    )  # noqa: F401
+except Exception:
+    text_search_first = None
+
 
 # ------------------------------------------------------------
-# 履歴（tests が参照する箱）— 循環 import を避け、モジュール内だけで完結
+# 履歴の正規箱を決定（tests がどこを monkeypatch しても拾えるように）
 # ------------------------------------------------------------
-def _get_places_history() -> MutableSequence[Tuple[str, Dict[str, Any]]]:
-    # このモジュール内にだけ履歴を保持（循環 import を避ける）
-    return cast(
-        MutableSequence[Tuple[str, Dict[str, Any]]],
-        globals().setdefault("_req_history", []),
-    )
-
-
-# ここだけが“正規”の参照
-req_history: MutableSequence[Tuple[str, Dict[str, Any]]] = _get_places_history()
-
-
-def _push_req_history(url: str, params: Dict[str, Any]) -> None:
-    """APIキーを伏字化して一元の履歴に積む（tests が参照）"""
+def _canonical_history() -> list:
+    svc = None
+    pm = None
     try:
-        masked = dict(params or {})
-        if "key" in masked:
-            masked["key"] = "****"
-        req_history.append((url, masked))
+        import temples.services as svc  # type: ignore
     except Exception:
-        # テスト補助なので本処理は邪魔しない
+        pass
+    try:
+        from . import places as pm  # type: ignore
+    except Exception:
+        pass
+
+    candidates = []
+
+    # 1) このモジュールのグローバル（tests が google_places.req_history を差し替える場合が最優先）
+    gp_hist = globals().get("req_history", None)
+    if isinstance(gp_hist, list):
+        candidates.append(gp_hist)
+
+    # 2) temples.services.req_history
+    if svc is not None and isinstance(getattr(svc, "req_history", None), list):
+        candidates.append(svc.req_history)
+
+    # 3) temples.services.places.req_history
+    if pm is not None and isinstance(getattr(pm, "req_history", None), list):
+        candidates.append(pm.req_history)
+
+    # どこにも無ければ新しく用意
+    canonical = candidates[0] if candidates else []
+
+    # 参照をすべて正規箱へ寄せる（“作る”のはここだけ）
+    globals()["req_history"] = canonical
+    try:
+        if svc is not None:
+            svc.req_history = canonical
+    except Exception:
+        pass
+    try:
+        if pm is not None:
+            pm.req_history = canonical
+    except Exception:
+        pass
+
+    return canonical
+
+
+# ------------------------------------------------------------
+# 履歴 push：正規箱にだけ 1 回 append（キーは伏字）
+# ------------------------------------------------------------
+def _push_req_history(url: str, params: dict) -> None:
+    masked = dict(params or {})
+    if "key" in masked:
+        masked["key"] = "****"
+
+    candidates: list[list] = []
+
+    # 1) このモジュール直下（tests が google_places.req_history を差し替えるケース）
+    gp_hist = globals().get("req_history", None)
+    if isinstance(gp_hist, list):
+        candidates.append(gp_hist)
+
+    # 2) places モジュール直下
+    pm = None
+    pm_hist = None
+    try:
+        from . import places as pm  # type: ignore
+
+        pm_hist = getattr(pm, "req_history", None)
+        if not isinstance(pm_hist, list):
+            pm_hist = []
+            pm.req_history = pm_hist
+        candidates.append(pm_hist)
+    except Exception:
+        pm = None
+
+    # 3) temples.services 直下
+    pkg = None
+    pkg_hist = None
+    try:
+        import temples.services as pkg  # type: ignore
+
+        pkg_hist = getattr(pkg, "req_history", None)
+        if not isinstance(pkg_hist, list):
+            pkg_hist = []
+            pkg.req_history = pkg_hist
+        candidates.append(pkg_hist)
+    except Exception:
+        pkg = None
+
+    # どれも無い極初期はフォールバック
+    if not candidates:
+        fallback = globals().setdefault("_fallback_req_history", [])
+        candidates.append(fallback)
+
+    # 重複（同一オブジェクト）を除外
+    uniq: list[list] = []
+    seen: set[int] = set()
+    for lst in candidates:
+        if not isinstance(lst, list):
+            continue
+        lid = id(lst)
+        if lid in seen:
+            continue
+        uniq.append(lst)
+        seen.add(lid)
+
+    # すべての箱に 1 回ずつ追加（fixture が握る箱にも必ず入る）
+    for lst in uniq:
+        lst.append((url, masked))
+
+    # 以後の参照は先頭に決めた“正規箱”へ寄せる（基本は places）
+    canonical = pm_hist or gp_hist or pkg_hist or uniq[0]
+    globals()["req_history"] = canonical
+    try:
+        if pm is not None:
+            pm.req_history = canonical
+    except Exception:
+        pass
+    try:
+        if pkg is not None:
+            pkg.req_history = canonical
+    except Exception:
         pass
 
 
@@ -77,7 +229,7 @@ class GooglePlacesClient:
 
         # ログ（キーは伏字）
         try:
-            safe_url = (resp.url or "").replace(self.api_key or "", "****")
+            safe_url = resp.url.replace(self.api_key or "", "****")
         except Exception:
             safe_url = "<masked>"
         logger.info("Places upstream[%s] %s", path, safe_url)
@@ -194,7 +346,7 @@ class GooglePlacesClient:
         status = data.get("status") or ("OK" if "candidates" in data else None)
         if status not in ("OK", "ZERO_RESULTS"):
             logger.error(
-                "Places textsearch error: %s, msg=%s",
+                "Places findplacefromtext error: %s, msg=%s",
                 status,
                 data.get("error_message"),
             )
@@ -288,98 +440,6 @@ class GooglePlacesClient:
 
 
 # ------------------------------------------------------------
-# シングルトン・クライアント
-# ------------------------------------------------------------
-_client_singleton: Optional["GooglePlacesClient"] = None
-
-
-def _client() -> "GooglePlacesClient":
-    global _client_singleton
-    if _client_singleton is None:
-        _client_singleton = GooglePlacesClient()
-    return _client_singleton
-
-
-# ------------------------------------------------------------
-# モジュール関数ラッパ（tests が直接 import / patch する想定）
-# ------------------------------------------------------------
-def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
-    """
-    - dict 形式: text_search({"q": "...", "lat": "...", "lng": "...", "radius": 3000, ...})
-    - kwargs 形式: text_search("クエリ", location="35.6,139.7", radius=3000, ...)
-    """
-    if isinstance(query_or_params, dict):
-        p = dict(query_or_params)
-        query = p.pop("q", None) or p.pop("query", "") or ""
-        location = p.pop("location", None)
-        if not location and p.get("lat") is not None and p.get("lng") is not None:
-            location = f"{p.pop('lat')},{p.pop('lng')}"
-        pagetoken = p.pop("pagetoken", None)
-        language = p.pop("language", "ja")
-        region = p.pop("region", "jp")
-        open_now = p.pop("opennow", p.pop("open_now", None))
-        minprice = p.pop("minprice", None)
-        maxprice = p.pop("maxprice", None)
-        type_ = p.pop("type", None)
-        kwargs.update(p)
-        data, _ = _client().text_search(
-            query,
-            location=location,
-            radius=kwargs.pop("radius", None),
-            pagetoken=pagetoken,
-            language=language,
-            region=region,
-            open_now=open_now,
-            minprice=minprice,
-            maxprice=maxprice,
-            type_=type_,
-            **kwargs,
-        )
-        return data
-    else:
-        query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
-        data, _ = _client().text_search(query, **kwargs)
-        return data
-
-
-def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
-    if isinstance(params_or_none, dict):
-        p = dict(params_or_none)
-        location = p.pop("location", None)
-        if not location and p.get("lat") is not None and p.get("lng") is not None:
-            location = f"{p.pop('lat')},{p.pop('lng')}"
-        radius = p.pop("radius", None)
-        pagetoken = p.pop("pagetoken", None)
-        language = p.pop("language", "ja")
-        type_ = p.pop("type", None)
-        opennow = p.pop("opennow", p.pop("open_now", None))
-        keyword = p.pop("keyword", None)
-        kwargs.update(p)
-        data, _ = _client().nearby_search(
-            location=location,
-            radius=radius,
-            keyword=keyword,
-            language=language,
-            pagetoken=pagetoken,
-            type_=type_,
-            opennow=opennow,
-            **kwargs,
-        )
-        return data
-    else:
-        data, _ = _client().nearby_search(**kwargs)
-        return data
-
-
-def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
-    return _client().place_details(place_id, **kwargs)
-
-
-def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
-    return _client().photo(photo_reference, **kwargs)
-
-
-# ------------------------------------------------------------
 # 低レベル API（tests が直接参照）
 # ------------------------------------------------------------
 _TIMEOUT = 10
@@ -469,6 +529,91 @@ def find_place_from_text(**kw):  # noqa: N802
 
 def find_place(**kw):
     return findplacefromtext(**kw)
+
+
+# ------------------------------------------------------------
+# ラッパ（後方互換）
+# ------------------------------------------------------------
+_client_singleton: Optional[GooglePlacesClient] = None
+
+
+def _client() -> GooglePlacesClient:
+    global _client_singleton
+    if _client_singleton is None:
+        _client_singleton = GooglePlacesClient()
+    return _client_singleton
+
+
+def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
+    if isinstance(query_or_params, dict):
+        p = dict(query_or_params)
+        query = p.pop("q", None) or p.pop("query", "") or ""
+        location = p.pop("location", None)
+        if not location and p.get("lat") is not None and p.get("lng") is not None:
+            location = f"{p.pop('lat')},{p.pop('lng')}"
+        pagetoken = p.pop("pagetoken", None)
+        language = p.pop("language", "ja")
+        region = p.pop("region", "jp")
+        open_now = p.pop("opennow", p.pop("open_now", None))
+        minprice = p.pop("minprice", None)
+        maxprice = p.pop("maxprice", None)
+        type_ = p.pop("type", None)
+        kwargs.update(p)
+        data, _ = _client().text_search(
+            query,
+            location=location,
+            radius=kwargs.pop("radius", None),
+            pagetoken=pagetoken,
+            language=language,
+            region=region,
+            open_now=open_now,
+            minprice=minprice,
+            maxprice=maxprice,
+            type_=type_,
+            **kwargs,
+        )
+        return data
+    else:
+        query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
+        data, _ = _client().text_search(query, **kwargs)
+        return data
+
+
+def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
+    if isinstance(params_or_none, dict):
+        p = dict(params_or_none)
+        location = p.pop("location", None)
+        if not location and p.get("lat") is not None and p.get("lng") is not None:
+            location = f"{p.pop('lat')},{p.pop('lng')}"
+        radius = p.pop("radius", None)
+        pagetoken = p.pop("pagetoken", None)
+        language = p.pop("language", "ja")
+        type_ = p.pop("type", None)
+        opennow = p.pop("opennow", p.pop("open_now", None))
+        keyword = p.pop("keyword", None)
+        kwargs.update(p)
+        data, _ = _client().nearby_search(
+            location=location,
+            radius=radius,
+            keyword=keyword,
+            language=language,
+            pagetoken=pagetoken,
+            type_=type_,
+            opennow=opennow,
+            **kwargs,
+        )
+        return data
+    else:
+        data, _ = _client().nearby_search(**kwargs)
+        return data
+
+
+def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
+    return _client().place_details(place_id, **kwargs)
+
+
+def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
+    return _client().photo(photo_reference, **kwargs)
 
 
 __all__ = [
