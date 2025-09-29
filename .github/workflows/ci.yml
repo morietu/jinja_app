@@ -52,12 +52,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install deps
         run: |
@@ -66,24 +60,6 @@ jobs:
           pip install pytest pytest-django responses
           pip install ruff mypy flake8 || true
 
-      - name: Debug Django settings
-        run: |
-          python - <<'PY'
-          import os, django, importlib
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
-          print("DJANGO_SETTINGS_MODULE (env):", os.environ.get("DJANGO_SETTINGS_MODULE"))
-          django.setup()
-          from django.conf import settings
-          print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
-          # 実際に読み込まれた settings.py の物理パス
-          mod = importlib.import_module(settings.SETTINGS_MODULE)
-          print("settings file:", getattr(mod, "__file__", "<unknown>"))
-          print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
-          print("First BACKEND:", getattr(settings, "TEMPLATES", [{}])[0].get("BACKEND"))
-          print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
-          print("Middleware head:", (settings.MIDDLEWARE or [])[:6])
-          print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
-          PY
 
       - name: Collect static
         run: python manage.py collectstatic --noinput
