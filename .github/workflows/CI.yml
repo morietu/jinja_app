@@ -26,6 +26,8 @@ jobs:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
       USE_GIS: "1"
+      TESTING: "1"
+      AUTO_GEOCODE_ON_SAVE: "0"
       DB_HOST: "127.0.0.1"
       DB_PORT: "5432"
       DB_NAME: ${{ vars.DB_NAME }}
@@ -45,7 +47,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install GDAL/GEOS system deps
         run: |
@@ -62,9 +64,16 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-django responses
-          pip install ruff mypy flake8 || true
+          pip install -r requirements-dev.txt
+
+      - name: Wait for DB (defensive)
+        run: |
+          for i in {1..30}; do
+            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" && break
+            echo "⏳ waiting for Postgres... ($i/30)"
+            sleep 2
+            done
+            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
 
       - name: Debug Django settings
         run: |
@@ -84,11 +93,11 @@ jobs:
           print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
           PY
 
-      - name: Collect static
-        run: python manage.py collectstatic --noinput
-
       - name: Migrate
         run: python manage.py migrate --noinput
+
+      - name: Collect static
+        run: python manage.py collectstatic --noinput
 
       - name: Test
         run: pytest -q -p no:flake8
