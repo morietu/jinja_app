@@ -66,24 +66,24 @@ def _normalize_address_safe(s: str) -> str:
 
 @receiver(pre_save, sender=Shrine)
 def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
-    """
-    Shrine を保存する直前に、住所から lat/lon/location を自動補完。
-    - 設定 AUTO_GEOCODE_ON_SAVE が False なら何もしない
-    - 住所が空なら何もしない
-    - 住所が実質未変更 & 既存の lat/lon があるなら何もしない
-    - 1回だけ geocode して lat/lon と location(Point, srid=4326) を埋める
-    """
-    # 1) フラグで全体ON/OFF（デフォルト True）
-    if getattr(settings, "AUTO_GEOCODE_ON_SAVE", True) is False:
+    # 1) フラグOFFなら何もしない
+    if not getattr(settings, "AUTO_GEOCODE_ON_SAVE", False):
+        return
+    # 既に座標があればスキップ
+    if instance.location or (instance.latitude and instance.longitude):
+        return
+    # APIキー無ければスキップ
+    if not getattr(settings, "GOOGLE_MAPS_API_KEY", ""):
+        logger.info("auto_geocode_on_save: skipped (no GOOGLE_MAPS_API_KEY)")
         return
 
-    # 2) 住所を組み立て & 正規化
+    # 2) 住所生成・正規化
     addr = _compose_address(instance)
     addr = _normalize_address_safe(addr)
     if not addr:
-        return  # address は Serializer 側で必須化している前提
+        return
 
-    # 3) 既に座標があり、かつ住所が実質未変更ならスキップ
+    # 3) 住所未変更ならスキップ
     cur_lat = getattr(instance, "latitude", None)
     cur_lng = getattr(instance, "longitude", None)
     if instance.pk and cur_lat is not None and cur_lng is not None:
@@ -94,27 +94,25 @@ def auto_geocode_on_save(sender, instance: Shrine, **kwargs):
                 if prev_addr == addr:
                     return
         except Exception:
-            # 取得失敗は無視して続行（ベストエフォート）
             pass
 
     # 4) geocode（1回だけ）
+    client = GeocodingClient(provider=getattr(settings, "GEOCODER_PROVIDER", "google"))
     try:
-        client = GeocodingClient()
         res = client.geocode(addr)
+        if not res:
+            return
+        if getattr(res, "point", None):
+            instance.latitude = float(res.point.y)
+            instance.longitude = float(res.point.x)
+            instance.location = res.point
+        else:
+            instance.latitude = float(res.lat)
+            instance.longitude = float(res.lon)
+            instance.location = Point(res.lon, res.lat, srid=4326)
     except GeocodingError as e:
         logger.warning("auto_geocode_on_save: geocode failed: %s", e)
-        # テスト中やキー未設定時は例外を投げずに処理を続ける（DB 制約は後続処理で埋める）
-        if getattr(settings, "IS_PYTEST", False) or getattr(settings, "TESTING", False):
-            return
-        raise
-    except Exception as e:
-        logger.exception("auto_geocode_on_save: unexpected error: %s", e)
-        raise
-
-    # 5) 代入（SRID は必ずキーワード引数で）
-    instance.latitude = float(res.lat)
-    instance.longitude = float(res.lon)
-    instance.location = Point(res.lon, res.lat, srid=4326)
+        return
 
 
 @receiver(pre_save, sender=Shrine)
@@ -123,7 +121,7 @@ def _fill_latlng_if_missing(sender, instance: Shrine, **kwargs):
     if instance.latitude is not None and instance.longitude is not None:
         return
 
-    # 住所→緯度経度（通常経路）
+    # 住所→緯度経度（テスト用フック）
     try:
         if getattr(instance, "address", None):
             geo = geocode_address(instance.address)
@@ -144,3 +142,5 @@ def _fill_latlng_if_missing(sender, instance: Shrine, **kwargs):
             instance.latitude = 35.0
         if instance.longitude is None:
             instance.longitude = 139.0
+
+    # ここで GeocodingClient を呼ばない（auto_geocode_on_save が担当）
