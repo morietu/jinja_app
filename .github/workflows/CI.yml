@@ -6,15 +6,6 @@ on:
   pull_request:
     branches: [develop, main]
 
-# 最小権限（警告対策）
-permissions:
-  contents: read
-
-# 古い実行を自動キャンセル
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -24,29 +15,22 @@ jobs:
         image: postgis/postgis:16-3.4
         ports: ["5432:5432"]
         env:
-          POSTGRES_DB: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: ${{ vars.DB_NAME }}
+          POSTGRES_USER: ${{ vars.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         options: >-
-          --health-cmd="pg_isready -U postgres -d postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=60
-          --health-start-period=60s
+          --health-cmd="pg_isready -U ${{ vars.DB_USER }} -d ${{ vars.DB_NAME }}"
+          --health-interval=10s --health-timeout=5s --health-retries=12
 
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
       USE_GIS: "1"
-      TESTING: "1"
-      AUTO_GEOCODE_ON_SAVE: "0"
-      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
       DB_HOST: "127.0.0.1"
       DB_PORT: "5432"
-      DB_NAME: "postgres"
-      DB_USER: "postgres"
-      DB_PASSWORD: "postgres"
+      DB_NAME: ${{ vars.DB_NAME }}
+      DB_USER: ${{ vars.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
@@ -61,12 +45,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
-      - name: Install system deps (GDAL/GEOS + pg client)
+      - name: Install GDAL/GEOS system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -75,34 +59,21 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
-      - name: Install deps (dev if present, else prod)
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install -r requirements.txt
-          fi
-
-      - name: Wait for DB (defensive)
-        run: |
-          for i in {1..90}; do
-            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" && break
-            echo "⏳ waiting for Postgres... ($i/90)"
-            sleep 2
-          done
-          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
+          pip install -r requirements.txt
+          pip install pytest pytest-django responses
+          pip install ruff mypy flake8 || true
 
       - name: Debug Django settings
         run: |
           python - <<'PY'
           import os, django, importlib
-          from contextlib import suppress
           os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
           print("DJANGO_SETTINGS_MODULE (env):", os.environ.get("DJANGO_SETTINGS_MODULE"))
           django.setup()
           from django.conf import settings
-          from django.db import connections
           print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
           mod = importlib.import_module(settings.SETTINGS_MODULE)
           print("settings file:", getattr(mod, "__file__", "<unknown>"))
@@ -111,38 +82,13 @@ jobs:
           print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
           print("Middleware head:", (settings.MIDDLEWARE or [])[:6])
           print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
-          db = settings.DATABASES.get("default", {})
-          print("DB ENGINE:", db.get("ENGINE"))
-          print("DB NAME  :", db.get("NAME"))
-          print("DB USER  :", db.get("USER"))
-          print("DB HOST  :", db.get("HOST"))
-          print("DB PORT  :", db.get("PORT"))
-          with suppress(Exception):
-              with connections["default"].cursor() as cur:
-                  cur.execute("SELECT version()")
-                  print("DB version:", cur.fetchone()[0])
           PY
-
-      - name: Migrate
-        run: python manage.py migrate --noinput
 
       - name: Collect static
         run: python manage.py collectstatic --noinput
 
+      - name: Migrate
+        run: python manage.py migrate --noinput
+
       - name: Test
         run: pytest -q -p no:flake8
-
-      - name: Show DB container logs (always)
-        if: always()
-        working-directory: .
-        run: |
-          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
-          CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
-          if [ -n "$CID" ]; then
-            echo "==== docker inspect (health) ===="
-            docker inspect "$CID" --format '{{json .State.Health}}' | jq .
-            echo "==== docker logs $CID ===="
-            docker logs "$CID" || true
-          else
-            echo "No postgis container found"
-          fi
