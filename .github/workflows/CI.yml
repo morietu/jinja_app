@@ -109,6 +109,7 @@ jobs:
 
       - name: Show DB container logs (always)
         if: always()
+        working-directory: .
         run: |
           docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
           CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
