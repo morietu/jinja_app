@@ -1,34 +1,58 @@
 # backend/temples/llm/client.py
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+from django.conf import settings
 
 from .config import OPENAI_API_KEY, LLMConfig
 
+# LLM呼べない環境（TESTINGなど）で返すプレースホルダー
 PLACEHOLDER = {
     "role": "assistant",
     "content": "(LLM disabled or error: returning placeholder)",
 }
 
 
-def get_client() -> OpenAI:
-    return OpenAI(api_key=OPENAI_API_KEY)
+class DummyLLMClient:
+    """テスト用のダミークライアント。呼ばれたら分かるように例外を出す。"""
+
+    def __getattr__(self, name):
+        raise RuntimeError("LLM disabled in tests (DummyLLMClient accessed)")
 
 
-def make_openai_client(cfg: LLMConfig):
-    """OpenAI v1 SDK クライアントを生成。base_url にも対応。"""
-    from openai import OpenAI  # lazy import
+def make_openai_client(
+    cfg: Optional[LLMConfig] = None, base_url: Optional[str] = None, api_key: Optional[str] = None
+) -> Any:
+    """
+    OpenAI v1 SDK クライアントを生成（lazy import）。
+    - TESTING=1 のとき：外部呼び出しを避けるため Dummy を返す
+    - それ以外：openai>=1.0,<2 が必要
+    """
+    if getattr(settings, "TESTING", False):
+        return DummyLLMClient()
 
-    if cfg.base_url:
-        return OpenAI(api_key=cfg.api_key, base_url=cfg.base_url)
-    return OpenAI(api_key=cfg.api_key)
+    # lazy import（モジュール読み込み時の ImportError を避ける）
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        raise ImportError(
+            "OpenAI Python SDK v1 is required. Install with: pip install 'openai>=1.0,<2'"
+        ) from e
+
+    cfg = cfg or LLMConfig.load()
+    api_key = api_key or cfg.api_key or os.getenv("OPENAI_API_KEY") or OPENAI_API_KEY
+    base_url = base_url or cfg.base_url
+
+    if base_url:
+        return OpenAI(api_key=api_key, base_url=base_url)
+    return OpenAI(api_key=api_key)
 
 
 class LLMClient:
     """
-    - OpenAI v1 の Responses API を優先使用（存在しなければ chat.completions）
+    - OpenAI v1 の Responses API を優先（なければ chat.completions）
     - 失敗時は PLACEHOLDER を返す
     """
 
@@ -50,7 +74,7 @@ class LLMClient:
             self._mode = None
 
     def _to_input_text(self, messages: List[Dict[str, Any]]) -> str:
-        # system/user/assistant をテキストに直列化（Responses APIに単一テキストで渡すfallback）
+        # system/user/assistant を直列化（Responses APIの文字列入力用）
         lines: List[str] = []
         for m in messages:
             role = m.get("role", "user")
@@ -75,14 +99,12 @@ class LLMClient:
                     "max_output_tokens": self.cfg.max_tokens,
                     "input": self._to_input_text(messages),
                 }
-                # JSON出力を（可能なら）強制
                 if self.cfg.force_json:
                     kwargs["response_format"] = {"type": "json_object"}
                 resp = self._client.responses.create(**kwargs)  # type: ignore
                 content = getattr(resp, "output_text", None)
                 if not content:
                     try:
-                        # 念のため深掘り
                         content = resp.output[0].content[0].text  # type: ignore
                     except Exception:
                         content = str(resp)
