@@ -46,8 +46,7 @@ def _env_float(name: str, default: float) -> float:
 
 
 IS_PYTEST = _is_pytest()
-USE_GIS = os.getenv("USE_GIS", "0").lower() in ("1", "true", "yes")
-ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
+USE_GIS = _env_bool("USE_GIS", False)
 DISABLE_GIS_FOR_TESTS = os.getenv("DISABLE_GIS_FOR_TESTS", "0") == "1"
 
 # ========= macOS GDAL/GEOS ヒント =========
@@ -144,11 +143,8 @@ if os.getenv("CI") == "true":
     }
 
 db_url = os.getenv("DATABASE_URL")
-
-DATABASES = {}
-
 if db_url:
-    DATABASES = {"default": dj_database_url.parse(db_url, conn_max_age=0)}
+    DATABASES["default"] = dj_database_url.parse(db_url, conn_max_age=0)
     # PostGIS スキームならエンジンを postgis に
     if db_url.startswith("postgis://"):
         DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
