@@ -10,6 +10,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
+
     services:
       db:
         image: postgis/postgis:16-3.4
@@ -23,8 +24,8 @@ jobs:
           --health-cmd="pg_isready -U postgres -d postgres"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=60          # ← 30 → 60 に
-          --health-start-period=60s    # ← 起動猶予を追加
+          --health-retries=60
+          --health-start-period=60s
 
     env:
       CI: "true"
@@ -41,8 +42,6 @@ jobs:
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-
-
     defaults:
       run:
         working-directory: ./backend
