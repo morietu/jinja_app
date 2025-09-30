@@ -108,13 +108,11 @@ jobs:
           print("DB HOST  :", db.get("HOST"))
           print("DB PORT  :", db.get("PORT"))
 
-          # 追加: 接続確認（失敗してもCIをここで落とさない）
-          try:
+          # 接続確認（失敗しても落とさない）
+          with suppress(Exception):
               with connections["default"].cursor() as cur:
                   cur.execute("SELECT version()")
                   print("DB version:", cur.fetchone()[0])
-          except Exception as e:
-              print("DB connection check failed:", repr(e))
           PY
 
       - name: Migrate
