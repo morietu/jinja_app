@@ -49,10 +49,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install GDAL/GEOS system deps
+      - name: Install system deps (GDAL/GEOS + pg client)
         run: |
           sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -72,8 +72,8 @@ jobs:
             pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" && break
             echo "⏳ waiting for Postgres... ($i/30)"
             sleep 2
-            done
-            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
+          done
+          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
 
       - name: Debug Django settings
         run: |
@@ -101,3 +101,41 @@ jobs:
 
       - name: Test
         run: pytest -q -p no:flake8
+
+
+  # （compose で本番同等の起動確認もしたい場合だけ使う）
+  test:
+    runs-on: ubuntu-latest
+    env:
+      ENV_FILE: .env.ci  # docker-compose.yml の env_file: ${ENV_FILE:-.env.dev} に効かせる
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env.ci for compose
+        run: |
+          cat > .env.ci <<'EOF'
+          # DB (compose の db / web 両方が使う値)
+          POSTGRES_DB=${{ vars.DB_NAME }}
+          POSTGRES_USER=${{ vars.DB_USER }}
+          POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+          # web 用（settings.py が読む系）
+          DJANGO_DB_NAME=${{ vars.DB_NAME }}
+          DJANGO_DB_USER=${{ vars.DB_USER }}
+          DJANGO_DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DJANGO_DB_HOST=db
+          DJANGO_DB_PORT=5432
+          EOF
+
+      - name: Compose up db & web
+        run: docker compose -f docker-compose.yml up -d --build db web
+
+      - name: Show compose ps
+        run: docker compose -f docker-compose.yml ps
+
+      - name: Run tests inside web
+        run: docker compose -f docker-compose.yml exec -T web pytest -q -p no:flake8
+
+      - name: Compose down
+        if: always()
+        run: docker compose -f docker-compose.yml down -v

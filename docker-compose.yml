@@ -25,7 +25,7 @@ services:
     container_name: shrine_web
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - ${ENV_FILE:-.env.dev}
     environment:
       # ← ここに置く（Django が読む）
       DATABASE_URL: postgres://admin:admin_pass@db:5432/jinja_db
