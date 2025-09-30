@@ -11,7 +11,7 @@ psycopg[binary]==3.2.9
 Pillow==11.3.0
 python-dotenv==1.1.1
 # djangorestframework-simplejwt 5.3+ は DRF 3.16 系でOK
-djangorestframework-simplejwt>=5.3
+djangorestframework_simplejwt==5.5.1
 requests>=2.31.0
 # httpx は 0.27 系で固定（0.28 での破壊変更を避ける）
 httpx>=0.27.0,<0.28.0

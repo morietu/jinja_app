@@ -260,3 +260,16 @@ REST_FRAMEWORK = {
 # --- Geocoding toggle (default: OFF for tests/CI) ---
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+
+# === Test-time DB override: use Spatialite instead of PostGIS ===
+if os.getenv("TESTING", "").lower() in ("1", "true", "yes"):
+    # Switch to Spatialite for tests
+    DATABASES["default"] = {
+        "ENGINE": "django.contrib.gis.db.backends.spatialite",
+        "NAME": str(BASE_DIR / "test_spatialite.sqlite3"),
+    }
+    # Spatialite dynamic library path (must be installed via Homebrew)
+    SPATIALITE_LIBRARY_PATH = os.getenv(
+        "SPATIALITE_LIBRARY_PATH", "/usr/local/lib/mod_spatialite.dylib"
+    )
