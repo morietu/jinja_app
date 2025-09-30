@@ -41,7 +41,7 @@ DROP INDEX IF EXISTS public.shrine_location_gist;
 class Migration(migrations.Migration):
     dependencies = [
         # あなたの 0031 ファイル名に合わせる
-        ("temples", "0032_shrine_location_alter_shrine_latitude_and_more"),
+        ("temples", "0031_shrine_location_placeref_placeref_snapshot_gin_and_more"),
     ]
     operations = [
         migrations.RunSQL(SQL, reverse_sql=REVERSE),

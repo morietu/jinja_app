@@ -5,15 +5,9 @@ services:
       dockerfile: Dockerfile.db
     container_name: jinja_app-db-1
     environment:
-      POSTGRES_DB: ${{ vars.DB_NAME || 'postgres' }}
-      POSTGRES_USER: ${{ vars.DB_USER }}
-      POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-    options: >-
-      --health-cmd="pg_isready -U ${{ vars.DB_USER }} -h 127.0.0.1 -p 5432"
-      --health-interval=10s
-      --health-timeout=5s
-      --health-retries=30
-      --health-start-period=30s
+      POSTGRES_DB: ${POSTGRES_DB:-jinja_db}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin_pass}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:

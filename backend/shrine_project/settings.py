@@ -143,8 +143,11 @@ if os.getenv("CI") == "true":
     }
 
 db_url = os.getenv("DATABASE_URL")
+
+DATABASES = {}
+
 if db_url:
-    DATABASES["default"] = dj_database_url.parse(db_url, conn_max_age=0)
+    DATABASES = {"default": dj_database_url.parse(db_url, conn_max_age=0)}
     # PostGIS スキームならエンジンを postgis に
     if db_url.startswith("postgis://"):
         DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
