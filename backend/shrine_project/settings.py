@@ -256,3 +256,7 @@ REST_FRAMEWORK = {
         # "places_detail": "30/min",
     },
 }
+
+# --- Geocoding toggle (default: OFF for tests/CI) ---
+AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
