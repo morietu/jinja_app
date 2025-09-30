@@ -13,17 +13,18 @@ jobs:
     services:
       db:
         image: postgis/postgis:16-3.4
-        # ports は不要（Actionsのサービスは自動でジョブに露出される）
+        ports: ["5432:5432"]
         env:
-          POSTGRES_DB: ${{ vars.DB_NAME || 'postgres' }}
-          POSTGRES_USER: ${{ vars.DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
         options: >-
-          --health-cmd="pg_isready -U ${{ vars.DB_USER }} -h 127.0.0.1 -p 5432"
+          --health-cmd="pg_isready -U postgres -d postgres"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=30
-          --health-start-period=30s
+          --health-retries=60          # ← 30 → 60 に
+          --health-start-period=60s    # ← 起動猶予を追加
 
     env:
       CI: "true"
@@ -33,13 +34,14 @@ jobs:
       AUTO_GEOCODE_ON_SAVE: "0"
       DB_HOST: "127.0.0.1"
       DB_PORT: "5432"
-      DB_NAME: ${{ vars.DB_NAME || 'postgres' }}
-      DB_USER: ${{ vars.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: "postgres"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
       DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 
     defaults:
       run:
@@ -71,12 +73,12 @@ jobs:
 
       - name: Wait for DB (defensive)
         run: |
-          for i in {1..60}; do
-            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" && break
-            echo "⏳ waiting for Postgres... ($i/60)"
+          for i in {1..90}; do
+            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" && break
+            echo "⏳ waiting for Postgres... ($i/90)"
             sleep 2
           done
-          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"
+          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
 
       - name: Debug Django settings
         run: |
@@ -108,9 +110,11 @@ jobs:
       - name: Show DB container logs (always)
         if: always()
         run: |
-          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}'
+          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
           CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
           if [ -n "$CID" ]; then
+            echo "==== docker inspect (health) ===="
+            docker inspect "$CID" --format '{{json .State.Health}}' | jq .
             echo "==== docker logs $CID ===="
             docker logs "$CID" || true
           else
