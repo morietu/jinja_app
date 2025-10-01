@@ -1,15 +1,21 @@
 name: codeql
 on:
-  push: { branches: ["main"] }
-  pull_request: { branches: ["main"] }
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
   schedule:
     - cron: "0 18 * * 0"  # 週1（JSTで月曜03:00頃）
+
+# ワークフロー全体の既定を最小に（警告対策）
+permissions:
+  contents: read
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    # CodeQLはセキュリティイベント書き込みが必要
     permissions:
-      contents: read
       security-events: write
     strategy:
       matrix:
