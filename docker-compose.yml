@@ -1,8 +1,9 @@
 services:
   db:
-    image: postgis/postgis:16-3.4
-    container_name: shrine_db
-    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: jinja_app-db-1
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-jinja_db}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
@@ -27,27 +28,23 @@ services:
     env_file:
       - ${ENV_FILE:-.env.dev}
     environment:
-      # ← ここに置く（Django が読む）
-      DATABASE_URL: postgres://admin:admin_pass@db:5432/jinja_db
-
-      # 併用するなら DJANGO_DB_* もこのままでOK（settings.py 側の対応次第）
-      DJANGO_DB_NAME: ${DJANGO_DB_NAME:-jinja_db}
-      DJANGO_DB_USER: ${DJANGO_DB_USER:-admin}
-      DJANGO_DB_PASSWORD: ${DJANGO_DB_PASSWORD:-admin_pass}
-      DJANGO_DB_HOST: ${DJANGO_DB_HOST:-db}
-      DJANGO_DB_PORT: ${DJANGO_DB_PORT:-5432}
-
+      # --- DB接続（DATABASE_URLを使わない方針） ---
+      USE_GIS: "1"
+      DB_HOST: db
+      DB_NAME: jinja_db
+      DB_USER: admin
+      DB_PASSWORD: admin_pass
+      # --- ロケール/GEOS/GDAL ---
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "UTF-8"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
-      GDAL_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgdal.so
-      GEOS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/libgeos_c.so
+      # ARMではライブラリパス直指定は不要。データ定義だけ残す
       GDAL_DATA: /usr/share/gdal
       PROJ_LIB: /usr/share/proj
     depends_on:
       db:
-        condition: service_healthy   # ← DB の起動完了を待つ
+        condition: service_healthy
     volumes:
       - ./backend:/app
     ports:
@@ -56,23 +53,22 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
-  # フロントがローカルで 3000 を使っているなら、片方を止めるかポート変更
   frontend:
+    profiles: ["frontend"]
     build:
       context: ./frontend
     container_name: shrine_frontend
     restart: unless-stopped
     ports:
-      - "3001:3000"  # ← 競合回避（もしくはサービスごと止める）
+      - "3001:3000"
     volumes:
       - ./frontend:/app
     depends_on:
       - web
 
-
-
   redis:
     image: redis:7-alpine
+    platform: linux/arm64/v8  # ← multi-arch対応なので基本不要
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
