@@ -46,7 +46,8 @@ def _env_float(name: str, default: float) -> float:
 
 
 IS_PYTEST = _is_pytest()
-USE_GIS = _env_bool("USE_GIS", False)
+USE_GIS = os.getenv("USE_GIS", "0").lower() in ("1", "true", "yes")
+ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
 DISABLE_GIS_FOR_TESTS = os.getenv("DISABLE_GIS_FOR_TESTS", "0") == "1"
 
 # ========= macOS GDAL/GEOS ヒント =========
