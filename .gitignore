@@ -57,3 +57,7 @@ apps/**/node_modules/
 cookies.txt
 c.txt
 .env.local
+
+# local only
+backup.sql
+Dockerfile.db
