@@ -1,58 +1,40 @@
+# backend/temples/services/google_places.py
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# ===== Request history recorder (for tests) =====
-# tests 側の fixture はこの list を毎テストごとにクリアして使う
-req_history: List[Tuple[str, Dict[str, Any]]] = []
+# ===== Request history (tests 用) =====
+ReqEntry = Tuple[str, Dict[str, Any]]
+req_history: List[ReqEntry] = []
 
-
-def _record(url: str, params: Dict[str, Any]) -> None:
-    # tests でアサートしやすいよう shallow copy を残す
-    try:
-        req_history.append((url, dict(params or {})))
-    except Exception:
-        # 記録はテスト補助なので本処理を邪魔しない
-        pass
-
-
-# ------------------------------------------------------------
-# req_history: places 側を唯一の真実にする（読み取りは動的に）
-# ------------------------------------------------------------
-def _get_places_history() -> list:
-    """常に temples.services.places.req_history（list）を返す。無ければ作る。"""
-    try:
-        from . import places as _PLACES
-
-        if not hasattr(_PLACES, "req_history") or not isinstance(_PLACES.req_history, list):
-            _PLACES.req_history = []
-        return _PLACES.req_history
-    except Exception:
-        # 超初期のみフォールバック
-        return globals().setdefault("_fallback_req_history", [])
-
-
-def __getattr__(name: str):
-    # google_places.req_history を参照されたら常に places 側の箱を返す
-    if name == "req_history":
-        return _get_places_history()
-    raise AttributeError(name)
-
-
-# ↑の関数“外”で必ず束縛しておく（tests 側の import タイミング対策）
-req_history = _get_places_history()
+# 可能ならパッケージ側にも同じ参照をエクスポート（失敗しても問題なし）
 try:
     import temples.services as _PKG
 
     _PKG.req_history = req_history
 except Exception:
     pass
+try:
+    from . import places as _PLACES
+
+    _PLACES.req_history = req_history
+except Exception:
+    pass
+
+
+def _push_req_history(url: str, params: dict) -> None:
+    """APIキーを伏せて履歴に1件追加（tests が読む）。"""
+    masked = dict(params or {})
+    if "key" in masked:
+        masked["key"] = "****"
+    req_history.append((url, masked))
+
 
 # ------------------------------------------------------------
 # API キー
@@ -73,141 +55,13 @@ except Exception:
 
 
 # ------------------------------------------------------------
-# 履歴の正規箱を決定（tests がどこを monkeypatch しても拾えるように）
-# ------------------------------------------------------------
-def _canonical_history() -> list:
-    svc = None
-    pm = None
-    try:
-        import temples.services as svc  # type: ignore
-    except Exception:
-        pass
-    try:
-        from . import places as pm  # type: ignore
-    except Exception:
-        pass
-
-    candidates = []
-
-    # 1) このモジュールのグローバル（tests が google_places.req_history を差し替える場合が最優先）
-    gp_hist = globals().get("req_history", None)
-    if isinstance(gp_hist, list):
-        candidates.append(gp_hist)
-
-    # 2) temples.services.req_history
-    if svc is not None and isinstance(getattr(svc, "req_history", None), list):
-        candidates.append(svc.req_history)
-
-    # 3) temples.services.places.req_history
-    if pm is not None and isinstance(getattr(pm, "req_history", None), list):
-        candidates.append(pm.req_history)
-
-    # どこにも無ければ新しく用意
-    canonical = candidates[0] if candidates else []
-
-    # 参照をすべて正規箱へ寄せる（“作る”のはここだけ）
-    globals()["req_history"] = canonical
-    try:
-        if svc is not None:
-            svc.req_history = canonical
-    except Exception:
-        pass
-    try:
-        if pm is not None:
-            pm.req_history = canonical
-    except Exception:
-        pass
-
-    return canonical
-
-
-# ------------------------------------------------------------
-# 履歴 push：正規箱にだけ 1 回 append（キーは伏字）
-# ------------------------------------------------------------
-def _push_req_history(url: str, params: dict) -> None:
-    masked = dict(params or {})
-    if "key" in masked:
-        masked["key"] = "****"
-
-    candidates: list[list] = []
-
-    # 1) このモジュール直下（tests が google_places.req_history を差し替えるケース）
-    gp_hist = globals().get("req_history", None)
-    if isinstance(gp_hist, list):
-        candidates.append(gp_hist)
-
-    # 2) places モジュール直下
-    pm = None
-    pm_hist = None
-    try:
-        from . import places as pm  # type: ignore
-
-        pm_hist = getattr(pm, "req_history", None)
-        if not isinstance(pm_hist, list):
-            pm_hist = []
-            pm.req_history = pm_hist
-        candidates.append(pm_hist)
-    except Exception:
-        pm = None
-
-    # 3) temples.services 直下
-    pkg = None
-    pkg_hist = None
-    try:
-        import temples.services as pkg  # type: ignore
-
-        pkg_hist = getattr(pkg, "req_history", None)
-        if not isinstance(pkg_hist, list):
-            pkg_hist = []
-            pkg.req_history = pkg_hist
-        candidates.append(pkg_hist)
-    except Exception:
-        pkg = None
-
-    # どれも無い極初期はフォールバック
-    if not candidates:
-        fallback = globals().setdefault("_fallback_req_history", [])
-        candidates.append(fallback)
-
-    # 重複（同一オブジェクト）を除外
-    uniq: list[list] = []
-    seen: set[int] = set()
-    for lst in candidates:
-        if not isinstance(lst, list):
-            continue
-        lid = id(lst)
-        if lid in seen:
-            continue
-        uniq.append(lst)
-        seen.add(lid)
-
-    # すべての箱に 1 回ずつ追加（fixture が握る箱にも必ず入る）
-    for lst in uniq:
-        lst.append((url, masked))
-
-    # 以後の参照は先頭に決めた“正規箱”へ寄せる（基本は places）
-    canonical = pm_hist or gp_hist or pkg_hist or uniq[0]
-    globals()["req_history"] = canonical
-    try:
-        if pm is not None:
-            pm.req_history = canonical
-    except Exception:
-        pass
-    try:
-        if pkg is not None:
-            pkg.req_history = canonical
-    except Exception:
-        pass
-
-
-# ------------------------------------------------------------
 # 高レベルクライアント
 # ------------------------------------------------------------
 class GooglePlacesClient:
     BASE_URL = "https://maps.googleapis.com/maps/api/place"
 
     def __init__(self, api_key: Optional[str] = None, timeout: Optional[float] = None):
-        self.api_key = api_key or API_KEY
+        self.api_key: str = cast(str, api_key or API_KEY)
         if not self.api_key:
             raise RuntimeError(
                 "Google Places API key is not set. "
@@ -221,10 +75,8 @@ class GooglePlacesClient:
         url = f"{self.BASE_URL}/{path}/json"
         q = {"key": self.api_key, **params}
 
-        # tests が参照する履歴に積む（API キーは伏字）
-        _push_req_history(url, q)
+        _push_req_history(url, q)  # 履歴へ（キーは伏字）
 
-        # 実呼び出し
         resp = requests.get(url, params=q, timeout=self.timeout)
 
         # ログ（キーは伏字）
@@ -240,7 +92,7 @@ class GooglePlacesClient:
     @staticmethod
     def _ensure_ok(data: Dict[str, Any]) -> None:
         status = data.get("status")
-        # status が無い（None）の場合も OK とみなす（テストのモック互換）
+        # status が None の場合も OK とみなす（モック互換）
         if status in ("OK", "ZERO_RESULTS") or status is None:
             return
         msg = data.get("error_message") or status or "UNKNOWN_ERROR"
@@ -280,20 +132,16 @@ class GooglePlacesClient:
         maxprice: Optional[int] = None,
         type_: Optional[str] = None,
     ) -> Tuple[Dict[str, Any], Optional[str]]:
-        # --- 追加: テスト時は findplacefromtext に切り替え ---
+        # --- テスト時は findplace を使えるよう切替（環境変数） ---
         use_findplace = os.getenv("PLACES_USE_FINDPLACE") == "1" or os.getenv("IS_PYTEST") == "1"
         if use_findplace and not pagetoken:
-            # findplace は pagetoken が無いので、token 系は使わない
             fp_params: Dict[str, Any] = {
                 "language": language,
                 "input": query,
                 "inputtype": "textquery",
-                # テストが参照しうる最小限のフィールド
                 "fields": "place_id,formatted_address,geometry,photos,name,rating,user_ratings_total,types,opening_hours,icon",
             }
-            # textsearch の location+radius -> findplace の locationbias に変換
             if location and radius:
-                # location は "lat,lng" を想定
                 fp_params["locationbias"] = f"circle:{int(radius)}@{location}"
 
             data = self._get("findplacefromtext", fp_params).json()
@@ -304,10 +152,8 @@ class GooglePlacesClient:
                 )
                 self._ensure_ok(data)
 
-            # candidates → textsearch 互換の results へ正規化
             results = []
             for c in data.get("candidates", []):
-                # _normalize_result が期待する keys に揃えておく
                 r = {
                     "place_id": c.get("place_id"),
                     "name": c.get("name"),
@@ -323,7 +169,7 @@ class GooglePlacesClient:
                 results.append(self._normalize_result(r))
             return {"results": results, "status": status}, None
 
-        # --- 既存: 通常は textsearch を使用 ---
+        # --- 既存: textsearch ---
         params: Dict[str, Any] = {"language": language, "region": region}
         if pagetoken:
             params["pagetoken"] = pagetoken

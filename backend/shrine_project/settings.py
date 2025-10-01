@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
 # ========= パス =========
@@ -45,7 +46,8 @@ def _env_float(name: str, default: float) -> float:
 
 
 IS_PYTEST = _is_pytest()
-USE_GIS = _env_bool("USE_GIS", False)
+USE_GIS = os.getenv("USE_GIS", "0").lower() in ("1", "true", "yes")
+ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
 DISABLE_GIS_FOR_TESTS = os.getenv("DISABLE_GIS_FOR_TESTS", "0") == "1"
 
 # ========= macOS GDAL/GEOS ヒント =========
@@ -141,6 +143,29 @@ if os.getenv("CI") == "true":
         }
     }
 
+db_url = os.getenv("DATABASE_URL")
+
+DATABASES = {}
+
+if db_url:
+    DATABASES = {"default": dj_database_url.parse(db_url, conn_max_age=0)}
+    # PostGIS スキームならエンジンを postgis に
+    if db_url.startswith("postgis://"):
+        DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+
+# CI では絶対に Spatialite を使わない
+if os.getenv("CI") != "true" and os.getenv("TESTING", "").lower() in ("1", "true", "yes"):
+    # ローカルの「軽い」テストだけ Spatialite に切り替える
+    DATABASES["default"] = {
+        "ENGINE": "django.contrib.gis.db.backends.spatialite",
+        "NAME": str(BASE_DIR / "test_spatialite.sqlite3"),
+    }
+    SPATIALITE_LIBRARY_PATH = os.getenv(
+        "SPATIALITE_LIBRARY_PATH",
+        "/usr/local/lib/mod_spatialite.dylib",
+    )
+
+
 elif IS_PYTEST and not DISABLE_GIS_FOR_TESTS:
     # pytest でも GIS を使う
     DATABASES = {
@@ -158,29 +183,8 @@ elif IS_PYTEST and not DISABLE_GIS_FOR_TESTS:
     }
 
 elif DATABASE_URL:
-    try:
-        import dj_database_url
-
-        DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
-    except Exception:
-        if DATABASE_URL.startswith("postgres"):
-            DATABASES = {
-                "default": {
-                    "ENGINE": "django.db.backends.postgresql",
-                    "NAME": os.getenv("PGDATABASE", DB_NAME),
-                    "USER": os.getenv("PGUSER", DB_USER),
-                    "PASSWORD": os.getenv("PGPASSWORD", DB_PASSWORD),
-                    "HOST": os.getenv("PGHOST", DB_HOST),
-                    "PORT": os.getenv("PGPORT", DB_PORT),
-                }
-            }
-        else:
-            DATABASES = {
-                "default": {
-                    "ENGINE": "django.db.backends.sqlite3",
-                    "NAME": BASE_DIR / "db.sqlite3",
-                }
-            }
+    # すでに上で db_url を適用済みなのでここは通らない想定。残すなら同義にしておく。
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
 
 elif USE_GIS:
     DATABASES = {
@@ -260,16 +264,3 @@ REST_FRAMEWORK = {
 # --- Geocoding toggle (default: OFF for tests/CI) ---
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
-
-
-# === Test-time DB override: use Spatialite instead of PostGIS ===
-if os.getenv("TESTING", "").lower() in ("1", "true", "yes"):
-    # Switch to Spatialite for tests
-    DATABASES["default"] = {
-        "ENGINE": "django.contrib.gis.db.backends.spatialite",
-        "NAME": str(BASE_DIR / "test_spatialite.sqlite3"),
-    }
-    # Spatialite dynamic library path (must be installed via Homebrew)
-    SPATIALITE_LIBRARY_PATH = os.getenv(
-        "SPATIALITE_LIBRARY_PATH", "/usr/local/lib/mod_spatialite.dylib"
-    )
