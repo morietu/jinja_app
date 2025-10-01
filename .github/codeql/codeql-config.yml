@@ -1,0 +1,9 @@
+name: jinja_app codeql config
+paths:
+  - backend/**             # いま主に解析したい場所
+  - frontend/**            # 将来のExpo/Reactを想定（まだ無くてもOK）
+paths-ignore:
+  - "**/migrations/**"
+  - "**/node_modules/**"
+  - "frontend/build/**"
+  - "**/*.md"
