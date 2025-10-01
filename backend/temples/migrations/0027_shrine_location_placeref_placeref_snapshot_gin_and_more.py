@@ -5,33 +5,77 @@ from django.db import migrations
 def _create_pg_indexes(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
-    with schema_editor.connection.cursor() as cur:
-        # PlaceRef.snapshot_json GIN
+
+    conn = schema_editor.connection
+    with conn.cursor() as cur:
+        # 必要な拡張（存在しなければ作成）
+        cur.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+        cur.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")  # 将来 text trigram を使う時の保険
+
+        # ========== temples_placeref.snapshot_json → GIN(jsonb_path_ops) ==========
         cur.execute(
             """
-            CREATE INDEX IF NOT EXISTS placeref_snapshot_gin
-            ON place_ref USING GIN (snapshot_json);
-        """
+            SELECT format_type(a.atttypid, a.atttypmod)
+            FROM pg_attribute a
+            JOIN pg_class c ON a.attrelid = c.oid
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            WHERE n.nspname = 'public'
+              AND c.relname = 'temples_placeref'
+              AND a.attname = 'snapshot_json'
+              AND a.attnum > 0 AND NOT a.attisdropped
+            """
         )
-        # Shrine.location GiST
+        row = cur.fetchone()
+        coltype = row[0].lower() if row and row[0] else None
+
+        if coltype == "jsonb":
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS temples_placeref_snapshot_json_gin
+                ON public.temples_placeref
+                USING GIN (snapshot_json jsonb_path_ops)
+                """
+            )
+        # jsonb 以外（bytea/text等）の場合は作らない
+
+        # ========== temples_shrine.location → GiST(geometry) ==========
         cur.execute(
             """
-            CREATE INDEX IF NOT EXISTS shrine_location_gist
-            ON temples_shrine USING GIST (location);
-        """
+            SELECT format_type(a.atttypid, a.atttypmod)
+            FROM pg_attribute a
+            JOIN pg_class c ON a.attrelid = c.oid
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            WHERE n.nspname = 'public'
+              AND c.relname = 'temples_shrine'
+              AND a.attname = 'location'
+              AND a.attnum > 0 AND NOT a.attisdropped
+            """
         )
+        row = cur.fetchone()
+        coltype = row[0].lower() if row and row[0] else None
+
+        if coltype == "geometry":
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS temples_shrine_location_gist
+                ON public.temples_shrine
+                USING GIST (location)
+                """
+            )
+        # geometry 以外なら作らない（bytea/text/point等への誤適用を防止）
 
 
 def _drop_pg_indexes(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
+
     with schema_editor.connection.cursor() as cur:
-        cur.execute("DROP INDEX IF EXISTS placeref_snapshot_gin;")
-        cur.execute("DROP INDEX IF EXISTS shrine_location_gist;")
+        cur.execute("DROP INDEX IF EXISTS public.temples_placeref_snapshot_json_gin")
+        cur.execute("DROP INDEX IF EXISTS public.temples_shrine_location_gist")
 
 
 class Migration(migrations.Migration):
-    # CONCURRENTLY を使わないので atomic=True のままでOK
+    # CONCURRENTLY 不使用なので atomic=True のままでOK
     dependencies = [
         ("temples", "0026_add_shrine_location"),
     ]
