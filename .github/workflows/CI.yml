@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: r
+
+
 on:
   push:
     branches: [develop, main]
