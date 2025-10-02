@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Link from "next/link";
 import Script from "next/script";
+import ClientBootstrap from "./providers/ClientBootstrap";
 // import HamburgerMenu from "@/components/navigation/HamburgerMenu"; // 使うなら残す
 
 const geistSans = localFont({
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body>
+        <ClientBootstrap />
         {/* 共通ヘッダー */}
         <header className="border-b bg-white">
           <nav className="max-w-5xl mx-auto flex items-center gap-4 p-3">
