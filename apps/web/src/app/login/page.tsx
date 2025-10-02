@@ -3,21 +3,25 @@ import LoginForm from "./LoginForm";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-// ★ Next の生成型に合わせて Promise 前提にする
 export type PageProps = {
-  searchParams?: Promise<SearchParams>;
+  searchParams?: SearchParams; // ← Promise ではない
 };
 
-export default async function Page({ searchParams }: PageProps) {
-  // Promise を解決（undefined の可能性も考慮）
-  const sp = searchParams ? await searchParams : undefined;
-
-  const raw = sp?.next;
-  const next =
-    typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
+export default function Page({ searchParams }: PageProps) {
+  const raw = searchParams?.next;
+  const next = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
 
   // 内部パスのみ許可（オープンリダイレクト対策）
-  const safeNext = next && next.startsWith("/") ? next : "/mypage";
+  // 1) 先頭が "/" である
+  // 2) 先頭が "//"（プロトコル相対）ではない
+  // 3) "://" を含まない（明示的にスキーム指定を排除）
+  const isInternal =
+    !!next &&
+    next.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.includes("://");
+
+  const safeNext = isInternal ? next : "/mypage";
 
   return <LoginForm next={safeNext} />;
 }
