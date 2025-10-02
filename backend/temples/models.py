@@ -1,10 +1,10 @@
 from django.conf import settings
-from django.contrib.gis.db import models as gis_models  # PostGIS 対応
+from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point
-from django.contrib.postgres.indexes import GinIndex  # ← GistIndex は削除
+from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import CheckConstraint, Q
+from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
 
@@ -30,8 +30,6 @@ class PlaceRef(models.Model):
 
 
 class GoriyakuTag(models.Model):
-    """ご利益タグ（マスターデータ）"""
-
     CATEGORY_CHOICES = [
         ("ご利益", "願望・テーマ別"),
         ("神格", "祭神の種類"),
@@ -46,14 +44,10 @@ class GoriyakuTag(models.Model):
 
     class Meta:
         ordering = ["category", "name"]
-        indexes = [
-            models.Index(fields=["category", "name"]),
-        ]
+        indexes = [models.Index(fields=["category", "name"])]
 
 
 class Shrine(models.Model):
-    """神社"""
-
     # 基本情報
     name_jp = gis_models.CharField(max_length=100)
     name_romaji = gis_models.CharField(max_length=100, blank=True, null=True)
@@ -66,10 +60,7 @@ class Shrine(models.Model):
     longitude = gis_models.FloatField(
         null=True, blank=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
-    # ★ PointField を定義（自動で GIST インデックスが作られる）
-    location = gis_models.PointField(
-        srid=4326, null=True, blank=True
-    )  # spatial_index=True がデフォルト
+    location = gis_models.PointField(srid=4326, null=True, blank=True)
 
     # ご利益・祭神など
     goriyaku = gis_models.TextField(
@@ -81,13 +72,13 @@ class Shrine(models.Model):
     # 多対多
     goriyaku_tags = gis_models.ManyToManyField("GoriyakuTag", related_name="shrines", blank=True)
 
-    # 将来のAI用（五行・属性）
+    # 五行・属性
     element = gis_models.CharField(
         max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
     )
 
     created_at = gis_models.DateTimeField(default=timezone.now)
-    updated_at = gis_models.DateTimeField(auto_now=True)  # ★存在必須
+    updated_at = gis_models.DateTimeField(auto_now=True)
 
     # 人気集計（直近30日）
     views_30d = gis_models.PositiveIntegerField(default=0)
@@ -104,13 +95,12 @@ class Shrine(models.Model):
             models.Index(fields=["name_jp"]),
             models.Index(fields=["updated_at"]),
             models.Index(fields=["popular_score"], name="shrine_popular_idx"),
-            # ↓ 手動の GIST は削除（PointField の自動インデックスに任せる）
-            # GistIndex(fields=["location"], name="shrine_location_gist"),
             models.Index(fields=["latitude"], name="idx_shrine_lat"),
             models.Index(fields=["longitude"], name="idx_shrine_lng"),
             models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
         ]
         constraints = [
+            # --- Check ---
             CheckConstraint(
                 check=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0), name="chk_lat_range"
             ),
@@ -124,10 +114,21 @@ class Shrine(models.Model):
                 ),
                 name="chk_lat_lng_both_or_none",
             ),
+            # --- Partial unique (DB と宣言を一致) ---
+            UniqueConstraint(
+                fields=["name_jp", "address", "location"],
+                condition=Q(location__isnull=False),
+                name="uq_shrine_name_loc",
+            ),
+            UniqueConstraint(
+                fields=["name_jp", "address"],
+                condition=Q(location__isnull=True),
+                name="uq_shrine_name_addr_when_loc_null",
+            ),
         ]
 
     def save(self, *args, **kwargs):
-        # ここは既存ロジックのまま（lat/lng → location を同期）
+        # lat/lng → location 同期
         def _norm(v):
             return None if v in ("", None) else v
 
@@ -163,28 +164,17 @@ class Shrine(models.Model):
 
 class Favorite(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="favorite_shrines",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorite_shrines"
     )
-    # Shrine ベース（互換）
     shrine = models.ForeignKey(
-        Shrine,
-        on_delete=models.CASCADE,
-        related_name="favorited_by",
-        null=True,
-        blank=True,
+        Shrine, on_delete=models.CASCADE, related_name="favorited_by", null=True, blank=True
     )
-    # Places ベース
     place_id = models.CharField(max_length=128, null=True, blank=True, db_index=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ("-created_at",)
-
         constraints = [
-            # 片方だけ必須（XOR）
             CheckConstraint(
                 name="favorite_exactly_one_target",
                 condition=(
@@ -192,53 +182,32 @@ class Favorite(models.Model):
                     | (Q(shrine__isnull=True) & Q(place_id__isnull=False))
                 ),
             ),
-            # user × shrine を一意（shrine がある場合のみ）
-            models.UniqueConstraint(
+            UniqueConstraint(
                 fields=["user", "shrine"],
                 name="uq_favorite_user_shrine",
                 condition=Q(shrine__isnull=False),
             ),
-            # user × place_id を一意（place_id がある場合のみ）
-            models.UniqueConstraint(
+            UniqueConstraint(
                 fields=["user", "place_id"],
                 name="uq_favorite_user_place",
                 condition=Q(place_id__isnull=False),
             ),
         ]
-        indexes = [
-            models.Index(fields=["user", "created_at"], name="idx_fav_user_created"),
-        ]
-
-    def __str__(self) -> str:
-        target = self.shrine.name_jp if self.shrine else (self.place_id or "?")
-        return f"{self.user} → {target}"
+        indexes = [models.Index(fields=["user", "created_at"], name="idx_fav_user_created")]
 
 
 class Visit(models.Model):
-    STATUS_CHOICES = [
-        ("added", "Added"),
-        ("removed", "Removed"),
-    ]
-
+    STATUS_CHOICES = [("added", "Added"), ("removed", "Removed")]
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="visits",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="visits"
     )
-    shrine = models.ForeignKey(
-        Shrine,
-        on_delete=models.CASCADE,
-        related_name="visits",
-    )
+    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="visits")
     visited_at = models.DateTimeField(default=timezone.now)
     note = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="added")
 
     class Meta:
         ordering = ["-visited_at"]
-
-    def __str__(self) -> str:
-        return f"{self.user} @ {self.shrine} ({self.status})"
 
 
 class Goshuin(models.Model):
@@ -259,12 +228,6 @@ class GoshuinImage(models.Model):
         ordering = ["order", "id"]
         indexes = [models.Index(fields=["order"])]
 
-    def __str__(self) -> str:
-        g = self.goshuin
-        shrine_name = getattr(getattr(g, "shrine", None), "name_jp", "不明")
-        title = getattr(g, "title", "") or "御朱印"
-        return f"{shrine_name} - {title}"
-
 
 class Like(models.Model):
     shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="likes")
@@ -276,14 +239,8 @@ class Like(models.Model):
             models.UniqueConstraint(fields=["shrine", "user"], name="uq_like_shrine_user")
         ]
 
-    def __str__(self) -> str:
-        # is_like フラグは無いので固定表示
-        return f"Like: {self.shrine} / {self.user or 'Anonymous'}"
-
 
 class RankingLog(models.Model):
-    """ランキング用の集計（30日間）"""
-
     shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="ranking_logs")
     date = models.DateField(default=timezone.localdate)
     view_count = models.PositiveIntegerField(default=0)
@@ -294,15 +251,10 @@ class RankingLog(models.Model):
             models.UniqueConstraint(fields=["shrine", "date"], name="uq_rankinglog_shrine_date")
         ]
 
-    def __str__(self) -> str:
-        return f"{self.shrine} ({self.date}): views={self.view_count}, likes={self.like_count}"
-
 
 class ConciergeHistory(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="concierge_histories",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="concierge_histories"
     )
     shrine = models.ForeignKey(
         Shrine,
@@ -312,13 +264,8 @@ class ConciergeHistory(models.Model):
         related_name="recommended_histories",
     )
     reason = models.TextField()
-    tags = models.JSONField(default=list, blank=True)  # 例: ["縁結び", "恋愛運"]
+    tags = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        user_str = getattr(self.user, "username", str(self.user))
-        shrine_str = self.shrine.name_jp if self.shrine else "不明"
-        return f"{user_str} → {shrine_str}"

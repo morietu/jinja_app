@@ -1,0 +1,36 @@
+name: codeql
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+  schedule:
+    - cron: "0 18 * * 0"  # 週1（JSTで月曜03:00頃）
+
+# ワークフロー全体の既定を最小に（警告対策）
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    # CodeQLはセキュリティイベント書き込みが必要
+    permissions:
+      security-events: write
+    strategy:
+      matrix:
+        language: [python, javascript]  # 将来のExpo/Reactにも対応
+    steps:
+      - uses: actions/checkout@v4
+
+      # CodeQL初期化
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: .github/codeql/codeql-config.yml
+
+      # ビルド（Pythonは不要、JSは必要になったら効く）
+      - uses: github/codeql-action/autobuild@v3
+
+      # 解析
+      - uses: github/codeql-action/analyze@v3
