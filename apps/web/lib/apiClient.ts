@@ -22,7 +22,7 @@ api.interceptors.response.use(
 
       // 別インスタンスで refresh（自分自身のインターセプタを踏まない）
       const r = await axios.post(
-        "/api/token/refresh/",
+        "/api/auth/refresh/",
         { refresh },
         { headers: { "Content-Type": "application/json" } }
       );
