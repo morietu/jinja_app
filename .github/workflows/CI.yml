@@ -1,4 +1,6 @@
 name: CI
+permissions:
+  contents: read
 
 on:
   push:
@@ -6,18 +8,10 @@ on:
   pull_request:
     branches: [develop, main]
 
-# 最小権限（警告対策）
-permissions:
-  contents: read
-
-# 古い実行を自動キャンセル
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   backend:
     runs-on: ubuntu-latest
+
 
     services:
       db:
@@ -51,7 +45,6 @@ jobs:
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-
     defaults:
       run:
         working-directory: ./backend
@@ -75,14 +68,10 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
-      - name: Install deps (dev if present, else prod)
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install -r requirements.txt
-          fi
+          pip install -r requirements-dev.txt
 
       - name: Wait for DB (defensive)
         run: |
@@ -103,20 +92,26 @@ jobs:
           django.setup()
           from django.conf import settings
           from django.db import connections
+
           print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
           mod = importlib.import_module(settings.SETTINGS_MODULE)
           print("settings file:", getattr(mod, "__file__", "<unknown>"))
+
           print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
           print("First BACKEND:", getattr(settings, "TEMPLATES", [{}])[0].get("BACKEND"))
           print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
           print("Middleware head:", (settings.MIDDLEWARE or [])[:6])
           print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
+
+          # 追加: 実際のDBエンジンと接続先を表示
           db = settings.DATABASES.get("default", {})
           print("DB ENGINE:", db.get("ENGINE"))
           print("DB NAME  :", db.get("NAME"))
           print("DB USER  :", db.get("USER"))
           print("DB HOST  :", db.get("HOST"))
           print("DB PORT  :", db.get("PORT"))
+
+          # 接続確認（失敗しても落とさない）
           with suppress(Exception):
               with connections["default"].cursor() as cur:
                   cur.execute("SELECT version()")
