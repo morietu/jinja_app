@@ -12,19 +12,7 @@ export type Goshuin = {
   shrine_name?: string;
 };
 
-/** 公開一覧（認証不要） */
-export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<Goshuin[]>("/goshuin/");
-  return r.data ?? [];
-}
-
-/** 自分の一覧（要認証） */
-export async function fetchMyGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<Goshuin[]>("/my/goshuin/");
-  return r.data ?? [];
-}
-
-/* ====== 以下：自動判定 ====== */
+// 共通ユーティリティ
 function normalize(p: string) {
   let s = (p || "").trim();
   if (!s.startsWith("/")) s = "/" + s;
@@ -32,51 +20,65 @@ function normalize(p: string) {
   return s;
 }
 
+// 絶対URLの基底（公開APIフォールバック用に限定して使用）
 const PUBLIC_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/$/, "");
-const ENV_PATH_RAW = (process.env.NEXT_PUBLIC_GOSHUIN_PATH || "").trim();
 
+// 最有力候補から順に探す（環境で違っても耐える）
 const CANDIDATES = ["/goshuin", "/users/me/goshuin", "/temples/goshuin"].map(normalize);
-let EP_CACHE: string | null = ENV_PATH_RAW ? normalize(ENV_PATH_RAW) : null;
 
-async function tryGet(path: string) {
-  const ep = normalize(path);
-  try {
-    const r = await api.get<Goshuin[]>(ep);
-    return { kind: "ok" as const, data: r.data };
-  } catch (err: any) {
-    if (axios.isAxiosError(err) && err.response?.status === 404) return { kind: "missing" as const };
-    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403))
-      return { kind: "exists" as const, data: [] as Goshuin[] };
-
-    if (axios.isAxiosError(err) && !err.response) {
-      try {
-        const abs = `${PUBLIC_BASE}/api${ep}`;
-        const r2 = await axios.get<Goshuin[]>(abs, { headers: api.defaults.headers.common });
-        return { kind: "ok" as const, data: r2.data };
-      } catch {
-        return { kind: "error" as const, error: err };
+/** 公開一覧（認証不要・/api経由。ネットワーク断のときだけ絶対URLにフォールバック可） */
+export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
+  for (const p of CANDIDATES) {
+    try {
+      const r = await api.get<Goshuin[]>(p); // /api 経由（相対）
+      return r.data ?? [];
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) continue;
+      // 公開APIに限り、レスポンス自体が無い（ネットワーク断など）の場合のみフォールバック
+      if (axios.isAxiosError(err) && !err.response) {
+        try {
+          const abs = `${PUBLIC_BASE}/api${p}`;
+          const r2 = await axios.get<Goshuin[]>(abs);
+          return r2.data ?? [];
+        } catch { /* ignore and try next */ }
+      }
+      if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+        // 公開APIで本来起きないが、来た場合は空で継続
+        return [];
       }
     }
-    return { kind: "error" as const, error: err };
   }
-}
-
-/** 自動判定：環境に合わせて最も近いエンドポイントから一覧を返す */
-export async function getGoshuin(): Promise<Goshuin[]> {
-  if (EP_CACHE) {
-    const r = await tryGet(EP_CACHE);
-    if (r.kind === "ok") return r.data;
-    if (r.kind === "exists") return [];
-    EP_CACHE = null;
-  }
-  for (const p of CANDIDATES) {
-    const r = await tryGet(p);
-    if (r.kind === "ok") { EP_CACHE = p; return r.data; }
-    if (r.kind === "exists") { EP_CACHE = p; return []; }
-  }
-  console.warn("[goshuin] endpoint not found; returning empty list");
+  console.warn("[goshuin] public endpoint not found; returning empty list");
   return [];
 }
 
-// 好きなら別名も出しておく
-export const getGoshuinAuto = getGoshuin;
+/** 自分の一覧（要認証）→ 絶対URLフォールバックはしない */
+export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
+  for (const p of CANDIDATES) {
+    try {
+      const r = await api.get<Goshuin[]>(p); // /api 経由（Cookie送信）
+      return r.data ?? [];
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) continue;
+      if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) return [];
+      if (axios.isAxiosError(err) && !err.response) return []; // ネットワーク断でもフォールバックしない
+      return [];
+    }
+  }
+  console.warn("[goshuin] my endpoint not found; returning empty list");
+  return [];
+}
+
+// 既存のシンプルAPI（保持するならそのまま）
+export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<Goshuin[]>("/goshuin/");
+  return r.data ?? [];
+}
+export async function fetchMyGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<Goshuin[]>("/my/goshuin/");
+  return r.data ?? [];
+}
+
+// 既存呼び出し互換：用途に応じて片方へ寄せる
+export const getGoshuin = getGoshuinPublicAuto;
+export const getGoshuinAuto = getGoshuinPublicAuto;
