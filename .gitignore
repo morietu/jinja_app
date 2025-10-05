@@ -22,6 +22,7 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.env.local
 
 # ===== OS / Editor =====
 .DS_Store
@@ -51,13 +52,15 @@ apps/**/node_modules/
 /shrine-app/.expo-shared/
 
 # ===== Docker (local db data) =====
+# 本番に不要なローカルDBデータ＆バックアップは無視
 .docker/db/data/
+.docker/db/data.backup*/
+.docker/db/**/pg_wal/
+.docker/db/**/postmaster*.pid
+.docker/db/**/pg_*  # 内部生成物まとめて無視
 
 # ===== Local scratch =====
 cookies.txt
 c.txt
-.env.local
-
-# local only
 backup.sql
 Dockerfile.db
