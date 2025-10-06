@@ -54,7 +54,8 @@ def text_search(request):
 
 
 # --- /api/places/nearby_search/ ---
-# --- /api/places/nearby_search/ ---
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @throttle_classes([PlacesNearbyThrottle])
@@ -176,3 +177,44 @@ def photo(request):
     # テストが見るのはこのヘッダ
     resp["Cache-Control"] = "public, max-age=3600"
     return resp
+
+
+# temples/api/views/search.py
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def detail(request, place_id: str):
+    gp = services.google_places
+    try:
+        data = (
+            gp.detail(place_id=place_id) if hasattr(gp, "detail") else gp.details(place_id=place_id)
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"places.detail failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+        )
+
+    src = data.get("result") or data.get("place") or data or {}
+
+    # 必須フィールドを整形
+    out = {
+        "place_id": src.get("place_id") or place_id,
+        "name": src.get("name"),
+        "address": src.get("formatted_address") or src.get("vicinity"),
+        "rating": src.get("rating"),
+        "user_ratings_total": src.get("user_ratings_total"),
+        "types": src.get("types") or [],
+    }
+    loc = ((src.get("geometry") or {}).get("location")) or {}
+    if "lat" in loc and "lng" in loc:
+        out["location"] = {"lat": loc["lat"], "lng": loc["lng"]}
+
+    # 互換のため photo_reference もあれば1枚だけ拾う
+    photos = src.get("photos") or []
+    if photos and isinstance(photos, list):
+        ref = photos[0].get("photo_reference")
+        if ref:
+            out["photo_reference"] = ref
+
+    return Response(out)
