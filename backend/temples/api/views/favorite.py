@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.api.queryutils import annotate_is_favorite
+from temples.api.serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
 from temples.api.serializers.shrine import ShrineListSerializer
 from temples.models import Favorite, GoriyakuTag, Shrine
 
@@ -98,3 +99,12 @@ class UserFavoriteListView(APIView):
 
         data = ShrineListSerializer(qs, many=True, context={"request": request}).data
         return Response(data, status=200)
+
+    def post(self, request):
+        s = FavoriteUpsertSerializer(data=request.data, context={"request": request})
+        s.is_valid(raise_exception=True)
+        fav = s.save()
+        # shrine を確実に抱えた状態でシリアライズ
+        fav = Favorite.objects.select_related("shrine").get(pk=fav.pk)
+        ser = FavoriteSerializer(fav, context={"request": request})
+        return Response(ser.data, status=status.HTTP_201_CREATED)

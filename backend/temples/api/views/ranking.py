@@ -54,4 +54,4 @@ class RankingAPIView(APIView):
         for idx, r in enumerate(results, start=1):
             r["rank"] = idx
 
-        return Response(results)
+        return Response({"items": results})
