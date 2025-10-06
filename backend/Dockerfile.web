@@ -1,14 +1,16 @@
-# backend/Dockerfile.web
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# 必要パッケージを一括インストール
-# ※ 行末は必ず '\' で終わる。コメントは別行に書く
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# APT（リトライ付き）
+RUN set -eux; \
+    apt-get update -o Acquire::Retries=5 -o Acquire::http::No-Cache=true; \
+    apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg \
     build-essential \
     libpq-dev \
     gdal-bin \
@@ -16,20 +18,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgeos-dev \
     libproj-dev \
     proj-data \
-    postgresql-client \
-    ca-certificates && \
+    postgresql-client; \
     rm -rf /var/lib/apt/lists/*
 
-# OSのGDALに合わせてPythonのGDALを入れる（gdal-config を利用）
-RUN GDAL_VER="$(gdal-config --version)" \
- && python -m pip install --upgrade pip \
- && python -m pip install "GDAL==${GDAL_VER}.*"
+# OSのGDALバージョンに合わせてPythonのGDALを入れる（パスのハードコードはしない）
+RUN set -eux; \
+    GDAL_VER="$(gdal-config --version)"; \
+    python -m pip install --upgrade pip; \
+    python -m pip install "GDAL==${GDAL_VER}.*"
 
-# 共有ライブラリ＆データディレクトリの場所を明示
-ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so
-ENV GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so
-ENV GDAL_DATA=/usr/share/gdal
-ENV PROJ_LIB=/usr/share/proj
+# 共有データディレクトリだけ明示
+ENV GDAL_DATA=/usr/share/gdal \
+    PROJ_LIB=/usr/share/proj
 
 # Python 依存
 COPY requirements.txt /app/requirements.txt
@@ -39,5 +39,4 @@ RUN python -m pip install -r /app/requirements.txt
 COPY . /app
 
 EXPOSE 8000
-
 CMD sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"

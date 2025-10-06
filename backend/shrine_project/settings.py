@@ -1,26 +1,27 @@
+# shrine_project/settings.py
 import os
 import sys
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
 
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
 
-
-# ========= .env を最優先で読み込む =========
+# ========= .env を最優先で読み込む（既存 env を上書きしない）=========
 for name in (".env.local", ".env.dev", ".env"):
-    p = REPO_ROOT / name if (REPO_ROOT / name).exists() else BASE_DIR / name
+    p = (REPO_ROOT / name) if (REPO_ROOT / name).exists() else (BASE_DIR / name)
     if p.exists():
-        load_dotenv(p, override=True)
+        load_dotenv(p, override=False)
         os.environ.setdefault("ENV_FILE", str(p))
         break
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-key"
+DEBUG = os.getenv("DEBUG", "1").lower() in ("1", "true", "yes")
 
 
-# ========= ヘルパ =========
+# ========= 小ユーティリティ =========
 def _is_pytest() -> bool:
     if os.getenv("PYTEST_CURRENT_TEST"):
         return True
@@ -28,50 +29,26 @@ def _is_pytest() -> bool:
     return ("pytest" in argv) or ("py.test" in argv)
 
 
-def _env_bool(name: str, default: bool) -> bool:
-    v = os.getenv(name)
-    if v is None:
-        return default
-    return v.strip().lower() in ("1", "true", "yes", "on")
-
-
-def _env_float(name: str, default: float) -> float:
-    v = os.getenv(name)
-    if v is None:
-        return default
-    try:
-        return float(v)
-    except ValueError:
-        return default
-
-
 IS_PYTEST = _is_pytest()
-USE_GIS = os.getenv("USE_GIS", "0").lower() in ("1", "true", "yes")
-ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
 DISABLE_GIS_FOR_TESTS = os.getenv("DISABLE_GIS_FOR_TESTS", "0") == "1"
+USE_GIS = os.getenv("USE_GIS", "1").lower() in ("1", "true", "yes")  # ← ここだけで定義（重複禁止）
 
-# ========= macOS GDAL/GEOS ヒント =========
+# ========= macOS GDAL/GEOS ヒント（必要な人向け）=========
 if sys.platform == "darwin":
     os.environ.setdefault("GDAL_DATA", "/opt/homebrew/share/gdal")
     os.environ.setdefault("PROJ_LIB", "/opt/homebrew/share/proj")
-    GDAL_LIBRARY_PATH = "/opt/homebrew/opt/gdal/lib/libgdal.dylib"
-    GEOS_LIBRARY_PATH = "/opt/homebrew/opt/geos/lib/libgeos_c.dylib"
-
-# Windows フォールバック
-_CONDA_PREFIX = Path(sys.prefix)
-_DLL_DIR = _CONDA_PREFIX / "Library" / "bin"
-_GDAL_DATA_D = _CONDA_PREFIX / "Library" / "share" / "gdal"
-_PROJ_LIB_D = _CONDA_PREFIX / "Library" / "share" / "proj"
+    GDAL_LIBRARY_PATH = "/opt/homebrew/opt/gdal/lib/libgdal.dylib"  # noqa: F841
+    GEOS_LIBRARY_PATH = "/opt/homebrew/opt/geos/lib/libgeos_c.dylib"  # noqa: F841
 
 # ========= DB 環境変数 =========
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_HOST = os.getenv("DB_HOST", "db")  # ← Docker のサービス名
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "jinja_db")
 DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
-DATABASE_URL = os.getenv("DATABASE_URL")
+DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "admin_pass")  # ← 既定
+DB_ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
 
-# ========= INSTALLED_APPS =========
+# ========= INSTALLED_APPS / MIDDLEWARE =========
 INSTALLED_APPS = [
     "favorites",
     # Django built-ins
@@ -91,22 +68,23 @@ INSTALLED_APPS = [
     "users",
     "temples.apps.TemplesConfig",
 ]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # CORS はドキュメント上、CommonMiddleware より前に置くのが推奨
-    "corsheaders.middleware.CorsMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",  # ← 必須（E410）
+    "corsheaders.middleware.CorsMiddleware",  # CORS は CommonMiddleware より前
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",  # ← 必須（E408）
-    "django.contrib.messages.middleware.MessageMiddleware",  # ← 必須（E409）
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 # Admin が要求する DjangoTemplates backend
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",  # ← 必須（E403）
-        "DIRS": [BASE_DIR / "templates"],  # なくても動くが作っておくと便利
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -125,142 +103,88 @@ TEMPLATES = [
 
 ROOT_URLCONF = "shrine_project.urls"
 
+# ========= データベース（DATABASE_URL は使わない）=========
+DATABASES = {
+    "default": {
+        "ENGINE": DB_ENGINE,
+        "NAME": DB_NAME,
+        "USER": DB_USER,
+        "PASSWORD": DB_PASSWORD,
+        "HOST": DB_HOST,
+        "PORT": DB_PORT,
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {"connect_timeout": 5},
+        "TEST": {"NAME": f"test_{DB_NAME}"},
+    }
+}
 
-# ========= データベース設定 =========
+# CI / pytest 向けの微調整
 if os.getenv("CI") == "true":
-    # CI は必ず PostGIS
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.contrib.gis.db.backends.postgis",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
-            "CONN_MAX_AGE": 0,
-            "OPTIONS": {"connect_timeout": 5},
-            "TEST": {"NAME": f"test_{DB_NAME}"},
-        }
-    }
-
-db_url = os.getenv("DATABASE_URL")
-
-DATABASES = {}
-
-if db_url:
-    DATABASES = {"default": dj_database_url.parse(db_url, conn_max_age=0)}
-    # PostGIS スキームならエンジンを postgis に
-    if db_url.startswith("postgis://"):
-        DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
-
-# CI では絶対に Spatialite を使わない
-if os.getenv("CI") != "true" and os.getenv("TESTING", "").lower() in ("1", "true", "yes"):
-    # ローカルの「軽い」テストだけ Spatialite に切り替える
-    DATABASES["default"] = {
-        "ENGINE": "django.contrib.gis.db.backends.spatialite",
-        "NAME": str(BASE_DIR / "test_spatialite.sqlite3"),
-    }
-    SPATIALITE_LIBRARY_PATH = os.getenv(
-        "SPATIALITE_LIBRARY_PATH",
-        "/usr/local/lib/mod_spatialite.dylib",
-    )
-
-
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
 elif IS_PYTEST and not DISABLE_GIS_FOR_TESTS:
-    # pytest でも GIS を使う
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.contrib.gis.db.backends.postgis",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
-            "CONN_MAX_AGE": 0,
-            "OPTIONS": {"connect_timeout": 5},
-            "TEST": {"NAME": f"test_{DB_NAME}"},
-        }
-    }
-
-elif DATABASE_URL:
-    # すでに上で db_url を適用済みなのでここは通らない想定。残すなら同義にしておく。
-    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
-
-elif USE_GIS:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.contrib.gis.db.backends.postgis",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
-            "CONN_MAX_AGE": 60,
-            "OPTIONS": {"connect_timeout": 5},
-            "TEST": {"NAME": f"test_{DB_NAME}"},
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
-            "CONN_MAX_AGE": 0 if IS_PYTEST else 60,
-            "OPTIONS": {"connect_timeout": 5},
-            "TEST": {"NAME": f"test_{DB_NAME}"},
-        }
-    }
+    DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 
 # ========= INSTALLED_APPS に GIS を追加 =========
 if os.getenv("CI") == "true" or (IS_PYTEST and not DISABLE_GIS_FOR_TESTS) or USE_GIS:
     if "django.contrib.gis" not in INSTALLED_APPS:
-        insert_pos = (
+        pos = (
             INSTALLED_APPS.index("django.contrib.postgres") + 1
             if "django.contrib.postgres" in INSTALLED_APPS
             else len(INSTALLED_APPS)
         )
-        INSTALLED_APPS.insert(insert_pos, "django.contrib.gis")
+        INSTALLED_APPS.insert(pos, "django.contrib.gis")
 
-# （任意だが推奨）
+# ========= 静的/メディア =========
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
-# DRF 認証を定義
+# ========= DRF =========
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
-    # スロットル（スコープ単位）
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.ScopedRateThrottle",
-        # （任意）ここに Anon/User を入れておくと View 側で毎回指定しなくてよい
-        # "rest_framework.throttling.AnonRateThrottle",
-        # "rest_framework.throttling.UserRateThrottle",
+        # 必要なら "rest_framework.throttling.AnonRateThrottle",
+        # 必要なら "rest_framework.throttling.UserRateThrottle"
     ),
     "DEFAULT_THROTTLE_RATES": {
-        # テストで 429 が出ることだけ保証したいなら少し小さめでもOK
-        "anon": "60/min",  # ← これが無くて落ちていた
-        "user": "120/min",  # （保険）UserRateThrottle 用
-        "concierge": "60/min",  # ← これも無くて落ちていた
-        "places": "30/min",  # 既存
-        # View で他に throttle_scope を使っていればここに追加
-        # "places_search": "30/min",
-        # "places_detail": "30/min",
+        "anon": "60/min",
+        "user": "120/min",
+        "concierge": "60/min",
+        "places": "30/min",
+        "places-nearby": "30/min",
+        "shrines": "60/min",
     },
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
-# --- Geocoding toggle (default: OFF for tests/CI) ---
+# ========= Google API keys（任意）=========
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
+
+
+# ========= Hosts / CORS =========
+def _split_csv(s, default=None):
+    if s is None:
+        return default or []
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
+ALLOWED_HOSTS = _split_csv(os.environ.get("ALLOWED_HOSTS"), ["localhost", "127.0.0.1", "web"])
+CSRF_TRUSTED_ORIGINS = _split_csv(
+    os.environ.get("CSRF_TRUSTED_ORIGINS"),
+    ["http://localhost:3001", "http://127.0.0.1:3001"],
+)
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = _split_csv(
+    os.environ.get("CORS_ALLOWED_ORIGINS"),
+    ["http://localhost:3001", "http://127.0.0.1:3001"],
+)
