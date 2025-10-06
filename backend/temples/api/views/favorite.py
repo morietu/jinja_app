@@ -1,21 +1,16 @@
 # temples/api/views/favorite.py
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
-from django.db.models import OuterRef, Prefetch, Q, Subquery
-from rest_framework import permissions, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from temples.api.queryutils import annotate_is_favorite
 from temples.api.serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
-from temples.api.serializers.shrine import ShrineListSerializer
-from temples.models import Favorite, GoriyakuTag, Shrine
+from temples.models import Favorite, PlaceRef, Shrine
 
 
 class FavoriteToggleView(APIView):
     """POST /api/temples/favorites/toggle/  { "shrine_id": 1 }"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     throttle_scope = "user"
 
     def post(self, request, *args, **kwargs):
@@ -41,64 +36,26 @@ class UserFavoriteListView(APIView):
     throttle_scope = "user"
 
     def get(self, request):
-        params = request.query_params
-
-        # 自分のお気に入りだけ
-        fav_ids = Favorite.objects.filter(user=request.user).values_list("shrine_id", flat=True)
-        qs = Shrine.objects.filter(id__in=fav_ids).distinct()
-
-        # フリーテキスト
-        q = params.get("q")
-        if q:
-            qs = qs.filter(
-                Q(name_jp__icontains=q)
-                | Q(name_romaji__icontains=q)
-                | Q(address__icontains=q)
-                | Q(goriyaku__icontains=q)
-                | Q(goriyaku_tags__name__icontains=q)
-            )
-
-        # タグ絞り込み
-        for key in ("goriyaku", "shinkaku", "region"):
-            vals = params.getlist(key)
-            if vals:
-                qs = qs.filter(goriyaku_tags__name__in=vals)
-
-        # 並び順: 距離 or 追加順
-        lat = params.get("lat")
-        lng = params.get("lng")
-        if lat is not None and lng is not None:
-            try:
-                lat = float(lat)
-                lng = float(lng)
-            except (TypeError, ValueError):
-                return Response({"detail": "lat/lng must be float."}, status=400)
-            if not (-90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0):
-                return Response({"detail": "lat/lng out of range."}, status=400)
-
-            origin = Point(lng, lat, srid=4326)
-            qs = (
-                qs.exclude(location__isnull=True)
-                .annotate(distance=Distance("location", origin))
-                .order_by("distance")
-            )
-        else:
-            fav_latest = (
-                Favorite.objects.filter(user=request.user, shrine=OuterRef("pk"))
-                .order_by("-created_at")
-                .values("created_at")[:1]
-            )
-            qs = qs.annotate(fav_created_at=Subquery(fav_latest)).order_by("-fav_created_at", "-id")
-
-        # 最適化（並び順が決まった後に適用）
-        qs = annotate_is_favorite(qs, request)
-        qs = qs.only("id", "name_jp", "address", "latitude", "longitude", "location")
-        qs = qs.prefetch_related(
-            Prefetch("goriyaku_tags", queryset=GoriyakuTag.objects.only("id", "name", "category"))
+        # 自分のお気に入り（最新順）。shrine は select_related で N+1 回避
+        qs = (
+            Favorite.objects.filter(user=request.user)
+            .select_related("shrine")  # ★ shrine の N+1 回避
+            .order_by("-created_at")
         )
 
-        data = ShrineListSerializer(qs, many=True, context={"request": request}).data
-        return Response(data, status=200)
+        # place_id をまとめて取得して context に詰める（★ N+1 回避）
+        place_ids = [pid for pid in qs.values_list("place_id", flat=True) if pid]
+        places_by_id = {}
+        if place_ids:
+            for pr in PlaceRef.objects.filter(place_id__in=place_ids).only(
+                "place_id", "name", "address", "latitude", "longitude"
+            ):
+                places_by_id[pr.place_id] = pr
+
+        ser = FavoriteSerializer(
+            qs, many=True, context={"request": request, "places": places_by_id}
+        )
+        return Response(ser.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         s = FavoriteUpsertSerializer(data=request.data, context={"request": request})
