@@ -158,11 +158,17 @@ REST_FRAMEWORK = {
         "user": "120/min",
         "concierge": "60/min",
         "places": "30/min",
-        "places-nearby": "30/min",
+        "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
         "shrines": "60/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+}
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "throttle-cache",
+    }
 }
 
 # ========= Google API keys（任意）=========
