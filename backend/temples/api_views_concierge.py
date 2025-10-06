@@ -549,3 +549,11 @@ class ConciergePlanView(APIView):
         except Exception:
             pass
         return Response(body, status=status.HTTP_200_OK)
+
+    # --- expose function-style views for URLConf / tests ---
+
+
+chat = ConciergeChatView.as_view()
+plan = ConciergePlanView.as_view()
+
+__all__ = ["chat", "plan", "ConciergeChatView", "ConciergePlanView"]

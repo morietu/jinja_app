@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import os
+from math import cos, radians
 from typing import Any
 
 from django.conf import settings
@@ -15,7 +16,7 @@ from django.contrib.gis.measure import D
 from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Abs
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -32,6 +33,55 @@ from .models import Shrine
 from .route_service import Point as RoutePoint
 from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
+
+
+def popular_shrines(request):
+    """
+    /api/popular-shrines?near=LAT,LNG&radius_km=R&limit=N
+    レスポンス形: {"items": [{"name_jp": ... , ...}, ...]}
+    """
+    try:
+        limit = int(request.GET.get("limit", 20))
+    except Exception:
+        limit = 20
+
+    qs = Shrine.objects.all()
+
+    near = request.GET.get("near")
+    radius_km = request.GET.get("radius_km")
+    if near and radius_km:
+        try:
+            lat_str, lng_str = near.split(",", 1)
+            lat0 = float(lat_str)
+            lng0 = float(lng_str)
+            r = float(radius_km)
+            # --- BBOX（おおよそ） ---
+            dlat = r / 111.0
+            dlng = r / (111.0 * max(0.1, cos(radians(lat0))))  # 緯度依存、ゼロ割回避
+            qs = qs.filter(
+                latitude__gte=lat0 - dlat,
+                latitude__lte=lat0 + dlat,
+                longitude__gte=lng0 - dlng,
+                longitude__lte=lng0 + dlng,
+            )
+        except Exception:
+            # パラメータ壊れてたらフィルタはスキップ（fail-closedにしたいなら400返してもOK）
+            pass
+
+    # 常に人気順の降順
+    qs = qs.order_by("-popular_score", "id")[:limit]
+
+    items = [
+        {
+            "id": s.id,
+            "name_jp": s.name_jp,
+            "popular_score": float(s.popular_score) if s.popular_score is not None else None,
+            "latitude": float(s.latitude) if s.latitude is not None else None,
+            "longitude": float(s.longitude) if s.longitude is not None else None,
+        }
+        for s in qs
+    ]
+    return JsonResponse({"items": items})
 
 
 class ShrineListView(TemplateView):

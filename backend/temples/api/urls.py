@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from temples import api_views_concierge
 from temples.api.views import (
     FavoriteToggleView,
     GoriyakuTagViewSet,
@@ -13,7 +14,7 @@ from temples.api.views import (
 
 # もし places 用のビューが別モジュールなら正しく import してください
 # 例:
-from temples.api.views.search import nearby_search, photo, search, text_search
+from temples.api.views.search import detail, nearby_search, photo, search, text_search
 
 app_name = "temples"
 
@@ -22,10 +23,8 @@ router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="gori-tag")
 
 # --- 明示ビュー（Router名のハイフン問題を回避し、テストの name と合わせる） ---
-shrine_list_view = ShrineViewSet.as_view({"get": "list", "post": "create"})
-shrine_detail_view = ShrineViewSet.as_view(
-    {"get": "retrieve", "put": "update", "patch": "partial_update", "delete": "destroy"}
-)
+shrine_list_view = ShrineViewSet.as_view({"get": "list"})
+shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})
 
 urlpatterns = [
     # ✅ /api/shrines/ → name="shrine_list"
@@ -44,6 +43,7 @@ urlpatterns = [
     path("places/text_search/", text_search, name="places-text-search"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby_search/", nearby_search, name="places-nearby-search"),
+    path("places/<str:place_id>/", detail, name="places-detail"),
     # 既存のリスト等（残してOK：ブラウズ可能APIなどで便利）
     path("favorites/", UserFavoriteListView.as_view(), name="favorites-list"),
     path("favorites/toggle/", FavoriteToggleView.as_view(), name="favorites-toggle"),
@@ -53,4 +53,6 @@ urlpatterns = [
     path("", include(router.urls)),
     # もし nearest を使うなら（テストには直接出てないけど保持可）
     path("shrines/nearest/", ShrineViewSet.as_view({"get": "nearest"}), name="shrine-nearest"),
+    path("concierge/chat/", api_views_concierge.chat, name="concierge-chat"),
+    path("concierge/plan/", api_views_concierge.plan, name="concierge-plan"),
 ]

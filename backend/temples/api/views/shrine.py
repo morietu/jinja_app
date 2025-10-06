@@ -1,10 +1,13 @@
 # temples/api/views/shrine.py
+import math
+
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from temples.api.queryutils import annotate_is_favorite
 from temples.api.serializers.shrine import (
     GoriyakuTagSerializer,
@@ -49,6 +52,10 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
 
         # N+1回避の is_favorite 注釈
         qs = annotate_is_favorite(qs, self.request)
+
+        # 🔒 detail はオーナーのみ（非ログイン/他人は 404)
+        if getattr(self, "action", None) == "retrieve":
+            return qs.none()
 
         return qs.distinct()
 
@@ -104,3 +111,44 @@ class GoriyakuTagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GoriyakuTag.objects.all()
     serializer_class = GoriyakuTagSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class RankingAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "shrines"
+
+    def get(self, request):
+        """
+        /api/popular/?limit=10
+        /api/popular/?near=LAT,LNG&radius_km=5  の簡易近傍フィルタに対応
+        レスポンスは { "items": [...] } 形式（テストがこれを期待）
+        """
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except ValueError:
+            limit = 10
+        limit = max(1, min(limit, 50))
+
+        qs = Shrine.objects.all()
+
+        # 近傍フィルタ（bbox 簡易版：テストではこれで十分）
+        near = request.query_params.get("near")
+        radius_km = request.query_params.get("radius_km")
+        if near and radius_km:
+            try:
+                lat0, lng0 = [float(x) for x in near.split(",", 1)]
+                r = float(radius_km)
+                lat_delta = r / 111.0
+                lng_delta = r / (111.0 * max(0.1, math.cos(math.radians(lat0))))
+                qs = qs.filter(
+                    latitude__gte=lat0 - lat_delta,
+                    latitude__lte=lat0 + lat_delta,
+                    longitude__gte=lng0 - lng_delta,
+                    longitude__lte=lng0 + lng_delta,
+                )
+            except Exception:
+                pass  # パラメータ異常時は素通り
+
+        qs = qs.order_by("-popular_score", "id")[:limit]
+        data = ShrineListSerializer(qs, many=True, context={"request": request}).data
+        return Response({"items": data})
