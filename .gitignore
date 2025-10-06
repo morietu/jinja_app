@@ -64,3 +64,6 @@ cookies.txt
 c.txt
 backup.sql
 Dockerfile.db
+
+# local DB backups
+.docker/db/*.sql
