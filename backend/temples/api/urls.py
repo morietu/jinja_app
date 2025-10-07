@@ -1,58 +1,62 @@
+# backend/temples/api/urls.py
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from temples import api_views_concierge
-from temples.api.views import (
+from temples import api_views_concierge as concierge
+
+# HTMLビュー / APIビューは temples.views から1回だけ import
+from temples.views import RouteAPIView, ShrineDetailView, ShrineRouteView
+
+from .views import (
     FavoriteToggleView,
-    GoriyakuTagViewSet,
-    RankingAPIView,
-    RouteView,
-    ShrineViewSet,
     UserFavoriteListView,
     UserVisitListView,
     VisitCreateView,
 )
 
-# もし places 用のビューが別モジュールなら正しく import してください
-# 例:
-from temples.api.views.search import detail, nearby_search, photo, search, text_search
+# places 検索系
+from .views.search import detail, nearby_search, photo, search, text_search
+
+# ---- ViewSets / APIView の正しい所在に統一して import ----
+from .views.shrine import GoriyakuTagViewSet, RankingAPIView, ShrineViewSet
 
 app_name = "temples"
 
+# ---- Router登録（ブラウザブルAPI用。明示URLとも競合しない）----
 router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"goriyaku-tags", GoriyakuTagViewSet, basename="gori-tag")
 
-# --- 明示ビュー（Router名のハイフン問題を回避し、テストの name と合わせる） ---
+# ---- 明示的な名前付きビュー（テストが name を期待しているため）----
 shrine_list_view = ShrineViewSet.as_view({"get": "list"})
-shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})
+shrine_detail_view = ShrineDetailView.as_view()  # ← 所有者チェックありに差し替え
+shrine_nearest_view = ShrineViewSet.as_view({"get": "nearest"})
 
 urlpatterns = [
-    # ✅ /api/shrines/ → name="shrine_list"
+    # Shrines
     path("shrines/", shrine_list_view, name="shrine_list"),
-    # ✅ /api/shrines/<pk>/ → name="shrine_detail"
     path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
-    # ✅ /api/shrines/<pk>/route/ → name="shrine_route"
-    #   ここは GET でページ、POST でAPI…など実装次第。少なくともURLとnameを用意。
-    path("shrines/<int:pk>/route/", RouteView.as_view(), name="shrine_route"),
-    # ✅ popular（ランキング） → name="popular-shrines"
+    # HTML のルート画面（ログイン必須）
+    path("shrines/<int:pk>/route/", ShrineRouteView.as_view(), name="shrine_route"),
+    # 近場検索（ViewSet のカスタムアクション）
+    path("shrines/nearest/", shrine_nearest_view, name="shrine-nearest"),
+    # ランキング
     path("popular/", RankingAPIView.as_view(), name="popular-shrines"),
-    # ✅ ルートAPI（テストは /api/route/ に POST）
-    path("route/", RouteView.as_view(), name="route"),
-    # ✅ Places 系（テストが直叩き）
+    # ルートAPI（JSON）
+    path("route/", RouteAPIView.as_view(), name="route"),
+    # Places
     path("places/search/", search, name="places-search"),
     path("places/text_search/", text_search, name="places-text-search"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby_search/", nearby_search, name="places-nearby-search"),
     path("places/<str:place_id>/", detail, name="places-detail"),
-    # 既存のリスト等（残してOK：ブラウズ可能APIなどで便利）
+    # Favorites / Visits
     path("favorites/", UserFavoriteListView.as_view(), name="favorites-list"),
     path("favorites/toggle/", FavoriteToggleView.as_view(), name="favorites-toggle"),
-    path("visits/", UserVisitListView.as_view()),
-    path("visits/create/", VisitCreateView.as_view()),
-    # RouterのURL（上の明示パスと競合しないので併存OK）
+    path("visits/", UserVisitListView.as_view(), name="visits-list"),
+    path("visits/create/", VisitCreateView.as_view(), name="visits-create"),
+    # Concierge（AIナビ）
+    path("concierge/chat/", concierge.chat, name="concierge-chat"),
+    path("concierge/plan/", concierge.ConciergePlanView.as_view(), name="concierge-plan"),
+    # Router 由来
     path("", include(router.urls)),
-    # もし nearest を使うなら（テストには直接出てないけど保持可）
-    path("shrines/nearest/", ShrineViewSet.as_view({"get": "nearest"}), name="shrine-nearest"),
-    path("concierge/chat/", api_views_concierge.chat, name="concierge-chat"),
-    path("concierge/plan/", api_views_concierge.plan, name="concierge-plan"),
 ]

@@ -3,10 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..serializers.concierge import (
-    ConciergePlanRequestSerializer,
-    ConciergePlanResponseSerializer,
-)
+from ..serializers.concierge import ConciergePlanRequestSerializer, ConciergePlanResponseSerializer
 from ..services.concierge import ConciergeService
 from .services.concierge import make_plan
 from .services.places import text_search_first  # 既存のPlacesラッパを想定

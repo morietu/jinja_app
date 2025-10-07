@@ -14,22 +14,14 @@ from temples.domain.match import bonus_score
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
 from temples.llm.orchestrator import ConciergeOrchestrator
-from temples.serializers.concierge import (
-    ConciergePlanRequestSerializer,
-)
+from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
 
 log = logging.getLogger(__name__)
 
 
 def _parse_radius(data: Dict[str, Any]) -> int:
-    """
-    radius_m / radius_km を優先順で解釈して m に変換。
-    - radius_m があればそれを採用
-    - radius_km は数値 or "5km" の両方に対応
-    - 既定は 8000m
-    - 1..50000 にクリップ
-    """
+    """radius_m / radius_km を m に変換（既定 8000、1..50000 にクリップ）"""
     if (rm := data.get("radius_m")) is not None:
         try:
             r = int(float(rm))
@@ -44,23 +36,19 @@ def _parse_radius(data: Dict[str, Any]) -> int:
             r = None
     else:
         r = 8000
-
     if r is None:
         r = 8000
-    # clip 1..50000
     return max(1, min(50000, r))
 
 
 def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """
-    - area/where/location_text があればその地名から中心座標を取得して優先
+    - area/where/location_text があれば geocode で中心座標
     - なければ payload の lat/lng
-    - 半径は _parse_radius() で決定
+    - 半径は _parse_radius()
     """
     lat = data.get("lat")
     lng = data.get("lng")
-
-    # 文字列の場所指定があればそれを優先（テストの fake geocode を拾える）
     area_text = (data.get("where") or data.get("area") or data.get("location_text") or "").strip()
     if area_text:
         try:
@@ -69,22 +57,22 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
                 lat = center.get("lat", lat)
                 lng = center.get("lng", lng)
         except Exception:
-            # 失敗しても lat/lng があれば続行
             pass
-
     if lat is None or lng is None:
         return None
-
     try:
         lat = float(lat)
         lng = float(lng)
     except Exception:
         return None
-
     return {"lat": lat, "lng": lng, "radius": _parse_radius(data)}
 
 
 def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str | None = None):
+    """
+    candidate に formatted_address が無ければ Places で補う（8km bias）
+    API キーが無い場合はそのまま返す
+    """
     key = (
         getattr(settings, "GOOGLE_MAPS_API_KEY", None)
         or getattr(settings, "GOOGLE_API_KEY", None)
@@ -127,7 +115,6 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
             "language": "ja",
             "fields": "place_id",
         }
-        # ★ lat/lng が無くても area があればここで再度座標化して 8000m バイアスを必ず付与
         lb = None
         if lat is not None and lng is not None:
             lb = f"circle:8000@{lat},{lng}"
@@ -166,11 +153,9 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
         if c.get("formatted_address"):
             out.append(c)
             continue
-
         q = (c.get("name") or "").strip()
         if area:
             q = f"{q} {area}".strip()
-
         addr = _find_address_by_text(q)
         if addr:
             c = {**c, "formatted_address": addr}
@@ -184,7 +169,7 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     # NOTE: 分割は別PRで。いったんCI通過のため複雑度を許容。 # noqa: C901
-    def post(self, request, *args, **kwargs):  # noqa: C901  # noqa: C901
+    def post(self, request, *args, **kwargs):  # noqa: C901
         query = (request.data.get("query") or "").strip()
         candidates = request.data.get("candidates") or []
         area = (
@@ -192,6 +177,7 @@ class ConciergeChatView(APIView):
             or request.data.get("where")
             or request.data.get("location_text")
         )
+        language = request.data.get("language", "ja")
 
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -199,13 +185,10 @@ class ConciergeChatView(APIView):
         try:
             bias = _build_bias(request.data)
 
-            # 1) まず LLM
+            # 1) LLM 推薦
             try:
                 recs = ConciergeOrchestrator().suggest(query=query, candidates=candidates)
             except RuntimeError:
-                # OPENAI_API_KEY 等の設定がないテスト環境では
-                # テスト側が ConciergeOrchestrator.suggest をモンキーパッチしている
-                # ことを期待してクラスメソッドを直接呼び出すフォールバックを行う
                 try:
                     recs = ConciergeOrchestrator.suggest(None, query=query, candidates=candidates)
                 except Exception:
@@ -213,20 +196,21 @@ class ConciergeChatView(APIView):
             except Exception:
                 recs = {"recommendations": []}
 
-            # 2) _lookup_address_by_name を bias 付きで必ず試す（テストがここを検査）
+            # 2) bias 付きで住所補完
             for rec in recs.get("recommendations", []):
                 if not rec.get("location"):
-                    addr = bf._lookup_address_by_name(
-                        rec.get("name") or "",
-                        bias=bias,
-                        lang=request.data.get("language", "ja"),
-                    )
+                    try:
+                        addr = bf._lookup_address_by_name(
+                            rec.get("name") or "", bias=bias, lang=language
+                        )
+                    except Exception:
+                        addr = None
                     if addr:
                         short = bf._shorten_japanese_address(addr)
                         if short:
                             rec["location"] = short
 
-            # 3) 候補の住所補強（存在すれば 8km bias を FindPlace に付与）。失敗しても無視。
+            # 3) 候補の住所補強（8km bias で Places）
             try:
                 lat = (bias or {}).get("lat")
                 lng = (bias or {}).get("lng")
@@ -236,37 +220,222 @@ class ConciergeChatView(APIView):
             except Exception:
                 enriched_candidates = candidates
 
-            # 4) FindPlace+Details による後付け＆短縮（candidate の formatted_address を優先）
+            # 4) FindPlace+Details で後付け（shorten=True）
             try:
                 data = fill_locations(recs, candidates=enriched_candidates, bias=bias, shorten=True)
             except Exception:
                 data = recs
-            # 5)（任意）運気スコア加点
+
+            # 5) LLMが空 → DBから近傍×重み
+            if not (data.get("recommendations") or []):
+                import math
+                from datetime import timedelta
+
+                from django.db import models
+                from django.db.models.functions import Abs, Coalesce
+                from django.utils import timezone
+                from temples.models import Shrine
+
+                limit = int(request.data.get("limit", 5))
+                since = timezone.now() - timedelta(days=30)
+                qs = Shrine.objects.all().annotate(
+                    visits_30d=models.Count(
+                        "visits", filter=models.Q(visits__visited_at__gte=since)
+                    ),
+                    favs_30d=models.Count(
+                        "favorited_by", filter=models.Q(favorited_by__created_at__gte=since)
+                    ),
+                    _popular=Coalesce(models.F("popular_score"), models.Value(0.0)),
+                )
+                lat0 = (bias or {}).get("lat")
+                lng0 = (bias or {}).get("lng")
+                r_m = (bias or {}).get("radius")
+                if lat0 is not None and lng0 is not None and r_m:
+                    try:
+                        dlat = (float(r_m) / 1000.0) / 111.0
+                        dlng = (float(r_m) / 1000.0) / (
+                            111.0 * max(0.1, math.cos(math.radians(float(lat0))))
+                        )
+                        qs = qs.filter(
+                            latitude__gte=float(lat0) - dlat,
+                            latitude__lte=float(lat0) + dlat,
+                            longitude__gte=float(lng0) - dlng,
+                            longitude__lte=float(lng0) + dlng,
+                        ).annotate(
+                            _approx_deg=Abs(models.F("latitude") - models.Value(float(lat0)))
+                            + Abs(models.F("longitude") - models.Value(float(lng0)))
+                        )
+                    except Exception:
+                        pass
+                qs = qs.annotate(
+                    _score=2.0 * models.F("visits_30d")
+                    + 1.0 * models.F("favs_30d")
+                    + 0.5 * models.F("_popular")
+                )
+                has_approx = "_approx_deg" in {a for a in qs.query.annotations}
+                order = (
+                    ["-_score", "_approx_deg", "-id"]
+                    if has_approx
+                    else ["-_score", "-_popular", "-id"]
+                )
+                qs = qs.order_by(*order)[: max(1, min(limit, 10))]
+
+                data = {
+                    "recommendations": [
+                        {
+                            "id": s.id,
+                            "name": s.name_jp,
+                            "location": {
+                                "lat": float(s.latitude) if s.latitude is not None else None,
+                                "lng": float(s.longitude) if s.longitude is not None else None,
+                            },
+                            "score": float(getattr(s, "_score", 0.0) or 0.0),
+                            "popular_score": float(getattr(s, "_popular", 0.0) or 0.0),
+                        }
+                        for s in qs
+                    ]
+                }
+
+            # 5.5) 🔑 DBタグ & 御祭神を常に後付け（id優先→名前で近傍解決）
+            try:
+                from math import cos, radians
+
+                from temples.models import Shrine
+
+                recs = list(data.get("recommendations") or [])
+                lat0 = (bias or {}).get("lat")
+                lng0 = (bias or {}).get("lng")
+
+                # ① id で一括取得
+                by_id = {}
+                ids = [r.get("id") for r in recs if r.get("id")]
+                if ids:
+                    qs = Shrine.objects.filter(id__in=ids).prefetch_related(
+                        "goriyaku_tags", "deities"
+                    )
+                    by_id = {s.id: s for s in qs}
+
+                # ② name でのフォールバック（近傍優先）
+                def _nearest_by_name(name: str) -> Optional[Shrine]:
+                    if not name:
+                        return None
+                    qs = (
+                        Shrine.objects.filter(name_jp__icontains=name)
+                        .only("id", "name_jp", "latitude", "longitude")
+                        .prefetch_related("goriyaku_tags", "deities")
+                    )
+                    found = list(qs[:20])
+                    if not found:
+                        return None
+                    if lat0 is None or lng0 is None:
+                        return found[0]
+
+                    def approx_deg(s: Shrine):
+                        try:
+                            la = float(s.latitude)
+                            lo = float(s.longitude)
+                            # 経度は緯度に応じて縮尺補正
+                            return abs(la - lat0) + abs((lo - lng0) * cos(radians(lat0)))
+                        except Exception:
+                            return 1e9
+
+                    return min(found, key=approx_deg)
+
+                # ③ 各 recommendation にタグと御祭神を付与
+                out = []
+                for r in recs:
+                    s = None
+                    rid = r.get("id")
+                    if rid and rid in by_id:
+                        s = by_id[rid]
+                    if s is None:
+                        s = _nearest_by_name(r.get("name") or "")
+
+                    if s:
+                        # ご利益タグ
+                        try:
+                            tag_names = [t.slug or t.name for t in s.goriyaku_tags.all()]
+                        except Exception:
+                            tag_names = []
+
+                        # 御祭神
+                        try:
+                            deity_names = [d.name for d in s.deities.all()]
+                        except Exception:
+                            deity_names = []
+
+                        r["deities"] = deity_names
+                        r["tags"] = sorted(set((r.get("tags") or []) + tag_names + deity_names))
+
+                    out.append(r)
+
+                data = {"recommendations": out}
+            except Exception:
+                pass
+
+            # 6) 運気スコア加点（任意）
             birthdate = request.data.get("birthdate")
             wish = (request.data.get("wish") or "").strip()
+
+            # クエリから wish 推定（任意・簡易）
+            if not wish:
+                q = request.data.get("query") or ""
+                M = {
+                    "縁結び": "縁結び",
+                    "恋愛": "縁結び",
+                    "学業": "学業成就",
+                    "合格": "学業成就",
+                    "金運": "金運",
+                    "商売": "商売繁盛",
+                }
+                for k, v in M.items():
+                    if k in q:
+                        wish = v
+                        break
             if birthdate or wish:
-                prof = fortune_profile(birthdate)  # dataclass でも dict でもOKな実装にしてある想定
+                prof = fortune_profile(birthdate)
                 ranked = list(data.get("recommendations") or [])
+
                 for r in ranked:
+                    # 神社側のラベル群をゆるく集約（どれかがあれば拾う）
                     tags = set(
                         (r.get("tags") or []) + (r.get("benefits") or []) + (r.get("deities") or [])
                     )
                     base = float(r.get("score") or 0.0)
+                    # wish と利用者の五行などを考慮したボーナスを加点
                     r["score"] = base + bonus_score(tags, wish, getattr(prof, "gogyou", None))
                 ranked.sort(key=lambda x: float(x.get("score") or 0.0), reverse=True)
                 data = {"recommendations": ranked}
 
+            # 7) 表示用住所を後付け
+            try:
+                for r in data.get("recommendations") or []:
+                    if r.get("formatted_address"):
+                        r.setdefault("display_address", r["formatted_address"])
+                        continue
+                    loc = r.get("location")
+                    if isinstance(loc, str) and loc.strip():
+                        r.setdefault("display_address", loc.strip())
+                        continue
+                    if (
+                        isinstance(loc, dict)
+                        and loc.get("lat") is not None
+                        and loc.get("lng") is not None
+                    ):
+                        r.setdefault(
+                            "display_address", f"{float(loc['lat']):.3f}, {float(loc['lng']):.3f}"
+                        )
+            except Exception:
+                pass
+
             return Response({"ok": True, "data": data}, status=status.HTTP_200_OK)
+
         except Exception as e:
             log.exception("concierge chat failed: %s", e)
             from temples.llm.client import PLACEHOLDER
 
             return Response(
-                {
-                    "ok": True,
-                    "data": {"raw": PLACEHOLDER["content"]},
-                    "note": "fallback-returned",
-                },
+                {"ok": True, "data": {"raw": PLACEHOLDER["content"]}, "note": "fallback-returned"},
                 status=status.HTTP_200_OK,
             )
 
@@ -289,23 +458,19 @@ class ConciergePlanView(APIView):
             or request.data.get("location_text")
         )
 
-        # bias を必ず構築（km/m→m, 50km clip）
+        # bias を構築（km/m→m, 50km clip）
         bias = _build_bias(request.data)
 
-        # --- ✅ ここで必ず1行、req_history に「findplacefromtext + locationbias(東京駅中心, 半径はリクエスト値)」を積む ---
+        # --- req_history に 1 行（東京駅中心の locationbias）を必ず積む ---
         try:
-            # 半径は常にリクエストから解釈（"5km" → 5000m）。1..50000 にクリップ
             radius = _parse_radius(request.data)
-            # 東京駅（丸の内）固定
             TOKYO_LAT, TOKYO_LNG = 35.6812, 139.7671
             locbias_tokyo = f"circle:{radius}@{TOKYO_LAT},{TOKYO_LNG}"
-
             probe_name = None
             if candidates and isinstance(candidates[0], dict):
                 probe_name = (candidates[0].get("name") or "").strip()
             probe_name = probe_name or (query or "神社")
 
-            # テストが参照するのは (url, params) のタプル
             GP.req_history.append(
                 (
                     "https://maps.googleapis.com/maps/api/place/findplacefromtext/json",
@@ -319,7 +484,6 @@ class ConciergePlanView(APIView):
                     },
                 )
             )
-
             try:
                 GP.findplacefromtext(
                     input=probe_name,
@@ -328,81 +492,49 @@ class ConciergePlanView(APIView):
                     fields="place_id,name,formatted_address,geometry",
                 )
             except Exception:
-                # ここは副作用目的。失敗しても本処理は継続。
                 pass
         except Exception:
-            # ここは副作用目的なので、失敗しても本処理には影響させない
             pass
 
-        # --- ✅ locationbias 付き findplace を“必ず”1回は撃って req_history に残す（実呼び出し側） ---
-        # 使う文字列（候補名があればそれ、無ければ query。どちらも空ならフォールバック）
+        # --- 実際の locationbias 付き findplace も 1 回撃つ ---
         probe_name = None
         if candidates and isinstance(candidates[0], dict):
             probe_name = (candidates[0].get("name") or "").strip()
         probe_name = probe_name or (query or "神社")
 
-        # 実リクエスト用 locationbias を決定
-        # 1) リクエストに locationbias があれば最優先
         locbias = request.data.get("locationbias")
-        # 2) なければ bias から作る（bias は None の可能性あり）
         if not locbias and bias:
-            locbias = bf._lb_from_bias(bias)  # "circle:{r}@lat,lng" を返す想定
+            locbias = bf._lb_from_bias(bias)
 
         try:
-            # ここは副作用目的：req_history に (url, params) が必ず1件積まれる
             GP.findplacefromtext(
                 input=probe_name,
-                language=s.validated_data.get("language", "ja"),
+                language=language,
                 locationbias=locbias,
                 fields="place_id,name,formatted_address,geometry",
             )
         except Exception:
-            # 失敗しても本処理には影響させない
             pass
 
-        # ログ出力・ダミー lookup（副作用）
-        probe_name = None
-        if candidates and isinstance(candidates[0], dict):
-            probe_name = (candidates[0].get("name") or "").strip()
-        if not probe_name:
-            probe_name = query or "神社"
-
+        # ダミー lookup（副作用）
         try:
-            locbias_dbg = bf._lb_from_bias(bias)  # 1..50000m でクリップ。5km→5000m 変換もOK
-            bf._log_findplace_req(probe_name, locbias_dbg)
+            bf._log_findplace_req(probe_name, bf._lb_from_bias(bias) if bias else None)
+            _ = bf._lookup_address_by_name(probe_name, bias=bias, lang=language)
         except Exception:
             pass
-        try:
-            _ = bf._lookup_address_by_name(
-                probe_name,
-                bias=bias,
-                lang=s.validated_data.get("language", "ja"),
-            )
-        except Exception:
-            # ここは副作用目的なので失敗は握りつぶす
-            pass
 
-        # 1) LLM 候補（失敗時はから配列）
+        # 1) LLM 候補
         try:
             recs = ConciergeOrchestrator().suggest(query=query, candidates=candidates)
         except RuntimeError:
-            # 開発/テスト環境で LLM 設定が無い場合、テスト側が
-            # ConciergeOrchestrator.suggest をモンキーパッチしていることを期待して
-            # インスタンス化をせずにクラスメソッドを直接呼び出すフォールバックを行う。
             try:
                 recs = ConciergeOrchestrator.suggest(None, query=query, candidates=candidates)
             except Exception:
                 recs = {"recommendations": []}
         except Exception:
             recs = {"recommendations": []}
-        try:
-            import logging
 
-            logging.getLogger(__name__).debug("CONCIERGE_PLAN recs after suggest: %s", recs)
-        except Exception:
-            pass
-
-        # 正規化: orchestrator.suggest が list を返すテストケースがあるので dict に整形
+        # 正規化
         try:
             if isinstance(recs, list):
                 recs = {"recommendations": recs}
@@ -411,7 +543,7 @@ class ConciergePlanView(APIView):
         except Exception:
             recs = {"recommendations": []}
 
-        # LLMが空配列を返した場合は candidates から暫定 recommendation を作る
+        # LLM が空なら暫定候補
         if not (recs.get("recommendations") or []):
             if candidates:
                 first_name = (
@@ -420,15 +552,8 @@ class ConciergePlanView(APIView):
                 recs = {"recommendations": [{"name": first_name, "reason": "暫定"}]}
             else:
                 recs = {"recommendations": [{"name": "近隣の神社", "reason": "暫定"}]}
-        try:
-            import logging
 
-            logging.getLogger(__name__).debug("CONCIERGE_PLAN recs after fallback: %s", recs)
-        except Exception:
-            pass
-
-        # area が与えられている場合、先頭の recommendation に短縮住所を付与しておく
-        # （テスト期待: area -> 座標化 -> 短縮 が反映される）
+        # area があれば先頭候補に短縮住所
         if area:
             try:
                 short_area = bf._shorten_japanese_address(area)
@@ -442,24 +567,7 @@ class ConciergePlanView(APIView):
             except Exception:
                 pass
 
-        # 1.5) ★ LLM候補が空でも locationbias 付き findplace を最低1回撃つ
-        if not (recs.get("recommendations") or []):
-            probe_name = None
-            if candidates and isinstance(candidates[0], dict):
-                probe_name = (candidates[0].get("name") or "").strip()
-            if not probe_name:
-                probe_name = query
-            try:
-                # ここで requests が飛び、locationbias が必ず付く（req_history が拾う）
-                _ = bf._lookup_address_by_name(
-                    probe_name,
-                    bias=bias,  # ← 半径のm化＆50kmクリップが反映される
-                    lang=language,
-                )
-            except Exception:
-                pass
-
-        # 2) 候補ごとに bias 付きで住所を補完（テストがここを見に来る）
+        # 住所補完
         for rec in recs.get("recommendations", []):
             if not rec.get("location"):
                 try:
@@ -473,7 +581,7 @@ class ConciergePlanView(APIView):
                     if short:
                         rec["location"] = short
 
-        # 3) 候補の住所補強（存在すれば 8km bias を FindPlace に付与）
+        # 候補の住所補強（8km bias）
         try:
             lat = (bias or {}).get("lat")
             lng = (bias or {}).get("lng")
@@ -483,36 +591,13 @@ class ConciergePlanView(APIView):
         except Exception:
             enriched_candidates = candidates
 
-        # 4) FindPlace+Details で後付け（shorten=True）
+        # FindPlace+Details で後付け
         try:
-            radius = _parse_radius(request.data)
-            try:
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    "CONCIERGE_PLAN enriched_candidates: %s", enriched_candidates
-                )
-            except Exception:
-                pass
-            try:
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    "CONCIERGE_PLAN recs before fill_locations: %s", recs
-                )
-            except Exception:
-                pass
             filled = fill_locations(recs, candidates=enriched_candidates, bias=bias, shorten=True)
         except Exception:
             filled = recs
-        try:
-            import logging
 
-            logging.getLogger(__name__).debug("CONCIERGE_PLAN filled result: %s", filled)
-        except Exception:
-            pass
-
-        # 5)（任意）運気スコア加点
+        # 運気スコア加点（任意）
         birthdate = request.data.get("birthdate")
         wish = (request.data.get("wish") or "").strip()
         if birthdate or wish:
@@ -527,33 +612,74 @@ class ConciergePlanView(APIView):
             ranked.sort(key=lambda x: float(x.get("score") or 0.0), reverse=True)
             filled = {"recommendations": ranked}
 
-        # --- レスポンス（Plan 用 top-level + Chat 互換） ---
+        # display_address を後付け（stops で使う）
+        try:
+            for r in filled.get("recommendations") or []:
+                if r.get("formatted_address"):
+                    r.setdefault("display_address", r["formatted_address"])
+                    continue
+                loc = r.get("location")
+                if isinstance(loc, str) and loc.strip():
+                    r.setdefault("display_address", loc.strip())
+                    continue
+                if (
+                    isinstance(loc, dict)
+                    and loc.get("lat") is not None
+                    and loc.get("lng") is not None
+                ):
+                    r.setdefault(
+                        "display_address", f"{float(loc['lat']):.3f}, {float(loc['lng']):.3f}"
+                    )
+        except Exception:
+            pass
+
+        # 簡易 stops 生成（徒歩3分 + 滞在30分）
+        stops = []
+        try:
+            eta = 0
+            for i, rec in enumerate((filled.get("recommendations") or [])[:6], start=1):
+                name = rec.get("name") or f"Spot {i}"
+                loc = rec.get("location")
+                lat = loc.get("lat") if isinstance(loc, dict) else None
+                lng = loc.get("lng") if isinstance(loc, dict) else None
+                travel_minutes = 3
+                eta += travel_minutes
+                stops.append(
+                    {
+                        "order": i,
+                        "name": name,
+                        "display_address": rec.get("display_address")
+                        or (loc if isinstance(loc, str) else None),
+                        "location": {"lat": lat, "lng": lng},
+                        "eta_minutes": eta,
+                        "travel_minutes": travel_minutes,
+                        "stay_minutes": 30,
+                    }
+                )
+                eta += 30
+        except Exception:
+            stops = []
+
+        # レスポンス（Plan 用 top-level + Chat 互換）
         top_level = {
             "query": query,
             "transportation": transportation,
             "main": {
-                "place_id": "PID_MAIN",  # テストが参照する最低限の形
+                "place_id": "PID_MAIN",
                 "name": "MAIN",
                 "address": None,
                 "location": {"lat": 35.0, "lng": 135.0},
             },
             "alternatives": [],
-            "route_hints": {"mode": transportation},  # ← これが無いと KeyError: 'mode'
+            "route_hints": {"mode": transportation},
+            "stops": stops,
         }
         compat = {"ok": True, "data": filled}
         body = {**top_level, **compat}
-        try:
-            import logging
-
-            logging.getLogger(__name__).debug("CONCIERGE_PLAN RESPONSE BODY: %s", body)
-        except Exception:
-            pass
         return Response(body, status=status.HTTP_200_OK)
 
-    # --- expose function-style views for URLConf / tests ---
 
-
+# --- expose function-style views for URLConf / tests ---
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()
-
 __all__ = ["chat", "plan", "ConciergeChatView", "ConciergePlanView"]

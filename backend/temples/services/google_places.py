@@ -47,9 +47,7 @@ API_KEY = (
 )
 
 try:
-    from temples.services.places import (
-        text_search_first as text_search_first,
-    )  # noqa: F401
+    from temples.services.places import text_search_first as text_search_first  # noqa: F401
 except Exception:
     text_search_first = None
 

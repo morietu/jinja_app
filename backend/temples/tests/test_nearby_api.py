@@ -1,6 +1,6 @@
 import pytest
-from django.urls import reverse
 from django.contrib.gis.geos import Point
+from django.urls import reverse
 from temples.tests.factories import make_shrine
 
 pytestmark = pytest.mark.postgis  # PostGIS前提

@@ -3,8 +3,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from temples.api.views.search import search  # 既存の search 関数を再利用
 
-from .api_views import (  # ← ShrineViewSet は router から外す
-    FavoriteViewSet,
+from .api_views import (
+    FavoriteViewSet,  # ← ShrineViewSet は router から外す
     RouteAPIView,
     ShrineNearbyView,
 )
@@ -17,11 +17,11 @@ from .api_views_places import (
     place_photo,
 )
 from .views import (
-    PopularShrinesView,
+    PopularShrinesView,  # shrine_list 用に必要なら import
     shrine_detail,
     shrine_list,
     shrine_route,
-)  # shrine_list 用に必要なら import
+)
 
 app_name = "temples"
 

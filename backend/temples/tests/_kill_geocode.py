@@ -10,8 +10,8 @@ def kill_geocode_session(monkeypatch):
     - temples.signals 内の geocoding 呼び出しを、.lat/.lng を持つダミーに置換
     """
     try:
-        from temples.models import Shrine
         import temples.signals as sig
+        from temples.models import Shrine
     except Exception:
         # models/signals が未ロードなら何もしない
         yield
