@@ -4,6 +4,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
 SIMPLE_JWT = {
@@ -116,8 +117,8 @@ ROOT_URLCONF = "shrine_project.urls"
 # ========= データベース（DATABASE_URL は使わない）=========
 DATABASES = {
     "default": {
-        "ENGINE": DB_ENGINE,
-        "NAME": DB_NAME,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
         "USER": DB_USER,
         "PASSWORD": DB_PASSWORD,
         "HOST": DB_HOST,
@@ -127,6 +128,14 @@ DATABASES = {
         "TEST": {"NAME": f"test_{DB_NAME}"},
     }
 }
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    db = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    # postgis:// で来たら ENGINE を GIS backend に差し替える
+    if DATABASE_URL.startswith("postgis://"):
+        db["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+    DATABASES["default"] = db
+
 
 # CI / pytest 向けの微調整
 if os.getenv("CI") == "true":
@@ -216,11 +225,3 @@ CORS_ALLOWED_ORIGINS = _split_csv(
 # CSRF_COOKIE_SAMESITE   = "Lax"
 # SESSION_COOKIE_SECURE  = False
 # CSRF_COOKIE_SECURE     = False
-
-if os.getenv("USE_SQLITE", "1") == "1":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
