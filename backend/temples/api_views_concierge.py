@@ -14,8 +14,24 @@ from temples.domain.match import bonus_score
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
 from temples.llm.orchestrator import ConciergeOrchestrator
+from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
+
+llm = get_llm_adapter(
+    provider=settings.LLM_PROVIDER,
+    model=settings.LLM_MODEL,
+    timeout_ms=settings.LLM_TIMEOUT_MS,
+    prompts_dir=settings.LLM_PROMPTS_DIR,
+    enabled=settings.USE_LLM_CONCIERGE,
+    temperature=settings.LLM_TEMPERATURE,
+    max_tokens=settings.LLM_MAX_TOKENS,
+    base_url=settings.LLM_BASE_URL or None,
+    force_chat=settings.LLM_FORCE_CHAT,
+    force_json=settings.LLM_FORCE_JSON,
+    retries=settings.LLM_RETRIES,
+    backoff_s=settings.LLM_BACKOFF_S,
+)
 
 log = logging.getLogger(__name__)
 

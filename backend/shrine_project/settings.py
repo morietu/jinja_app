@@ -220,6 +220,38 @@ CORS_ALLOWED_ORIGINS = _split_csv(
     ["http://localhost:3001", "http://127.0.0.1:3001"],
 )
 
+
+def _getbool(name: str, default="0"):
+    return (os.getenv(name, default) or "").lower() in ("1", "true", "yes")
+
+
+# ========= LLM / Concierge flags =========
+USE_LLM_CONCIERGE = _getbool("USE_LLM_CONCIERGE", "0")
+
+# モデル名は LLM_MODEL を優先、なければ OPENAI_MODEL を後方互換で参照
+LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # とりあえず openai を既定
+LLM_TIMEOUT_MS = int(os.getenv("LLM_TIMEOUT_MS", "2500"))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "800"))
+LLM_FORCE_CHAT = _getbool("LLM_FORCE_CHAT", "1")
+LLM_FORCE_JSON = _getbool("LLM_FORCE_JSON", "1")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")  # 任意
+LLM_RETRIES = int(os.getenv("LLM_RETRIES", "2"))
+LLM_BACKOFF_S = float(os.getenv("LLM_BACKOFF_S", "0.5"))
+
+LLM_CACHE_TTL_S = int(os.getenv("LLM_CACHE_TTL_S", "600"))  # 使う側で利用
+LLM_COORD_ROUND = int(os.getenv("LLM_COORD_ROUND", "3"))  # 使う側で利用
+LLM_ENABLE_PLACES = _getbool("LLM_ENABLE_PLACES", "1")  # 使う側で利用
+LLM_PROMPT_VERSION = os.getenv("LLM_PROMPT_VERSION", "v1")
+
+# prompts ディレクトリ
+LLM_PROMPTS_DIR = str(BASE_DIR.parent / "backend" / "prompts")
+
+# Adapter が必要な場で import して使う前提：
+# from temples.recommendation.llm_adapter import get_llm_adapter
+# LLM_ADAPTER = get_llm_adapter(LLM_PROVIDER, LLM_MODEL, LLM_TIMEOUT_MS, LLM_PROMPTS_DIR, USE_LLM_CONCIERGE)
+
 # （将来Cookie運用する場合のテンプレ：本番は Secure=True / SameSite=None+HTTPS）
 # SESSION_COOKIE_SAMESITE = "Lax"
 # CSRF_COOKIE_SAMESITE   = "Lax"
