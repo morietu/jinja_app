@@ -23,7 +23,6 @@ def _nearby_ident(request) -> str:
 @permission_classes([AllowAny])
 @cache_page(60 * 5)  # 5分キャッシュ（テストは即時2回叩くので十分）
 def search(request):
-
     q = request.query_params.get("q")
     lat = request.query_params.get("lat")
     lng = request.query_params.get("lng")
@@ -146,7 +145,7 @@ def nearby_search(request):
         # 神社だけ残す
         results = [r for r in results if is_shrine(r)]
         # さらに“神社”を含むものを優先（無ければ全件そのまま）
-        prefer = [r for r in results if "神社" in ((r.get("name", "") + r.get("address", "")))]
+        prefer = [r for r in results if "神社" in (r.get("name", "") + r.get("address", ""))]
         results = prefer or results
     else:
         # type パラメータが明示されているときは厳格に types で絞る

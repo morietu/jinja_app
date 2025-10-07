@@ -7,6 +7,19 @@ from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
+# --- 追加ここから ---
+KYUSEI_CHOICES = [
+    ("一白水星", "一白水星"),
+    ("二黒土星", "二黒土星"),
+    ("三碧木星", "三碧木星"),
+    ("四緑木星", "四緑木星"),
+    ("五黄土星", "五黄土星"),
+    ("六白金星", "六白金星"),
+    ("七赤金星", "七赤金星"),
+    ("八白土星", "八白土星"),
+    ("九紫火星", "九紫火星"),
+]
+
 
 class PlaceRef(models.Model):
     place_id = models.CharField(max_length=128, primary_key=True)
@@ -48,10 +61,15 @@ class GoriyakuTag(models.Model):
 
 
 class Shrine(models.Model):
+    KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
+    kind = gis_models.CharField(
+        max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True
+    )
     # 基本情報
     name_jp = gis_models.CharField(max_length=100)
     name_romaji = gis_models.CharField(max_length=100, blank=True, null=True)
     address = gis_models.CharField(max_length=255)
+    deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
 
     # 位置情報
     latitude = gis_models.FloatField(
@@ -77,6 +95,15 @@ class Shrine(models.Model):
         max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
     )
 
+    # 九星（任意入力・タグ用途）
+    kyusei = gis_models.CharField(
+        max_length=8,
+        blank=True,
+        null=True,
+        choices=KYUSEI_CHOICES,
+        help_text="九星（例: 九紫火星）",
+    )
+
     created_at = gis_models.DateTimeField(default=timezone.now)
     updated_at = gis_models.DateTimeField(auto_now=True)
 
@@ -98,6 +125,8 @@ class Shrine(models.Model):
             models.Index(fields=["latitude"], name="idx_shrine_lat"),
             models.Index(fields=["longitude"], name="idx_shrine_lng"),
             models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
+            models.Index(fields=["kyusei"], name="idx_shrine_kyusei"),
+            models.Index(fields=["kind"], name="idx_shrine_kind"),
         ]
         constraints = [
             # --- Check ---
@@ -193,7 +222,9 @@ class Favorite(models.Model):
                 condition=Q(place_id__isnull=False),
             ),
         ]
-        indexes = [models.Index(fields=["user", "created_at"], name="idx_fav_user_created")]
+        indexes = [
+            models.Index(fields=["user", "created_at"], name="idx_fav_user_created"),
+        ]
 
 
 class Visit(models.Model):
@@ -269,3 +300,22 @@ class ConciergeHistory(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class Deity(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    kana = models.CharField(max_length=128, blank=True, default="")
+    aliases = models.CharField(
+        max_length=256, blank=True, default=""
+    )  # カンマ区切りでOK（後で正規化可）
+    wiki_url = models.URLField(blank=True, default="")
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+# Shrine に ManyToMany を追加（既存 Shrine クラス内）
+# deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)

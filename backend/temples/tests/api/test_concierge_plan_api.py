@@ -1,4 +1,5 @@
 import types
+
 import pytest
 from django.urls import reverse
 from temples.services.concierge import ConciergeService

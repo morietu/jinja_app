@@ -1,7 +1,4 @@
-from temples.serializers.concierge import (
-    ConciergePlanRequestSerializer,
-    PlaceLiteSerializer,
-)
+from temples.serializers.concierge import ConciergePlanRequestSerializer, PlaceLiteSerializer
 
 
 def test_plan_request_ok():

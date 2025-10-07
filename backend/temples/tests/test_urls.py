@@ -1,5 +1,5 @@
 import pytest
-from django.urls import resolve, reverse, get_resolver
+from django.urls import get_resolver, resolve, reverse
 
 
 def _has_namespace(ns: str) -> bool:

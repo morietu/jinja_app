@@ -2,7 +2,6 @@ import json
 import types
 
 import pytest
-
 from temples.llm import backfill
 
 

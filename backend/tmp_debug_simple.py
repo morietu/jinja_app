@@ -1,6 +1,8 @@
 import traceback
+
+from temples.llm.backfill import _shorten_japanese_address as S
+from temples.llm.backfill import fill_locations
 from temples.llm.orchestrator import chat_to_plan
-from temples.llm.backfill import fill_locations, _shorten_japanese_address as S
 
 payload = {
     "query": "縁結び 徒歩",

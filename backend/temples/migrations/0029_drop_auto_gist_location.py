@@ -1,4 +1,4 @@
-from django.db import migrations, connection
+from django.db import connection, migrations
 
 
 def drop_index(apps, schema_editor):

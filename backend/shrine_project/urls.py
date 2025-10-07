@@ -8,19 +8,18 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
-from temples.api_views_concierge import ConciergePlanView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from temples import api_views_concierge as concierge
 
+# legacy直importは廃止。conciergeは temples.api.urls に束ねる
+# 必要なら: from temples.api.views.concierge import ConciergePlanView, ConciergeChatView
 from .views import favicon, index
 
 urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
+    path("api/concierge/plan/", concierge.ConciergePlanView.as_view(), name="concierge-plan"),
     # --- debug whoami ---
     path(
         "api/_debug/whoami/",
@@ -59,7 +58,7 @@ urlpatterns = [
         "api/",
         include(("temples.api.urls", "temples"), namespace="temples"),
     ),
-    path("api/concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
+    # path("api/concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
     # SimpleJWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),

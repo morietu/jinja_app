@@ -1,7 +1,8 @@
 import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from .factories import make_user, make_shrine
+
+from .factories import make_shrine, make_user
 
 
 def auth_client(user):

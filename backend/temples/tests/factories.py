@@ -1,7 +1,7 @@
 # temples/tests/factories.py
 import factory
-from factory.django import DjangoModelFactory
 from django.contrib.auth import get_user_model
+from factory.django import DjangoModelFactory
 from temples.models import Shrine
 
 User = get_user_model()

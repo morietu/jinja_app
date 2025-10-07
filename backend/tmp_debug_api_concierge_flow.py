@@ -1,15 +1,12 @@
 import os
-import django
 import traceback
+
+import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
 django.setup()
 
-from temples.api_views_concierge import (
-    _parse_radius,
-    _build_bias,
-    _enrich_candidates_with_places,
-)
+from temples.api_views_concierge import _build_bias, _enrich_candidates_with_places, _parse_radius
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
 

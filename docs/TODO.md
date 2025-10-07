@@ -183,3 +183,9 @@
 - [ ] 🟡 Frontend: apps/web/src/app/search/places/page.tsx が上記スキーマで動作するか最終確認
 - [ ] 旧ファイルの掃除：apps/web/lib/http.ts（未参照確認後に削除）
 - [ ] useFavorite / Favorites API の最終接続確認（トグル、一覧、削除）
+
+## 作業確認
+- [ ] README: JWTフロー（create/verify/refresh/blacklist）の手順と注意点を追記
+- [ ] Frontend: 401(expired)ハンドリング → refresh → 1回だけ再試行の実装
+- [ ] Frontend: refreshは毎回ローテされるため、最新refreshをストアに上書き保存する
+- [ ] （任意）運用Tips: トークン全削除スクリプトとトラブルシュートをREADMEに記載

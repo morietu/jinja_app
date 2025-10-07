@@ -1,9 +1,19 @@
 # shrine_project/settings.py
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),  # dev: 30分
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # dev: 7日
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 # ========= パス =========
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,7 +55,7 @@ DB_HOST = os.getenv("DB_HOST", "db")  # ← Docker のサービス名
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "jinja_db")
 DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "admin_pass")  # ← 既定
+DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
 DB_ENGINE = "django.contrib.gis.db.backends.postgis" if USE_GIS else "django.db.backends.postgresql"
 
 # ========= INSTALLED_APPS / MIDDLEWARE =========
@@ -63,6 +73,7 @@ INSTALLED_APPS = [
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     # Local apps
     "users",
@@ -106,8 +117,8 @@ ROOT_URLCONF = "shrine_project.urls"
 # ========= データベース（DATABASE_URL は使わない）=========
 DATABASES = {
     "default": {
-        "ENGINE": DB_ENGINE,
-        "NAME": DB_NAME,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
         "USER": DB_USER,
         "PASSWORD": DB_PASSWORD,
         "HOST": DB_HOST,
@@ -117,6 +128,14 @@ DATABASES = {
         "TEST": {"NAME": f"test_{DB_NAME}"},
     }
 }
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    db = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    # postgis:// で来たら ENGINE を GIS backend に差し替える
+    if DATABASE_URL.startswith("postgis://"):
+        db["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+    DATABASES["default"] = db
+
 
 # CI / pytest 向けの微調整
 if os.getenv("CI") == "true":
@@ -140,6 +159,12 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# === Locale / Timezone ===
+LANGUAGE_CODE = "ja"
+TIME_ZONE = "Asia/Tokyo"
+USE_I18N = True
+USE_TZ = True
 
 # ========= DRF =========
 REST_FRAMEWORK = {
@@ -194,3 +219,9 @@ CORS_ALLOWED_ORIGINS = _split_csv(
     os.environ.get("CORS_ALLOWED_ORIGINS"),
     ["http://localhost:3001", "http://127.0.0.1:3001"],
 )
+
+# （将来Cookie運用する場合のテンプレ：本番は Secure=True / SameSite=None+HTTPS）
+# SESSION_COOKIE_SAMESITE = "Lax"
+# CSRF_COOKIE_SAMESITE   = "Lax"
+# SESSION_COOKIE_SECURE  = False
+# CSRF_COOKIE_SECURE     = False

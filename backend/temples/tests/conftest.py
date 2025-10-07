@@ -1,14 +1,14 @@
 # temples/tests/conftest.py
 import contextlib
+import json
 import os
 import re
-import json
 from decimal import Decimal
 
 import pytest
 import responses as httpmock
-from django.db.models.signals import pre_save
 from django.db import connection
+from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
 
 
@@ -42,8 +42,8 @@ def _block_real_http():
 def _disable_auto_geocode_signal():
     if os.getenv("CI") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
         try:
-            from temples.models import Shrine
             from temples import signals as sig
+            from temples.models import Shrine
         except Exception:
             yield
             return

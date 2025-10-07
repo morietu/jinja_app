@@ -6,9 +6,7 @@ from .concierge import (
     PlaceLiteSerializer,
     ShrineRecommendationSerializer,
 )
-from .concierge import (
-    ConciergePlanResponseSerializer as ConciergeResponseSerializer,  # alias 輸出
-)
+from .concierge import ConciergePlanResponseSerializer as ConciergeResponseSerializer  # alias 輸出
 from .routes import (
     FavoriteSerializer,
     GoshuinSerializer,
