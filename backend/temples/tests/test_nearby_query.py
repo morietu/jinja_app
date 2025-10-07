@@ -1,6 +1,6 @@
 import pytest
-from temples.tests.factories import make_shrine
 from temples.queries import nearest_shrines
+from temples.tests.factories import make_shrine
 
 pytestmark = pytest.mark.postgis
 
@@ -29,5 +29,5 @@ def test_knn_order_and_distance_column(db):
 def test_limit_applied(db):
     lat, lng = TOKYO_EKI
     qs = nearest_shrines(lon=lng, lat=lat, limit=2, radius_m=None)  # KNNのみ
-    names = [n for n, in qs.values_list("name_jp")]
+    names = [n for (n,) in qs.values_list("name_jp")]
     assert len(names) == 2

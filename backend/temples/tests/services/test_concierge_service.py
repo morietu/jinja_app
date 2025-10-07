@@ -1,4 +1,5 @@
 import types
+
 import pytest
 from temples.services.concierge import ConciergeService
 

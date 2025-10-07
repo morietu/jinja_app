@@ -14,8 +14,8 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point, Polygon
 from django.contrib.gis.measure import D
 from django.db import models
-from django.db.models import F, Value
-from django.db.models.functions import Abs
+from django.db.models import Count, F, FloatField, Value
+from django.db.models.functions import Abs, Coalesce
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
@@ -35,6 +35,90 @@ from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
 
 
+# -----------------------------
+# Popular（モバイルHome用・クラス版）
+# -----------------------------
+@method_decorator(cache_page(60), name="get")  # 60秒キャッシュ
+class PopularShrinesView(ListAPIView):
+    """
+    - 合成スコア: 2 * visits + 0.5 * popular_score
+    - ?near=lat,lng & radius_km=R で近傍→距離をセカンダリソート
+    - レスポンスは {"items":[...]}
+    """
+
+    permission_classes = [AllowAny]
+    # pytest のときはスロットル無効
+    throttle_classes = [] if getattr(settings, "IS_PYTEST", False) else [ScopedRateThrottle]
+    throttle_scope = "places"
+    serializer_class = ShrineSerializer
+
+    def _field_names(self) -> set[str]:
+        return {getattr(f, "name", "") for f in Shrine._meta.get_fields()}
+
+    def get_queryset(self):
+        fields = self._field_names()
+
+        # visits と popular_score から合成スコアを作る
+        qs = (
+            Shrine.objects.all()
+            .annotate(
+                visit_count=Coalesce(Count("visits"), 0),
+                popular_val=Coalesce(F("popular_score"), Value(0.0)),
+            )
+            .annotate(
+                composite_score=F("visit_count") * Value(2.0) + F("popular_val") * Value(0.5),
+                output_field=FloatField(),
+            )
+        )
+
+        # 近傍指定がある場合は bbox で絞った上で距離をセカンダリキーに使う
+        params = self.request.GET
+        near = params.get("near")
+        radius_km = params.get("radius_km")
+        has_latlng = "latitude" in fields and "longitude" in fields
+
+        if near and radius_km and has_latlng:
+            try:
+                lat, lng = [float(v) for v in near.split(",")]
+                r_km = float(radius_km)
+                lat_delta = r_km / 111.32
+                lng_delta = r_km / (111.32 * max(0.000001, math.cos(math.radians(lat))))
+                qs = (
+                    qs.filter(
+                        latitude__gte=lat - lat_delta,
+                        latitude__lte=lat + lat_delta,
+                        longitude__gte=lng - lng_delta,
+                        longitude__lte=lng + lng_delta,
+                    )
+                    .annotate(
+                        _approx_deg=Abs(F("latitude") - Value(lat))
+                        + Abs(F("longitude") - Value(lng))
+                    )
+                    .order_by("-composite_score", "_approx_deg", "-id")
+                )
+            except Exception:
+                qs = qs.order_by("-composite_score", "-id")
+        else:
+            qs = qs.order_by("-composite_score", "-id")
+
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        # limit（1..50）
+        try:
+            limit = int(request.GET.get("limit", 10))
+        except Exception:
+            limit = 10
+        limit = max(1, min(50, limit))
+
+        queryset = self.get_queryset()[:limit]
+        data = self.get_serializer(queryset, many=True).data
+        return Response({"items": data})
+
+
+# -----------------------------
+# Popular（互換・関数版）
+# -----------------------------
 def popular_shrines(request):
     """
     /api/popular-shrines?near=LAT,LNG&radius_km=R&limit=N
@@ -45,7 +129,14 @@ def popular_shrines(request):
     except Exception:
         limit = 20
 
-    qs = Shrine.objects.all()
+    qs = (
+        Shrine.objects.all()
+        .annotate(
+            visit_count=Coalesce(Count("visits"), 0),
+            popular_val=Coalesce(F("popular_score"), Value(0.0)),
+        )
+        .annotate(composite_score=F("visit_count") * Value(2.0) + F("popular_val") * Value(0.5))
+    )
 
     near = request.GET.get("near")
     radius_km = request.GET.get("radius_km")
@@ -55,9 +146,8 @@ def popular_shrines(request):
             lat0 = float(lat_str)
             lng0 = float(lng_str)
             r = float(radius_km)
-            # --- BBOX（おおよそ） ---
             dlat = r / 111.0
-            dlng = r / (111.0 * max(0.1, cos(radians(lat0))))  # 緯度依存、ゼロ割回避
+            dlng = r / (111.0 * max(0.1, cos(radians(lat0))))
             qs = qs.filter(
                 latitude__gte=lat0 - dlat,
                 latitude__lte=lat0 + dlat,
@@ -65,11 +155,9 @@ def popular_shrines(request):
                 longitude__lte=lng0 + dlng,
             )
         except Exception:
-            # パラメータ壊れてたらフィルタはスキップ（fail-closedにしたいなら400返してもOK）
             pass
 
-    # 常に人気順の降順
-    qs = qs.order_by("-popular_score", "id")[:limit]
+    qs = qs.order_by("-composite_score", "-id")[:limit]
 
     items = [
         {
@@ -84,6 +172,9 @@ def popular_shrines(request):
     return JsonResponse({"items": items})
 
 
+# -----------------------------
+# 一覧・検索（既存）
+# -----------------------------
 class ShrineListView(TemplateView):
     template_name = "temples/list.html"
 
@@ -106,8 +197,7 @@ class ShrineViewSet(ReadOnlyModelViewSet):
                 qs = qs.filter(location__distance_lte=(p, D(km=float(r_km))))
                 qs = qs.annotate(d=Distance("location", p)).order_by("d")
             except ValueError:
-                # パラメータ不正は無視（全件へフォールバック）
-                pass
+                pass  # パラメータ不正は無視
 
         # BBox: ?min_lng=&min_lat=&max_lng=&max_lat=
         min_lng = qp.get("min_lng")
@@ -121,7 +211,6 @@ class ShrineViewSet(ReadOnlyModelViewSet):
                 )
                 bbox.srid = 4326
                 qs = qs.filter(location__within=bbox)
-                # 距離注釈があれば order_by("d") を優先、それ以外はモデルの Meta.ordering に任せる
             except ValueError:
                 pass
 
@@ -133,8 +222,8 @@ class ShrineViewSet(ReadOnlyModelViewSet):
 # -----------------------------
 def _is_shrine_owner(user, shrine) -> bool:
     """
-    Shrine の所有者判定（User FK / M2M / プロパティ / Favorite フォールバック対応）
-    スキーマが流動的でも落ちにくくする。
+    Shrine の所有者判定（User FK / M2M / プロパティ）。
+    ※ Favorite フォールバックはテスト要件と競合するので廃止。
     """
     uid = getattr(user, "id", None)
     if uid is None:
@@ -164,15 +253,6 @@ def _is_shrine_owner(user, shrine) -> bool:
     if owner_obj is not None and getattr(owner_obj, "pk", None) == uid:
         return True
 
-    # 4) Favorite フォールバック
-    try:
-        from .models import Favorite
-
-        if Favorite.objects.filter(user_id=uid, shrine_id=shrine.id).exists():
-            return True
-    except Exception:
-        pass
-
     return False
 
 
@@ -181,7 +261,6 @@ class ShrineDetailView(LoginRequiredMixin, View):
         s = get_object_or_404(Shrine, pk=pk)
         if not _is_shrine_owner(request.user, s):
             raise Http404()
-        # テストはパーミッションだけ見る想定なので中身は最小でOK
         return HttpResponse(f"<h1>{s.name_jp or 'Shrine'}</h1>")
 
 
@@ -258,88 +337,6 @@ def shrine_route(request, pk: int):
         "GOOGLE_MAPS_API_KEY": os.environ.get("GOOGLE_MAPS_API_KEY", ""),
     }
     return render(request, "temples/route.html", ctx)
-
-
-# -----------------------------
-# Popular（モバイルHome用）
-# -----------------------------
-@method_decorator(cache_page(60), name="get")  # 60秒キャッシュ
-class PopularShrinesView(ListAPIView):
-    """
-    - 可能なら popular_score / views_30d / favorites_30d / updated_at の順で降順
-    - どれも無ければ -id で降順
-    - ?near=lat,lng & radius_km=R があれば bbox で絞り、近似距離でセカンダリソート
-    - **レスポンスは {"items":[...]}**（テストがこちらを期待）
-    """
-
-    permission_classes = [AllowAny]
-    # production: use ScopedRateThrottle with "places" scope
-    # pytest: disable throttling to avoid cross-test rate exhaustion
-    throttle_classes = [] if getattr(settings, "IS_PYTEST", False) else [ScopedRateThrottle]
-    throttle_scope = "places"
-    serializer_class = ShrineSerializer
-
-    def _field_names(self) -> set[str]:
-        return {getattr(f, "name", "") for f in Shrine._meta.get_fields()}
-
-    def get_queryset(self):
-        fields = self._field_names()
-
-        # 並び順（存在するものだけ反映）
-        order_by: list[str] = []
-        for cand in ("popular_score", "views_30d", "favorites_30d", "updated_at"):
-            if cand in fields:
-                order_by.append(f"-{cand}")
-        if not order_by:
-            order_by = ["-id"]
-
-        qs = Shrine.objects.all().order_by(*order_by)
-
-        # 近接検索（latitude/longitude がある場合のみ）
-        params = self.request.GET
-        near = params.get("near")
-        radius_km = params.get("radius_km")
-
-        has_latlng = "latitude" in fields and "longitude" in fields
-        if near and radius_km and has_latlng:
-            try:
-                lat, lng = [float(v) for v in near.split(",")]
-                r_km = float(radius_km)
-
-                # 度⇄km の概算
-                lat_delta = r_km / 111.32
-                lng_delta = r_km / (111.32 * max(0.000001, math.cos(math.radians(lat))))
-
-                qs = (
-                    qs.filter(
-                        latitude__gte=lat - lat_delta,
-                        latitude__lte=lat + lat_delta,
-                        longitude__gte=lng - lng_delta,
-                        longitude__lte=lng + lng_delta,
-                    )
-                    .annotate(
-                        _approx_deg=Abs(F("latitude") - Value(lat))
-                        + Abs(F("longitude") - Value(lng))
-                    )
-                    .order_by(*order_by, "_approx_deg")
-                )
-            except Exception:
-                # パラメータ不正は無視
-                pass
-
-        return qs
-
-    def list(self, request, *args, **kwargs):
-        # limit（1..50）
-        try:
-            limit = int(request.GET.get("limit", 10))
-        except Exception:
-            limit = 10
-        limit = max(1, min(50, limit))
-
-        queryset = self.get_queryset()[:limit]
-        data = self.get_serializer(queryset, many=True).data
-        return Response({"items": data})
 
 
 # -----------------------------

@@ -1,8 +1,9 @@
-from .factories import make_user, make_shrine
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 from temples.models import Shrine
+
+from .factories import make_shrine, make_user
 
 User = get_user_model()
 

@@ -1,8 +1,10 @@
 import json
 import re
+
 import pytest
+from temples.llm.backfill import _shorten_japanese_address as S
+from temples.llm.backfill import fill_locations
 from temples.services import google_places as GP
-from temples.llm.backfill import fill_locations, _shorten_japanese_address as S
 
 
 def test_shorten_examples():

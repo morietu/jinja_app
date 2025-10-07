@@ -24,9 +24,7 @@ logger = logging.getLogger(__name__)
 
 try:
     # tests が monkeypatch するフック（このモジュール上のシンボルにしておく）
-    from temples.services.places import (
-        text_search_first as text_search_first,
-    )  # noqa: F401
+    from temples.services.places import text_search_first as text_search_first  # noqa: F401
 except Exception:  # pragma: no cover
     text_search_first = None
 
