@@ -45,6 +45,7 @@ jobs:
       GOOGLE_MAPS_API_KEY: dummy
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
     defaults:
       run:
         working-directory: ./backend
