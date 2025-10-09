@@ -30,10 +30,11 @@ services:
     environment:
       # --- DB接続（DATABASE_URLを使わない方針） ---
       USE_GIS: "1"
-      DB_HOST: db
-      DB_NAME: jinja_db
-      DB_USER: admin
-      DB_PASSWORD: jdb50515
+      DATABASE_URL: postgis://admin:jdb50515@db:5432/jinja_db
+      # DB_HOST: db
+      # DB_NAME: jinja_db
+      # DB_USER: admin
+      # DB_PASSWORD: jdb50515
       # --- ロケール/GEOS/GDAL ---
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "UTF-8"

@@ -23,7 +23,8 @@ htmlcov/
 .env.*
 !.env.example
 .env.local
-
+backend/.env
+backend/.env.*
 # ===== OS / Editor =====
 .DS_Store
 *.swp
@@ -67,3 +68,23 @@ Dockerfile.db
 
 # local DB backups
 .docker/db/*.sql
+
+# SQLite journal
+*.sqlite3-journal
+
+# Coverage report
+coverage.xml
+
+# pyenv / direnv
+.python-version
+.envrc
+
+# Editor backups
+*.orig
+
+# Next.js / Turbo / Parcel (使っていれば)
+.next/
+out/
+.turbo/
+.parcel-cache/
+*.bak
