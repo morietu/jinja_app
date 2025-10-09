@@ -40,8 +40,17 @@ for name in (".env.local", ".env.dev", ".env"):
         os.environ.setdefault("ENV_FILE", str(p))
         break
 
-# --- 4) 以降は env から型付き取得 ---
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="django-insecure-dev-key")
+# --- 4) 以降は env から型付き取得（ただし SECRET_KEY は直接 os.environ から読む） ---
+# すでに冒頭で `import os` 済み。再インポートは不要。
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
+
+# CI / pytest で未設定だった場合のフォールバック（本番は必ず Secrets で上書きされる想定）
+if not SECRET_KEY:
+    if os.environ.get("CI") or os.environ.get("PYTEST_CURRENT_TEST"):
+        SECRET_KEY = "django-insecure-ci-only-secret-key-please-override"
+    else:
+        SECRET_KEY = "django-insecure-dev-only-secret"
+
 DEBUG = env.bool("DEBUG", default=True)
 
 # ========= LLM / Concierge flags（※ここで一度だけ定義）=========
