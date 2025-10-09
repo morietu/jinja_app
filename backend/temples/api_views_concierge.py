@@ -882,7 +882,8 @@ class ConciergePlanView(APIView):
             else:
                 recs = {"recommendations": [{"name": "近隣の神社", "reason": ""}]}
 
-        # area があれば先頭候補に「短縮住所」を display_address にだけ入れる（location を壊さない）
+        # ---- (1) area があれば先頭候補に短縮住所を display に入れ、必要なら location を文字列＋ロック ----
+        lock_applied = False  # fill_locations 後の保険再適用用フラグ
         if area:
             try:
                 short_area = bf._shorten_japanese_address(area)
@@ -892,7 +893,14 @@ class ConciergePlanView(APIView):
                 if recs.get("recommendations"):
                     first = recs["recommendations"][0]
                     if isinstance(first, dict):
-                        recs["recommendations"][0] = {**first, "display_address": short_area}
+                        # display_address は常に付与
+                        first = {**first, "display_address": short_area}
+                        # location が dict でなければ area を文字列で入れてロック
+                        if not isinstance(first.get("location"), dict):
+                            first["location"] = short_area
+                            first["_lock_text_loc"] = True
+                            lock_applied = True
+                        recs["recommendations"][0] = first
             except Exception:
                 pass
 
@@ -925,7 +933,8 @@ class ConciergePlanView(APIView):
             filled = fill_locations(recs, candidates=enriched_candidates, bias=bias, shorten=True)
         except Exception:
             filled = recs
-        # --- area の短縮住所を保険で再適用（fill_locations で消えた場合に setdefault）---
+
+        # --- (1') fill_locations 後の「area の短縮住所を保険で再適用」＋ロック維持 ---
         try:
             if area:
                 try:
@@ -936,6 +945,10 @@ class ConciergePlanView(APIView):
                     first = filled["recommendations"][0]
                     if isinstance(first, dict):
                         first.setdefault("display_address", short_area)
+                        # もし最初にロックを付けたなら、ここでも文字列 location を強制しロック復活
+                        if lock_applied:
+                            first["location"] = short_area
+                            first["_lock_text_loc"] = True
         except Exception:
             pass
 
@@ -944,7 +957,7 @@ class ConciergePlanView(APIView):
         except Exception:
             pass
 
-        # ★ここを追加：filled に対して暫定/placeholder を空に
+        # 暫定/placeholder → 空理由に
         try:
             for r in filled.get("recommendations") or []:
                 if str(r.get("reason") or "").strip().lower() in ("暫定", "placeholder"):
@@ -1080,7 +1093,7 @@ class ConciergePlanView(APIView):
         except Exception:
             pass
 
-        # --- 座標の最終補完（location が str / 空でも geometry or Places から lat/lng を付与）---
+        # --- (2) 座標の最終補完：ロック尊重（文字列 location を維持） ---
         try:
             locbias = request.data.get("locationbias")
             if not locbias and bias:
@@ -1091,6 +1104,17 @@ class ConciergePlanView(APIView):
 
             patched = []
             for r in filled.get("recommendations") or []:
+                # ロックがあり location が文字列なら一切いじらない
+                if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
+                    if area and not r.get("display_address"):
+                        try:
+                            short_area = bf._shorten_japanese_address(area)
+                        except Exception:
+                            short_area = area
+                        r.setdefault("display_address", short_area)
+                    patched.append(r)
+                    continue
+
                 loc = r.get("location")
                 # 既に lat/lng があれば何もしない
                 if (
@@ -1263,6 +1287,10 @@ class ConciergePlanView(APIView):
 
         def _coerce_point(rec: dict) -> dict | None:
             """rec.location を {lat,lng} にする。取れなければ None"""
+            # --- (3) ロック尊重：文字列 location を保護 ---
+            if rec.get("_lock_text_loc") and isinstance(rec.get("location"), str):
+                return None
+
             loc = rec.get("location")
             # 1) 既存の dict
             pt = _pt_from_dict(loc)
@@ -1300,10 +1328,13 @@ class ConciergePlanView(APIView):
                 return pt
             return None
 
-        # 実際に正規化を適用
+        # 実際に正規化を適用（ロックを最初に尊重）
         try:
             patched = []
             for r in filled.get("recommendations") or []:
+                if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
+                    patched.append(r)  # 何も変換しない
+                    continue
                 pt = _coerce_point(r)
                 if pt is not None:
                     r["location"] = pt
