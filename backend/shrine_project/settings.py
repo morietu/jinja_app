@@ -5,7 +5,65 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
-from dotenv import load_dotenv
+import environ
+
+# --- 1) BASE_DIR は最初に ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = BASE_DIR.parent
+
+# --- 2) django-environ を初期化（型 & 既定値をここで宣言）---
+env = environ.Env(
+    DEBUG=(bool, True),
+    USE_LLM_CONCIERGE=(bool, False),
+    LLM_MODEL=(str, "gpt-4o-mini"),
+    LLM_PROVIDER=(str, "openai"),
+    LLM_TIMEOUT_MS=(int, 2500),
+    LLM_TEMPERATURE=(float, 0.2),
+    LLM_MAX_TOKENS=(int, 800),
+    LLM_FORCE_CHAT=(bool, True),
+    LLM_FORCE_JSON=(bool, True),
+    LLM_BASE_URL=(str, ""),
+    LLM_RETRIES=(int, 2),
+    LLM_BACKOFF_S=(float, 0.5),
+    LLM_CACHE_TTL_S=(int, 600),
+    LLM_COORD_ROUND=(int, 3),
+    LLM_ENABLE_PLACES=(bool, True),
+    LLM_PROMPT_VERSION=(str, "v1"),
+)
+
+# --- 3) .env を読む（存在すれば）---
+#   ルート(.env)→ backend/.env のどちらでもOKなように順番に探す
+for name in (".env.local", ".env.dev", ".env"):
+    p = (REPO_ROOT / name) if (REPO_ROOT / name).exists() else (BASE_DIR / name)
+    if p.exists():
+        environ.Env.read_env(str(p))
+        os.environ.setdefault("ENV_FILE", str(p))
+        break
+
+# --- 4) 以降は env から型付き取得 ---
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="django-insecure-dev-key")
+DEBUG = env.bool("DEBUG", default=True)
+
+# ========= LLM / Concierge flags（※ここで一度だけ定義）=========
+USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
+LLM_MODEL = env.str("LLM_MODEL")
+LLM_PROVIDER = env.str("LLM_PROVIDER")
+LLM_TIMEOUT_MS = env.int("LLM_TIMEOUT_MS")
+LLM_TEMPERATURE = env.float("LLM_TEMPERATURE")
+LLM_MAX_TOKENS = env.int("LLM_MAX_TOKENS")
+LLM_FORCE_CHAT = env.bool("LLM_FORCE_CHAT")
+LLM_FORCE_JSON = env.bool("LLM_FORCE_JSON")
+LLM_BASE_URL = env.str("LLM_BASE_URL")
+LLM_RETRIES = env.int("LLM_RETRIES")
+LLM_BACKOFF_S = env.float("LLM_BACKOFF_S")
+LLM_CACHE_TTL_S = env.int("LLM_CACHE_TTL_S")
+LLM_COORD_ROUND = env.int("LLM_COORD_ROUND")
+LLM_ENABLE_PLACES = env.bool("LLM_ENABLE_PLACES")
+LLM_PROMPT_VERSION = env.str("LLM_PROMPT_VERSION")
+
+# prompts ディレクトリ（※ここで一度だけ定義）
+LLM_PROMPTS_DIR = str(BASE_DIR.parent / "backend" / "prompts")
+
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),  # dev: 30分
@@ -14,21 +72,6 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
-
-# ========= パス =========
-BASE_DIR = Path(__file__).resolve().parent.parent
-REPO_ROOT = BASE_DIR.parent
-
-# ========= .env を最優先で読み込む（既存 env を上書きしない）=========
-for name in (".env.local", ".env.dev", ".env"):
-    p = (REPO_ROOT / name) if (REPO_ROOT / name).exists() else (BASE_DIR / name)
-    if p.exists():
-        load_dotenv(p, override=False)
-        os.environ.setdefault("ENV_FILE", str(p))
-        break
-
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-key"
-DEBUG = os.getenv("DEBUG", "1").lower() in ("1", "true", "yes")
 
 
 # ========= 小ユーティリティ =========
@@ -114,10 +157,10 @@ TEMPLATES = [
 
 ROOT_URLCONF = "shrine_project.urls"
 
-# ========= データベース（DATABASE_URL は使わない）=========
+# ========= データベース（DATABASE_URL があれば優先）=========
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
+        "ENGINE": "django.db.backends.sqlite3",  # デフォルトはローカル簡易DB
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
         "USER": DB_USER,
         "PASSWORD": DB_PASSWORD,
@@ -135,7 +178,6 @@ if DATABASE_URL:
     if DATABASE_URL.startswith("postgis://"):
         db["ENGINE"] = "django.contrib.gis.db.backends.postgis"
     DATABASES["default"] = db
-
 
 # CI / pytest 向けの微調整
 if os.getenv("CI") == "true":
@@ -219,41 +261,3 @@ CORS_ALLOWED_ORIGINS = _split_csv(
     os.environ.get("CORS_ALLOWED_ORIGINS"),
     ["http://localhost:3001", "http://127.0.0.1:3001"],
 )
-
-
-def _getbool(name: str, default="0"):
-    return (os.getenv(name, default) or "").lower() in ("1", "true", "yes")
-
-
-# ========= LLM / Concierge flags =========
-USE_LLM_CONCIERGE = _getbool("USE_LLM_CONCIERGE", "0")
-
-# モデル名は LLM_MODEL を優先、なければ OPENAI_MODEL を後方互換で参照
-LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # とりあえず openai を既定
-LLM_TIMEOUT_MS = int(os.getenv("LLM_TIMEOUT_MS", "2500"))
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "800"))
-LLM_FORCE_CHAT = _getbool("LLM_FORCE_CHAT", "1")
-LLM_FORCE_JSON = _getbool("LLM_FORCE_JSON", "1")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")  # 任意
-LLM_RETRIES = int(os.getenv("LLM_RETRIES", "2"))
-LLM_BACKOFF_S = float(os.getenv("LLM_BACKOFF_S", "0.5"))
-
-LLM_CACHE_TTL_S = int(os.getenv("LLM_CACHE_TTL_S", "600"))  # 使う側で利用
-LLM_COORD_ROUND = int(os.getenv("LLM_COORD_ROUND", "3"))  # 使う側で利用
-LLM_ENABLE_PLACES = _getbool("LLM_ENABLE_PLACES", "1")  # 使う側で利用
-LLM_PROMPT_VERSION = os.getenv("LLM_PROMPT_VERSION", "v1")
-
-# prompts ディレクトリ
-LLM_PROMPTS_DIR = str(BASE_DIR.parent / "backend" / "prompts")
-
-# Adapter が必要な場で import して使う前提：
-# from temples.recommendation.llm_adapter import get_llm_adapter
-# LLM_ADAPTER = get_llm_adapter(LLM_PROVIDER, LLM_MODEL, LLM_TIMEOUT_MS, LLM_PROMPTS_DIR, USE_LLM_CONCIERGE)
-
-# （将来Cookie運用する場合のテンプレ：本番は Secure=True / SameSite=None+HTTPS）
-# SESSION_COOKIE_SAMESITE = "Lax"
-# CSRF_COOKIE_SAMESITE   = "Lax"
-# SESSION_COOKIE_SECURE  = False
-# CSRF_COOKIE_SECURE     = False

@@ -1,0 +1,23 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 45,
+  "EndLine": 45,
+  "StartColumn": 10,
+  "EndColumn": 41,
+  "Match": "RegEnumKey = REDACTED",
+  "Secret": "REDACTED",
+  "File": ".venv/Lib/site-packages/setuptools/_distutils/msvccompiler.py",
+  "SymlinkFile": "",
+  "Commit": "d8e24b51593a26b1c31fb8f7828c647d16d3f370",
+  "Link": "https://github.com/morietu/jinja_app/blob/d8e24b51593a26b1c31fb8f7828c647d16d3f370/.venv/Lib/site-packages/setuptools/_distutils/msvccompiler.py#L45",
+  "Entropy": 3.932138,
+  "Author": "morietu",
+  "Email": "ejb0515@gmail.com",
+  "Date": "2025-08-17T08:44:40Z",
+  "Message": "chore: add Django project files and fix unclosed block",
+  "Tags": [],
+  "Fingerprint": "d8e24b51593a26b1c31fb8f7828c647d16d3f370:.venv/Lib/site-packages/setuptools/_distutils/msvccompiler.py:generic-api-key:45"
+ }
+]

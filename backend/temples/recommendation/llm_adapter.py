@@ -108,7 +108,9 @@ class OpenAIAdapter:
             return openai.OpenAI(**kwargs)  # type: ignore
         return openai  # 旧SDK互換
 
-    def _chat_once(self, client, system_prompt: str, user_prompt: str) -> str:
+    def _chat_once(
+        self, client, system_prompt: str, user_prompt: str, *, force_json_object: bool
+    ) -> str:
         if client is None:
             return ""
         try:
@@ -121,21 +123,27 @@ class OpenAIAdapter:
                 timeout=self.timeout_ms / 1000.0,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                # summarize は配列を返すので json_object を強制しない
                 response_format=(
-                    {"type": "json_object"} if self.force_json and hasattr(client, "chat") else None
+                    {"type": "json_object"}
+                    if (self.force_json and force_json_object and hasattr(client, "chat"))
+                    else None
                 ),
             )
+
             content = resp.choices[0].message.content or ""
             return content.strip()
         except Exception:
             return ""
 
-    def _chat(self, system_prompt: str, user_prompt: str) -> str:
+    def _chat(self, system_prompt: str, user_prompt: str, *, force_json_object: bool = True) -> str:
         """リトライ／バックオフ込みの共通呼び出し。_chat_once を使う。"""
         client = self._client()
         out = ""
         for attempt in range(max(0, self.retries) + 1):
-            out = self._chat_once(client, system_prompt, user_prompt)
+            out = self._chat_once(
+                client, system_prompt, user_prompt, force_json_object=force_json_object
+            )
             if out:
                 break
             try:
@@ -148,7 +156,7 @@ class OpenAIAdapter:
     def parse_query(self, text: str) -> dict:
         sys_p = self._read_prompt("parse_query")
         user_p = text.strip()
-        out = self._chat(sys_p, user_p)
+        out = self._chat(sys_p, user_p, force_json_object=True)
         try:
             data = json.loads(out)
             if isinstance(data, dict):
@@ -162,7 +170,7 @@ class OpenAIAdapter:
     def backfill_strategy(self, context: dict) -> dict:
         sys_p = self._read_prompt("backfill")
         user_p = json.dumps(context, ensure_ascii=False)
-        out = self._chat(sys_p, user_p)
+        out = self._chat(sys_p, user_p, force_json_object=True)
         try:
             data = json.loads(out)
             if isinstance(data, dict):
@@ -175,7 +183,9 @@ class OpenAIAdapter:
     def summarize(self, shrines: list[dict], user_ctx: dict | None = None) -> list[str]:
         sys_p = self._read_prompt("summarize")
         payload = {"shrines": shrines, "user": user_ctx or {}}
-        out = self._chat(sys_p, json.dumps(payload, ensure_ascii=False))
+        # ← ここは配列を返すので json_object を強制しない
+        out = self._chat(sys_p, json.dumps(payload, ensure_ascii=False), force_json_object=False)
+
         try:
             data = json.loads(out)
             if isinstance(data, list):
