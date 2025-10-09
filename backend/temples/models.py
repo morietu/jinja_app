@@ -131,13 +131,13 @@ class Shrine(models.Model):
         constraints = [
             # --- Check ---
             CheckConstraint(
-                check=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0), name="chk_lat_range"
+                condition=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0), name="chk_lat_range"
             ),
             CheckConstraint(
-                check=Q(longitude__gte=-180.0) & Q(longitude__lte=180.0), name="chk_lng_range"
+                condition=Q(longitude__gte=-180.0) & Q(longitude__lte=180.0), name="chk_lng_range"
             ),
             CheckConstraint(
-                check=(
+                condition=(
                     Q(latitude__isnull=True, longitude__isnull=True)
                     | Q(latitude__isnull=False, longitude__isnull=False)
                 ),

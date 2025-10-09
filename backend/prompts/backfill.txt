@@ -1,0 +1,15 @@
+You decide a conservative backfill strategy when results are sparse.
+INPUT: a JSON object with optional fields like {"results": 0, "radius_km": 3, "kind":"shrine", ...}
+OUTPUT: JSON ONLY with any of:
+- radius_km_add (number, small increment like 2–5)
+- kind ("shrine"|"temple"|"all")  # widen only if necessary
+- area_bias (string)   # e.g., widen to a nearby larger area name
+- notes (string)       # short rationale
+
+POLICY:
+- If "results" is 0, suggest radius_km_add around 5 and consider kind="all".
+- If results are few (e.g., 1–2) and radius_km<10, add 2.
+- Otherwise return {}.
+- Never invent impossible areas; keep minimal changes.
+
+If no change is needed, return {}.

@@ -1,7 +1,8 @@
 # backend/temples/api_views_concierge.py
 import logging
 import os
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Dict, List, Optional
 
 import requests
 from django.conf import settings
@@ -11,13 +12,58 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
+from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
 from temples.llm.orchestrator import ConciergeOrchestrator
+from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
 
+llm = get_llm_adapter(
+    provider=settings.LLM_PROVIDER,
+    model=settings.LLM_MODEL,
+    timeout_ms=settings.LLM_TIMEOUT_MS,
+    prompts_dir=settings.LLM_PROMPTS_DIR,
+    enabled=settings.USE_LLM_CONCIERGE,
+    temperature=settings.LLM_TEMPERATURE,
+    max_tokens=settings.LLM_MAX_TOKENS,
+    base_url=settings.LLM_BASE_URL or None,
+    force_chat=settings.LLM_FORCE_CHAT,
+    force_json=settings.LLM_FORCE_JSON,
+    retries=settings.LLM_RETRIES,
+    backoff_s=settings.LLM_BACKOFF_S,
+)
+
 log = logging.getLogger(__name__)
+
+# ===== 推し文生成用の定数 =====
+WISH_HINTS = [
+    ("縁結び", "良縁成就を願う参拝に"),
+    ("恋愛", "恋愛成就の祈りに"),
+    ("学業", "学業成就・合格祈願に"),
+    ("金運", "金運上昇・商売繁盛を祈る参拝に"),
+    ("厄除", "厄除け・心身清めの参拝に"),
+    ("厄払い", "厄除け・心身清めの参拝に"),
+]
+TAG_DEITY_HINTS: Dict[str, str] = {
+    "大国主": "縁結びにご利益",
+    "少彦名": "健康長寿の祈りに",
+    "木花咲耶姫": "安産・子授けの祈りに",
+    "応神天皇": "勝運・出世運に",
+    "歓喜天": "夫婦和合・福徳に",
+    "観音": "所願成就・厄除けに",
+    "観音菩薩": "所願成就・厄除けに",
+    "学業成就": "学業成就の祈りに",
+    "金運": "金運上昇を願う参拝に",
+    "商売繁盛": "商売繁盛を祈る参拝に",
+}
+WISH_SYNONYMS: Dict[str, List[str]] = {
+    "縁結び": ["良縁成就を願う参拝に", "恋愛成就の祈りに", "ご縁を結ぶ祈願に"],
+    "学業": ["学業成就・合格祈願に", "学力向上を願う参拝に"],
+    "金運": ["金運上昇を願う参拝に", "商売繁盛を祈る参拝に"],
+    "厄除": ["厄除け・心身清めの参拝に", "災難除けの祈りに", "厄払いの祈りに"],
+}
 
 
 def _parse_radius(data: Dict[str, Any]) -> int:
@@ -163,6 +209,129 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
     return out
 
 
+def _clean_display_name(name: str) -> str:
+    """(ダミー)などの補助フラグを表示から外す"""
+    if not isinstance(name, str):
+        return str(name)
+    n = name.replace("(ダミー)", "").replace("（ダミー）", "")
+    return n.strip()
+
+
+def _is_noise_reason(text: str, name: str, tags_concat: str) -> bool:
+    if not text:
+        return False
+    low = text.strip().lower()
+    if any(x in low for x in ("no ", "n/a", "tags", "deities")):
+        return True
+    if low in ("暫定", "placeholder") or low.startswith("暫定"):
+        return True
+    if text == name or (name and text.replace(" ", "") == name.replace(" ", "")):
+        return True
+    if len(text) <= 6 and text in tags_concat:
+        return True
+    if ("," in text or "、" in text) and len(text) < 20:
+        return True
+    return False
+
+
+def _hint_from_tags(tags: set[str]) -> str | None:
+    for k, hint in TAG_DEITY_HINTS.items():
+        if any(k in s for s in tags):
+            return hint
+    return None
+
+
+def _hint_from_query(query: str) -> str | None:
+    for key, hint in WISH_HINTS:
+        if key in (query or ""):
+            return hint
+    return None
+
+
+def _hint_from_wish_map(query: str) -> str | None:
+    try:
+        wish_key = match_wish_from_query(query or "")
+    except Exception:
+        wish_key = None
+    if not wish_key:
+        return None
+    hints = get_hints_for_wish(wish_key) or []
+    return hints[0] if hints else None
+
+
+def _generic_by_popular(popular: float) -> str:
+    if popular >= 7:
+        return "参拝者が多く評判の社"
+    if popular >= 4:
+        return "地域で親しまれる社"
+    return "静かに手を合わせたい社"
+
+
+def _normalize_reason(rec: dict, *, query: str) -> str:
+    """短文の“推し文”を最終整形。DB/LLM/固定文の混在に耐える。"""
+    name = (rec.get("name") or "").strip()
+    raw = rec.get("reason")
+    t = raw.strip() if isinstance(raw, str) else ""
+    tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
+    tags = set(tags_list)
+    popular = float(rec.get("popular_score") or 0)
+
+    # 1) ノイズ除去／キー直接一致置換
+    if t and t in TAG_DEITY_HINTS:
+        t = TAG_DEITY_HINTS[t]
+    if _is_noise_reason(t, name, "".join(tags_list)):
+        t = ""
+
+    # 2) タグ→ 3) クエリ→ 4) wish_map の順でヒント
+    if not t:
+        t = _hint_from_tags(tags) or ""
+    if not t:
+        t = _hint_from_query(query) or ""
+    if not t:
+        t = _hint_from_wish_map(query) or ""
+
+    # 5) 人気スコアの汎用文
+    if not t:
+        t = _generic_by_popular(popular)
+
+    t = t[:30] if len(t) > 30 else t
+    return t or "静かに手を合わせたい社"
+
+
+def normalize_name_key(name: str) -> str:
+    if not name:
+        return ""
+    # 正規化：大文字小文字/全角半角・括弧・スペース・中点など
+    n = name.strip()
+    n = n.replace("（", "(").replace("）", ")").lower()
+    n = re.sub(r"\s|・|-", "", n)
+    n = n.replace("(", "").replace(")", "")
+    # 山号（○○山…）の除去（例：金龍山浅草寺→浅草寺）
+    n = re.sub(r"^[一-龠々〆ヵヶ]+山", "", n)
+    # 末尾の宗教施設接尾辞を除去（広めに）
+    n = re.sub(
+        r"(神社|大社|神宮|宮|八幡宮|天満宮|稲荷神社|稲荷|寺|院|観音|大師|不動尊|堂|社)$", "", n
+    )
+    aliases = {
+        "浅草観音": "浅草寺",
+        "金龍山浅草寺": "浅草寺",
+        "伏見稲荷大社": "伏見稲荷",
+    }
+    return aliases.get(n, n)
+
+
+def dedupe_recommendations(recs: list[dict]) -> list[dict]:
+    seen = {}
+    for r in recs:
+        key = normalize_name_key(r.get("name") or "")
+        if not key:
+            continue
+        prev = seen.get(key)
+        if not prev or (r.get("score", 0) > prev.get("score", 0)):
+            seen[key] = r
+    return list(seen.values())
+
+
 class ConciergeChatView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -226,7 +395,34 @@ class ConciergeChatView(APIView):
             except Exception:
                 data = recs
 
+            # --- 暫定/placeholder は空理由に置換（以降の正規化を効かせる） ---
+            try:
+                for r in recs.get("recommendations") or []:
+                    if (r.get("reason") or "").strip().lower() in ("暫定", "placeholder"):
+                        r["reason"] = ""
+            except Exception:
+                pass
+
+            # --- 暫定（近隣の神社/暫定reason）のみなら DB フォールバックへ ---
+            try:
+                recs_list = list(data.get("recommendations") or [])
+            except Exception:
+                recs_list = []
+
+            def _is_provisional(r: dict) -> bool:
+                nm = (r.get("name") or "").strip()
+                rs = (r.get("reason") or "").strip().lower()
+                return (nm in ("近隣の神社",)) or (rs in ("暫定", "placeholder"))
+
+            if recs_list and all(isinstance(r, dict) and _is_provisional(r) for r in recs_list):
+                data = {"recommendations": []}
+
             # 5) LLMが空 → DBから近傍×重み
+            try:
+                data["recommendations"] = dedupe_recommendations(data.get("recommendations") or [])
+            except Exception:
+                pass
+
             if not (data.get("recommendations") or []):
                 import math
                 from datetime import timedelta
@@ -302,13 +498,13 @@ class ConciergeChatView(APIView):
 
                 from temples.models import Shrine
 
-                recs = list(data.get("recommendations") or [])
+                recs_ = list(data.get("recommendations") or [])
                 lat0 = (bias or {}).get("lat")
                 lng0 = (bias or {}).get("lng")
 
                 # ① id で一括取得
                 by_id = {}
-                ids = [r.get("id") for r in recs if r.get("id")]
+                ids = [r.get("id") for r in recs_ if r.get("id")]
                 if ids:
                     qs = Shrine.objects.filter(id__in=ids).prefetch_related(
                         "goriyaku_tags", "deities"
@@ -343,7 +539,7 @@ class ConciergeChatView(APIView):
 
                 # ③ 各 recommendation にタグと御祭神を付与
                 out = []
-                for r in recs:
+                for r in recs_:
                     s = None
                     rid = r.get("id")
                     if rid and rid in by_id:
@@ -352,13 +548,10 @@ class ConciergeChatView(APIView):
                         s = _nearest_by_name(r.get("name") or "")
 
                     if s:
-                        # ご利益タグ
                         try:
                             tag_names = [t.slug or t.name for t in s.goriyaku_tags.all()]
                         except Exception:
                             tag_names = []
-
-                        # 御祭神
                         try:
                             deity_names = [d.name for d in s.deities.all()]
                         except Exception:
@@ -372,6 +565,11 @@ class ConciergeChatView(APIView):
                 data = {"recommendations": out}
             except Exception:
                 pass
+            # 5.9) 重複除去（別表記の正規化ベース／DBフォールバック後も対象）
+            try:
+                data["recommendations"] = dedupe_recommendations(data.get("recommendations") or [])
+            except Exception:
+                pass
 
             # 6) 運気スコア加点（任意）
             birthdate = request.data.get("birthdate")
@@ -379,7 +577,7 @@ class ConciergeChatView(APIView):
 
             # クエリから wish 推定（任意・簡易）
             if not wish:
-                q = request.data.get("query") or ""
+                qtxt = request.data.get("query") or ""
                 M = {
                     "縁結び": "縁結び",
                     "恋愛": "縁結び",
@@ -389,7 +587,7 @@ class ConciergeChatView(APIView):
                     "商売": "商売繁盛",
                 }
                 for k, v in M.items():
-                    if k in q:
+                    if k in qtxt:
                         wish = v
                         break
             if birthdate or wish:
@@ -425,6 +623,137 @@ class ConciergeChatView(APIView):
                         r.setdefault(
                             "display_address", f"{float(loc['lat']):.3f}, {float(loc['lng']):.3f}"
                         )
+            except Exception:
+                pass
+
+            # --- (MINI WIRE) LLM で “推しポイント” を後付け（あれば） ---
+            try:
+                from django.conf import settings as _s
+
+                if getattr(_s, "USE_LLM_CONCIERGE", False) and (data.get("recommendations") or []):
+                    # LLM には name を渡さない（エコー防止）
+                    shrines_payload = []
+                    for r in data["recommendations"]:
+                        shrines_payload.append(
+                            {
+                                "tags": r.get("tags") or [],
+                                "deities": r.get("deities") or [],
+                                "popular_score": r.get("popular_score", 0),
+                            }
+                        )
+                    user_ctx = {"query": query, "area": area}
+                    reasons = llm.summarize(shrines_payload, user_ctx=user_ctx)
+
+                    # 推し文の最終整形
+                    def _polish(rec: dict, raw: Optional[str]) -> str:
+                        nm = (rec.get("name") or "").strip()
+                        t = (raw or "").strip()
+                        tags = set((rec.get("tags") or []) + (rec.get("deities") or []))
+
+                        # ノイズ除去
+                        if any(x in t.lower() for x in ("no ", "n/a", "tags", "deities")):
+                            t = ""
+                        if t and sum(ch.isascii() for ch in t) > len(t) * 0.2:
+                            t = ""
+                        if t == nm or (nm and t.replace(" ", "") == nm.replace(" ", "")):
+                            t = ""
+                        if t in tags:
+                            t = ""
+                        if t and len(t) <= 6 and t in "".join(tags):
+                            t = ""
+                        if t and ("," in t or "、" in t) and len(t) < 40:
+                            t = ""
+
+                        # --- 強い神格は最優先で尊重 ---
+                        STRONG_DEITIES = ("歓喜天", "観音", "観音菩薩")
+                        if not t and any(any(sd in s for s in tags) for sd in STRONG_DEITIES):
+                            for k, hint in TAG_DEITY_HINTS.items():
+                                if any(k in s for s in tags):
+                                    t = hint
+                                    break
+
+                        # ① 願意
+                        if not t:
+                            qtxt = query or ""
+                            for key, hint in WISH_HINTS:
+                                if key in qtxt:
+                                    t = hint
+                                    break
+
+                        # ② タグ/神格
+                        if not t:
+                            for k, hint in TAG_DEITY_HINTS.items():
+                                if any(k in s for s in tags):
+                                    t = hint
+                                    break
+
+                        # ③ 人気スコア
+                        if not t:
+                            ps = rec.get("popular_score") or 0
+                            if ps >= 7:
+                                t = "定番の参拝スポットとして人気"
+                            elif ps >= 4:
+                                t = "地域で親しまれる参拝所"
+                            else:
+                                t = "静かに参拝できる穴場"
+
+                        return t[:30] if len(t) > 30 else t
+
+                    for rec, reason in zip(data["recommendations"], reasons, strict=False):
+                        rec["reason"] = _polish(rec, reason)
+
+                    # --- 重複ほぐし強化 ---
+                    def _wish_key_from_query(q: str) -> Optional[str]:
+                        for k in ("縁結び", "学業", "金運", "厄除"):
+                            if k in q:
+                                return k
+                        return None
+
+                    wish_key = _wish_key_from_query(query or "")
+                    seen: Dict[str, List[dict]] = {}
+                    for r in data["recommendations"]:
+                        t = (r.get("reason") or "").strip()
+                        if t:
+                            seen.setdefault(t, []).append(r)
+
+                    for t, items in seen.items():
+                        if len(items) <= 1:
+                            continue
+                        for idx, rec in enumerate(items[1:], start=1):
+                            swapped = None
+                            tags = set((rec.get("tags") or []) + (rec.get("deities") or []))
+                            # 1) タグ/御祭神から別ヒント
+                            for k, hint in TAG_DEITY_HINTS.items():
+                                if any(k in s for s in tags) and hint != t:
+                                    swapped = hint
+                                    break
+                            # 2) 願意シノニムのローテーション
+                            if not swapped and wish_key and wish_key in WISH_SYNONYMS:
+                                syns = [s for s in WISH_SYNONYMS[wish_key] if s != t]
+                                if syns:
+                                    swapped = syns[(idx - 1) % len(syns)]
+                            # 3) 人気スコアで汎用差し替え
+                            if not swapped:
+                                ps = rec.get("popular_score") or 0
+                                if "人気" not in t and ps >= 7:
+                                    swapped = "参拝者が多く評判の社"
+                                elif "親しまれる" not in t and ps >= 4:
+                                    swapped = "地域で親しまれる社"
+                                else:
+                                    swapped = "静かに手を合わせたい社"
+                            rec["reason"] = swapped[:30]
+            except Exception:
+                # LLM 失敗は黙ってスキップ（フォールバック維持）
+                pass
+
+            # --- 仕上げ: 表示名/推し文の最終正規化 ---
+            try:
+                for r in data.get("recommendations") or []:
+                    if r.get("name"):
+                        cleaned = _clean_display_name(r["name"])
+                        r["display_name"] = cleaned
+                        r["name"] = cleaned
+                    r["reason"] = _normalize_reason(r, query=query)
             except Exception:
                 pass
 
@@ -543,17 +872,18 @@ class ConciergePlanView(APIView):
         except Exception:
             recs = {"recommendations": []}
 
-        # LLM が空なら暫定候補
+        # LLM が空なら暫定候補（理由は空→後段で正規化）
         if not (recs.get("recommendations") or []):
             if candidates:
                 first_name = (
                     candidates[0].get("name") if isinstance(candidates[0], dict) else None
                 ) or "近隣の神社"
-                recs = {"recommendations": [{"name": first_name, "reason": "暫定"}]}
+                recs = {"recommendations": [{"name": first_name, "reason": ""}]}
             else:
-                recs = {"recommendations": [{"name": "近隣の神社", "reason": "暫定"}]}
+                recs = {"recommendations": [{"name": "近隣の神社", "reason": ""}]}
 
-        # area があれば先頭候補に短縮住所
+        # ---- (1) area があれば先頭候補に短縮住所を display に入れ、必要なら location を文字列＋ロック ----
+        lock_applied = False  # fill_locations 後の保険再適用用フラグ
         if area:
             try:
                 short_area = bf._shorten_japanese_address(area)
@@ -563,7 +893,14 @@ class ConciergePlanView(APIView):
                 if recs.get("recommendations"):
                     first = recs["recommendations"][0]
                     if isinstance(first, dict):
-                        recs["recommendations"][0] = {**first, "location": short_area}
+                        # display_address は常に付与
+                        first = {**first, "display_address": short_area}
+                        # location が dict でなければ area を文字列で入れてロック
+                        if not isinstance(first.get("location"), dict):
+                            first["location"] = short_area
+                            first["_lock_text_loc"] = True
+                            lock_applied = True
+                        recs["recommendations"][0] = first
             except Exception:
                 pass
 
@@ -597,6 +934,119 @@ class ConciergePlanView(APIView):
         except Exception:
             filled = recs
 
+        # --- (1') fill_locations 後の「area の短縮住所を保険で再適用」＋ロック維持 ---
+        try:
+            if area:
+                try:
+                    short_area = bf._shorten_japanese_address(area)
+                except Exception:
+                    short_area = area
+                if filled.get("recommendations"):
+                    first = filled["recommendations"][0]
+                    if isinstance(first, dict):
+                        first.setdefault("display_address", short_area)
+                        # もし最初にロックを付けたなら、ここでも文字列 location を強制しロック復活
+                        if lock_applied:
+                            first["location"] = short_area
+                            first["_lock_text_loc"] = True
+        except Exception:
+            pass
+
+        try:
+            filled["recommendations"] = dedupe_recommendations(filled.get("recommendations") or [])
+        except Exception:
+            pass
+
+        # 暫定/placeholder → 空理由に
+        try:
+            for r in filled.get("recommendations") or []:
+                if str(r.get("reason") or "").strip().lower() in ("暫定", "placeholder"):
+                    r["reason"] = ""
+        except Exception:
+            pass
+
+        # 暫定のみなら空にしてフォールバック発火させる
+        def _is_provisional(r: dict) -> bool:
+            nm = (r.get("name") or "").strip()
+            rs = (r.get("reason") or "").strip().lower()
+            return (nm in ("近隣の神社",)) or (rs in ("暫定", "placeholder"))
+
+        try:
+            _list = list(filled.get("recommendations") or [])
+        except Exception:
+            _list = []
+
+        if _list and all(isinstance(r, dict) and _is_provisional(r) for r in _list):
+            filled = {"recommendations": []}
+
+        # LLM/暫定が空 → DBから近傍×重み
+        if not (filled.get("recommendations") or []):
+            import math
+            from datetime import timedelta
+
+            from django.db import models
+            from django.db.models.functions import Abs, Coalesce
+            from django.utils import timezone
+            from temples.models import Shrine
+
+            limit = int(request.data.get("limit", 5))
+            since = timezone.now() - timedelta(days=30)
+            qs = Shrine.objects.all().annotate(
+                visits_30d=models.Count("visits", filter=models.Q(visits__visited_at__gte=since)),
+                favs_30d=models.Count(
+                    "favorited_by", filter=models.Q(favorited_by__created_at__gte=since)
+                ),
+                _popular=Coalesce(models.F("popular_score"), models.Value(0.0)),
+            )
+
+            lat0 = (bias or {}).get("lat")
+            lng0 = (bias or {}).get("lng")
+            r_m = (bias or {}).get("radius")
+            if lat0 is not None and lng0 is not None and r_m:
+                try:
+                    dlat = (float(r_m) / 1000.0) / 111.0
+                    dlng = (float(r_m) / 1000.0) / (
+                        111.0 * max(0.1, math.cos(math.radians(float(lat0))))
+                    )
+                    qs = qs.filter(
+                        latitude__gte=float(lat0) - dlat,
+                        latitude__lte=float(lat0) + dlat,
+                        longitude__gte=float(lng0) - dlng,
+                        longitude__lte=float(lng0) + dlng,
+                    ).annotate(
+                        _approx_deg=Abs(models.F("latitude") - models.Value(float(lat0)))
+                        + Abs(models.F("longitude") - models.Value(float(lng0)))
+                    )
+                except Exception:
+                    pass
+
+            qs = qs.annotate(
+                _score=2.0 * models.F("visits_30d")
+                + 1.0 * models.F("favs_30d")
+                + 0.5 * models.F("_popular")
+            )
+            has_approx = "_approx_deg" in {a for a in qs.query.annotations}
+            order = (
+                ["-_score", "_approx_deg", "-id"] if has_approx else ["-_score", "-_popular", "-id"]
+            )
+            qs = qs.order_by(*order)[: max(1, min(limit, 10))]
+
+            filled = {
+                "recommendations": [
+                    {
+                        "id": s.id,
+                        "name": s.name_jp,
+                        "location": {
+                            "lat": float(s.latitude) if s.latitude is not None else None,
+                            "lng": float(s.longitude) if s.longitude is not None else None,
+                        },
+                        "score": float(getattr(s, "_score", 0.0) or 0.0),
+                        "popular_score": float(getattr(s, "_popular", 0.0) or 0.0),
+                    }
+                    for s in qs
+                ]
+            }
+
         # 運気スコア加点（任意）
         birthdate = request.data.get("birthdate")
         wish = (request.data.get("wish") or "").strip()
@@ -612,9 +1062,19 @@ class ConciergePlanView(APIView):
             ranked.sort(key=lambda x: float(x.get("score") or 0.0), reverse=True)
             filled = {"recommendations": ranked}
 
-        # display_address を後付け（stops で使う）
+        # display_address / display_name 付与 & 理由の最終正規化
         try:
             for r in filled.get("recommendations") or []:
+                # 推し文の最終整形（先に適用して display_name の影響を排除）
+                r["reason"] = _normalize_reason(r, query=query)
+
+                # 表示名の整形（display_name と name の両方をクリーンに）
+                if r.get("name"):
+                    cleaned = _clean_display_name(r["name"])
+                    r["display_name"] = cleaned
+                    r["name"] = cleaned
+
+                # display_address
                 if r.get("formatted_address"):
                     r.setdefault("display_address", r["formatted_address"])
                     continue
@@ -633,23 +1093,278 @@ class ConciergePlanView(APIView):
         except Exception:
             pass
 
+        # --- (2) 座標の最終補完：ロック尊重（文字列 location を維持） ---
+        try:
+            locbias = request.data.get("locationbias")
+            if not locbias and bias:
+                try:
+                    locbias = bf._lb_from_bias(bias)  # e.g. "circle:8000@lat,lng"
+                except Exception:
+                    locbias = None
+
+            patched = []
+            for r in filled.get("recommendations") or []:
+                # ロックがあり location が文字列なら一切いじらない
+                if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
+                    if area and not r.get("display_address"):
+                        try:
+                            short_area = bf._shorten_japanese_address(area)
+                        except Exception:
+                            short_area = area
+                        r.setdefault("display_address", short_area)
+                    patched.append(r)
+                    continue
+
+                loc = r.get("location")
+                # 既に lat/lng があれば何もしない
+                if (
+                    isinstance(loc, dict)
+                    and loc.get("lat") is not None
+                    and loc.get("lng") is not None
+                ):
+                    patched.append(r)
+                    continue
+
+                # 1) geometry が付いていれば使う
+                g = (r.get("geometry") or {}).get("location") or {}
+                lat = g.get("lat")
+                lng = g.get("lng")
+                if lat is not None and lng is not None:
+                    r["location"] = {"lat": float(lat), "lng": float(lng)}
+                    patched.append(r)
+                    continue
+
+                # 2) Places の FindPlace で geometry を取得（名称＋locationbias）
+                try:
+                    probe = (r.get("name") or "").strip()
+                    if area:
+                        probe = f"{probe} {area}".strip()
+                    res = GP.findplacefromtext(
+                        input=probe or "神社",
+                        language=language,
+                        locationbias=locbias,
+                        fields="place_id,name,formatted_address,geometry",
+                    )
+                except Exception:
+                    res = None
+
+                try:
+                    cand = (res.get("candidates") or [{}])[0] if isinstance(res, dict) else {}
+                    g2 = (cand.get("geometry") or {}).get("location") or {}
+                    lat2, lng2 = g2.get("lat"), g2.get("lng")
+                    if lat2 is not None and lng2 is not None:
+                        r["location"] = {"lat": float(lat2), "lng": float(lng2)}
+                    # display_address が未設定なら、短縮住所を付与
+                    if not r.get("display_address"):
+                        addr = cand.get("formatted_address")
+                        if addr:
+                            try:
+                                r["display_address"] = bf._shorten_japanese_address(addr) or addr
+                            except Exception:
+                                r["display_address"] = addr
+                except Exception:
+                    # 取得失敗はそのまま（display_address があれば UI で表示可能）
+                    pass
+
+                patched.append(r)
+
+            filled = {"recommendations": patched}
+        except Exception:
+            pass
+
+        # ---- 座標補完ヘルパ群（複雑度削減のため分割） -------------------------
+        def _pt_from_dict(loc: Any) -> dict | None:
+            if isinstance(loc, dict):
+                la, ln = loc.get("lat"), loc.get("lng")
+                try:
+                    if la is not None and ln is not None:
+                        return {"lat": float(la), "lng": float(ln)}
+                except Exception:
+                    return None
+            return None
+
+        def _pt_from_geometry(rec: dict) -> dict | None:
+            g = (rec.get("geometry") or {}).get("location") or {}
+            if "lat" in g and "lng" in g:
+                try:
+                    return {"lat": float(g["lat"]), "lng": float(g["lng"])}
+                except Exception:
+                    return None
+            return None
+
+        def _pt_from_db_name(rec: dict) -> dict | None:
+            try:
+                from temples.models import Shrine
+
+                name = (rec.get("name") or "").strip()
+                if not name:
+                    return None
+                qs = Shrine.objects.filter(name_jp__icontains=name).only("latitude", "longitude")[
+                    :5
+                ]
+                items = list(qs)
+                if not items:
+                    return None
+                s = items[0]
+                if s.latitude is None or s.longitude is None:
+                    return None
+                # display_address が空なら軽量補完
+                try:
+                    if not rec.get("display_address"):
+                        probe = f"{name} {area}".strip() if area else name
+                        lb = None
+                        try:
+                            lb = bf._lb_from_bias(bias) if bias else None
+                        except Exception:
+                            pass
+                        res = GP.findplacefromtext(
+                            input=probe or "神社",
+                            language=language,
+                            locationbias=lb,
+                            fields="formatted_address",
+                        )
+                        addr = (res.get("candidates") or [{}])[0].get("formatted_address")
+                        if addr:
+                            rec["display_address"] = bf._shorten_japanese_address(addr) or addr
+                        elif area:
+                            rec["display_address"] = bf._shorten_japanese_address(area) or area
+                except Exception:
+                    pass
+                return {"lat": float(s.latitude), "lng": float(s.longitude)}
+            except Exception:
+                return None
+
+        def _pt_from_places(rec: dict) -> tuple[dict | None, None | str]:
+            probe = (rec.get("name") or "").strip()
+            q = f"{probe} {area}".strip() if area else probe
+            lb = None
+            try:
+                lb = bf._lb_from_bias(bias) if bias else None
+            except Exception:
+                pass
+            try:
+                res = GP.findplacefromtext(
+                    input=q or "神社",
+                    language=language,
+                    locationbias=lb,
+                    fields="place_id,name,formatted_address,geometry",
+                )
+                cand = (res.get("candidates") or [{}])[0] if isinstance(res, dict) else {}
+                g2 = (cand.get("geometry") or {}).get("location") or {}
+                la, ln = g2.get("lat"), g2.get("lng")
+                pt = (
+                    {"lat": float(la), "lng": float(ln)}
+                    if la is not None and ln is not None
+                    else None
+                )
+                addr = cand.get("formatted_address")
+                return pt, addr
+            except Exception:
+                return None, None
+
+        def _pt_from_text(loc: Any) -> dict | None:
+            if isinstance(loc, str) and loc.strip():
+                try:
+                    pt = bf._geocode_text_center(loc.strip())
+                    if pt and "lat" in pt and "lng" in pt:
+                        return {"lat": float(pt["lat"]), "lng": float(pt["lng"])}
+                except Exception:
+                    return None
+            return None
+
+        def _pt_from_name_then_geocode(rec: dict) -> tuple[dict | None, None | str]:
+            probe = (rec.get("name") or "").strip()
+            try:
+                addr = bf._lookup_address_by_name(probe, bias=bias, lang=language)
+                if not addr:
+                    return None, None
+                pt = bf._geocode_text_center(addr)
+                if pt and "lat" in pt and "lng" in pt:
+                    return {"lat": float(pt["lat"]), "lng": float(pt["lng"])}, addr
+            except Exception:
+                return None, None
+            return None, None
+
+        def _coerce_point(rec: dict) -> dict | None:
+            """rec.location を {lat,lng} にする。取れなければ None"""
+            # --- (3) ロック尊重：文字列 location を保護 ---
+            if rec.get("_lock_text_loc") and isinstance(rec.get("location"), str):
+                return None
+
+            loc = rec.get("location")
+            # 1) 既存の dict
+            pt = _pt_from_dict(loc)
+            if pt:
+                return pt
+            # 2) DB by name（最初に当たれば即返）
+            pt = _pt_from_db_name(rec)
+            if pt:
+                return pt
+            # 3) geometry
+            pt = _pt_from_geometry(rec)
+            if pt:
+                return pt
+            # 4) Places(name+bias)
+            pt, addr = _pt_from_places(rec)
+            if pt:
+                if addr and not rec.get("display_address"):
+                    try:
+                        rec["display_address"] = bf._shorten_japanese_address(addr) or addr
+                    except Exception:
+                        rec["display_address"] = addr
+                return pt
+            # 5) location がテキストなら簡易ジオコード
+            pt = _pt_from_text(loc)
+            if pt:
+                return pt
+            # 6) “名前→住所→座標”
+            pt, addr = _pt_from_name_then_geocode(rec)
+            if pt:
+                if addr and not rec.get("display_address"):
+                    try:
+                        rec["display_address"] = bf._shorten_japanese_address(addr) or addr
+                    except Exception:
+                        rec["display_address"] = addr
+                return pt
+            return None
+
+        # 実際に正規化を適用（ロックを最初に尊重）
+        try:
+            patched = []
+            for r in filled.get("recommendations") or []:
+                if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
+                    patched.append(r)  # 何も変換しない
+                    continue
+                pt = _coerce_point(r)
+                if pt is not None:
+                    r["location"] = pt
+                patched.append(r)
+            filled = {"recommendations": patched}
+        except Exception:
+            pass
+
         # 簡易 stops 生成（徒歩3分 + 滞在30分）
         stops = []
         try:
             eta = 0
             for i, rec in enumerate((filled.get("recommendations") or [])[:6], start=1):
-                name = rec.get("name") or f"Spot {i}"
+                name = rec.get("display_name") or _clean_display_name(
+                    rec.get("name") or f"Spot {i}"
+                )
                 loc = rec.get("location")
                 lat = loc.get("lat") if isinstance(loc, dict) else None
                 lng = loc.get("lng") if isinstance(loc, dict) else None
                 travel_minutes = 3
                 eta += travel_minutes
+                # 表示住所のフォールバック（無ければ座標を短く表示）
+                disp = rec.get("display_address") or (
+                    f"{lat:.3f}, {lng:.3f}" if (lat is not None and lng is not None) else None
+                )
                 stops.append(
                     {
                         "order": i,
                         "name": name,
-                        "display_address": rec.get("display_address")
-                        or (loc if isinstance(loc, str) else None),
+                        "display_address": disp,
                         "location": {"lat": lat, "lng": lng},
                         "eta_minutes": eta,
                         "travel_minutes": travel_minutes,
@@ -683,3 +1398,4 @@ class ConciergePlanView(APIView):
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()
 __all__ = ["chat", "plan", "ConciergeChatView", "ConciergePlanView"]
+
