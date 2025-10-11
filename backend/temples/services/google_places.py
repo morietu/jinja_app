@@ -39,17 +39,30 @@ def _push_req_history(url: str, params: dict) -> None:
 # ------------------------------------------------------------
 # API キー
 # ------------------------------------------------------------
-API_KEY = (
-    os.getenv("GOOGLE_PLACES_API_KEY")
-    or os.getenv("GOOGLE_MAPS_API_KEY")
-    or getattr(settings, "GOOGLE_PLACES_API_KEY", None)
-    or getattr(settings, "GOOGLE_MAPS_API_KEY", None)
-)
+def _resolve_api_key() -> str | None:
+    candidates = [
+        # settings.*
+        getattr(settings, "GOOGLE_PLACES_API_KEY", None),  # ← 追加
+        getattr(settings, "GOOGLE_MAPS_API_KEY", None),
+        getattr(settings, "GOOGLE_API_KEY", None),
+        # env
+        os.getenv("GOOGLE_PLACES_API_KEY"),  # ← 追加
+        os.getenv("GOOGLE_MAPS_API_KEY"),
+        os.getenv("GOOGLE_API_KEY"),
+        os.getenv("MAPS_API_KEY"),
+        os.getenv("PLACES_API_KEY"),
+    ]
+    for k in candidates:
+        if not k:
+            continue
+        k = str(k).strip()
+        if k and not k.startswith("${"):  # プレースホルダ弾き
+            return k
+    return None
 
-try:
-    from temples.services.places import text_search_first as text_search_first  # noqa: F401
-except Exception:
-    text_search_first = None
+
+# ← ココを必ず追加！（低レイヤ/クライアントの両方が参照）
+API_KEY: Optional[str] = _resolve_api_key()
 
 
 # ------------------------------------------------------------

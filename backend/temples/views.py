@@ -29,7 +29,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from .models import Shrine
+from .models.shrine import Shrine
 from .route_service import Point as RoutePoint
 from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
