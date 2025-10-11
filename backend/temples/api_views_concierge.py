@@ -1394,6 +1394,11 @@ class ConciergePlanView(APIView):
         return Response(body, status=status.HTTP_200_OK)
 
 
+class ConciergeHistoryView(APIView):
+    def get(self, request):
+        return Response({"items": []})
+
+
 # --- expose function-style views for URLConf / tests ---
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()
