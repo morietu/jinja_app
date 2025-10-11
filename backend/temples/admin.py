@@ -5,10 +5,14 @@ from django.contrib import admin
 
 def _maybe_register(model_name: str, admin_cls: type[admin.ModelAdmin]) -> None:
     """
-    temples アプリに model_name が存在する場合のみ Admin へ登録する。
-    既に登録済みでも安全にスキップ。
+    temples に model_name があれば Admin へ登録。
+    無ければ静かにスキップ。既登録なら安全にスキップ。
     """
-    Model = apps.get_model("temples", model_name)
+    try:
+        # モデル未定義でもここで例外にせず握りつぶす
+        Model = apps.get_model("temples", model_name, require_ready=False)
+    except LookupError:
+        return
     if Model is None:
         return
     try:
