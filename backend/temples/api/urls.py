@@ -57,6 +57,7 @@ urlpatterns = [
     # Concierge（AIナビ）
     path("concierge/chat/", concierge.chat, name="concierge-chat"),
     path("concierge/plan/", concierge.ConciergePlanView.as_view(), name="concierge-plan"),
+    path("concierge/history/", concierge.ConciergeHistoryView.as_view(), name="concierge-history"),
     # Router 由来
     path("", include(router.urls)),
 ]
