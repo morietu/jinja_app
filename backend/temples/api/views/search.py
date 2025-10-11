@@ -9,6 +9,7 @@ from rest_framework.response import Response
 # これが抜けていると NameError になります
 from temples import services
 from temples.api.throttles import PlacesNearbyThrottle
+from temples.services import google_places as GP
 
 
 def _nearby_ident(request) -> str:
@@ -19,21 +20,38 @@ def _nearby_ident(request) -> str:
 
 
 # --- /api/places/search/ ---
+# --- /api/places/search/ ---
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@cache_page(60 * 5)  # 5分キャッシュ（テストは即時2回叩くので十分）
+@cache_page(60 * 5)
 def search(request):
-    q = request.query_params.get("q")
+    # query / q 両対応（空は 400）
+    q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
+    if not q:
+        return Response({"detail": "query is required"}, status=400)
+
     lat = request.query_params.get("lat")
     lng = request.query_params.get("lng")
+    radius = request.query_params.get("radius")
 
-    gp = services.google_places
-    if hasattr(gp, "search"):
-        data = gp.search({"q": q, "lat": lat, "lng": lng})
-    else:
-        # フォールバック：text_search で代用（lat/lng は無視）
-        data = gp.text_search({"q": q, "lat": lat, "lng": lng})
-    return Response(data)
+    payload = {"q": q}
+    if lat and lng:
+        payload.update({"lat": lat, "lng": lng})
+    if radius:
+        payload["radius"] = radius
+
+    try:
+        # services.google_places に search() があれば使う。なければ text_search に委譲
+        if hasattr(services.google_places, "search"):
+            data = services.google_places.search(payload)
+        else:
+            # dict で渡すと lat/lng→location に正規化される
+            data = GP.text_search(payload)
+        return Response(data)
+    except Exception as e:
+        return Response(
+            {"detail": f"places.search failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+        )
 
 
 # --- /api/places/text_search/ ---
@@ -41,14 +59,28 @@ def search(request):
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
 def text_search(request):
-    q = request.query_params.get("q") or ""
+    # ← 両対応
+    q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
+    if not q:
+        return Response({"detail": "query is required"}, status=400)
+
     try:
-        # ← 引数名は query
-        data = services.google_places.text_search(query=q)
+        # lat/lng/radius が来ていたら一緒に回す（dict で渡すと wrapper が location へ変換）
+        lat = request.query_params.get("lat")
+        lng = request.query_params.get("lng")
+        radius = request.query_params.get("radius")
+        payload = {"q": q}
+        if lat and lng:
+            payload.update({"lat": lat, "lng": lng})
+        if radius:
+            payload["radius"] = radius
+
+        data = services.google_places.text_search(payload)
         return Response(data)
     except Exception as e:
         return Response(
-            {"detail": f"places.text_search failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+            {"detail": f"places.text_search failed: {e!s}"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
 
