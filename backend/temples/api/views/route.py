@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.models import Shrine
@@ -91,6 +91,10 @@ class RouteView(APIView):
         )
 
     def post(self, request):
+        ser = RouteRequestSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
         data = request.data or {}
         origin = data.get("origin") or {}
         dests = data.get("destinations") or []
@@ -154,3 +158,76 @@ class RouteView(APIView):
             },
             status=200,
         )
+
+
+class LatLngSerializer(serializers.Serializer):
+    lat = serializers.FloatField(min_value=-90.0, max_value=90.0)
+    lng = serializers.FloatField(min_value=-180.0, max_value=180.0)
+
+
+class RouteRequestSerializer(serializers.Serializer):
+    mode = serializers.ChoiceField(choices=["walking", "driving", "bicycling", "transit"])
+    origin = LatLngSerializer()
+    destinations = LatLngSerializer(many=True, allow_empty=False)
+
+    # 上限5（テスト期待）
+    def validate_destinations(self, v):
+        if len(v) > 5:
+            raise serializers.ValidationError("max 5 destinations")
+        return v
+
+
+class RouteAPIView(APIView):
+    def post(self, request):
+        ser = RouteRequestSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = ser.validated_data
+        mode = data["mode"]
+        origin = data["origin"]
+        dests = data["destinations"]
+
+        # 簡易ハバースインで距離と時間を計算（RouteView.post と同等）
+        from math import asin, cos, radians, sin, sqrt
+
+        def haversine_km(lat1, lng1, lat2, lng2):
+            R = 6371.0088
+            dphi = radians(lat2 - lat1)
+            dlmb = radians(lng2 - lng1)
+            phi1 = radians(lat1)
+            phi2 = radians(lat2)
+            a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlmb / 2) ** 2
+            return 2 * R * asin(sqrt(a))
+
+        o_lat, o_lng = float(origin["lat"]), float(origin["lng"])
+        speed_kmh = 5.0 if mode == "walking" else 40.0  # テスト想定の簡易速度
+
+        legs = []
+        total_km = 0.0
+        total_min = 0
+        for d in dests:
+            d_lat, d_lng = float(d["lat"]), float(d["lng"])
+            dist_km = haversine_km(o_lat, o_lng, d_lat, d_lng)
+            dur_min = max(1, int(round((dist_km / speed_kmh) * 60)))
+            total_km += dist_km
+            total_min += dur_min
+            legs.append(
+                {
+                    "to": {"lat": d_lat, "lng": d_lng},
+                    "distance_km": round(dist_km, 3),
+                    "duration_min": dur_min,
+                }
+            )
+
+        return Response(
+            {
+                "mode": mode,
+                "provider": "dummy",
+                "legs": legs,
+                "distance_m_total": int(round(total_km * 1000)),
+                "duration_s_total": int(total_min * 60),
+            },
+            status=200,
+        )
+        return Response(data, status=status.HTTP_200_OK)
