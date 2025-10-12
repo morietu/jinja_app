@@ -1,39 +1,35 @@
-// apps/web/src/lib/api/users.ts
-import { apiGet, apiPatch, apiPatchForm, isAuthError } from "@/lib/api/http";
+// apps/web/src/lib/api/auth.ts
+import { apiPost } from "@/lib/api/http";
 
-export type UserMe = {
-  id: number;
-  username: string;
-  email?: string | null;
-  first_name?: string;
-  last_name?: string;
-  profile: {
-    nickname?: string | null;
-    is_public: boolean;
-    bio?: string | null;
-    icon_url?: string | null;
-  };
-};
+export type LoginPayload = { username: string; password: string };
+export type TokenPair   = { access: string; refresh: string };
 
-export async function getCurrentUser(): Promise<UserMe | null> {
+export async function login(payload: LoginPayload | [string, string]): Promise<TokenPair> {
+  const body = Array.isArray(payload)
+    ? { username: payload[0], password: payload[1] }
+    : payload;
+  return apiPost<TokenPair>("auth/jwt/create/", body);
+}
+
+export async function refreshToken(refresh: string): Promise<{ access: string }> {
+  return apiPost<{ access: string }>("auth/jwt/refresh/", { refresh });
+}
+
+export async function verifyToken(token: string): Promise<Record<string, unknown>> {
+  return apiPost("auth/jwt/verify/", { token });
+}
+
+// 使っているので実装しておく
+export async function signup(payload: { username: string; password: string; email?: string }) {
+  // サインアップAPIが別にあるならそちらへ。なければ一旦 501 を返すか TODO コメントでもOK
+  return apiPost<any>("users/signup/", payload);
+}
+
+// hooks/useAuth.ts から呼ばれている想定
+export async function logout(): Promise<void> {
   try {
-    return await apiGet<UserMe>("/users/me/");
-  } catch (e: any) {
-    if (isAuthError(e)) return null;
-    // ネットワーク等は“未ログイン相当”で握りたいならここで null を返す
-    if (/Network|ECONN|Failed to fetch/i.test(String(e?.message ?? ""))) return null;
-    throw e;
-  }
-}
-
-/** nickname / is_public / bio の部分更新 */
-export function updateUser(payload: Partial<{ nickname: string; is_public: boolean; bio: string | null }>) {
-  return apiPatch<UserMe>("/users/me/", payload);
-}
-
-/** プロフィール画像アップロード（multipart） */
-export function updateMeIcon(file: File) {
-  const form = new FormData();
-  form.append("icon", file);
-  return apiPatchForm<UserMe>("/users/me/", form);
+    // サーバーにブラックリスト化APIがあれば叩く（任意）
+    // await apiPost("auth/jwt/blacklist/", { refresh });
+  } catch { /* no-op */ }
+  // トークン破棄は呼び出し側に任せるなら何もしないでもOK
 }
