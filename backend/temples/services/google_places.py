@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+import time
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 import requests
@@ -157,6 +158,7 @@ class GooglePlacesClient:
 
             data = self._get("findplacefromtext", fp_params).json()
             status = data.get("status")
+
             if status not in ("OK", "ZERO_RESULTS"):
                 logger.error(
                     "Places findplacefromtext error: %s, msg=%s", status, data.get("error_message")
@@ -201,6 +203,16 @@ class GooglePlacesClient:
 
         data = self._get("textsearch", params).json()
         status = data.get("status") or ("OK" if "candidates" in data else None)
+        # --- 次ページトークンは発効に 2〜5 秒かかるため、一度だけ待って再試行 ---
+        if status == "INVALID_REQUEST" and pagetoken:
+            time.sleep(2.0)
+            data = self._get("textsearch", params).json()
+            status = data.get("status") or ("OK" if "candidates" in data else None)
+            if status == "INVALID_REQUEST":
+                logger.warning(
+                    "Places text_search: transient INVALID_REQUEST for pagetoken; give up this page."
+                )
+                return {"results": [], "status": status}, None
         if status not in ("OK", "ZERO_RESULTS"):
             logger.error(
                 "Places findplacefromtext error: %s, msg=%s",
@@ -236,6 +248,17 @@ class GooglePlacesClient:
 
         data = self._get("nearbysearch", params).json()
         status = data.get("status")
+        # --- 次ページトークンは発効に 2〜5 秒かかるため、一度だけ待って再試行 ---
+        if status == "INVALID_REQUEST" and pagetoken:
+            time.sleep(2.0)
+            data = self._get("nearbysearch", params).json()
+            status = data.get("status")
+            if status == "INVALID_REQUEST":
+                logger.warning(
+                    "Places nearby_search: transient INVALID_REQUEST for pagetoken; give up this page."
+                )
+                return {"results": [], "status": status}, None
+
         if status not in ("OK", "ZERO_RESULTS"):
             logger.error(
                 "Places nearby_search error: %s, msg=%s",
@@ -410,68 +433,133 @@ def _client() -> GooglePlacesClient:
     return _client_singleton
 
 
-def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
-    if isinstance(query_or_params, dict):
-        p = dict(query_or_params)
-        query = p.pop("q", None) or p.pop("query", "") or ""
-        location = p.pop("location", None)
-        if not location and p.get("lat") is not None and p.get("lng") is not None:
-            location = f"{p.pop('lat')},{p.pop('lng')}"
-        pagetoken = p.pop("pagetoken", None)
-        language = p.pop("language", "ja")
-        region = p.pop("region", "jp")
-        open_now = p.pop("opennow", p.pop("open_now", None))
-        minprice = p.pop("minprice", None)
-        maxprice = p.pop("maxprice", None)
-        type_ = p.pop("type", None)
-        kwargs.update(p)
-        data, _ = _client().text_search(
-            query,
-            location=location,
-            radius=kwargs.pop("radius", None),
-            pagetoken=pagetoken,
-            language=language,
-            region=region,
-            open_now=open_now,
-            minprice=minprice,
-            maxprice=maxprice,
-            type_=type_,
-            **kwargs,
-        )
-        return data
+def text_search(
+    self,
+    query: str,
+    *,
+    location: Optional[str] = None,
+    radius: Optional[int] = None,
+    pagetoken: Optional[str] = None,
+    language: str = "ja",
+    region: str = "jp",
+    open_now: Optional[bool] = None,
+    minprice: Optional[int] = None,
+    maxprice: Optional[int] = None,
+    type_: Optional[str] = None,
+) -> Tuple[Dict[str, Any], Optional[str]]:
+    # --- テスト時は findplace を使えるよう切替（環境変数） ---
+    use_findplace = os.getenv("PLACES_USE_FINDPLACE") == "1" or os.getenv("IS_PYTEST") == "1"
+    if use_findplace and not pagetoken:
+        fp_params: Dict[str, Any] = {
+            "language": language,
+            "input": query,
+            "inputtype": "textquery",
+            "fields": "place_id,formatted_address,geometry,photos,name,rating,user_ratings_total,types,opening_hours,icon",
+        }
+        if location and radius:
+            fp_params["locationbias"] = f"circle:{int(radius)}@{location}"
+
+        data = self._get("findplacefromtext", fp_params).json()
+        status = data.get("status")
+        if status not in ("OK", "ZERO_RESULTS"):
+            logger.error(
+                "Places findplacefromtext error: %s, msg=%s", status, data.get("error_message")
+            )
+            self._ensure_ok(data)
+
+        results = []
+        for c in data.get("candidates", []):
+            r = {
+                "place_id": c.get("place_id"),
+                "name": c.get("name"),
+                "formatted_address": c.get("formatted_address"),
+                "geometry": c.get("geometry"),
+                "photos": c.get("photos"),
+                "rating": c.get("rating"),
+                "user_ratings_total": c.get("user_ratings_total"),
+                "types": c.get("types"),
+                "opening_hours": c.get("opening_hours"),
+                "icon": c.get("icon"),
+            }
+            results.append(self._normalize_result(r))
+        return {"results": results, "status": status}, None
+
+    # --- 既存: textsearch ---
+    params: Dict[str, Any] = {"language": language, "region": region}
+    if pagetoken:
+        params["pagetoken"] = pagetoken
     else:
-        query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
-        data, _ = _client().text_search(query, **kwargs)
-        return data
+        params["query"] = query
+        if location:
+            params["location"] = location
+        if radius:
+            params["radius"] = radius
+        if open_now is True:
+            params["opennow"] = "true"
+        if minprice is not None:
+            params["minprice"] = minprice
+        if maxprice is not None:
+            params["maxprice"] = maxprice
+        if type_:
+            params["type"] = type_
+
+    data = self._get("textsearch", params).json()
+    status = data.get("status") or ("OK" if "candidates" in data else None)
+
+    # ★ pagetoken時だけ INVALID_REQUEST を一度だけリトライ
+    if status == "INVALID_REQUEST" and pagetoken:
+        logger.warning("Places text_search transient INVALID_REQUEST on pagetoken; retrying once")
+        time.sleep(1.2)  # トークン活性化待ち
+        data = self._get("textsearch", params).json()
+        status = data.get("status") or ("OK" if "candidates" in data else None)
+
+    if status not in ("OK", "ZERO_RESULTS"):
+        logger.error("Places text_search error: %s, msg=%s", status, data.get("error_message"))
+        self._ensure_ok(data)
+
+    results = [self._normalize_result(r) for r in data.get("results", [])]
+    return {"results": results, "status": status}, data.get("next_page_token")
 
 
-def nearby_search(params_or_none=None, **kwargs) -> Dict[str, Any]:
-    if isinstance(params_or_none, dict):
-        p = dict(params_or_none)
-        location = p.pop("location", None)
-        if not location and p.get("lat") is not None and p.get("lng") is not None:
-            location = f"{p.pop('lat')},{p.pop('lng')}"
-        radius = p.pop("radius", None)
-        pagetoken = p.pop("pagetoken", None)
-        language = p.pop("language", "ja")
-        type_ = p.pop("type", None)
-        opennow = p.pop("opennow", p.pop("open_now", None))
-        keyword = p.pop("keyword", None)
-        kwargs.update(p)
-        data, _ = _client().nearby_search(
-            location=location,
-            radius=radius,
-            keyword=keyword,
-            language=language,
-            pagetoken=pagetoken,
-            type_=type_,
-            opennow=opennow,
-            **kwargs,
-        )
-        return data
+def nearby_search(
+    self,
+    *,
+    location: str,
+    radius: int,
+    keyword: Optional[str] = None,
+    language: str = "ja",
+    pagetoken: Optional[str] = None,
+    type_: Optional[str] = None,
+    opennow: Optional[bool] = None,
+) -> Tuple[Dict[str, Any], Optional[str]]:
+    params: Dict[str, Any] = {"language": language}
+    if pagetoken:
+        params["pagetoken"] = pagetoken
     else:
-        data, _ = _client().nearby_search(**kwargs)
-        return data
+        params.update({"location": location, "radius": radius})
+        if keyword:
+            params["keyword"] = keyword
+        if type_:
+            params["type"] = type_
+        if opennow is True:
+            params["opennow"] = "true"
+
+    data = self._get("nearbysearch", params).json()
+    status = data.get("status")
+
+    # ★ pagetoken時だけ INVALID_REQUEST を一度だけリトライ
+    if status == "INVALID_REQUEST" and pagetoken:
+        logger.warning("Places nearby_search transient INVALID_REQUEST on pagetoken; retrying once")
+        time.sleep(1.2)
+        data = self._get("nearbysearch", params).json()
+        status = data.get("status")
+
+    if status not in ("OK", "ZERO_RESULTS"):
+        logger.error("Places nearby_search error: %s, msg=%s", status, data.get("error_message"))
+        self._ensure_ok(data)
+
+    results = [self._normalize_result(r) for r in data.get("results", [])]
+    return {"results": results, "status": status}, data.get("next_page_token")
 
 
 def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
