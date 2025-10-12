@@ -1,15 +1,18 @@
-# temples/api/views/search.py
+# backend/temples/api/views/search.py
+
+import logging
+
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_page
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-# これが抜けていると NameError になります
-from temples import services
+from temples import services  # services.google_places を各所で利用
 from temples.api.throttles import PlacesNearbyThrottle
 from temples.services import google_places as GP
+
+logger = logging.getLogger(__name__)
 
 
 def _nearby_ident(request) -> str:
@@ -19,7 +22,6 @@ def _nearby_ident(request) -> str:
     return request.META.get("REMOTE_ADDR") or "anon"
 
 
-# --- /api/places/search/ ---
 # --- /api/places/search/ ---
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -48,9 +50,12 @@ def search(request):
             # dict で渡すと lat/lng→location に正規化される
             data = GP.text_search(payload)
         return Response(data)
-    except Exception as e:
+    except Exception:
+        # 例外の中身はログにのみ出し、クライアントには一般メッセージを返す
+        logger.exception("places.search で例外が発生しました")
         return Response(
-            {"detail": f"places.search failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+            {"detail": "places.search は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
 
@@ -59,7 +64,7 @@ def search(request):
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
 def text_search(request):
-    # ← 両対応
+    # query / q 両対応（空は 400）
     q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
     if not q:
         return Response({"detail": "query is required"}, status=400)
@@ -77,16 +82,15 @@ def text_search(request):
 
         data = services.google_places.text_search(payload)
         return Response(data)
-    except Exception as e:
+    except Exception:
+        logger.exception("places.text_search で例外が発生しました")
         return Response(
-            {"detail": f"places.text_search failed: {e!s}"},
+            {"detail": "内部エラーが発生しました。"},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
 
 # --- /api/places/nearby_search/ ---
-
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @throttle_classes([PlacesNearbyThrottle])
@@ -146,8 +150,10 @@ def nearby_search(request):
                 if first_err is None:
                     first_err = e
                 continue
+            # 例外詳細は返さずログに残す
+            logger.exception("places.nearby_search で RuntimeError が発生しました")
             return Response(
-                {"detail": f"places.nearby_search failed: {msg}"},
+                {"detail": "places.nearby_search は内部エラーのため失敗しました"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         except Exception as e:
@@ -155,8 +161,13 @@ def nearby_search(request):
                 first_err = e
             continue
     else:
+        logger.exception(
+            "places.nearby_search のフォールバックを全て失敗しました: %s",
+            first_err,
+        )
         return Response(
-            {"detail": f"places.nearby_search failed after fallbacks: {first_err!s}"}, status=502
+            {"detail": "places.nearby_search は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
     # ② サーバ側フィルタ
@@ -210,9 +221,7 @@ def photo(request):
     return resp
 
 
-# temples/api/views/search.py
-
-
+# --- /api/places/<place_id>/ ---
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail(request, place_id: str):
@@ -221,9 +230,11 @@ def detail(request, place_id: str):
         data = (
             gp.detail(place_id=place_id) if hasattr(gp, "detail") else gp.details(place_id=place_id)
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("places.detail で例外が発生しました")
         return Response(
-            {"detail": f"places.detail failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+            {"detail": "places.detail は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
     src = data.get("result") or data.get("place") or data or {}
