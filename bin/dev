@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── PostgreSQL は Homebrew サービスで起動している前提（起動してなければ一度だけ起動）
+if ! lsof -i :5432 >/dev/null 2>&1; then
+  echo "[pg] starting postgresql@18..."
+  brew services start postgresql@18 || true
+fi
+
+# ── Django (backend)
+( cd backend
+  source ../.venv/bin/activate
+  python manage.py migrate
+  python manage.py runserver 127.0.0.1:8000
+) &
+
+DJ_PID=$!
+
+# ── Next.js (web)
+( cd apps/web
+  pnpm dev
+) &
+
+WEB_PID=$!
+
+trap "kill $DJ_PID $WEB_PID 2>/dev/null || true" EXIT
+wait

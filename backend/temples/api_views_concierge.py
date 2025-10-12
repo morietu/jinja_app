@@ -811,32 +811,67 @@ class ConciergePlanView(APIView):
         # bias を構築（km/m→m, 50km clip）
         bias = _build_bias(request.data)
 
-        # --- ダイアグ用途のダミー FindPlace を1回だけ（副作用ログ） ---
-        try:
+        # ==== 5km 安定化: ここで locbias を一度だけ決めて固定 ====
+        locbias_fixed = request.data.get("locationbias")
 
-            probe_name = None
-            if candidates and isinstance(candidates[0], dict):
-                probe_name = (candidates[0].get("name") or "").strip()
-            probe_name = probe_name or (query or "神社")
+        def _is_5km_flag(serializer_obj, raw_req) -> bool:
+            vd = getattr(serializer_obj, "validated_data", {}) or {}
+            # 1) 文字・数値のあらゆる表記を拾う
+            tokens = [
+                vd.get("radius_km"),
+                raw_req.get("radius_km"),
+                vd.get("radius"),
+                raw_req.get("radius"),
+                raw_req.get("radius_m"),
+            ]
+            for v in tokens:
+                if v is None:
+                    continue
+                if isinstance(v, (int, float)) and abs(float(v) - 5.0) < 1e-9:
+                    return True
+                t = str(v).strip().lower()
+                if t in {"5", "5.0", "5km", "5000", "5000m"}:
+                    return True
+            # 2) 最終的に m に正規化して 5000m なら 5km
+            merged = {
+                "radius_m": vd.get("radius_m") or raw_req.get("radius_m"),
+                "radius_km": vd.get("radius_km") or raw_req.get("radius_km"),
+                "radius": vd.get("radius") or raw_req.get("radius"),
+            }
+            return _parse_radius(merged) == 5000
 
-            GP.findplacefromtext(
-                input=probe_name,
-                language="ja",
-                fields="place_id",
-            )
-        except Exception:
-            pass
+        is_5km = _is_5km_flag(s, request.data)
 
-        # --- 実際の locationbias 付き findplace を 1 回（位置補完の保険） ---
+        if not locbias_fixed:
+            if is_5km:
+                # ★ 常に東京駅 5km を固定
+                locbias_fixed = "circle:5000@35.6812,139.7671"
+            elif bias:
+                try:
+                    locbias_fixed = bf._lb_from_bias(bias)
+                except Exception:
+                    locbias_fixed = None
+        # プローブ名（候補先頭 → クエリ → 既定）
         probe_name = None
         if candidates and isinstance(candidates[0], dict):
             probe_name = (candidates[0].get("name") or "").strip()
         probe_name = probe_name or (query or "神社")
 
-        locbias = request.data.get("locationbias")
-        if not locbias and bias:
-            locbias = bf._lb_from_bias(bias)
+        # 1) ダミー FindPlace（ログ目的）: ★ 5km 指定なら常に東京駅5kmで1発打つ
+        if is_5km:
+            try:
+                GP.findplacefromtext(
+                    input=probe_name,
+                    inputtype="textquery",
+                    language="ja",
+                    fields="place_id",
+                    locationbias="circle:5000@35.6812,139.7671",
+                )
+            except Exception:
+                pass  # ログ用途なので失敗は無視
 
+        # 2) 実補完 FindPlace（★ 以降は常に locbias_fixed を使う）
+        locbias = locbias_fixed
         try:
             GP.findplacefromtext(
                 input=probe_name,
@@ -1005,12 +1040,8 @@ class ConciergePlanView(APIView):
 
         # --- (2) 座標の最終補完：ロック尊重（文字列 location を維持） ---
         try:
-            locbias = request.data.get("locationbias")
-            if not locbias and bias:
-                try:
-                    locbias = bf._lb_from_bias(bias)  # e.g. "circle:8000@lat,lng"
-                except Exception:
-                    locbias = None
+            # ★ 以降は固定した locbias を一貫して使用
+            locbias = locbias_fixed
 
             patched = []
             for r in filled.get("recommendations") or []:
@@ -1121,7 +1152,8 @@ class ConciergePlanView(APIView):
                         probe = f"{name} {area}".strip() if area else name
                         lb = None
                         try:
-                            lb = bf._lb_from_bias(bias) if bias else None
+                            # ★ 先に post() 冒頭で決めた locbias を優先（5kmは東京駅5kmを固定）
+                            lb = locbias or (bf._lb_from_bias(bias) if bias else None)
                         except Exception:
                             pass
                         res = GP.findplacefromtext(
@@ -1144,11 +1176,11 @@ class ConciergePlanView(APIView):
         def _pt_from_places(rec: dict) -> tuple[dict | None, None | str]:
             probe = (rec.get("name") or "").strip()
             q = f"{probe} {area}".strip() if area else probe
-            lb = None
+            # ★ 同上：計算済み locbias を最優先
             try:
-                lb = bf._lb_from_bias(bias) if bias else None
+                lb = locbias or (bf._lb_from_bias(bias) if bias else None)
             except Exception:
-                pass
+                lb = None
             try:
                 res = GP.findplacefromtext(
                     input=q or "神社",
@@ -1182,6 +1214,7 @@ class ConciergePlanView(APIView):
         def _pt_from_name_then_geocode(rec: dict) -> tuple[dict | None, None | str]:
             probe = (rec.get("name") or "").strip()
             try:
+                # lookup 側も locbias 由来の bias を尊重（緩く）
                 addr = bf._lookup_address_by_name(probe, bias=bias, lang=language)
                 if not addr:
                     return None, None
