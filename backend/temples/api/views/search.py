@@ -51,10 +51,9 @@ def search(request):
             data = GP.text_search(payload)
         return Response(data)
     except Exception:
-        # 例外の中身はログにのみ出し、クライアントには一般メッセージを返す
-        logger.exception("places.search で例外が発生しました")
+        logger.exception("Exception in places.search")
         return Response(
-            {"detail": "places.search は内部エラーのため失敗しました"},
+            {"detail": "places.search failed due to an internal error"},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
@@ -83,9 +82,9 @@ def text_search(request):
         data = services.google_places.text_search(payload)
         return Response(data)
     except Exception:
-        logger.exception("places.text_search で例外が発生しました")
+        logger.exception("Error in places.text_search")
         return Response(
-            {"detail": "内部エラーが発生しました。"},
+            {"detail": "An internal error has occurred."},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
