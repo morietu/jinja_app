@@ -1,8 +1,7 @@
-// apps/web/src/lib/api/http.ts
 import type { AxiosRequestConfig } from "axios";
 import api from "./client";
 
-const norm = (u: string) => (u.startsWith("/") ? u : `/${u}`);
+const norm = (u: string) => (u.startsWith("/") ? u : `/${u}`); // ← 復活
 
 export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
   const { data } = await api.get<T>(norm(url), config);
@@ -26,6 +25,7 @@ export async function apiPatchForm<T>(url: string, form: FormData, config: Axios
   });
   return data;
 }
+
 export function isAuthError(e: unknown) {
   return !!(e as any)?.response && (e as any).response.status === 401;
 }

@@ -1,5 +1,6 @@
 // apps/web/src/lib/auth.ts
-// フロントから使うのは基本これだけ
+import { login as loginApi } from "@/lib/api/auth";
+
 export async function login({ username, password }: { username: string; password: string }) {
   const res = await fetch("/api/auth/login", {
     method: "POST",

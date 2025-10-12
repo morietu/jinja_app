@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   const { username, password } = await req.json();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE!; // 例: http://localhost:8000
+  const apiBase = process.env.API_BASE_SERVER!;
 
   // Django側のトークン発行エンドポイントに合わせてパス調整（/api/token/ or /auth/jwt/create/）
   const r = await fetch(`${apiBase}/api/token/`, {
