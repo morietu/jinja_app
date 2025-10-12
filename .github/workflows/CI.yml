@@ -12,37 +12,34 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
-
+    # PostGIS入りのDBを1つだけ定義（PG16）
     services:
-      db:
+      postgres:
         image: postgis/postgis:16-3.4
-        ports: ["5432:5432"]
         env:
-          POSTGRES_DB: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: jinja_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: jdb50515
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=60
-          --health-start-period=60s
+          --health-cmd "pg_isready -U admin -d jinja_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 60
+          --health-start-period 60s
 
+    # Django が読む環境変数（ここも1つに統一）
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
       USE_GIS: "1"
-      TESTING: "1"
+      USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
-      DATABASE_URL: postgis://postgres:postgres@127.0.0.1:5432/postgres
-      DB_HOST: "127.0.0.1"
-      DB_PORT: "5432"
-      DB_NAME: "postgres"
-      DB_USER: "postgres"
-      DB_PASSWORD: "postgres"
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      GOOGLE_MAPS_API_KEY: dummy
+      # services で 5432 をホストに公開してるので localhost でOK
+      DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
+      DJANGO_SECRET_KEY: ci-only-secret
+      GOOGLE_MAPS_API_KEY: "dummy"
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
@@ -77,66 +74,41 @@ jobs:
       - name: Wait for DB (defensive)
         run: |
           for i in {1..90}; do
-            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" && break
+            pg_isready -h localhost -p 5432 -U admin -d jinja_db && break
             echo "⏳ waiting for Postgres... ($i/90)"
             sleep 2
           done
-          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
+          pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
       - name: Debug Django settings
         run: |
           python - <<'PY'
           import os, django, importlib
-          from contextlib import suppress
           os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
-          print("DJANGO_SETTINGS_MODULE (env):", os.environ.get("DJANGO_SETTINGS_MODULE"))
           django.setup()
           from django.conf import settings
-          from django.db import connections
-
-          print("settings.SETTINGS_MODULE:", settings.SETTINGS_MODULE)
-          mod = importlib.import_module(settings.SETTINGS_MODULE)
-          print("settings file:", getattr(mod, "__file__", "<unknown>"))
-
-          print("Has TEMPLATES:", bool(getattr(settings, "TEMPLATES", None)))
-          print("First BACKEND:", getattr(settings, "TEMPLATES", [{}])[0].get("BACKEND"))
-          print("Has MIDDLEWARE:", bool(getattr(settings, "MIDDLEWARE", None)))
-          print("Middleware head:", (settings.MIDDLEWARE or [])[:6])
-          print("INSTALLED_APPS head:", settings.INSTALLED_APPS[:8])
-
-          # 追加: 実際のDBエンジンと接続先を表示
-          db = settings.DATABASES.get("default", {})
+          db = settings.DATABASES["default"]
           print("DB ENGINE:", db.get("ENGINE"))
           print("DB NAME  :", db.get("NAME"))
           print("DB USER  :", db.get("USER"))
           print("DB HOST  :", db.get("HOST"))
           print("DB PORT  :", db.get("PORT"))
-
-          # 接続確認（失敗しても落とさない）
-          with suppress(Exception):
-              with connections["default"].cursor() as cur:
-                  cur.execute("SELECT version()")
-                  print("DB version:", cur.fetchone()[0])
           PY
 
       - name: Migrate
         run: python manage.py migrate --noinput
-
-      - name: Collect static
-        run: python manage.py collectstatic --noinput
 
       - name: Test
         run: pytest -q -p no:flake8
 
       - name: Show DB container logs (always)
         if: always()
-        working-directory: .
         run: |
           docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
           CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
           if [ -n "$CID" ]; then
             echo "==== docker inspect (health) ===="
-            docker inspect "$CID" --format '{{json .State.Health}}' | jq .
+            docker inspect "$CID" --format '{{json .State.Health}}' | jq . || true
             echo "==== docker logs $CID ===="
             docker logs "$CID" || true
           else
