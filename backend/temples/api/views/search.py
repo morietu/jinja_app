@@ -1,14 +1,18 @@
-# temples/api/views/search.py
+# backend/temples/api/views/search.py
+
+import logging
+
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_page
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-# これが抜けていると NameError になります
-from temples import services
+from temples import services  # services.google_places を各所で利用
 from temples.api.throttles import PlacesNearbyThrottle
+from temples.services import google_places as GP
+
+logger = logging.getLogger(__name__)
 
 
 def _nearby_ident(request) -> str:
@@ -21,19 +25,37 @@ def _nearby_ident(request) -> str:
 # --- /api/places/search/ ---
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@cache_page(60 * 5)  # 5分キャッシュ（テストは即時2回叩くので十分）
+@cache_page(60 * 5)
 def search(request):
-    q = request.query_params.get("q")
+    # query / q 両対応（空は 400）
+    q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
+    if not q:
+        return Response({"detail": "query is required"}, status=400)
+
     lat = request.query_params.get("lat")
     lng = request.query_params.get("lng")
+    radius = request.query_params.get("radius")
 
-    gp = services.google_places
-    if hasattr(gp, "search"):
-        data = gp.search({"q": q, "lat": lat, "lng": lng})
-    else:
-        # フォールバック：text_search で代用（lat/lng は無視）
-        data = gp.text_search({"q": q, "lat": lat, "lng": lng})
-    return Response(data)
+    payload = {"q": q}
+    if lat and lng:
+        payload.update({"lat": lat, "lng": lng})
+    if radius:
+        payload["radius"] = radius
+
+    try:
+        # services.google_places に search() があれば使う。なければ text_search に委譲
+        if hasattr(services.google_places, "search"):
+            data = services.google_places.search(payload)
+        else:
+            # dict で渡すと lat/lng→location に正規化される
+            data = GP.text_search(payload)
+        return Response(data)
+    except Exception:
+        logger.exception("Exception in places.search")
+        return Response(
+            {"detail": "places.search failed due to an internal error"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
 
 # --- /api/places/text_search/ ---
@@ -41,20 +63,33 @@ def search(request):
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
 def text_search(request):
-    q = request.query_params.get("q") or ""
+    # query / q 両対応（空は 400）
+    q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
+    if not q:
+        return Response({"detail": "query is required"}, status=400)
+
     try:
-        # ← 引数名は query
-        data = services.google_places.text_search(query=q)
+        # lat/lng/radius が来ていたら一緒に回す（dict で渡すと wrapper が location へ変換）
+        lat = request.query_params.get("lat")
+        lng = request.query_params.get("lng")
+        radius = request.query_params.get("radius")
+        payload = {"q": q}
+        if lat and lng:
+            payload.update({"lat": lat, "lng": lng})
+        if radius:
+            payload["radius"] = radius
+
+        data = services.google_places.text_search(payload)
         return Response(data)
-    except Exception as e:
+    except Exception:
+        logger.exception("Error in places.text_search")
         return Response(
-            {"detail": f"places.text_search failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+            {"detail": "An internal error has occurred."},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
 
 # --- /api/places/nearby_search/ ---
-
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @throttle_classes([PlacesNearbyThrottle])
@@ -114,8 +149,10 @@ def nearby_search(request):
                 if first_err is None:
                     first_err = e
                 continue
+            # 例外詳細は返さずログに残す
+            logger.exception("places.nearby_search で RuntimeError が発生しました")
             return Response(
-                {"detail": f"places.nearby_search failed: {msg}"},
+                {"detail": "places.nearby_search は内部エラーのため失敗しました"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         except Exception as e:
@@ -123,8 +160,13 @@ def nearby_search(request):
                 first_err = e
             continue
     else:
+        logger.exception(
+            "places.nearby_search のフォールバックを全て失敗しました: %s",
+            first_err,
+        )
         return Response(
-            {"detail": f"places.nearby_search failed after fallbacks: {first_err!s}"}, status=502
+            {"detail": "places.nearby_search は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
     # ② サーバ側フィルタ
@@ -178,9 +220,7 @@ def photo(request):
     return resp
 
 
-# temples/api/views/search.py
-
-
+# --- /api/places/<place_id>/ ---
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail(request, place_id: str):
@@ -189,9 +229,11 @@ def detail(request, place_id: str):
         data = (
             gp.detail(place_id=place_id) if hasattr(gp, "detail") else gp.details(place_id=place_id)
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("places.detail で例外が発生しました")
         return Response(
-            {"detail": f"places.detail failed: {e!s}"}, status=status.HTTP_502_BAD_GATEWAY
+            {"detail": "places.detail は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
 
     src = data.get("result") or data.get("place") or data or {}

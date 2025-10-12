@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 0) Postgres（homebrew）を起動（必要なら）
+if ! lsof -i :5432 >/dev/null 2>&1; then
+  echo "[pg] starting postgresql@18..."
+  brew services start postgresql@18
+  # 初回だけ DB/拡張を作る（存在チェック）
+  psql -h 127.0.0.1 -p 5432 -U "$(whoami)" -d postgres -Atc "SELECT 1" >/dev/null || true
+  psql -h 127.0.0.1 -p 5432 -U "$(whoami)" -d postgres -c "DO \$\$BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='admin') THEN CREATE ROLE admin LOGIN SUPERUSER PASSWORD 'admin'; END IF; END\$\$;" || true
+  createdb -h 127.0.0.1 -p 5432 -U "$(whoami)" -O admin jinja_db 2>/dev/null || true
+  psql -h 127.0.0.1 -p 5432 -U admin -d jinja_db -c "CREATE EXTENSION IF NOT EXISTS postgis;" || true
+fi
+
+# 1) Django
+( cd backend
+  source ../.venv/bin/activate
+  python manage.py migrate
+  python manage.py runserver 127.0.0.1:8000
+) &
+DJ_PID=$!
+
+# 2) Next.js（web）
+( cd apps/web
+  pnpm dev
+) &
+WEB_PID=$!
+
+trap "kill $DJ_PID $WEB_PID 2>/dev/null || true" EXIT
+wait

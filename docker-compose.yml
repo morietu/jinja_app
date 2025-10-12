@@ -2,7 +2,7 @@ services:
   db:
     build:
       context: .
-      dockerfile: Dockerfile.db
+      dockerfile: Dockerfile.db   # ← これ
     container_name: jinja_app-db-1
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-jinja_db}

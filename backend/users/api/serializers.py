@@ -1,4 +1,3 @@
-# backend/users/api/serializers.py
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from users.models import UserProfile
@@ -6,11 +5,25 @@ from users.models import UserProfile
 User = get_user_model()
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    # 未設定なら None を返し、設定済みなら URL を返す（DRF の ImageField は安全）
-    icon = serializers.ImageField(read_only=True)
+class SignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
 
-    # 絶対URLが欲しい場合は icon_url を別途足す
+    class Meta:
+        model = User
+        fields = ("username", "password", "email")
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            password=validated_data["password"],
+            email=validated_data.get("email") or "",
+        )
+        return user
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    icon = serializers.ImageField(read_only=True)
     icon_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -20,8 +33,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_icon_url(self, obj):
         request = self.context.get("request")
         try:
-            if obj.icon and obj.icon.name:  # ファイル名がある時だけ
-                url = obj.icon.url  # ここは安全に評価される
+            if obj.icon and obj.icon.name:
+                url = obj.icon.url
                 return request.build_absolute_uri(url) if request else url
         except Exception:
             pass
