@@ -11,7 +11,7 @@ class TemplesConfig(AppConfig):
     verbose_name = "Temples"
 
     def ready(self):
-        # signals を import してハンドラ登録
-        from . import signals  # noqa: F401
-
-        logger.info("TemplesConfig.ready(): signals loaded")
+        try:
+            from . import signals  # noqa: F401
+        except Exception as e:
+            logger.warning("temples.signals not loaded: %s", e)
