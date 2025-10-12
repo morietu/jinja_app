@@ -3,6 +3,7 @@ FROM python:3.11-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DEBIAN_FRONTEND=noninteractive
+ARG INSTALL_DEV=0  # ← 使う前に宣言
 
 WORKDIR /app
 
@@ -21,7 +22,7 @@ RUN set -eux; \
     postgresql-client; \
     rm -rf /var/lib/apt/lists/*
 
-# OSのGDALバージョンに合わせてPythonのGDALを入れる（パスのハードコードはしない）
+# OS の GDAL に合わせた Python GDAL
 RUN set -eux; \
     GDAL_VER="$(gdal-config --version)"; \
     python -m pip install --upgrade pip; \
@@ -31,9 +32,13 @@ RUN set -eux; \
 ENV GDAL_DATA=/usr/share/gdal \
     PROJ_LIB=/usr/share/proj
 
-# Python 依存
+# Python 依存（prod + optional dev）※ 重複ブロックを統合
 COPY requirements.txt /app/requirements.txt
-RUN python -m pip install -r /app/requirements.txt
+COPY requirements-dev.txt /app/requirements-dev.txt
+RUN python -m pip install -r /app/requirements.txt && \
+    if [ "$INSTALL_DEV" = "1" ]; then \
+    python -m pip install -r /app/requirements-dev.txt ; \
+    fi
 
 # アプリ本体
 COPY . /app
