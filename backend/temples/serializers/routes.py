@@ -1,7 +1,11 @@
 from typing import List
 
+from django.apps import apps
 from rest_framework import serializers
-from temples.models import Favorite, Goshuin, Shrine
+
+Shrine = apps.get_model("temples", "Shrine", require_ready=False)  # type: ignore
+Goshuin = apps.get_model("temples", "Goshuin", require_ready=False)  # type: ignore
+Favorite = apps.get_model("temples", "Favorite", require_ready=False)  # type: ignore
 
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----

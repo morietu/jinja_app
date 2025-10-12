@@ -39,17 +39,30 @@ def _push_req_history(url: str, params: dict) -> None:
 # ------------------------------------------------------------
 # API キー
 # ------------------------------------------------------------
-API_KEY = (
-    os.getenv("GOOGLE_PLACES_API_KEY")
-    or os.getenv("GOOGLE_MAPS_API_KEY")
-    or getattr(settings, "GOOGLE_PLACES_API_KEY", None)
-    or getattr(settings, "GOOGLE_MAPS_API_KEY", None)
-)
+def _resolve_api_key() -> Optional[str]:
+    candidates = [
+        # settings.*
+        getattr(settings, "GOOGLE_PLACES_API_KEY", None),
+        getattr(settings, "GOOGLE_MAPS_API_KEY", None),
+        getattr(settings, "GOOGLE_API_KEY", None),
+        # env
+        os.getenv("GOOGLE_PLACES_API_KEY"),
+        os.getenv("GOOGLE_MAPS_API_KEY"),
+        os.getenv("GOOGLE_API_KEY"),
+        os.getenv("MAPS_API_KEY"),
+        os.getenv("PLACES_API_KEY"),
+    ]
+    for k in candidates:
+        if not k:
+            continue
+        k = str(k).strip()
+        if k and not k.startswith("${"):  # プレースホルダ弾き
+            return k
+    return None
 
-try:
-    from temples.services.places import text_search_first as text_search_first  # noqa: F401
-except Exception:
-    text_search_first = None
+
+# 低レイヤ/クライアント双方が参照
+API_KEY: Optional[str] = _resolve_api_key()
 
 
 # ------------------------------------------------------------
@@ -277,7 +290,14 @@ class GooglePlacesClient:
         url = f"{self.BASE_URL}/photo"
         params = self.build_photo_params(photo_reference, maxwidth=maxwidth, maxheight=maxheight)
         resp = requests.get(url, params=params, timeout=self.timeout, stream=True)
-        logger.info("Places upstream[photo]: %s", resp.url)
+
+        # マスクしてログ
+        try:
+            safe_url = resp.url.replace(self.api_key or "", "****")
+        except Exception:
+            safe_url = "<masked>"
+        logger.info("Places upstream[photo]: %s", safe_url)
+
         resp.raise_for_status()
         content_type = resp.headers.get("Content-Type", "image/jpeg")
         return resp.content, content_type
@@ -289,24 +309,24 @@ class GooglePlacesClient:
 _TIMEOUT = 10
 
 
-def _log_upstream(kind: str, url: str, params: dict):
-    # Only log param names, not values. Mask known sensitive keys.
-    safe_keys = {"query", "language", "region", "location", "radius", "type", "pagetoken", "place_id", "fields"}
-    keys_to_log = [k for k in (params or {}) if k in safe_keys and params.get(k) is not None]
-    qs_preview = "&".join(f"{k}=***" for k in keys_to_log)
-    logger.info(f"Places upstream[{kind}] {url}?{qs_preview}")
+def _log_upstream(kind: str, url: str, params: dict) -> None:
+    masked = dict(params or {})
+    if "key" in masked:
+        masked["key"] = "****"
+    qs = "&".join(f"{k}={v}" for k, v in masked.items() if v is not None)
+    print(f"Places upstream[{kind}] {url}?{qs}", file=sys.stderr)
 
 
 def textsearch(
     *,
     query: str,
-    language: str | None = None,
-    region: str | None = None,
-    location: str | None = None,
-    radius: int | None = None,
-    type: str | None = None,
-    pagetoken: str | None = None,
-):
+    language: Optional[str] = None,
+    region: Optional[str] = None,
+    location: Optional[str] = None,
+    radius: Optional[int] = None,
+    type: Optional[str] = None,
+    pagetoken: Optional[str] = None,
+) -> Dict[str, Any]:
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
         "key": API_KEY,
@@ -326,7 +346,9 @@ def textsearch(
     return resp.json()
 
 
-def details(*, place_id: str, language: str | None = None, fields: str | None = None):
+def details(
+    *, place_id: str, language: Optional[str] = None, fields: Optional[str] = None
+) -> Dict[str, Any]:
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         "key": API_KEY,
@@ -345,10 +367,10 @@ def details(*, place_id: str, language: str | None = None, fields: str | None = 
 def findplacefromtext(
     *,
     input: str,
-    language: str | None = None,
-    locationbias: str | None = None,
-    fields: str | None = None,
-):
+    language: Optional[str] = None,
+    locationbias: Optional[str] = None,
+    fields: Optional[str] = None,
+) -> Dict[str, Any]:
     url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
     params = {
         "key": API_KEY,
@@ -457,6 +479,7 @@ def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
 
 
 def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
+    # 単なるラッパ。マスク済みログはクライアント側で行う
     return _client().photo(photo_reference, **kwargs)
 
 

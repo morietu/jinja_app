@@ -7,15 +7,18 @@ from .concierge import (
     ShrineRecommendationSerializer,
 )
 from .concierge import ConciergePlanResponseSerializer as ConciergeResponseSerializer  # alias 輸出
-from .routes import (
-    FavoriteSerializer,
-    GoshuinSerializer,
-    PopularShrineSerializer,
-    RouteLegSerializer,
-    RouteRequestSerializer,
-    RouteResponseSerializer,
-    ShrineSerializer,
-)
+
+try:
+    from .routes import (
+        DeitySerializer,
+        GoriyakuTagSerializer,
+        ShrineSerializer,
+    )
+except Exception:
+    ShrineSerializer = None  # type: ignore
+    GoriyakuTagSerializer = None  # type: ignore
+    DeitySerializer = None  # type: ignore
+
 
 __all__ = [
     "ShrineRecommendationSerializer",
