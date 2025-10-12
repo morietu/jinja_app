@@ -290,11 +290,11 @@ _TIMEOUT = 10
 
 
 def _log_upstream(kind: str, url: str, params: dict):
-    masked = dict(params or {})
-    if "key" in masked:
-        masked["key"] = "****"
-    qs = "&".join(f"{k}={v}" for k, v in masked.items() if v is not None)
-    print(f"Places upstream[{kind}] {url}?{qs}", file=sys.stderr)
+    # Only log param names, not values. Mask known sensitive keys.
+    safe_keys = {"query", "language", "region", "location", "radius", "type", "pagetoken", "place_id", "fields"}
+    keys_to_log = [k for k in (params or {}) if k in safe_keys and params.get(k) is not None]
+    qs_preview = "&".join(f"{k}=***" for k in keys_to_log)
+    logger.info(f"Places upstream[{kind}] {url}?{qs_preview}")
 
 
 def textsearch(
