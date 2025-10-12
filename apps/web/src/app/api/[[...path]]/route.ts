@@ -4,22 +4,37 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ORIGIN = (
-  process.env.API_BASE_SERVER ||
-  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-  process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
-
-// 本番のみ secure。ローカルは false
-const SECURE = process.env.NODE_ENV === "production";
-
-// /api を剥がさず、そのまま Django 側へ
-function toBackend(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
-  return `${ORIGIN}${pathname}${search}`;
+// ─────────────────────────────────────────────────────────────
+// 1) 絶対URLだけ採用するセーフティ
+function firstAbsolute(...cands: (string | undefined)[]) {
+  for (const c of cands) if (c && /^https?:\/\//i.test(c)) return c;
+  return undefined;
 }
 
-// hop-by-hop（と圧縮ヘッダ）を落として Next に再計算させる
+// 2) ORIGIN 決定（末尾のスラッシュ / および /api を除去）
+const RAW_ORIGIN =
+  firstAbsolute(
+    process.env.API_BASE_SERVER,
+    process.env.NEXT_PUBLIC_BACKEND_ORIGIN,
+    process.env.NEXT_PUBLIC_API_BASE
+  ) || (process.env.NODE_ENV !== "production" ? "http://127.0.0.1:8000" : "");
+
+if (!RAW_ORIGIN) {
+  throw new Error("API_BASE_SERVER is required in production");
+}
+
+const ORIGIN = RAW_ORIGIN.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+
+// 3) 本番のみ secure（Cookie設定用）
+const SECURE = process.env.NODE_ENV === "production";
+
+// 4) Next の /api を剥がさずにそのまま Django 側へ流す
+function toBackend(req: NextRequest) {
+  const { pathname, search } = req.nextUrl; // e.g. /api/users/me/
+  return `${ORIGIN}${pathname}${search}`;   // e.g. http://127.0.0.1:8000/api/users/me/
+}
+
+// Hop-by-hop（と圧縮ヘッダ）を落として Next に再計算させる
 function stripHopByHop(h: Headers) {
   const out = new Headers(h);
   for (const k of [
@@ -39,13 +54,16 @@ export async function ALL(req: NextRequest) {
   if (req.nextUrl.pathname === "/api/probe") {
     return NextResponse.json({ ok: true, via: "next", origin: ORIGIN });
   }
+
+  // ログアウト（Cookie削除）
   if (req.nextUrl.pathname === "/api/auth/logout" && req.method === "POST") {
-  const out = NextResponse.json({ ok: true });
-  // Cookie を削除
-  out.cookies.set("access_token", "", { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/", maxAge: 0 });
-  out.cookies.set("refresh_token", "", { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/", maxAge: 0 });
-  return out;
-}
+    const out = NextResponse.json({ ok: true });
+    out.cookies.set("access_token", "", { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/", maxAge: 0 });
+    out.cookies.set("refresh_token", "", { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/", maxAge: 0 });
+    return out;
+  }
+
+  // Cookie可視化
   if (req.nextUrl.pathname === "/api/debug/cookies") {
     const access = req.cookies.get("access_token")?.value ?? null;
     const refresh = req.cookies.get("refresh_token")?.value ?? null;
@@ -59,12 +77,6 @@ export async function ALL(req: NextRequest) {
   }
 
   try {
-    // --- リクエストボディ準備（GET/HEAD以外） ---
-    let body: BodyInit | undefined;
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      const ab = await req.arrayBuffer();
-      body = ab.byteLength ? Buffer.from(ab) : undefined;
-    }
 
     // --- ヘッダー整形 ---
     const headers = new Headers(req.headers);
@@ -79,6 +91,15 @@ export async function ALL(req: NextRequest) {
       if (jwt) headers.set("authorization", `Bearer ${jwt}`);
     }
 
+    // --- リクエストボディ準備（GET/HEAD以外）--- ※ここだけ残す
+    let body: BodyInit | undefined;
+    let bodyLen = 0;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      const ab = await req.arrayBuffer();
+      bodyLen = ab.byteLength;
+      body = bodyLen ? Buffer.from(ab) : undefined;
+    }
+    console.log("[proxy]", req.method, req.nextUrl.pathname, "bodyLen=", bodyLen);
     // --- Upstream へ ---
     const upstream = await fetch(toBackend(req), {
       method: req.method,
