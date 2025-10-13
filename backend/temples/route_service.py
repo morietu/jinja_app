@@ -7,6 +7,7 @@ from os import getenv
 from typing import Dict, List, Literal, Tuple
 
 import requests
+from django.conf import settings
 from django.core.cache import cache
 
 Mode = Literal["walking", "driving"]
@@ -23,6 +24,19 @@ DEFAULT_TTL = 60 * 60 * 24 * 30  # 30日
 _RATE_WINDOW = 60
 _RATE_LIMIT = 20
 _calls = []
+
+
+ROUTE_CACHE_TTL_S = int(getattr(settings, "ROUTE_CACHE_TTL_S", 60 * 60 * 24 * 30))
+
+
+def _cache_key(mode: Mode, origin: Point, destinations: List[Point]) -> str:
+    payload = {
+        "mode": mode,
+        "origin": {"lat": origin.lat, "lng": origin.lng},
+        "destinations": [{"lat": d.lat, "lng": d.lng} for d in destinations],
+    }
+    h = hashlib.sha1(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+    return f"route:{h}"
 
 
 def _allow() -> bool:
@@ -89,9 +103,9 @@ class ORSAdapter(BaseRouteAdapter):
             return {
                 "from": {"lat": a.lat, "lng": a.lng},
                 "to": {"lat": b.lat, "lng": b.lng},
-                "distance_m": None,
-                "duration_s": None,
-                "geometry": None,
+                "distance_m": 0,  # ← None ではなく 0
+                "duration_s": 0,  # ← None ではなく 0
+                "geometry": [],  # ← 空配列
                 "provider": "throttled",
             }
         profile = "foot-walking" if mode == "walking" else "driving-car"
@@ -118,7 +132,7 @@ class ORSAdapter(BaseRouteAdapter):
             "geometry": line,
             "provider": "ors",
         }
-        cache.set(ckey, res, DEFAULT_TTL)
+        cache.set(ckey, res, ROUTE_CACHE_TTL_S)
         return res
 
 
@@ -178,22 +192,34 @@ def get_adapter() -> Tuple[str, BaseRouteAdapter]:
 
 
 def build_route(mode: Mode, origin: Point, destinations: List[Point]) -> Dict:
+    # ★ まずキャッシュを見る
+    ckey = _cache_key(mode, origin, destinations)
+    hit = cache.get(ckey)
+    if hit:
+        # 既存レスポンスに cached フラグを付けて返す
+        res = dict(hit)
+        res["cached"] = True
+        return res
+
     provider, adapter = get_adapter()
     legs = []
     current = origin
     for dest in destinations:
-        try:
-            legs.append(adapter.get_leg(mode, current, dest))
-        except Exception:
-            # 個別レッグ失敗時も落とさない（ダミー代替）
-            legs.append(DummyAdapter().get_leg(mode, current, dest))
+        leg = adapter.get_leg(mode, current, dest)
+        legs.append(leg)
         current = dest
-    distance_total = sum(int(leg["distance_m"] or 0) for leg in legs)
-    duration_total = sum(int(leg["duration_s"] or 0) for leg in legs)
-    return {
+    distance_total = sum(leg["distance_m"] for leg in legs)
+    duration_total = sum(leg["duration_s"] for leg in legs)
+
+    res = {
         "mode": mode,
         "legs": legs,
         "distance_m_total": distance_total,
         "duration_s_total": duration_total,
         "provider": provider,
+        "cached": False,  # ★ 初回は False
     }
+
+    # ★ キャッシュ保存
+    cache.set(ckey, res, ROUTE_CACHE_TTL_S)
+    return res
