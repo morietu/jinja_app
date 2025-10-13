@@ -3,18 +3,18 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication  # ★ 追加
-from temples.models import Favorite, PlaceRef, Shrine
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from temples.models import Favorite, Shrine
 
-from ..serializers.favorite import FavoriteSerializer
+from ..serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
 
 
 class FavoriteToggleView(APIView):
     """POST /api/favorites/toggle/  { "shrine_id": 1 }"""
 
-    authentication_classes = (JWTAuthentication,)  # ★ JWTのみ → CSRF不要
+    authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
-    throttle_scope = "favorites"  # ★ スコープ統一
+    throttle_scope = "favorites"
 
     def post(self, request, *args, **kwargs):
         shrine_id = request.data.get("shrine_id")
@@ -37,34 +37,26 @@ class MyFavoritesListCreateView(generics.ListCreateAPIView):
 
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
-    serializer_class = FavoriteSerializer
     throttle_scope = "favorites"
+    serializer_class = FavoriteSerializer  # 出力用
+    queryset = Favorite.objects.select_related("shrine")
+    pagination_class = None
 
     def get_queryset(self):
-        qs = (
+        return (
             Favorite.objects.filter(user=self.request.user)
             .select_related("shrine")
             .order_by("-created_at")
         )
-        # PlaceRef を一括ロード（任意・N+1回避）
-        place_ids = list(filter(None, qs.values_list("place_id", flat=True)))
-        places_by_id = {}
-        if place_ids:
-            for pr in PlaceRef.objects.filter(place_id__in=place_ids).only(
-                "place_id", "name", "address", "latitude", "longitude"
-            ):
-                places_by_id[pr.place_id] = pr
-        self._places_by_id = places_by_id
-        return qs
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        if hasattr(self, "_places_by_id"):
-            ctx["places"] = self._places_by_id
-        return ctx
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    def create(self, request, *args, **kwargs):
+        up = FavoriteUpsertSerializer(data=request.data, context=self.get_serializer_context())
+        up.is_valid(raise_exception=True)
+        fav = up.save()  # get_or_create 済み
+        fav = Favorite.objects.select_related("shrine").get(pk=fav.pk)
+        out = FavoriteSerializer(fav, context=self.get_serializer_context())
+        headers = self.get_success_headers(out.data)
+        return Response(out.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class MyFavoriteDestroyView(generics.DestroyAPIView):
@@ -72,8 +64,8 @@ class MyFavoriteDestroyView(generics.DestroyAPIView):
 
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
-    serializer_class = FavoriteSerializer
     throttle_scope = "favorites"
+    serializer_class = FavoriteSerializer
     lookup_url_kwarg = "favorite_id"
 
     def get_queryset(self):
