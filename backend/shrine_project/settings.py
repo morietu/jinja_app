@@ -223,12 +223,13 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    # ✅ スロットルはここに（Scoped + 任意で anon/user）
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.ScopedRateThrottle",
-        # 必要なら "rest_framework.throttling.AnonRateThrottle",
-        # 必要なら "rest_framework.throttling.UserRateThrottle"
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
     ),
+    # ✅ スコープに geocode / route を追加（ここが無くて500）
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/min",
         "user": "120/min",
@@ -236,7 +237,10 @@ REST_FRAMEWORK = {
         "places": "30/min",
         "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
         "shrines": "60/min",
+        "route": "20/min",
+        "geocode": "30/min",  # ← これ！
     },
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
