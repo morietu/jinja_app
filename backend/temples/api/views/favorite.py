@@ -1,17 +1,20 @@
 # temples/api/views/favorite.py
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from temples.api.serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
+from rest_framework_simplejwt.authentication import JWTAuthentication  # ★ 追加
 from temples.models import Favorite, PlaceRef, Shrine
+
+from ..serializers.favorite import FavoriteSerializer
 
 
 class FavoriteToggleView(APIView):
-    """POST /api/temples/favorites/toggle/  { "shrine_id": 1 }"""
+    """POST /api/favorites/toggle/  { "shrine_id": 1 }"""
 
-    permission_classes = [IsAuthenticated]
-    throttle_scope = "user"
+    authentication_classes = (JWTAuthentication,)  # ★ JWTのみ → CSRF不要
+    permission_classes = (IsAuthenticated,)
+    throttle_scope = "favorites"  # ★ スコープ統一
 
     def post(self, request, *args, **kwargs):
         shrine_id = request.data.get("shrine_id")
@@ -29,39 +32,49 @@ class FavoriteToggleView(APIView):
         return Response({"favorited": False}, status=status.HTTP_200_OK)
 
 
-class UserFavoriteListView(APIView):
-    """GET /api/temples/favorites/?q=&goriyaku=&shinkaku=&region=&lat=&lng="""
+class MyFavoritesListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/favorites/"""
 
-    permission_classes = [IsAuthenticated]
-    throttle_scope = "user"
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    serializer_class = FavoriteSerializer
+    throttle_scope = "favorites"
 
-    def get(self, request):
-        # 自分のお気に入り（最新順）。shrine は select_related で N+1 回避
+    def get_queryset(self):
         qs = (
-            Favorite.objects.filter(user=request.user)
-            .select_related("shrine")  # ★ shrine の N+1 回避
+            Favorite.objects.filter(user=self.request.user)
+            .select_related("shrine")
             .order_by("-created_at")
         )
-
-        # place_id をまとめて取得して context に詰める（★ N+1 回避）
-        place_ids = [pid for pid in qs.values_list("place_id", flat=True) if pid]
+        # PlaceRef を一括ロード（任意・N+1回避）
+        place_ids = list(filter(None, qs.values_list("place_id", flat=True)))
         places_by_id = {}
         if place_ids:
             for pr in PlaceRef.objects.filter(place_id__in=place_ids).only(
                 "place_id", "name", "address", "latitude", "longitude"
             ):
                 places_by_id[pr.place_id] = pr
+        self._places_by_id = places_by_id
+        return qs
 
-        ser = FavoriteSerializer(
-            qs, many=True, context={"request": request, "places": places_by_id}
-        )
-        return Response(ser.data, status=status.HTTP_200_OK)
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        if hasattr(self, "_places_by_id"):
+            ctx["places"] = self._places_by_id
+        return ctx
 
-    def post(self, request):
-        s = FavoriteUpsertSerializer(data=request.data, context={"request": request})
-        s.is_valid(raise_exception=True)
-        fav = s.save()
-        # shrine を確実に抱えた状態でシリアライズ
-        fav = Favorite.objects.select_related("shrine").get(pk=fav.pk)
-        ser = FavoriteSerializer(fav, context={"request": request})
-        return Response(ser.data, status=status.HTTP_201_CREATED)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class MyFavoriteDestroyView(generics.DestroyAPIView):
+    """DELETE /api/favorites/<favorite_id>/"""
+
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    serializer_class = FavoriteSerializer
+    throttle_scope = "favorites"
+    lookup_url_kwarg = "favorite_id"
+
+    def get_queryset(self):
+        return Favorite.objects.filter(user=self.request.user).select_related("shrine")
