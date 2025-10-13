@@ -1,45 +1,34 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from temples.api.serializers.geocode import GeocodeResponseSerializer, GeocodeResultSerializer
-from temples.geocoding.client import GeocodingClient, GeocodingError
+from temples.api.serializers.geocode import (
+    ReverseQuerySerializer,
+    ReverseResponseSerializer,
+    SearchQuerySerializer,
+    SearchResponseSerializer,
+)
+from temples.services.geocode import geocode_reverse, geocode_search
 
-_GOOD_PRECISIONS = {"rooftop", "street"}
+
+@method_decorator(csrf_exempt, name="dispatch")  # 開発中だけ。必要に応じて外す
+class GeocodeSearchView(APIView):
+    throttle_scope = "geocode"
+
+    def get(self, request):
+        s = SearchQuerySerializer(data=request.GET)
+        s.is_valid(raise_exception=True)
+        res = geocode_search(**s.validated_data)
+        return Response(SearchResponseSerializer(res).data, status=status.HTTP_200_OK)
 
 
-class GeocodeView(APIView):
-    authentication_classes = []
-    permission_classes = []
+@method_decorator(csrf_exempt, name="dispatch")
+class GeocodeReverseView(APIView):
+    throttle_scope = "geocode"
 
-    def get(self, request, *args, **kwargs):
-        q = (request.query_params.get("q") or "").strip()
-        try:
-            limit = int(request.query_params.get("limit") or 5)
-        except Exception:
-            limit = 5
-        limit = max(1, min(limit, 10))
-
-        if not q:
-            return Response({"message": "q は必須です。"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            client = GeocodingClient()
-            candidates = client.geocode_candidates(q, limit=limit)
-        except GeocodingError as e:
-            return Response({"message": f"geocoding failed: {e}"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"message": f"unexpected error: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        if not candidates:
-            data = {"candidates": [], "message": "not found"}
-            return Response(GeocodeResponseSerializer(data).data, status=status.HTTP_200_OK)
-
-        if len(candidates) == 1 and (candidates[0].precision in _GOOD_PRECISIONS):
-            data = {"result": GeocodeResultSerializer(candidates[0]).data}
-            return Response(GeocodeResponseSerializer(data).data, status=status.HTTP_200_OK)
-
-        data = {"candidates": [GeocodeResultSerializer(c).data for c in candidates]}
-        return Response(GeocodeResponseSerializer(data).data, status=status.HTTP_200_OK)
+    def get(self, request):
+        s = ReverseQuerySerializer(data=request.GET)
+        s.is_valid(raise_exception=True)
+        res = geocode_reverse(**s.validated_data)
+        return Response(ReverseResponseSerializer(res).data, status=status.HTTP_200_OK)

@@ -8,6 +8,7 @@ from temples import api_views_concierge as concierge
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.favorite import FavoriteToggleView, UserFavoriteListView
+from .views.geocode import GeocodeReverseView, GeocodeSearchView
 from .views.route import RouteAPIView, RouteView
 from .views.search import detail, nearby_search, photo, search, text_search
 from .views.shrine import RankingAPIView, ShrineViewSet
@@ -51,6 +52,8 @@ urlpatterns = [
     path("visits/", UserVisitListView.as_view(), name="visits-list"),
     path("visits/create/", VisitCreateView.as_view(), name="visits-create"),
     path("visits/create/<int:shrine_id>/", VisitCreateView.as_view(), name="visits-create-with-id"),
+    path("geocode/search/", GeocodeSearchView.as_view()),
+    path("geocode/reverse/", GeocodeReverseView.as_view()),
     # Router の標準（上の明示と競合しない）
     path("", include(router.urls)),
 ]

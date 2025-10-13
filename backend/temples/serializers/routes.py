@@ -1,3 +1,4 @@
+# backend/temples/serializers/routes.py
 from typing import List
 
 from django.apps import apps
@@ -68,6 +69,7 @@ class RouteResponseSerializer(serializers.Serializer):
     distance_m_total = serializers.IntegerField(min_value=0)
     duration_s_total = serializers.IntegerField(min_value=0)
     provider = serializers.CharField()
+    cached = serializers.BooleanField()
 
 
 class PopularShrineSerializer(serializers.ModelSerializer):
