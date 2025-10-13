@@ -1,27 +1,19 @@
 # backend/temples/serializers/routes.py
+
 from typing import List
 
-from django.apps import apps
 from rest_framework import serializers
-
-Shrine = apps.get_model("temples", "Shrine", require_ready=False)  # type: ignore
-Goshuin = apps.get_model("temples", "Goshuin", require_ready=False)  # type: ignore
-Favorite = apps.get_model("temples", "Favorite", require_ready=False)  # type: ignore
-
+from temples.api.serializers.shrine import ShrineSerializer
+from temples.models import Favorite, Goshuin, Shrine
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
-class ShrineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Shrine
-        fields = ["id", "name_jp", "name_romaji", "address", "latitude", "longitude"]
+# ShrineSerializer は既存（temples.api.serializers.shrine）を利用
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
     shrine = ShrineSerializer(read_only=True)
     shrine_id = serializers.PrimaryKeyRelatedField(
-        queryset=Shrine.objects.all(),
-        source="shrine",
-        write_only=True,
+        queryset=Shrine.objects.all(), source="shrine", write_only=True
     )
 
     class Meta:

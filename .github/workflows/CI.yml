@@ -42,6 +42,7 @@ jobs:
       GOOGLE_MAPS_API_KEY: "dummy"
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      ROUTE_PROVIDER: "dummy"   # ← 追加：テストをローカルと同条件に固定
 
     defaults:
       run:
@@ -83,7 +84,7 @@ jobs:
       - name: Debug Django settings
         run: |
           python - <<'PY'
-          import os, django, importlib
+          import os, django
           os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
           django.setup()
           from django.conf import settings
@@ -93,6 +94,7 @@ jobs:
           print("DB USER  :", db.get("USER"))
           print("DB HOST  :", db.get("HOST"))
           print("DB PORT  :", db.get("PORT"))
+          print("ROUTE_PROVIDER:", os.environ.get("ROUTE_PROVIDER"))
           PY
 
       - name: Migrate

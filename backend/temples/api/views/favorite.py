@@ -1,17 +1,20 @@
 # temples/api/views/favorite.py
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from temples.api.serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
-from temples.models import Favorite, PlaceRef, Shrine
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from temples.models import Favorite, Shrine
+
+from ..serializers.favorite import FavoriteSerializer, FavoriteUpsertSerializer
 
 
 class FavoriteToggleView(APIView):
-    """POST /api/temples/favorites/toggle/  { "shrine_id": 1 }"""
+    """POST /api/favorites/toggle/  { "shrine_id": 1 }"""
 
-    permission_classes = [IsAuthenticated]
-    throttle_scope = "user"
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    throttle_scope = "favorites"
 
     def post(self, request, *args, **kwargs):
         shrine_id = request.data.get("shrine_id")
@@ -29,39 +32,41 @@ class FavoriteToggleView(APIView):
         return Response({"favorited": False}, status=status.HTTP_200_OK)
 
 
-class UserFavoriteListView(APIView):
-    """GET /api/temples/favorites/?q=&goriyaku=&shinkaku=&region=&lat=&lng="""
+class MyFavoritesListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/favorites/"""
 
-    permission_classes = [IsAuthenticated]
-    throttle_scope = "user"
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    throttle_scope = "favorites"
+    serializer_class = FavoriteSerializer  # 出力用
+    queryset = Favorite.objects.select_related("shrine")
+    pagination_class = None
 
-    def get(self, request):
-        # 自分のお気に入り（最新順）。shrine は select_related で N+1 回避
-        qs = (
-            Favorite.objects.filter(user=request.user)
-            .select_related("shrine")  # ★ shrine の N+1 回避
+    def get_queryset(self):
+        return (
+            Favorite.objects.filter(user=self.request.user)
+            .select_related("shrine")
             .order_by("-created_at")
         )
 
-        # place_id をまとめて取得して context に詰める（★ N+1 回避）
-        place_ids = [pid for pid in qs.values_list("place_id", flat=True) if pid]
-        places_by_id = {}
-        if place_ids:
-            for pr in PlaceRef.objects.filter(place_id__in=place_ids).only(
-                "place_id", "name", "address", "latitude", "longitude"
-            ):
-                places_by_id[pr.place_id] = pr
-
-        ser = FavoriteSerializer(
-            qs, many=True, context={"request": request, "places": places_by_id}
-        )
-        return Response(ser.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        s = FavoriteUpsertSerializer(data=request.data, context={"request": request})
-        s.is_valid(raise_exception=True)
-        fav = s.save()
-        # shrine を確実に抱えた状態でシリアライズ
+    def create(self, request, *args, **kwargs):
+        up = FavoriteUpsertSerializer(data=request.data, context=self.get_serializer_context())
+        up.is_valid(raise_exception=True)
+        fav = up.save()  # get_or_create 済み
         fav = Favorite.objects.select_related("shrine").get(pk=fav.pk)
-        ser = FavoriteSerializer(fav, context={"request": request})
-        return Response(ser.data, status=status.HTTP_201_CREATED)
+        out = FavoriteSerializer(fav, context=self.get_serializer_context())
+        headers = self.get_success_headers(out.data)
+        return Response(out.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class MyFavoriteDestroyView(generics.DestroyAPIView):
+    """DELETE /api/favorites/<favorite_id>/"""
+
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    throttle_scope = "favorites"
+    serializer_class = FavoriteSerializer
+    lookup_url_kwarg = "favorite_id"
+
+    def get_queryset(self):
+        return Favorite.objects.filter(user=self.request.user).select_related("shrine")

@@ -7,6 +7,9 @@ from pathlib import Path
 import dj_database_url
 import environ
 
+ROUTE_PROVIDERS = {"dummy", "google", "mapbox", "osrm"}  # ← 'osrm' は集合に含める
+ROUTE_PROVIDER = os.environ.get("ROUTE_PROVIDER", "dummy")  # ← 既定は dummy（テスト向き）
+
 # --- 1) BASE_DIR は最初に ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
@@ -238,7 +241,8 @@ REST_FRAMEWORK = {
         "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
         "shrines": "60/min",
         "route": "20/min",
-        "geocode": "30/min",  # ← これ！
+        "geocode": "30/min",
+        "favorites": "30/min",
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
