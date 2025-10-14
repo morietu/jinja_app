@@ -88,3 +88,4 @@ out/
 .turbo/
 .parcel-cache/
 *.bak
+backend/test_jinja_db*
