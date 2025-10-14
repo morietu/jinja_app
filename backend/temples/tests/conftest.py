@@ -222,3 +222,51 @@ def _mock_google_places(http_mock):
         status=200,
     )
     yield
+
+
+@pytest.fixture(autouse=True)
+def _ensure_shrine_exists(db):
+    from temples.models import Shrine
+
+    if not Shrine.objects.filter(pk=1).exists():
+        # ※ Shrine.location が NOT NULL の場合は Point も入れてください
+        # from django.contrib.gis.geos import Point
+        # Shrine.objects.create(pk=1, name_jp="テスト神社", address="東京都",
+        #                       latitude=35.0, longitude=135.0,
+        #                       location=Point(135.0, 35.0, srid=4326))
+        Shrine.objects.create(pk=1, name_jp="テスト神社", address="東京都")
+
+
+@pytest.fixture(name="api")
+def api_fixture(api_client):
+    # 既存の api_client をそのまま api という名前で使う
+    return api_client
+
+
+@pytest.fixture
+def user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="u1", email="u1@example.com", password="pw"
+    )
+
+
+@pytest.fixture
+def other_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="u2", email="u2@example.com", password="pw"
+    )
+
+
+@pytest.fixture(autouse=True)
+def _reset_shrine_id_sequence():
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT setval(
+                  pg_get_serial_sequence('"temples_shrine"', 'id'),
+                  GREATEST((SELECT COALESCE(MAX(id), 1) FROM "temples_shrine"), 1),
+                  true
+                );
+            """
+            )

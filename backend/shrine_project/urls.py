@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
+from drf_spectacular.views import SpectacularJSONAPIView
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
@@ -19,6 +20,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # API ルートはこの1本に集約
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
+    path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
     # concierge（必要なら temples 側へ移行検討）
     path("api/concierge/plan/", concierge.ConciergePlanView.as_view(), name="concierge-plan"),
@@ -27,6 +29,7 @@ urlpatterns = [
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
     # debug
+    path("schema/", SpectacularJSONAPIView.as_view(), name="schema"),
     path(
         "api/_debug/whoami/",
         lambda request: JsonResponse(
@@ -38,7 +41,7 @@ urlpatterns = [
         ),
     ),
     path(
-        "api/_debug/whoami_jwt/",
+        "_debug/whoami_jwt/",
         api_view(["GET"])(
             authentication_classes([JWTAuthentication, SessionAuthentication])(
                 permission_classes([AllowAny])(

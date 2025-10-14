@@ -19,11 +19,12 @@ class FavoriteToggleView(APIView):
     def post(self, request, *args, **kwargs):
         shrine_id = request.data.get("shrine_id")
         if not shrine_id:
-            return Response({"detail": "shrine_id is required"}, status=400)
+            return Response({"shrine_id": ["This field is required."]}, status=400)
         try:
             shrine = Shrine.objects.get(pk=shrine_id)
         except Shrine.DoesNotExist:
-            return Response({"detail": "Shrine not found"}, status=404)
+            # POST body 由来の参照ミスは Validation 扱い（400）
+            return Response({"shrine_id": ["Shrine not found."]}, status=400)
 
         fav, created = Favorite.objects.get_or_create(user=request.user, shrine=shrine)
         if created:

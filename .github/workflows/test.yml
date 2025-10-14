@@ -1,0 +1,60 @@
+name: backend-tests
+
+on:
+  pull_request:
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: jdb50515
+          POSTGRES_DB: jinja_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U admin -d jinja_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system deps (GDAL/GEOS)
+        run: sudo apt-get update && sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Env for tests
+        run: |
+          echo "USE_GIS=1" >> $GITHUB_ENV
+          echo "DISABLE_GIS_FOR_TESTS=0" >> $GITHUB_ENV
+          echo "ENV=TEST" >> $GITHUB_ENV
+          echo "IS_PYTEST=1" >> $GITHUB_ENV
+          echo "ROUTE_PROVIDER=dummy" >> $GITHUB_ENV
+          echo "DISABLE_THROTTLE=1" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgis://admin:jdb50515@localhost:5432/jinja_test" >> $GITHUB_ENV
+          # places を叩かない/モックでOKにするためダミーキー
+          echo "GOOGLE_PLACES_API_KEY=dummy" >> $GITHUB_ENV
+          echo "GOOGLE_MAPS_API_KEY=dummy" >> $GITHUB_ENV
+
+      - name: Run tests
+        working-directory: backend
+        run: make test

@@ -1,0 +1,44 @@
+api/                                                delete,get,head,patch,post,put,trace  api-root  rest_framework.routers.view
+api/                                                delete,get,head,patch,post,put,trace  api-root  rest_framework.routers.view
+api/<drf_format_suffix:format>                      delete,get,head,patch,post,put,trace  api-root  rest_framework.routers.view
+api/<drf_format_suffix:format>                      delete,get,head,patch,post,put,trace  api-root  rest_framework.routers.view
+api/^favorites/$                                    delete,get,head,patch,post,put,trace  favorite-list  favorites.views.FavoriteViewSet
+api/^favorites/(?P<pk>[^/.]+)/$                     delete,get,head,patch,post,put,trace  favorite-detail  favorites.views.FavoriteViewSet
+api/^favorites/(?P<pk>[^/.]+)\.(?P<format>[a-z0-9]+)/?$  delete,get,head,patch,post,put,trace  favorite-detail  favorites.views.FavoriteViewSet
+api/^favorites\.(?P<format>[a-z0-9]+)/?$            delete,get,head,patch,post,put,trace  favorite-list  favorites.views.FavoriteViewSet
+api/^shrines/$                                      delete,get,head,patch,post,put,trace  shrine-list  temples.api.views.shrine.ShrineViewSet
+api/^shrines/(?P<pk>[^/.]+)/$                       delete,get,head,patch,post,put,trace  shrine-detail  temples.api.views.shrine.ShrineViewSet
+api/^shrines/(?P<pk>[^/.]+)\.(?P<format>[a-z0-9]+)/?$  delete,get,head,patch,post,put,trace  shrine-detail  temples.api.views.shrine.ShrineViewSet
+api/^shrines/nearest/$                              delete,get,head,patch,post,put,trace  shrine-nearest  temples.api.views.shrine.ShrineViewSet
+api/^shrines/nearest\.(?P<format>[a-z0-9]+)/?$      delete,get,head,patch,post,put,trace  shrine-nearest  temples.api.views.shrine.ShrineViewSet
+api/^shrines\.(?P<format>[a-z0-9]+)/?$              delete,get,head,patch,post,put,trace  shrine-list  temples.api.views.shrine.ShrineViewSet
+api/_debug/whoami/                                                          shrine_project.urls.<lambda>
+api/_debug/whoami_jwt/                              get                     shrine_project.urls.view
+api/auth/jwt/create/                                delete,get,head,patch,post,put,trace  jwt_create  rest_framework_simplejwt.views.view
+api/auth/jwt/refresh/                               delete,get,head,patch,post,put,trace  jwt_refresh  rest_framework_simplejwt.views.view
+api/auth/jwt/verify/                                delete,get,head,patch,post,put,trace  jwt_verify  rest_framework_simplejwt.views.view
+api/auth/token/                                     delete,get,head,patch,post,put,trace  token_obtain_pair  rest_framework_simplejwt.views.view
+api/auth/token/refresh/                             delete,get,head,patch,post,put,trace  token_refresh  rest_framework_simplejwt.views.view
+api/auth/token/verify/                              delete,get,head,patch,post,put,trace  token_verify  rest_framework_simplejwt.views.view
+api/concierge/chat/                                 delete,get,head,patch,post,put,trace  concierge-chat  temples.api_views_concierge.view
+api/concierge/history/                              delete,get,head,patch,post,put,trace  concierge-history  temples.api.views.concierge_history.view
+api/concierge/plan/                                 delete,get,head,patch,post,put,trace  concierge-plan  temples.api_views_concierge.view
+api/concierge/plan/                                 delete,get,head,patch,post,put,trace  concierge-plan  temples.api_views_concierge.view
+api/favorites/                                      delete,get,head,patch,post,put,trace  favorites-list-create  temples.api.views.favorite.view
+api/favorites/<int:favorite_id>/                    delete,get,head,patch,post,put,trace  favorites-destroy  temples.api.views.favorite.view
+api/favorites/toggle/                               delete,get,head,patch,post,put,trace  favorites-toggle  temples.api.views.favorite.view
+api/geocode/reverse/                                delete,get,head,patch,post,put,trace    temples.api.views.geocode.view
+api/geocode/search/                                 delete,get,head,patch,post,put,trace    temples.api.views.geocode.view
+api/places/<str:place_id>/                          get                   places-detail  temples.api.views.search.view
+api/places/nearby_search/                           get                   places-nearby-search  temples.api.views.search.view
+api/places/photo/                                   get                   places-photo  temples.api.views.search.view
+api/places/search/                                  get                   places-search  temples.api.views.search.view
+api/places/text_search/                             get                   places-text-search  temples.api.views.search.view
+api/popular/                                        delete,get,head,patch,post,put,trace  popular-shrines  temples.api.views.shrine.view
+api/route/                                          delete,get,head,patch,post,put,trace  route  temples.api.views.route.view
+api/schema/                                         delete,get,head,patch,post,put,trace  schema  drf_spectacular.views.view
+api/shrines/                                        delete,get,head,patch,post,put,trace  shrine_list  temples.api.views.shrine.ShrineViewSet
+api/shrines/<int:pk>/                                                     shrine_detail  temples.api.urls._blocked_shrine_detail
+api/shrines/<int:pk>/route/                         delete,get,head,patch,post,put,trace  shrine_route  temples.api.views.route.view
+api/users/me/                                       delete,get,head,patch,post,put,trace  users-me  users.api.views.view
+api/users/signup/                                   delete,get,head,patch,post,put,trace  users-signup  users.api.views.view
