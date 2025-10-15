@@ -5,14 +5,11 @@ permissions:
 on:
   push:
     branches: [develop, main]
-  pull_request:
-    branches: [develop, main]
 
 jobs:
   backend:
     runs-on: ubuntu-latest
 
-    # PostGIS入りのDBを1つだけ定義（PG16）
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -29,20 +26,19 @@ jobs:
           --health-retries 60
           --health-start-period 60s
 
-    # Django が読む環境変数（ここも1つに統一）
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
       USE_GIS: "1"
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
-      # services で 5432 をホストに公開してるので localhost でOK
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
       DJANGO_SECRET_KEY: ci-only-secret
       GOOGLE_MAPS_API_KEY: "dummy"
+      GOOGLE_PLACES_API_KEY: "dummy"
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      ROUTE_PROVIDER: "dummy"   # ← 追加：テストをローカルと同条件に固定
+      ROUTE_PROVIDER: "dummy"
 
     defaults:
       run:
@@ -71,6 +67,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
+          python - <<'PY'
+          import pkgutil, sys
+          sys.exit(0 if pkgutil.find_loader("drf_spectacular") else 1)
+          PY
+        continue-on-error: true
+
+      - name: Ensure drf-spectacular (fallback)
+        if: failure()
+        run: pip install drf-spectacular
 
       - name: Wait for DB (defensive)
         run: |
@@ -81,27 +86,10 @@ jobs:
           done
           pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
-      - name: Debug Django settings
-        run: |
-          python - <<'PY'
-          import os, django
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
-          django.setup()
-          from django.conf import settings
-          db = settings.DATABASES["default"]
-          print("DB ENGINE:", db.get("ENGINE"))
-          print("DB NAME  :", db.get("NAME"))
-          print("DB USER  :", db.get("USER"))
-          print("DB HOST  :", db.get("HOST"))
-          print("DB PORT  :", db.get("PORT"))
-          print("ROUTE_PROVIDER:", os.environ.get("ROUTE_PROVIDER"))
-          PY
-
-      - name: Migrate
-        run: python manage.py migrate --noinput
-
-      - name: Test
-        run: pytest -q -p no:flake8
+      # Makefile はリポジトリルートにあるため、作業ディレクトリを一時的に上書き
+      - name: Run tests via Makefile (repo root)
+        working-directory: .
+        run: make test
 
       - name: Show DB container logs (always)
         if: always()

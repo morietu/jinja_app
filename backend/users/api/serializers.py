@@ -1,4 +1,7 @@
+from typing import Optional
+
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
 from users.models import UserProfile
 
@@ -14,23 +17,25 @@ class SignupSerializer(serializers.ModelSerializer):
         fields = ("username", "password", "email")
 
     def create(self, validated_data):
-        user = User.objects.create_user(
+        return User.objects.create_user(
             username=validated_data["username"],
             password=validated_data["password"],
             email=validated_data.get("email") or "",
         )
-        return user
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     icon = serializers.ImageField(read_only=True)
-    icon_url = serializers.SerializerMethodField()
+    icon_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = UserProfile
+        # 必要なフィールドを一つに統合（必要に応じて created_at を残す/外す）
         fields = ("nickname", "is_public", "bio", "icon", "icon_url", "created_at")
+        read_only_fields = ("icon", "icon_url", "created_at")
 
-    def get_icon_url(self, obj):
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_icon_url(self, obj) -> Optional[str]:  # ← 引数の型注釈は外すのが安定
         request = self.context.get("request")
         try:
             if obj.icon and obj.icon.name:

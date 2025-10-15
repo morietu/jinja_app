@@ -88,3 +88,9 @@ out/
 .turbo/
 .parcel-cache/
 *.bak
+backend/test_jinja_db*
+
+# generated
+api_schema.json
+api_schema.yaml
+api_routes.txt

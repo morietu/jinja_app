@@ -1,5 +1,6 @@
 from typing import Optional
 
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
 from temples.models import GoriyakuTag, Shrine, Visit
 
@@ -24,7 +25,7 @@ class _DistanceFieldsMixin:
         if d is None:
             return None
         try:
-            return float(getattr(d, "m", d))  # Distance/DistanceSphere or float
+            return float(getattr(d, "m", d))
         except Exception:
             return None
 
@@ -42,8 +43,8 @@ class _DistanceFieldsMixin:
 class _DeityMixin:
     deities = serializers.SerializerMethodField(read_only=True)
 
-    def get_deities(self, obj):
-        # M2M を名前の配列で返す
+    @extend_schema_field(list[str])  # ★ 配列はこれ
+    def get_deities(self, obj) -> list[str]:
         try:
             return [d.name for d in obj.deities.all()]
         except Exception:
@@ -55,12 +56,10 @@ class ShrineListSerializer(
     _AddressValidationMixin, _DistanceFieldsMixin, _DeityMixin, serializers.ModelSerializer
 ):
     goriyaku_tags = GoriyakuTagSerializer(many=True, read_only=True)
-    deities = serializers.SlugRelatedField(slug_field="name", many=True, read_only=True)  # ← 追加
-    is_favorite = serializers.BooleanField(read_only=True)  # ← annotation で埋める
+    is_favorite = serializers.BooleanField(read_only=True)
     distance = serializers.SerializerMethodField(read_only=True)
     distance_text = serializers.SerializerMethodField(read_only=True)
     location = serializers.SerializerMethodField(read_only=True)
-    deities = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Shrine
@@ -72,7 +71,7 @@ class ShrineListSerializer(
             "latitude",
             "longitude",
             "goriyaku_tags",
-            "deities",  # ← 追加
+            "deities",
             "is_favorite",
             "distance",
             "distance_text",
@@ -87,17 +86,12 @@ class ShrineListSerializer(
             "updated_at",
         )
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
         loc = getattr(obj, "location", None)
         if not loc:
             return None
         return {"lat": float(loc.y), "lng": float(loc.x)}  # GEOS: y=lat, x=lng
-
-    def get_deities(self, obj):
-        try:
-            return [d.name for d in obj.deities.all()]
-        except Exception:
-            return []
 
 
 # === 詳細
@@ -105,8 +99,7 @@ class ShrineDetailSerializer(
     _AddressValidationMixin, _DistanceFieldsMixin, _DeityMixin, serializers.ModelSerializer
 ):
     goriyaku_tags = GoriyakuTagSerializer(many=True, read_only=True)
-    deities = serializers.SlugRelatedField(slug_field="name", many=True, read_only=True)  # ← 追加
-    is_favorite = serializers.BooleanField(read_only=True)  # ← annotation で埋める
+    is_favorite = serializers.BooleanField(read_only=True)
     distance = serializers.SerializerMethodField(read_only=True)
     distance_text = serializers.SerializerMethodField(read_only=True)
     location = serializers.SerializerMethodField(read_only=True)
@@ -123,26 +116,20 @@ class ShrineDetailSerializer(
             "longitude",
             "goriyaku",
             "goriyaku_tags",
-            "deities",  # ← 追加
+            "deities",
             "is_favorite",
             "distance",
             "distance_text",
             "location",
             "kyusei",
-            # 必要なら "created_at", "updated_at" を開放
         ]
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
         loc = getattr(obj, "location", None)
         if not loc:
             return None
         return {"lat": float(loc.y), "lng": float(loc.x)}
-
-    def get_deities(self, obj):
-        try:
-            return [d.name for d in obj.deities.all()]
-        except Exception:
-            return []
 
 
 # 互換名

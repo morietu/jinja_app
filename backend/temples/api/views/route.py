@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -58,7 +59,42 @@ def _is_owner(user, shrine: Shrine) -> bool:
     return False
 
 
+class RouteAPIView(APIView):
+    @extend_schema(
+        summary="Compute route",
+        request=RouteRequestSerializer,
+        responses={200: RouteResponseSerializer},
+        tags=["routes"],
+    )
+    def post(self, request):
+        ser = RouteRequestSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        data = ser.validated_data
+
+        mode = data["mode"]  # "walking" / "driving" など
+        origin = Point(lat=float(data["origin"]["lat"]), lng=float(data["origin"]["lng"]))
+        dests = [Point(lat=float(d["lat"]), lng=float(d["lng"])) for d in data["destinations"]]
+
+        result = build_route(mode, origin, dests)
+        out = RouteResponseSerializer(result).data
+        return Response(out, status=status.HTTP_200_OK)
+
+
+class RouteLegacyAPIView(RouteAPIView):
+    schema = None
+
+
 class RouteView(APIView):
+    @extend_schema(
+        summary="Route page for a shrine",
+        parameters=[
+            OpenApiParameter("pk", OpenApiTypes.INT, OpenApiParameter.PATH, required=True),
+            OpenApiParameter("lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+        ],
+        responses={200: None},
+        tags=["routes"],
+    )
     @method_decorator(login_required)
     def get(self, request, pk=None):
         shrine = get_object_or_404(Shrine, pk=pk)
@@ -80,38 +116,3 @@ class RouteView(APIView):
             "temples/route.html",
             {"pk": pk, "lat": lat, "lng": lng},
         )
-
-    def post(self, request):
-        # ✅ 既存の正規シリアライザを使用
-        ser = RouteRequestSerializer(data=request.data)
-        if not ser.is_valid():
-            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        data = ser.validated_data
-        mode = data["mode"]  # "walking" / "driving"
-        origin = Point(lat=float(data["origin"]["lat"]), lng=float(data["origin"]["lng"]))
-        dests = [Point(lat=float(d["lat"]), lng=float(d["lng"])) for d in data["destinations"]]
-
-        # ✅ ここで Adapter（ORS/OSRM/Dummy）に委譲
-        result = build_route(mode, origin, dests)
-
-        # ✅ 出力も正規シリアライザで整形
-        out = RouteResponseSerializer(result).data
-        return Response(out, status=200)
-
-
-# ✅ API 用の別エンドポイントが必要なら、同様に build_route に寄せる
-class RouteAPIView(APIView):
-    def post(self, request):
-        ser = RouteRequestSerializer(data=request.data)
-        if not ser.is_valid():
-            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        data = ser.validated_data
-        mode = data["mode"]
-        origin = Point(lat=float(data["origin"]["lat"]), lng=float(data["origin"]["lng"]))
-        dests = [Point(lat=float(d["lat"]), lng=float(d["lng"])) for d in data["destinations"]]
-
-        result = build_route(mode, origin, dests)
-        out = RouteResponseSerializer(result).data
-        return Response(out, status=200)

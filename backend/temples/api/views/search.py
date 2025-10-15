@@ -4,11 +4,18 @@ import logging
 
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_page
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from temples import services  # services.google_places を各所で利用
+from temples.api.serializers.places import (
+    NearbySearchResponse,
+    PlaceDetailResponse,
+    PlacesSearchResponse,
+    TextSearchResponse,
+)
 from temples.api.throttles import PlacesNearbyThrottle
 from temples.services import google_places as GP
 
@@ -23,6 +30,24 @@ def _nearby_ident(request) -> str:
 
 
 # --- /api/places/search/ ---
+@extend_schema(
+    summary="Places: search",
+    parameters=[
+        OpenApiParameter(
+            "q",
+            OpenApiTypes.STR,
+            OpenApiParameter.QUERY,
+            required=True,
+            description="検索クエリ（query も可）",
+        ),
+        OpenApiParameter("query", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("radius", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+    ],
+    responses={200: PlacesSearchResponse},
+    tags=["places"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
@@ -59,10 +84,7 @@ def search(request):
 
 
 # --- /api/places/text_search/ ---
-@api_view(["GET"])
-@permission_classes([AllowAny])
-@cache_page(60 * 5)
-def text_search(request):
+def _text_search_response(request):
     # query / q 両対応（空は 400）
     q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
     if not q:
@@ -89,7 +111,52 @@ def text_search(request):
         )
 
 
+@extend_schema(
+    summary="Places: text search",
+    parameters=[
+        OpenApiParameter(
+            "q",
+            OpenApiTypes.STR,
+            OpenApiParameter.QUERY,
+            required=True,
+            description="検索クエリ（query も可）",
+        ),
+        OpenApiParameter("query", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("radius", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+    ],
+    responses={200: TextSearchResponse},
+    tags=["places"],
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@cache_page(60 * 5)
+def text_search(request):
+    return _text_search_response(request)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@cache_page(60 * 5)
+def text_search_legacy(request):
+    return _text_search_response(request)
+
+
 # --- /api/places/nearby_search/ ---
+@extend_schema(
+    summary="Places: nearby search",
+    parameters=[
+        OpenApiParameter("lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+        OpenApiParameter("lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+        OpenApiParameter("radius", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("keyword", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("type", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+    ],
+    responses={200: NearbySearchResponse},
+    tags=["places"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @throttle_classes([PlacesNearbyThrottle])
@@ -203,6 +270,17 @@ nearby_search.throttle_scope = "places-nearby"
 
 
 # --- /api/places/photo/ ---
+@extend_schema(
+    summary="Places: photo (binary)",
+    parameters=[
+        OpenApiParameter(
+            "photo_reference", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True
+        ),
+        OpenApiParameter("maxwidth", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+    ],
+    responses={200: OpenApiTypes.BINARY},
+    tags=["places"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @cache_page(60 * 60)  # 1時間キャッシュ（実運用イメージ）
@@ -221,6 +299,14 @@ def photo(request):
 
 
 # --- /api/places/<place_id>/ ---
+@extend_schema(
+    summary="Places: detail",
+    parameters=[
+        OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)
+    ],
+    responses={200: PlaceDetailResponse},
+    tags=["places"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail(request, place_id: str):

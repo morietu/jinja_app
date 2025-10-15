@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from django.conf import settings
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -345,6 +346,14 @@ class ConciergeChatView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
+
+    @extend_schema(
+        summary="Concierge chat",
+        description="フリーテキストの希望（query）等から神社候補をレコメンドします。",
+        request=OpenApiTypes.OBJECT,  # 可変ペイロードのためまずはざっくり
+        responses={200: OpenApiTypes.OBJECT},  # {"ok": bool, "data": {"recommendations": [...]}}
+        tags=["concierge"],
+    )
 
     # NOTE: 分割は別PRで。いったんCI通過のため複雑度を許容。 # noqa: C901
     def post(self, request, *args, **kwargs):  # noqa: C901
@@ -778,10 +787,21 @@ class ConciergeChatView(APIView):
             )
 
 
+class ConciergeChatViewLegacy(ConciergeChatView):
+    schema = None
+
+
 class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
 
+    @extend_schema(
+        summary="Concierge trip plan",
+        description="query を元に簡易的な参拝プラン（stops 等）を返します。",
+        request=ConciergePlanRequestSerializer,  # 既存の正規シリアライザを使用
+        responses={200: OpenApiTypes.OBJECT},  # stops や互換 data を含む柔らかい構造
+        tags=["concierge"],
+    )
     def post(self, request, *args, **kwargs):  # noqa: C901
         """
         Shrine を一切参照しない軽量版。
@@ -1334,6 +1354,10 @@ class ConciergePlanView(APIView):
         return Response(body, status=status.HTTP_200_OK)
 
 
+class ConciergePlanViewLegacy(ConciergePlanView):
+    schema = None
+
+
 class ConciergeHistoryView(APIView):
     def get(self, request):
         return Response({"items": []})
@@ -1342,4 +1366,15 @@ class ConciergeHistoryView(APIView):
 # --- expose function-style views for URLConf / tests ---
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()
-__all__ = ["chat", "plan", "ConciergeChatView", "ConciergePlanView"]
+chat_legacy = ConciergeChatViewLegacy.as_view()
+plan_legacy = ConciergePlanViewLegacy.as_view()
+__all__ = [
+    "chat",
+    "plan",
+    "chat_legacy",
+    "plan_legacy",
+    "ConciergeChatView",
+    "ConciergePlanView",
+    "ConciergeChatViewLegacy",
+    "ConciergePlanViewLegacy",
+]
