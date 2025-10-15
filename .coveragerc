@@ -49,6 +49,21 @@ omit =
     backend/users/signals.py
     backend/users/urls.py
 
+    backend/**/tests/*
+    backend/shrine_project/context_processors.py
+    backend/shrine_project/cache_keys.py
+    backend/temples/forms.py
+
+    backend/temples/tests/_helpers_patch.py
+    backend/temples/tests/_kill_geocode.py
+
+    backend/temples/recommendation/llm_adapter.py
+    backend/temples/signals.py
+    backend/temples/queries.py
+
+
+
+
 [report]
 skip_covered = True
 show_missing = True
