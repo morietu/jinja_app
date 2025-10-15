@@ -28,20 +28,19 @@ shrine-count:
 
 test-unique-loc:
 	@$(PG) <<'SQL'
-INSERT INTO temples_shrine (name_jp,address,latitude,longitude,location,created_at,updated_at,views_30d,favorites_30d,popular_score)
-VALUES ($$重複テスト神社-LOC$$,$$テスト住所$$,35.0001,135.0001,ST_SetSRID(ST_MakePoint(135.0001,35.0001),4326),now(),now(),0,0,0);
-INSERT INTO temples_shrine (name_jp,address,latitude,longitude,location,created_at,updated_at,views_30d,favorites_30d,popular_score)
-VALUES ($$重複テスト神社-LOC$$,$$テスト住所$$,35.0001,135.0001,ST_SetSRID(ST_MakePoint(135.0001,35.0001),4326),now(),now(),0,0,0);
-SQL
+	INSERT INTO temples_shrine (name_jp,address,latitude,longitude,location,created_at,updated_at,views_30d,favorites_30d,popular_score)
+	VALUES ($$重複テスト神社-LOC$$,$$テスト住所$$,35.0001,135.0001,ST_SetSRID(ST_MakePoint(135.0001,35.0001),4326),now(),now(),0,0,0);
+	INSERT INTO temples_shrine (name_jp,address,latitude,longitude,location,created_at,updated_at,views_30d,favorites_30d,popular_score)
+	VALUES ($$重複テスト神社-LOC$$,$$テスト住所$$,35.0001,135.0001,ST_SetSRID(ST_MakePoint(135.0001,35.0001),4326),now(),now(),0,0,0);
+	SQL
 
 test-unique-null:
 	@$(PG) <<'SQL'
-INSERT INTO temples_shrine (name_jp,address,created_at,updated_at,views_30d,favorites_30d,popular_score)
-VALUES ($$重複テスト神社-NULL$$,$$テスト住所$$,now(),now(),0,0,0);
-INSERT INTO temples_shrine (name_jp,address,created_at,updated_at,views_30d,favorites_30d,popular_score)
-VALUES ($$重複テスト神社-NULL$$,$$テスト住所$$,now(),now(),0,0,0);
-SQL
-
+	INSERT INTO temples_shrine (name_jp,address,created_at,updated_at,views_30d,favorites_30d,popular_score)
+	VALUES ($$重複テスト神社-NULL$$,$$テスト住所$$,now(),now(),0,0,0);
+	INSERT INTO temples_shrine (name_jp,address,created_at,updated_at,views_30d,favorites_30d,popular_score)
+	VALUES ($$重複テスト神社-NULL$$,$$テスト住所$$,now(),now(),0,0,0);
+	SQL
 test-unique-clean:
 	@$(PG) -c "DELETE FROM temples_shrine WHERE name_jp LIKE '重複テスト神社%';"
 
@@ -58,11 +57,16 @@ test: spectacular unit
 
 # OpenAPI スキーマ生成（失敗したら CI も失敗）
 spectacular:
+	GOOGLE_PLACES_API_KEY=$${GOOGLE_PLACES_API_KEY:-dummy} \
+	GOOGLE_MAPS_API_KEY=$${GOOGLE_MAPS_API_KEY:-dummy} \
 	PYTHONPATH=$(PYTHONPATH) $(PY) backend/manage.py spectacular --file api_schema.yaml
+
 
 # 実体のテスト実行（ローカルでも使いやすい設定）
 unit:
-	@$(PYTEST)
+	GOOGLE_PLACES_API_KEY=$${GOOGLE_PLACES_API_KEY:-dummy} \
+	GOOGLE_MAPS_API_KEY=$${GOOGLE_MAPS_API_KEY:-dummy} \
+	$(PY) -m pytest -q
 
 # 例: make test-k PATTERN=places
 PATTERN ?=
