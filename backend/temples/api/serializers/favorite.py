@@ -18,7 +18,8 @@ class FavoriteUpsertSerializer(serializers.Serializer):
 
     def validate_shrine_id(self, value: int) -> int:
         if not Shrine.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("Shrine not found")
+            # フィールドレベルなので文字列でOK（レスポンスでは ["..."] になる）
+            raise serializers.ValidationError("Shrine not found.")
         return value
 
     def create(self, validated_data: Dict[str, Any]) -> Favorite:
@@ -38,11 +39,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
         model = Favorite
         fields = ("id", "shrine", "shrine_id", "created_at")
         read_only_fields = ("id", "created_at")
+        ref_name = "TemplesFavorite"
 
     def validate(self, attrs):
         # POST では shrine_id 必須
         if not attrs.get("shrine_id") and not self.initial_data.get("shrine_id"):
-            raise serializers.ValidationError({"shrine_id": "This field is required."})
+            raise serializers.ValidationError({"shrine_id": ["This field is required."]})
         return attrs
 
     def create(self, validated_data):
@@ -53,7 +55,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         try:
             shrine = Shrine.objects.get(pk=shrine_id)
         except Shrine.DoesNotExist as err:
-            raise serializers.ValidationError({"shrine_id": "Shrine not found."}) from err
+            raise serializers.ValidationError({"shrine_id": ["Shrine not found."]}) from err
 
         # idempotent: 既存があればそれを返す
         fav, _created = Favorite.objects.get_or_create(user=request.user, shrine=shrine)
