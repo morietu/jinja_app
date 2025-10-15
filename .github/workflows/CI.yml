@@ -40,6 +40,7 @@ jobs:
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
       DJANGO_SECRET_KEY: ci-only-secret
       GOOGLE_MAPS_API_KEY: "dummy"
+      GOOGLE_PLACES_API_KEY: "dummy"
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       ROUTE_PROVIDER: "dummy"   # ← 追加：テストをローカルと同条件に固定
@@ -48,71 +49,63 @@ jobs:
       run:
         working-directory: ./backend
 
-    steps:
-      - uses: actions/checkout@v4
+        steps:
+          - uses: actions/checkout@v4
+          - uses: actions/setup-python@v5
+            with:
+              python-version: "3.11"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+          - name: Install system deps (GDAL/GEOS + pg client)
+            run: |
+              sudo apt-get update
+              sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client
 
-      - name: Install system deps (GDAL/GEOS + pg client)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client
+          - name: Cache pip
+            uses: actions/cache@v4
+            with:
+              path: ~/.cache/pip
+              key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+              restore-keys: ${{ runner.os }}-pip-
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          - name: Install deps
+            run: |
+              python -m pip install --upgrade pip
+              pip install -r requirements-dev.txt
+              python - <<'PY'
+              import pkgutil, sys
+              sys.exit(0 if pkgutil.find_loader("drf_spectacular") else 1)
+              PY
+            continue-on-error: true
 
-      - name: Install deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          - name: Ensure drf-spectacular (fallback)
+            if: failure()
+            run: pip install drf-spectacular
 
-      - name: Wait for DB (defensive)
-        run: |
-          for i in {1..90}; do
-            pg_isready -h localhost -p 5432 -U admin -d jinja_db && break
-            echo "⏳ waiting for Postgres... ($i/90)"
-            sleep 2
-          done
-          pg_isready -h localhost -p 5432 -U admin -d jinja_db
+          # ← ここをテストより前に！
+          - name: Wait for DB (defensive)
+            run: |
+              for i in {1..90}; do
+                pg_isready -h localhost -p 5432 -U admin -d jinja_db && break
+                echo "⏳ waiting for Postgres... ($i/90)"
+                sleep 2
+              done
+              pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
-      - name: Debug Django settings
-        run: |
-          python - <<'PY'
-          import os, django
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shrine_project.settings")
-          django.setup()
-          from django.conf import settings
-          db = settings.DATABASES["default"]
-          print("DB ENGINE:", db.get("ENGINE"))
-          print("DB NAME  :", db.get("NAME"))
-          print("DB USER  :", db.get("USER"))
-          print("DB HOST  :", db.get("HOST"))
-          print("DB PORT  :", db.get("PORT"))
-          print("ROUTE_PROVIDER:", os.environ.get("ROUTE_PROVIDER"))
-          PY
+          # ここだけリポジトリルートで実行（Makefile を叩く）
+          - name: Run tests via Makefile (repo root)
+            working-directory: .
+            run: make test
 
-      - name: Migrate
-        run: python manage.py migrate --noinput
-
-      - name: Test
-        run: pytest -q -p no:flake8
-
-      - name: Show DB container logs (always)
-        if: always()
-        run: |
-          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
-          CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
-          if [ -n "$CID" ]; then
-            echo "==== docker inspect (health) ===="
-            docker inspect "$CID" --format '{{json .State.Health}}' | jq . || true
-            echo "==== docker logs $CID ===="
-            docker logs "$CID" || true
-          else
-            echo "No postgis container found"
-          fi
+          - name: Show DB container logs (always)
+            if: always()
+            run: |
+              docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
+              CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
+              if [ -n "$CID" ]; then
+                echo "==== docker inspect (health) ===="
+                docker inspect "$CID" --format '{{json .State.Health}}' | jq . || true
+                echo "==== docker logs $CID ===="
+                docker logs "$CID" || true
+              else
+                echo "No postgis container found"
+              fi
