@@ -129,13 +129,6 @@ class Shrine(models.Model):
             models.Index(fields=["kind"], name="idx_shrine_kind"),
         ]
         constraints = [
-            # --- Check ---
-            CheckConstraint(
-                condition=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0), name="chk_lat_range"
-            ),
-            CheckConstraint(
-                condition=Q(longitude__gte=-180.0) & Q(longitude__lte=180.0), name="chk_lng_range"
-            ),
             CheckConstraint(
                 condition=(
                     Q(latitude__isnull=True, longitude__isnull=True)
@@ -153,6 +146,14 @@ class Shrine(models.Model):
                 fields=["name_jp", "address"],
                 condition=Q(location__isnull=True),
                 name="uq_shrine_name_addr_when_loc_null",
+            ),
+            models.CheckConstraint(
+                condition=Q(latitude__gte=-90.0) & Q(latitude__lte=90.0),
+                name="chk_lat_range",
+            ),
+            models.CheckConstraint(
+                condition=Q(longitude__gte=-180.0) & Q(longitude__lte=180.0),
+                name="chk_lng_range",
             ),
         ]
 

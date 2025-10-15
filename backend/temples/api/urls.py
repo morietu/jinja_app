@@ -7,9 +7,14 @@ from temples import api_views_concierge as concierge
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.favorite import FavoriteToggleView, MyFavoriteDestroyView, MyFavoritesListCreateView
-from .views.geocode import GeocodeReverseView, GeocodeSearchView
-from .views.route import RouteAPIView, RouteView
-from .views.search import detail, nearby_search, photo, search, text_search
+from .views.geocode import (
+    GeocodeReverseView,
+    GeocodeReverseViewLegacy,
+    GeocodeSearchView,
+    GeocodeSearchViewLegacy,
+)
+from .views.route import RouteAPIView, RouteLegacyAPIView, RouteView
+from .views.search import detail, nearby_search, photo, search, text_search, text_search_legacy
 from .views.shrine import RankingAPIView, ShrineViewSet
 
 app_name = "temples"
@@ -57,6 +62,7 @@ urlpatterns = [
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
+    path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby-search/", nearby_search, name="places-nearby-search"),
     path("places/<str:id>/", place_detail_by_id, name="places-detail"),
@@ -67,6 +73,9 @@ urlpatterns = [
     # ---- Geocodes（複数形に） -----------------------------------------------
     path("geocodes/search/", GeocodeSearchView.as_view(), name="geocodes-search"),
     path("geocodes/reverse/", GeocodeReverseView.as_view(), name="geocodes-reverse"),
+    path("geocode/search/", GeocodeSearchViewLegacy.as_view(), name="geocode-search-legacy"),
+    path("geocode/reverse/", GeocodeReverseViewLegacy.as_view(), name="geocode-reverse-legacy"),
+    path("route/", RouteLegacyAPIView.as_view(), name="route"),
     # ---- Router（最後） -----------------------------------------------------
     path("", include(router.urls)),
 ]

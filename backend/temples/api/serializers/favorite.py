@@ -39,6 +39,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         model = Favorite
         fields = ("id", "shrine", "shrine_id", "created_at")
         read_only_fields = ("id", "created_at")
+        ref_name = "TemplesFavorite"
 
     def validate(self, attrs):
         # POST では shrine_id 必須

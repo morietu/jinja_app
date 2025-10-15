@@ -15,8 +15,16 @@ class FavoriteViewSet(
     serializer_class = FavoriteSerializer
     pagination_class = None  # temples 側テストは「配列」で返ることを期待
 
+    # ★ スキーマ推論用のベース queryset（実行時は get_queryset でユーザー絞り込み）
+    # queryset = Favorite.objects.select_related("shrine").order_by("-id")
+    queryset = Favorite.objects.order_by("-id")
+
     def get_queryset(self):
-        return Favorite.objects.filter(user=self.request.user).order_by("-id")
+        user = getattr(self.request, "user", None)
+        if not (user and user.is_authenticated):
+            return Favorite.objects.none()
+        # super().get_queryset() は上記 queryset を返すので、それに対して filter
+        return super().get_queryset().filter(user=user)
 
     def get_serializer_class(self):
         # POST のときだけ入力用シリアライザ
