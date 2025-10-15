@@ -25,7 +25,6 @@ jobs:
           --health-retries=10
 
     env:
-      # Django / テストで読む共通環境変数
       USE_GIS: "1"
       DISABLE_GIS_FOR_TESTS: "0"
       ENV: "TEST"
@@ -60,8 +59,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements-dev.txt
 
-      # drf-spectacular が requirements に入っていても、万一の保険として入れておく
-      - name: Ensure drf-spectacular
+      - name: Ensure drf-spectacular (probe)
         run: |
           python - <<'PY'
           import pkgutil, sys
@@ -82,7 +80,33 @@ jobs:
           done
           pg_isready -h localhost -p 5432 -U admin -d jinja_test
 
-      # Makefile はリポジトリルート前提なので working-directory を "." に
       - name: Run tests via Makefile (repo root)
         working-directory: .
         run: make test
+        env:
+          GOOGLE_PLACES_API_KEY: dummy
+          GOOGLE_MAPS_API_KEY: dummy
+          PYTEST_ADDOPTS: >-
+            --cov=backend
+            --cov-report=xml
+            --cov-report=html
+            --cov-report=term-missing:skip-covered
+            --cov-fail-under=60
+
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: htmlcov
+          if-no-files-found: warn
+          retention-days: 7
