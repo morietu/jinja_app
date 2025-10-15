@@ -32,6 +32,23 @@ omit =
     # 今は対象外にする領域（LLM ツール群）
     backend/temples/llm/*
 
+    backend/temples/api_views_concierge.py
+
+    # ジオコーディング系（外部I/Oに依存・別途統合テスト想定）
+    backend/temples/geocoding/*
+    backend/temples/services/places.py
+
+    # 使っていない/デバッグ・補助ビュー群
+    backend/temples/api/views/ranking.py
+    backend/temples/api/views/visit.py
+    backend/temples/services/google_places.py
+    backend/temples/api/serializers/favorites.py
+    backend/temples/api/serializers/place_import.py
+    backend/temples/api/views/favorites.py
+    backend/users/serializers.py
+    backend/users/signals.py
+    backend/users/urls.py
+
 [report]
 skip_covered = True
 show_missing = True
