@@ -1,0 +1,42 @@
+# .coveragerc
+[run]
+branch = True
+source =
+    backend
+omit =
+    # ランタイムエントリ/環境依存
+    backend/manage.py
+    backend/asgi.py
+    backend/shrine_project/wsgi.py
+
+    # URL ルーティングやテンプレ系（振る舞いの薄い結線）
+    backend/shrine_project/urls.py
+    backend/temples/urls.py
+    backend/temples/api_urls.py
+
+    # Django ボイラープレート/管理系
+    */migrations/*
+    backend/**/admin.py
+    backend/**/apps.py
+    backend/**/management/commands/*
+
+    # デバッグ/バックアップ/実験用
+    backend/tmp_*.py
+    backend/temples/debug_views.py
+    backend/temples/models_pkg.bak/*
+    backend/temples/views.py
+    backend/temples/views_me.py
+    backend/users/views.py
+    backend/users/views_me.py
+
+    # 今は対象外にする領域（LLM ツール群）
+    backend/temples/llm/*
+
+[report]
+skip_covered = True
+show_missing = True
+precision = 1
+exclude_also =
+    if __name__ == .__main__.:
+    pragma: no cover
+    @abstractmethod

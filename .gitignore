@@ -94,3 +94,6 @@ backend/test_jinja_db*
 api_schema.json
 api_schema.yaml
 api_routes.txt
+
+# allow coverage config
+!.coveragerc
