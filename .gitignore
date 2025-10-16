@@ -86,3 +86,8 @@ out/
 runserver*.log
 staticfiles/
 venv/
+
+# coverage artifacts
+coverage-html/
+htmlcov/
+coverage.xml
