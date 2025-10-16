@@ -290,7 +290,10 @@ def photo(request):
     services.google_places.photo は (bytes, content_type) を返す契約
     """
     ref = request.query_params.get("photo_reference")
+    if not ref:
+        return Response({"detail": "photo_reference is required"}, status=400)
     maxwidth = request.query_params.get("maxwidth")
+
     blob, content_type = services.google_places.photo(photo_reference=ref, maxwidth=maxwidth)
     resp = HttpResponse(blob, content_type=content_type)
     # テストが見るのはこのヘッダ
@@ -345,3 +348,21 @@ def detail(request, place_id: str):
             out["photo_reference"] = ref
 
     return Response(out)
+
+
+# /api/places/detail/?place_id=... 用のラッパー（無指定は 400）
+@extend_schema(
+    summary="Places: detail (query version)",
+    parameters=[
+        OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True)
+    ],
+    responses={200: PlaceDetailResponse},
+    tags=["places"],
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def detail_query(request):
+    pid = (request.query_params.get("place_id") or "").strip()
+    if not pid:
+        return Response({"detail": "place_id is required"}, status=400)
+    return detail(request, place_id=pid)
