@@ -292,7 +292,10 @@ def photo(request):
     ref = request.query_params.get("photo_reference")
     if not ref:
         return Response({"detail": "photo_reference is required"}, status=400)
+    if not ref:
+        return Response({"detail": "photo_reference is required"}, status=400)
     maxwidth = request.query_params.get("maxwidth")
+
 
     blob, content_type = services.google_places.photo(photo_reference=ref, maxwidth=maxwidth)
     resp = HttpResponse(blob, content_type=content_type)
@@ -347,9 +350,8 @@ def detail(request, id: str):
     return Response(out)
 
 
-# --- /api/places/detail/?place_id=...（detail by query） ---
+# /api/places/detail/?place_id=... 用のラッパー（無指定は 400）
 @extend_schema(
-    operation_id="api_places_detail_by_query",
     summary="Places: detail (query version)",
     parameters=[
         OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True)
@@ -363,35 +365,4 @@ def detail_query(request):
     pid = (request.query_params.get("place_id") or "").strip()
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
-    # path 版と同じロジックを使う
-    return detail(request, id=pid)
-
-
-@extend_schema(exclude=True)
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def nearby_search_legacy(request, *args, **kwargs):
-    """/api/places/nearby_search/ のレガシー入口（DRF Request→Django HttpRequest）"""
-    try:
-        from rest_framework.request import Request as DRFRequest
-    except Exception:
-        DRFRequest = None
-    dj_req = (
-        getattr(request, "_request", None)
-        if (DRFRequest and isinstance(request, DRFRequest))
-        else request
-    )
-    return nearby_search(dj_req, *args, **kwargs)
-
-
-@extend_schema(exclude=True)
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def detail_short(request, id: str):
-    # DRF Request のときは _request を渡す（Django HttpRequest）
-    try:
-        from rest_framework.request import Request as DRFRequest
-    except Exception:
-        DRFRequest = None
-    dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
-    return detail(dj_req, id=id)
+    return detail(request, place_id=pid)
