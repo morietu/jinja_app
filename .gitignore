@@ -1,100 +1,88 @@
-# ===== Python / Django =====
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.egg-info/
-*.egg
-.venv/
-venv/
-db.sqlite3
-*.sqlite3
 
-# Test / coverage
-.pytest_cache/
-.tox/
-.coverage*
-htmlcov/
-.mypy_cache/
-.ruff_cache/
-
-# ===== 環境ファイル =====
-.env
-.env.*
+!.coveragerc
 !.env.example
-.env.local
-backend/.env
-backend/.env.*
-# ===== OS / Editor =====
-.DS_Store
-*.swp
-.vscode/
-.idea/
-
 # ===== Build / Archives =====
-dist/
-build/
-*.tar.gz
-
-# ===== Logs / Media / Static =====
-runserver*.log
-backend/logs/
-backend/media/
-staticfiles/
-
-# ===== Node / Frontend =====
-node_modules/
-apps/**/node_modules/
-
-# ===== Expo (shrine-app) =====
-/shrine-app/ios/
-/shrine-app/android/
-/shrine-app/.expo/
-/shrine-app/.expo-shared/
-
 # ===== Docker (local db data) =====
+# ===== Expo (shrine-app) =====
+# ===== Local scratch =====
+# ===== Logs / Media / Static =====
+# ===== Node / Frontend =====
+# ===== OS / Editor =====
+# ===== Python / Django =====
+# ===== 環境ファイル =====
+# Coverage report
+# Editor backups
+# Next.js / Turbo / Parcel (使っていれば)
+# SQLite journal
+# Test / coverage
+# allow coverage config
+# generated
+# local DB backups
+# pyenv / direnv
+# test artifacts
 # 本番に不要なローカルDBデータ＆バックアップは無視
-.docker/db/data/
-.docker/db/data.backup*/
+*.bak
+*.egg
+*.egg-info/
+*.orig
+*.py[cod]
+*.pyd
+*.pyo
+*.sqlite3
+*.sqlite3-journal
+*.swp
+*.tar.gz
+.DS_Store
+.coverage
+.coverage*
+.docker/db/**/pg_*  # 内部生成物まとめて無視
 .docker/db/**/pg_wal/
 .docker/db/**/postmaster*.pid
-.docker/db/**/pg_*  # 内部生成物まとめて無視
-
-# ===== Local scratch =====
-cookies.txt
-c.txt
-backup.sql
-Dockerfile.db
-
-# local DB backups
 .docker/db/*.sql
-
-# SQLite journal
-*.sqlite3-journal
-
-# Coverage report
-coverage.xml
-
-# pyenv / direnv
-.python-version
+.docker/db/data.backup*/
+.docker/db/data/
+.env
+.env.*
+.env.local
+.env.pytest.local
 .envrc
-
-# Editor backups
-*.orig
-
-# Next.js / Turbo / Parcel (使っていれば)
+.idea/
+.mypy_cache/
 .next/
-out/
-.turbo/
 .parcel-cache/
-*.bak
-backend/test_jinja_db*
-
-# generated
+.pytest_cache/
+.python-version
+.ruff_cache/
+.tox/
+.turbo/
+.venv/
+.vscode/
+/shrine-app/.expo-shared/
+/shrine-app/.expo/
+/shrine-app/android/
+/shrine-app/ios/
+Dockerfile.db
+__pycache__/
+api_routes.txt
 api_schema.json
 api_schema.yaml
-api_routes.txt
-
-# allow coverage config
-!.coveragerc
-.env.pytest.local
+apps/**/node_modules/
+backend/.env
+backend/.env.*
+backend/logs/
+backend/media/
+backend/test_jinja_db*
+backup.sql
+build/
+c.txt
+cookies.txt
+cov_html/
+coverage.xml
+db.sqlite3
+dist/
+htmlcov/
+node_modules/
+out/
+runserver*.log
+staticfiles/
+venv/
