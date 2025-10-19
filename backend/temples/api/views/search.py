@@ -366,3 +366,20 @@ def detail_query(request):
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
     return detail(request, place_id=pid)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def nearby_search_legacy(request, *args, **kwargs):
+    """/api/places/nearby_search/ のレガシー入口（DRF Request→Django HttpRequest）"""
+    try:
+        from rest_framework.request import Request as DRFRequest
+    except Exception:
+        DRFRequest = None
+    dj_req = (
+        getattr(request, "_request", None)
+        if (DRFRequest and isinstance(request, DRFRequest))
+        else request
+    )
+    return nearby_search(dj_req, *args, **kwargs)
