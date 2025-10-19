@@ -69,3 +69,7 @@ def bonus_score(tags: Iterable[str] | None, wish: Optional[str], gogyou: Optiona
     score += _deity_bonus(tset, w)
 
     return score
+
+
+compute_match = bonus_score
+__all__ = ["bonus_score", "compute_match"]
