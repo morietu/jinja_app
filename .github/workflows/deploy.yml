@@ -1,0 +1,15 @@
+# .github/workflows/deploy.yml
+name: Deploy
+on:
+  push:
+    branches: [develop, main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      # …ビルド/テスト/マイグレーション/collectstatic …
+      - name: Deploy
+        run: ./scripts/deploy.sh ${{ github.ref_name == 'main' && 'prod' || 'staging' }}
