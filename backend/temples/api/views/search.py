@@ -301,8 +301,9 @@ def photo(request):
     return resp
 
 
-# --- /api/places/<place_id>/ ---
+# --- /api/places/<id>/（detail by path） ---
 @extend_schema(
+    operation_id="api_places_detail_by_id",
     summary="Places: detail",
     parameters=[OpenApiParameter("id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)],
     responses={200: PlaceDetailResponse},
@@ -346,8 +347,9 @@ def detail(request, id: str):
     return Response(out)
 
 
-# /api/places/detail/?place_id=... 用のラッパー（無指定は 400）
+# --- /api/places/detail/?place_id=...（detail by query） ---
 @extend_schema(
+    operation_id="api_places_detail_by_query",
     summary="Places: detail (query version)",
     parameters=[
         OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True)
@@ -361,7 +363,8 @@ def detail_query(request):
     pid = (request.query_params.get("place_id") or "").strip()
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
-    return detail(request, place_id=pid)
+    # path 版と同じロジックを使う
+    return detail(request, id=pid)
 
 
 @extend_schema(exclude=True)
@@ -379,3 +382,16 @@ def nearby_search_legacy(request, *args, **kwargs):
         else request
     )
     return nearby_search(dj_req, *args, **kwargs)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def detail_short(request, id: str):
+    # DRF Request のときは _request を渡す（Django HttpRequest）
+    try:
+        from rest_framework.request import Request as DRFRequest
+    except Exception:
+        DRFRequest = None
+    dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
+    return detail(dj_req, id=id)
