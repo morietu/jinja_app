@@ -4,6 +4,7 @@ from django.urls import include, path
 from django.views.decorators.http import require_http_methods
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
+from temples.api.views.search import detail_query, nearby_search_legacy
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.favorite import FavoriteToggleView, MyFavoriteDestroyView, MyFavoritesListCreateView
@@ -14,16 +15,7 @@ from .views.geocode import (
     GeocodeSearchViewLegacy,
 )
 from .views.route import RouteAPIView, RouteLegacyAPIView, RouteView
-from .views.search import (
-    detail,
-    detail_query,
-    nearby_search,
-    nearby_search_legacy,
-    photo,
-    search,
-    text_search,
-    text_search_legacy,
-)
+from .views.search import detail, nearby_search, photo, search, text_search, text_search_legacy
 from .views.shrine import RankingAPIView, ShrineViewSet
 
 app_name = "temples"
@@ -40,8 +32,6 @@ def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
     # temples 側の詳細 API は別口（またはブロック）という仕様なので 404
     raise Http404()
 
-
-def place_detail_by_id(request, id: str, *args, **kwargs):
     return detail(request, place_id=id, **kwargs)
 
 
@@ -68,19 +58,17 @@ urlpatterns = [
     path("concierges/chats/", concierge.chat, name="concierge-chat"),
     path("concierges/plans/", concierge.plan, name="concierge-plan"),
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
-    # ---- Places -------------------------------------------------------------
-    # 検索/写真/テキスト検索/nearby を先に
+    # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby-search/", nearby_search, name="places-nearby-search"),
-    # レガシー nearby_search はスキーマから除外された薄ラッパへ
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
     # detail（query 版 /id 版）
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
-    # 最後にショート版のキャッチオール（これが上に来ると全部食う！）
+    # 最後にショート版のキャッチオール
     path("places/<str:id>/", detail, name="places-detail-short"),
     # ---- Favorites（{id} 統一／トグルはそのまま） ---------------------------
     path("favorites/", MyFavoritesListCreateView.as_view(), name="favorites-list-create"),
@@ -91,8 +79,7 @@ urlpatterns = [
     path("geocodes/reverse/", GeocodeReverseView.as_view(), name="geocodes-reverse"),
     path("geocode/search/", GeocodeSearchViewLegacy.as_view(), name="geocode-search-legacy"),
     path("geocode/reverse/", GeocodeReverseViewLegacy.as_view(), name="geocode-reverse-legacy"),
-    # legacy route（必要なら残す。名前は衝突回避のため変更）
-    path("route/", RouteLegacyAPIView.as_view(), name="route-legacy"),
+    path("route/", RouteLegacyAPIView.as_view(), name="route"),
     # ---- Router（最後） -----------------------------------------------------
     path("", include(router.urls)),
 ]

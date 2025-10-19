@@ -52,21 +52,10 @@ def _nearby_ident(request) -> str:
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
 def search(request):
+    # query / q 両対応（空は 400）
     q = (request.query_params.get("query") or request.query_params.get("q") or "").strip()
     if not q:
         return Response({"detail": "query is required"}, status=400)
-
-    # --- bounds のバリデーションを追加 ---
-    bounds = request.query_params.get("bounds")
-    if bounds:
-        parts = [p.strip() for p in bounds.split(",")]
-        if len(parts) != 4:
-            return Response({"detail": "bounds must be 'south,west,north,east'."}, status=400)
-        try:
-            _ = [float(p) for p in parts]  # 値は使わないが数値チェック
-        except ValueError:
-            return Response({"detail": "bounds must be 4 floats."}, status=400)
-    # -----------------------------------
 
     lat = request.query_params.get("lat")
     lng = request.query_params.get("lng")
@@ -77,13 +66,13 @@ def search(request):
         payload.update({"lat": lat, "lng": lng})
     if radius:
         payload["radius"] = radius
-    if bounds:
-        payload["bounds"] = bounds  # サービス層にそのまま渡す（あれば利用）
 
     try:
+        # services.google_places に search() があれば使う。なければ text_search に委譲
         if hasattr(services.google_places, "search"):
             data = services.google_places.search(payload)
         else:
+            # dict で渡すと lat/lng→location に正規化される
             data = GP.text_search(payload)
         return Response(data)
     except Exception:
@@ -315,18 +304,13 @@ def photo(request):
 # --- /api/places/<place_id>/ ---
 @extend_schema(
     summary="Places: detail",
-    parameters=[
-        OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)
-    ],
+    parameters=[OpenApiParameter("id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)],
     responses={200: PlaceDetailResponse},
     tags=["places"],
 )
-# --- 既存 import 等はそのまま ---
-
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def detail(request, id: str):  # ← place_id を消して id だけに統一
+def detail(request, id: str):
     gp = services.google_places
     try:
         data = gp.detail(place_id=id) if hasattr(gp, "detail") else gp.details(place_id=id)
@@ -338,6 +322,8 @@ def detail(request, id: str):  # ← place_id を消して id だけに統一
         )
 
     src = data.get("result") or data.get("place") or data or {}
+
+    # 必須フィールドを整形
     out = {
         "place_id": src.get("place_id") or id,
         "name": src.get("name"),
@@ -350,6 +336,7 @@ def detail(request, id: str):  # ← place_id を消して id だけに統一
     if "lat" in loc and "lng" in loc:
         out["location"] = {"lat": loc["lat"], "lng": loc["lng"]}
 
+    # 互換のため photo_reference もあれば1枚だけ拾う
     photos = src.get("photos") or []
     if photos and isinstance(photos, list):
         ref = photos[0].get("photo_reference")
@@ -359,6 +346,7 @@ def detail(request, id: str):  # ← place_id を消して id だけに統一
     return Response(out)
 
 
+# /api/places/detail/?place_id=... 用のラッパー（無指定は 400）
 @extend_schema(
     summary="Places: detail (query version)",
     parameters=[
@@ -373,19 +361,21 @@ def detail_query(request):
     pid = (request.query_params.get("place_id") or "").strip()
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
-    # id に寄せて detail を呼ぶ
-    return detail(request, id=pid)
+    return detail(request, place_id=pid)
 
 
-# nearby のレガシー薄ラッパ（スキーマ除外）
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def nearby_search_legacy(request, *args, **kwargs):
-    """Legacy entrypoint: unwrap DRF Request back to Django HttpRequest, then delegate."""
+    """
+    レガシー入口。DRF Request をもう一段 @api_view に渡すと
+    「HttpRequest をくれ」と言われるため、Django HttpRequest に戻してから委譲する。
+    こうすることで本体側の throttle / permissions などのデコレータも正しく適用される。
+    """
     try:
         from rest_framework.request import Request as DRFRequest
-    except Exception:
+    except Exception:  # pragma: no cover
         DRFRequest = None
     dj_req = (
         getattr(request, "_request", None)
