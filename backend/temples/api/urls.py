@@ -4,17 +4,11 @@ from django.urls import include, path
 from django.views.decorators.http import require_http_methods
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
-from temples.api.views.search import detail_query
+from temples.api.views.search import detail_query, nearby_search_legacy
 
 from .views.concierge_history import ConciergeHistoryView
-from .views.favorite import FavoriteToggleView, MyFavoriteDestroyView, MyFavoritesListCreateView
-from .views.geocode import (
-    GeocodeReverseView,
-    GeocodeReverseViewLegacy,
-    GeocodeSearchView,
-    GeocodeSearchViewLegacy,
-)
-from .views.route import RouteAPIView, RouteLegacyAPIView, RouteView
+from .views.favorite import MyFavoriteDestroyView
+from .views.route import RouteAPIView, RouteView
 from .views.search import detail, nearby_search, photo, search, text_search, text_search_legacy
 from .views.shrine import RankingAPIView, ShrineViewSet
 
@@ -62,21 +56,15 @@ urlpatterns = [
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
-    path("places/detail/", detail_query, name="places-detail"),
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby-search/", nearby_search, name="places-nearby-search"),
-    # ---- Favorites（{id} 統一／トグルはそのまま） ---------------------------
-    path("favorites/", MyFavoritesListCreateView.as_view(), name="favorites-list-create"),
-    path("favorites/toggle/", FavoriteToggleView.as_view(), name="favorites-toggle"),
-    path("favorites/<int:id>/", my_favorite_destroy_by_id, name="favorites-destroy"),
-    # ---- Geocodes（複数形に） -----------------------------------------------
-    path("geocodes/search/", GeocodeSearchView.as_view(), name="geocodes-search"),
-    path("geocodes/reverse/", GeocodeReverseView.as_view(), name="geocodes-reverse"),
-    path("geocode/search/", GeocodeSearchViewLegacy.as_view(), name="geocode-search-legacy"),
-    path("geocode/reverse/", GeocodeReverseViewLegacy.as_view(), name="geocode-reverse-legacy"),
-    path("route/", RouteLegacyAPIView.as_view(), name="route"),
-    # ---- Router（最後） -----------------------------------------------------
+    path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
+    # detail（query 版 /id 版）
+    path("places/detail/", detail_query, name="places-detail"),
+    path("places/detail/<str:id>/", detail, name="places-detail-id"),
+    # 最後にショート版のキャッチオール
+    path("places/<str:id>/", detail, name="places-detail-short"),
     path("", include(router.urls)),
 ]
