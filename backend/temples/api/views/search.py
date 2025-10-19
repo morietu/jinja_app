@@ -304,20 +304,16 @@ def photo(request):
 # --- /api/places/<place_id>/ ---
 @extend_schema(
     summary="Places: detail",
-    parameters=[
-        OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)
-    ],
+    parameters=[OpenApiParameter("id", OpenApiTypes.STR, OpenApiParameter.PATH, required=True)],
     responses={200: PlaceDetailResponse},
     tags=["places"],
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def detail(request, place_id: str):
+def detail(request, id: str):
     gp = services.google_places
     try:
-        data = (
-            gp.detail(place_id=place_id) if hasattr(gp, "detail") else gp.details(place_id=place_id)
-        )
+        data = gp.detail(place_id=id) if hasattr(gp, "detail") else gp.details(place_id=id)
     except Exception:
         logger.exception("places.detail で例外が発生しました")
         return Response(
@@ -329,7 +325,7 @@ def detail(request, place_id: str):
 
     # 必須フィールドを整形
     out = {
-        "place_id": src.get("place_id") or place_id,
+        "place_id": src.get("place_id") or id,
         "name": src.get("name"),
         "address": src.get("formatted_address") or src.get("vicinity"),
         "rating": src.get("rating"),
