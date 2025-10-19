@@ -3,18 +3,7 @@ from django.http import Http404
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
-from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
-from temples.api.views.route import route_legacy
-from temples.api.views.search import (
-    detail,
-    detail_query,
-    nearby_search,
-    nearby_search_legacy,
-    photo,
-    search,
-    text_search,
-    text_search_legacy,
-)
+from temples.api.views.search import detail_query
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.route import RouteAPIView, RouteView
@@ -90,22 +79,21 @@ urlpatterns = [
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
+    path("places/detail/", detail_query, name="places-detail"),
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby-search/", nearby_search, name="places-nearby-search"),
-    path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
-    # detail（query 版 / id 版 / ショート版）
-    path("places/detail/", detail_query, name="places-detail"),
-    path("places/detail/<str:id>/", detail, name="places-detail-id"),
-    path("places/<str:id>/", detail_short, name="places-detail-short"),
-    # --- Geocodes (複数形: 正規) ---
-    path("geocodes/search/", geocode_search, name="geocodes-search"),
-    path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
-    # --- Geocode (単数形: レガシー。schema から除外されるハンドラに接続) ---
-    path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
-    path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
-    # --- Route (単数形: レガシー。schema から除外されるハンドラに接続) ---
-    path("route/", route_legacy, name="route-legacy"),
+    # ---- Favorites（{id} 統一／トグルはそのまま） ---------------------------
+    path("favorites/", MyFavoritesListCreateView.as_view(), name="favorites-list-create"),
+    path("favorites/toggle/", FavoriteToggleView.as_view(), name="favorites-toggle"),
+    path("favorites/<int:id>/", my_favorite_destroy_by_id, name="favorites-destroy"),
+    # ---- Geocodes（複数形に） -----------------------------------------------
+    path("geocodes/search/", GeocodeSearchView.as_view(), name="geocodes-search"),
+    path("geocodes/reverse/", GeocodeReverseView.as_view(), name="geocodes-reverse"),
+    path("geocode/search/", GeocodeSearchViewLegacy.as_view(), name="geocode-search-legacy"),
+    path("geocode/reverse/", GeocodeReverseViewLegacy.as_view(), name="geocode-reverse-legacy"),
+    path("route/", RouteLegacyAPIView.as_view(), name="route"),
+    # ---- Router（最後） -----------------------------------------------------
     path("", include(router.urls)),
 ]
