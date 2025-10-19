@@ -20,7 +20,7 @@ from .views.concierge_history import ConciergeHistoryView
 from .views.route import RouteAPIView, RouteView
 from .views.shrine import RankingAPIView, ShrineViewSet
 
-# /api/places/<id>/ 向けの簡易ラッパ（search.py に detail_short が無い環境でも動かす）
+# /api/places/<id>/ のショート版。search.py に detail_short が無い環境でも動作させる。
 try:
     from temples.api.views.search import detail_short  # type: ignore
 except Exception:
@@ -28,22 +28,35 @@ except Exception:
     from rest_framework.decorators import api_view, permission_classes
     from rest_framework.permissions import AllowAny
 
+    def _as_django_request(req):
+        # DRF Request のときは _request を取り出して HttpRequest に剥がす
+        try:
+            from rest_framework.request import Request as DRFRequest
+
+            if isinstance(req, DRFRequest):
+                return getattr(req, "_request", req)
+        except Exception:
+            pass
+        return req
+
     @extend_schema(exclude=True)
     @api_view(["GET"])
     @permission_classes([AllowAny])
     def detail_short(request, id: str, *args, **kwargs):  # type: ignore
-        return detail(request, id, *args, **kwargs)
+        dj_req = _as_django_request(request)
+        # B026 回避のため位置引数で渡す
+        return detail(dj_req, id, *args, **kwargs)
 
 
 # geocode の関数名差異に対応
 try:
     from temples.api.views.geocode import search as geocode_search
-except ImportError:
+except ImportError:  # geocode_search 直名
     from temples.api.views.geocode import geocode_search  # type: ignore
 
 try:
     from temples.api.views.geocode import reverse as geocode_reverse
-except ImportError:
+except ImportError:  # reverse_geocode 名
     from temples.api.views.geocode import reverse_geocode as geocode_reverse  # type: ignore
 
 
@@ -54,7 +67,7 @@ router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 # ViewSet の明示エイリアス（reverse 名称の安定化）
 shrine_list_view = ShrineViewSet.as_view({"get": "list"})
-shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 使わないが残す場合はこのまま
+shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 参照される可能性があるため維持
 
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
@@ -70,7 +83,6 @@ urlpatterns = [
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     # ---- Popular（複数形に） ------------------------------------------------
-    # reverse('temples:popular-shrines') はそのまま維持
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形に寄せる） ---------------------------------------
     path("concierges/chats/", concierge.chat, name="concierge-chat"),

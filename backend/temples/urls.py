@@ -3,7 +3,9 @@ from django.http import Http404
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from temples.api.views.route import RouteView
-from temples.api.views.search import search
+from temples.api.views.search import (
+    search,
+)
 
 from .api_views import FavoriteViewSet, ShrineNearbyView
 from .api_views_concierge import ConciergeChatView, ConciergePlanView

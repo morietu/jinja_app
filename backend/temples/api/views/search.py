@@ -382,3 +382,16 @@ def nearby_search_legacy(request, *args, **kwargs):
         else request
     )
     return nearby_search(dj_req, *args, **kwargs)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def detail_short(request, id: str):
+    # DRF Request のときは _request を渡す（Django HttpRequest）
+    try:
+        from rest_framework.request import Request as DRFRequest
+    except Exception:
+        DRFRequest = None
+    dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
+    return detail(dj_req, id=id)
