@@ -366,3 +366,24 @@ def detail_query(request):
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
     return detail(request, place_id=pid)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def nearby_search_legacy(request, *args, **kwargs):
+    """
+    レガシー入口。DRF Request をもう一段 @api_view に渡すと
+    「HttpRequest をくれ」と言われるため、Django HttpRequest に戻してから委譲する。
+    こうすることで本体側の throttle / permissions などのデコレータも正しく適用される。
+    """
+    try:
+        from rest_framework.request import Request as DRFRequest
+    except Exception:  # pragma: no cover
+        DRFRequest = None
+    dj_req = (
+        getattr(request, "_request", None)
+        if (DRFRequest and isinstance(request, DRFRequest))
+        else request
+    )
+    return nearby_search(dj_req, *args, **kwargs)
