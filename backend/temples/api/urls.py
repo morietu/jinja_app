@@ -8,7 +8,22 @@ from temples.api.views.geocode import (
     geocode_search_legacy,
 )
 from temples.api.views.route import route_legacy
-from temples.api.views.search import detail_query, nearby_search_legacy
+from temples.api.views.search import (
+    detail,
+    detail_query,
+    detail_short,  # ショート版
+    nearby_search,
+    nearby_search_legacy,
+    photo,
+    search,
+    text_search,
+    text_search_legacy,
+)
+
+from .views.concierge_history import ConciergeHistoryView
+from .views.favorite import MyFavoriteDestroyView
+from .views.route import RouteAPIView, RouteView
+from .views.shrine import RankingAPIView, ShrineViewSet
 
 try:
     from temples.api.views.route import route  # 関数ビュー想定
@@ -34,11 +49,6 @@ try:
 except ImportError:  # e.g. reverse_geocode という名前の場合
     from temples.api.views.geocode import reverse_geocode as geocode_reverse  # type: ignore
 
-from .views.concierge_history import ConciergeHistoryView
-from .views.favorite import MyFavoriteDestroyView
-from .views.route import RouteAPIView, RouteView
-from .views.search import detail, nearby_search, photo, search, text_search, text_search_legacy
-from .views.shrine import RankingAPIView, ShrineViewSet
 
 # /api/places/<id>/ のショート版。search.py に detail_short が無い環境でも動作させる。
 try:
@@ -119,7 +129,7 @@ urlpatterns = [
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
     # 最後にショート版のキャッチオール
-    path("places/<str:id>/", detail, name="places-detail-short"),
+    path("places/<str:id>/", detail_short, name="places-detail-short"),
     # --- Geocodes (複数形: 正規) ---
     path("geocodes/search/", geocode_search, name="geocodes-search"),
     path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
