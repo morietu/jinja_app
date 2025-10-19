@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy
 on:
   push:
@@ -6,21 +5,60 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: "deploy target (staging|prod)"
+        description: "staging or prod"
         required: false
         default: "staging"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # mainならproduction、それ以外(push/dispatchとも)はstagingを既定に
-    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+    # develop など main 以外のブランチから env=prod なら実行しない
+    if: |
+      !(
+        github.event_name == 'workflow_dispatch' &&
+        inputs.env == 'prod' &&
+        github.ref_name != 'main'
+      )
+
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+      deployments: write
+
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy
+
+      # dispatch 時は入力優先、push 時はブランチから自動判定
+      - name: Decide env
+        id: env
         run: |
-          # dispatch時: 入力があればそれを優先。なければブランチから自動判定。
-          ENV_INPUT="${{ github.event.inputs.env }}"
-          ENV_AUTO="${{ github.ref_name == 'main' && 'prod' || 'staging' }}"
-          ENV="${ENV_INPUT:-$ENV_AUTO}"
-          ./scripts/deploy.sh "$ENV"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENV=${{ inputs.env }}" >> "$GITHUB_OUTPUT"
+          else
+            [[ "${{ github.ref_name }}" == "main" ]] && echo "ENV=prod" >> "$GITHUB_OUTPUT" || echo "ENV=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Environment を決定（prod=production / それ以外=staging）
+      - name: Set environment name
+        id: envname
+        run: |
+          if [[ "${{ steps.env.outputs.ENV }}" == "prod" ]]; then
+            echo "ENV_NAME=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "ENV_NAME=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Announce environment
+        run: echo "Deploying to ${{ steps.envname.outputs.ENV_NAME }} (env=${{ steps.env.outputs.ENV }})"
+
+      - name: Deploy
+        env:
+          GITHUB_ENVIRONMENT: ${{ steps.envname.outputs.ENV_NAME }}
+        run: ./scripts/deploy.sh "${{ steps.env.outputs.ENV }}"
+        # ↑ Environments タブの保護ルールを使いたい場合は、環境名を
+        # 環境プロパティとして job に付ける必要があるため、別案:
+        # （GitHub Actions の仕様上、動的 environment は job レベルで指定）
