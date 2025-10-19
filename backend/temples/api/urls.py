@@ -3,7 +3,36 @@ from django.http import Http404
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
+from temples.api.views.geocode import (
+    geocode_reverse_legacy,
+    geocode_search_legacy,
+)
+from temples.api.views.route import route_legacy
 from temples.api.views.search import detail_query, nearby_search_legacy
+
+try:
+    from temples.api.views.route import route  # 関数ビュー想定
+except ImportError:
+    try:
+        from temples.api.views.route import route_view as route  # 別名の関数ビュー
+    except ImportError:
+        try:
+            from temples.api.views.route import RouteAPIView as _RouteAPIView  # DRF APIView
+
+            route = _RouteAPIView.as_view()
+        except ImportError:
+            from temples.api.views.route import RouteView as _RouteView  # 汎用 CBV
+
+            route = _RouteView.as_view()
+
+try:
+    from temples.api.views.geocode import search as geocode_search
+except ImportError:  # e.g. geocode_search という名前の場合
+    from temples.api.views.geocode import geocode_search  # type: ignore
+try:
+    from temples.api.views.geocode import reverse as geocode_reverse
+except ImportError:  # e.g. reverse_geocode という名前の場合
+    from temples.api.views.geocode import reverse_geocode as geocode_reverse  # type: ignore
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.favorite import MyFavoriteDestroyView
@@ -91,5 +120,15 @@ urlpatterns = [
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
     # 最後にショート版のキャッチオール
     path("places/<str:id>/", detail, name="places-detail-short"),
+    # --- Geocodes (複数形: 正規) ---
+    path("geocodes/search/", geocode_search, name="geocodes-search"),
+    path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
+    # --- Geocode (単数形: レガシー。schema から除外されるハンドラに接続) ---
+    path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
+    path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
+    # --- Routes (複数形: 正規) ---
+    path("routes/", RouteAPIView.as_view(), name="route"),
+    # --- Route (単数形: レガシー。schema から除外されるハンドラに接続) ---
+    path("route/", route_legacy, name="route-legacy"),
     path("", include(router.urls)),
 ]
