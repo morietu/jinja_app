@@ -66,6 +66,7 @@ router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 # ViewSet の明示エイリアス（reverse 名称の安定化）
+# ViewSet の明示エイリアス（reverse 名称の安定化）
 shrine_list_view = ShrineViewSet.as_view({"get": "list"})
 shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 参照される可能性があるため維持
 
