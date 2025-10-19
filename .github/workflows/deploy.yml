@@ -3,13 +3,24 @@ name: Deploy
 on:
   push:
     branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "deploy target (staging|prod)"
+        required: false
+        default: "staging"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # mainならproduction、それ以外(push/dispatchとも)はstagingを既定に
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@v4
-      # …ビルド/テスト/マイグレーション/collectstatic …
       - name: Deploy
-        run: ./scripts/deploy.sh ${{ github.ref_name == 'main' && 'prod' || 'staging' }}
+        run: |
+          # dispatch時: 入力があればそれを優先。なければブランチから自動判定。
+          ENV_INPUT="${{ github.event.inputs.env }}"
+          ENV_AUTO="${{ github.ref_name == 'main' && 'prod' || 'staging' }}"
+          ENV="${ENV_INPUT:-$ENV_AUTO}"
+          ./scripts/deploy.sh "$ENV"
