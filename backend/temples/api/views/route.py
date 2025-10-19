@@ -6,12 +6,12 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.models import Shrine
 from temples.route_service import Point, build_route
-
-# ✅ 既存の“正規シリアライザ”を使う（再定義しない）
 from temples.serializers.routes import RouteRequestSerializer, RouteResponseSerializer
 
 UserModel = get_user_model()
@@ -116,3 +116,31 @@ class RouteView(APIView):
             "temples/route.html",
             {"pk": pk, "lat": lat, "lng": lng},
         )
+
+
+@extend_schema(exclude=True)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def route_legacy(request, *args, **kwargs):
+    """
+    /api/route/ → /api/routes/ へ委譲（実装形態の差異に耐える）
+    - 関数ビュー `route` が globals にあればそれを優先
+    - ダメなら APIView へフォールバック
+    - さらにダメなら CBV (RouteView) へ
+    """
+    # 1) もし関数ビュー `route` があるなら、それは @api_view デコレータ想定なので
+    #    DRF Request のまま渡してよい
+    fn = globals().get("route")
+    if callable(fn):
+        try:
+            return fn(request, *args, **kwargs)
+        except Exception:
+            pass  # フォールバックへ
+
+    # 2) APIView / 汎用 CBV は Django HttpRequest を要求するので、_request を取り出す
+    raw_request = getattr(request, "_request", request)
+
+    try:
+        return RouteAPIView.as_view()(raw_request, *args, **kwargs)
+    except Exception:
+        return RouteView.as_view()(raw_request, *args, **kwargs)

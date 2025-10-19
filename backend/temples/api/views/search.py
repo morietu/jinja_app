@@ -368,14 +368,10 @@ def detail_query(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def nearby_search_legacy(request, *args, **kwargs):
-    """
-    レガシー入口。DRF Request をもう一段 @api_view に渡すと
-    「HttpRequest をくれ」と言われるため、Django HttpRequest に戻してから委譲する。
-    こうすることで本体側の throttle / permissions などのデコレータも正しく適用される。
-    """
+    """/api/places/nearby_search/ のレガシー入口（DRF Request→Django HttpRequest）"""
     try:
         from rest_framework.request import Request as DRFRequest
-    except Exception:  # pragma: no cover
+    except Exception:
         DRFRequest = None
     dj_req = (
         getattr(request, "_request", None)
