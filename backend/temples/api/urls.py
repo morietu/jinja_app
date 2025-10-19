@@ -4,6 +4,7 @@ from django.urls import include, path
 from django.views.decorators.http import require_http_methods
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
+from temples.api.views.search import detail_query, nearby_search_legacy
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.favorite import FavoriteToggleView, MyFavoriteDestroyView, MyFavoritesListCreateView
@@ -31,8 +32,6 @@ def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
     # temples 側の詳細 API は別口（またはブロック）という仕様なので 404
     raise Http404()
 
-
-def place_detail_by_id(request, id: str, *args, **kwargs):
     return detail(request, place_id=id, **kwargs)
 
 
@@ -65,7 +64,12 @@ urlpatterns = [
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
     path("places/nearby-search/", nearby_search, name="places-nearby-search"),
-    path("places/<str:id>/", place_detail_by_id, name="places-detail"),
+    path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
+    # detail（query 版 /id 版）
+    path("places/detail/", detail_query, name="places-detail"),
+    path("places/detail/<str:id>/", detail, name="places-detail-id"),
+    # 最後にショート版のキャッチオール
+    path("places/<str:id>/", detail, name="places-detail-short"),
     # ---- Favorites（{id} 統一／トグルはそのまま） ---------------------------
     path("favorites/", MyFavoritesListCreateView.as_view(), name="favorites-list-create"),
     path("favorites/toggle/", FavoriteToggleView.as_view(), name="favorites-toggle"),
