@@ -296,7 +296,6 @@ def photo(request):
         return Response({"detail": "photo_reference is required"}, status=400)
     maxwidth = request.query_params.get("maxwidth")
 
-
     blob, content_type = services.google_places.photo(photo_reference=ref, maxwidth=maxwidth)
     resp = HttpResponse(blob, content_type=content_type)
     # テストが見るのはこのヘッダ
