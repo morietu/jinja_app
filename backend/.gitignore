@@ -1,0 +1,5 @@
+pytest-*.txt
+.pytest_cache/
+*pytest*.txt
+snippet.txt.env.local
+temples/signals.py.bak

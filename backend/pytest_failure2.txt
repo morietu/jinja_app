@@ -1,0 +1,85 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-8.3.4, pluggy-1.6.0 -- /Users/morietsu/Desktop/jinja_app/backend/.venv/bin/python
+cachedir: .pytest_cache
+django: version: 5.2.5, settings: shrine_project.settings (from env)
+rootdir: /Users/morietsu/Desktop/jinja_app/backend
+configfile: pytest.ini
+plugins: anyio-4.11.0, Faker-37.8.0, django-4.9.0, requests-mock-1.12.1
+collecting ... collected 43 items / 1 skipped
+
+temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan ERROR [  2%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_post_concierge_plan __________________
+
+request = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
+django_test_environment = None
+django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x1026270e0>
+django_db_use_migrations = True, django_db_keepdb = True
+django_db_createdb = True, django_db_modify_db_settings = None
+
+    @pytest.fixture(scope="session")
+    def django_db_setup(
+        request: pytest.FixtureRequest,
+        django_test_environment: None,
+        django_db_blocker: DjangoDbBlocker,
+        django_db_use_migrations: bool,
+        django_db_keepdb: bool,
+        django_db_createdb: bool,
+        django_db_modify_db_settings: None,
+    ) -> Generator[None, None, None]:
+        """Top level fixture to ensure test databases are available"""
+        from django.test.utils import setup_databases, teardown_databases
+
+        setup_databases_args = {}
+
+        if not django_db_use_migrations:
+            _disable_migrations()
+
+        if django_db_keepdb and not django_db_createdb:
+            setup_databases_args["keepdb"] = True
+
+        with django_db_blocker.unblock():
+>           db_cfg = setup_databases(
+                verbosity=request.config.option.verbose,
+                interactive=False,
+                **setup_databases_args,
+            )
+
+.venv/lib/python3.13/site-packages/pytest_django/fixtures.py:144:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.13/site-packages/django/test/utils.py:204: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.13/site-packages/django/db/backends/base/creation.py:78: in create_test_db
+    call_command(
+.venv/lib/python3.13/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+.venv/lib/python3.13/site-packages/django/core/management/base.py:460: in execute
+    output = self.handle(*args, **options)
+.venv/lib/python3.13/site-packages/django/core/management/base.py:107: in wrapper
+    res = handle_func(*args, **kwargs)
+.venv/lib/python3.13/site-packages/django/core/management/commands/migrate.py:114: in handle
+    executor = MigrationExecutor(connection, self.migration_progress_callback)
+.venv/lib/python3.13/site-packages/django/db/migrations/executor.py:18: in __init__
+    self.loader = MigrationLoader(self.connection)
+.venv/lib/python3.13/site-packages/django/db/migrations/loader.py:58: in __init__
+    self.build_graph()
+.venv/lib/python3.13/site-packages/django/db/migrations/loader.py:229: in build_graph
+    self.load_disk()
+.venv/lib/python3.13/site-packages/django/db/migrations/loader.py:120: in load_disk
+    migration_module = import_module(migration_path)
+/opt/homebrew/Cellar/python@3.13/3.13.7/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from django.db import migrations
+>   from django.contrib.gis.db.models.indexes import GiSTIndex
+E   ModuleNotFoundError: No module named 'django.contrib.gis.db.models.indexes'
+
+temples/migrations/0025_enable_postgis_and_add_location.py:2: ModuleNotFoundError
+---------------------------- Captured stderr setup -----------------------------
+Creating test database for alias 'default'...
+=========================== short test summary info ============================
+ERROR temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 1 skipped, 1 error in 0.29s ==========================

@@ -1,0 +1,47 @@
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
+ARG INSTALL_DEV=0  # ← 使う前に宣言
+
+WORKDIR /app
+
+# APT（リトライ付き）
+RUN set -eux; \
+    apt-get update -o Acquire::Retries=5 -o Acquire::http::No-Cache=true; \
+    apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg \
+    build-essential \
+    libpq-dev \
+    gdal-bin \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    proj-data \
+    postgresql-client; \
+    rm -rf /var/lib/apt/lists/*
+
+# OS の GDAL に合わせた Python GDAL
+RUN set -eux; \
+    GDAL_VER="$(gdal-config --version)"; \
+    python -m pip install --upgrade pip; \
+    python -m pip install "GDAL==${GDAL_VER}.*"
+
+# 共有データディレクトリだけ明示
+ENV GDAL_DATA=/usr/share/gdal \
+    PROJ_LIB=/usr/share/proj
+
+# Python 依存（prod + optional dev）※ 重複ブロックを統合
+COPY requirements.txt /app/requirements.txt
+COPY requirements-dev.txt /app/requirements-dev.txt
+RUN python -m pip install -r /app/requirements.txt && \
+    if [ "$INSTALL_DEV" = "1" ]; then \
+    python -m pip install -r /app/requirements-dev.txt ; \
+    fi
+
+# アプリ本体
+COPY . /app
+
+EXPOSE 8000
+CMD sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"

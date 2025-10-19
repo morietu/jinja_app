@@ -1,0 +1,106 @@
+name: CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [develop, main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: jinja_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: jdb50515
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d jinja_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 60
+          --health-start-period 60s
+
+    env:
+      CI: "true"
+      DJANGO_SETTINGS_MODULE: shrine_project.settings
+      USE_GIS: "1"
+      USE_LLM_CONCIERGE: "0"
+      AUTO_GEOCODE_ON_SAVE: "0"
+      DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
+      DJANGO_SECRET_KEY: ci-only-secret
+      GOOGLE_MAPS_API_KEY: "dummy"
+      GOOGLE_PLACES_API_KEY: "dummy"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      ROUTE_PROVIDER: "dummy"
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system deps (GDAL/GEOS + pg client)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          python - <<'PY'
+          import pkgutil, sys
+          sys.exit(0 if pkgutil.find_loader("drf_spectacular") else 1)
+          PY
+        continue-on-error: true
+
+      - name: Ensure drf-spectacular (fallback)
+        if: failure()
+        run: pip install drf-spectacular
+
+      - name: Wait for DB (defensive)
+        run: |
+          for i in {1..90}; do
+            pg_isready -h localhost -p 5432 -U admin -d jinja_db && break
+            echo "⏳ waiting for Postgres... ($i/90)"
+            sleep 2
+          done
+          pg_isready -h localhost -p 5432 -U admin -d jinja_db
+
+      # Makefile はリポジトリルートにあるため、作業ディレクトリを一時的に上書き
+      - name: Run tests via Makefile (repo root)
+        working-directory: .
+        run: make test
+
+      - name: Show DB container logs (always)
+        if: always()
+        run: |
+          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}} {{.Status}}'
+          CID="$(docker ps -a --filter 'ancestor=postgis/postgis:16-3.4' --format '{{.ID}}' | head -n1)"
+          if [ -n "$CID" ]; then
+            echo "==== docker inspect (health) ===="
+            docker inspect "$CID" --format '{{json .State.Health}}' | jq . || true
+            echo "==== docker logs $CID ===="
+            docker logs "$CID" || true
+          else
+            echo "No postgis container found"
+          fi

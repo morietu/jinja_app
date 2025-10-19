@@ -1,0 +1,24 @@
+Django==5.2.5
+djangorestframework==3.16.1
+django-filter==24.3
+django-cors-headers==4.7.0
+django-redis>=5.4.0
+dj-database-url==3.0.1
+django-environ==0.12.0
+gunicorn==23.0.0
+whitenoise==6.9.0
+psycopg[binary]==3.2.9
+Pillow==11.3.0
+python-dotenv==1.1.1
+# djangorestframework-simplejwt 5.3+ は DRF 3.16 系でOK
+djangorestframework_simplejwt==5.5.1
+requests>=2.31.0
+# httpx は 0.27 系で固定（0.28 での破壊変更を避ける）
+httpx>=0.27.0,<0.28.0
+openai==1.40.*
+mypy
+django-stubs
+# depgraph refresh
+django-environ==0.12.0
+django-environ==0.12.0
+pyyaml>=6.0.2

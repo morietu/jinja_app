@@ -1,0 +1,80 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db   # ← これ
+    container_name: jinja_app-db-1
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jinja_db}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jdb50515}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./.docker/db/data:/var/lib/postgresql/data
+      - ./.docker/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-jinja_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.web
+    container_name: shrine_web
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      # --- DB接続（DATABASE_URLを使わない方針） ---
+      USE_GIS: "1"
+      DATABASE_URL: postgis://admin:jdb50515@db:5432/jinja_db
+      # DB_HOST: db
+      # DB_NAME: jinja_db
+      # DB_USER: admin
+      # DB_PASSWORD: jdb50515
+      # --- ロケール/GEOS/GDAL ---
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "UTF-8"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      # ARMではライブラリパス直指定は不要。データ定義だけ残す
+      GDAL_DATA: /usr/share/gdal
+      PROJ_LIB: /usr/share/proj
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    container_name: shrine_frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - web
+
+  redis:
+    image: redis:7-alpine
+    platform: linux/arm64/v8  # ← multi-arch対応なので基本不要
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

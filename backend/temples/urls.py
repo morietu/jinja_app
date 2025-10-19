@@ -1,0 +1,48 @@
+# /app/temples/urls.py
+from django.http import Http404
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+from temples.api.views.route import RouteView
+from temples.api.views.search import (
+    search,
+)
+
+from .api_views import FavoriteViewSet, ShrineNearbyView
+from .api_views_concierge import ConciergeChatView, ConciergePlanView
+from .api_views_places import (
+    PlaceDetailView,
+    PlacesNearbySearchView,
+    PlacesSearchView,
+    PlacesTextSearchView,
+    place_photo,
+)
+from .views import PopularShrinesView, shrine_list, shrine_route  # ← shrine_detail は importしない
+
+
+# ★ ここで“常に404”を返すビューを定義
+def _blocked_shrine_detail(request, pk: int):
+    raise Http404()
+
+
+app_name = "temples"
+
+router = DefaultRouter()
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
+
+urlpatterns = [
+    path("shrines/popular/", PopularShrinesView.as_view(), name="popular-shrines"),
+    path("shrines/", shrine_list, name="shrine_list"),
+    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),  # ← これで固定
+    path("shrines/<int:pk>/route/", shrine_route, name="shrine_route"),
+    path("search/", search, name="search"),
+    path("shrines/nearby", ShrineNearbyView.as_view(), name="shrines-nearby"),
+    path("", include(router.urls)),
+    path("places/search/", PlacesSearchView.as_view(), name="places_search"),
+    path("places/text_search/", PlacesTextSearchView.as_view(), name="places_text_search"),
+    path("places/nearby_search/", PlacesNearbySearchView.as_view(), name="places_nearby_search"),
+    path("places/photo/", place_photo, name="places_photo"),
+    path("places/<str:place_id>/", PlaceDetailView.as_view(), name="place-detail"),
+    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge_chat"),
+    path("concierge/plan/", ConciergePlanView.as_view(), name="concierge_plan"),
+    path("route/", RouteView.as_view(), name="route"),
+]

@@ -1,18 +1,93 @@
 
-
-.venv/
-db.sqlite3
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-.env
-.DS_Store
-NUL
-__pycache__/
+!.coveragerc
+!.env.example
+# ===== Build / Archives =====
+# ===== Docker (local db data) =====
+# ===== Expo (shrine-app) =====
+# ===== Local scratch =====
+# ===== Logs / Media / Static =====
+# ===== Node / Frontend =====
+# ===== OS / Editor =====
+# ===== Python / Django =====
+# ===== 環境ファイル =====
+# Coverage report
+# Editor backups
+# Next.js / Turbo / Parcel (使っていれば)
+# SQLite journal
+# Test / coverage
+# allow coverage config
+# generated
+# local DB backups
+# pyenv / direnv
+# test artifacts
+# 本番に不要なローカルDBデータ＆バックアップは無視
+*.bak
+*.egg
+*.egg-info/
+*.orig
 *.py[cod]
-.venv/
+*.pyd
+*.pyo
+*.sqlite3
+*.sqlite3-journal
+*.swp
+*.tar.gz
+.DS_Store
+.coverage
+.coverage*
+.docker/db/**/pg_*  # 内部生成物まとめて無視
+.docker/db/**/pg_wal/
+.docker/db/**/postmaster*.pid
+.docker/db/*.sql
+.docker/db/data.backup*/
+.docker/db/data/
 .env
+.env.*
+.env.local
+.env.pytest.local
+.envrc
+.idea/
+.mypy_cache/
+.next/
+.parcel-cache/
+.pytest_cache/
+.python-version
+.ruff_cache/
+.tox/
+.turbo/
+.venv/
+.vscode/
+/shrine-app/.expo-shared/
+/shrine-app/.expo/
+/shrine-app/android/
+/shrine-app/ios/
+Dockerfile.db
+__pycache__/
+api_routes.txt
+api_schema.json
+api_schema.yaml
+apps/**/node_modules/
+backend/.env
+backend/.env.*
+backend/logs/
+backend/media/
+backend/test_jinja_db*
+backup.sql
+build/
+c.txt
+cookies.txt
+cov_html/
+coverage.xml
 db.sqlite3
+dist/
+htmlcov/
+node_modules/
+out/
+runserver*.log
 staticfiles/
+venv/
+
+# coverage artifacts
+coverage-html/
+htmlcov/
+coverage.xml

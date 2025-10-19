@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Shrine Route</title>
+</head>
+
+<body>
+  <div id="map" style="width:100%;height:300px"></div>
+
+  {% with KEY=MAPS_API_KEY|default:"test-key" %}
+  <script>
+    function initMap() {
+      var el = document.getElementById('map');
+      if (el) el.textContent = 'Map loaded';
+    }
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key={{ KEY }}&callback=initMap" async defer></script>
+  {% endwith %}
+</body>
+
+</html>

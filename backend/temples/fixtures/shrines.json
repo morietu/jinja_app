@@ -1,0 +1,34 @@
+[
+  {
+    "model": "temples.shrine",
+    "pk": 1,
+    "fields": {
+      "name_jp": "明治神宮",
+      "name_romaji": "Meiji Jingu",
+      "address": "東京都渋谷区代々木神園町1-1",
+      "latitude": 35.6764,
+      "longitude": 139.6993,
+      "goriyaku": "縁結び・厄除け・交通安全",
+      "sajin": "明治天皇・昭憲皇太后",
+      "goriyaku_tags": [1, 10, 11],
+      "created_at": "2025-08-23T09:00:00Z",
+      "updated_at": "2025-08-23T09:00:00Z"
+    }
+  },
+  {
+    "model": "temples.shrine",
+    "pk": 2,
+    "fields": {
+      "name_jp": "伏見稲荷大社",
+      "name_romaji": "Fushimi Inari Taisha",
+      "address": "京都府京都市伏見区深草藪之内町68",
+      "latitude": 34.9671,
+      "longitude": 135.7727,
+      "goriyaku": "商売繁盛・五穀豊穣",
+      "sajin": "宇迦之御魂大神",
+      "goriyaku_tags": [5, 13],
+      "created_at": "2025-08-23T09:00:00Z",
+      "updated_at": "2025-08-23T09:00:00Z"
+    }
+  }
+]
