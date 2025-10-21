@@ -5,7 +5,11 @@ from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path
 from drf_spectacular.utils import OpenApiTypes, extend_schema
-from drf_spectacular.views import SpectacularJSONAPIView
+from drf_spectacular.views import (
+    SpectacularJSONAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import (
     api_view,
@@ -90,8 +94,19 @@ urlpatterns = [
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
+    # ==== スキーマ & ドキュメント ====
+    path("api/schema/", SpectacularJSONAPIView.as_view(api_version="v1"), name="schema"),
+    path(
+        "api/schema/swagger-ui/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path(
+        "api/schema/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
     # OpenAPI (JSON)
-    path("schema/", SpectacularJSONAPIView.as_view(), name="schema"),
     # debug (lambda を関数に置換)
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),

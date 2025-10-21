@@ -7,6 +7,11 @@ from django.contrib.gis.geos import Point
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+)
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
@@ -27,7 +32,10 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     throttle_scope = "shrines"
 
     def get_serializer_class(self):
-        return ShrineListSerializer if self.action == "list" else ShrineDetailSerializer
+        # list と nearest はリスト用
+        if getattr(self, "action", None) in {"list", "nearest"}:
+            return ShrineListSerializer
+        return ShrineDetailSerializer
 
     def get_queryset(self):
         qs = self.queryset
@@ -102,6 +110,27 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(
         detail=False, methods=["get"], url_path="nearest", permission_classes=[permissions.AllowAny]
+    )
+    @extend_schema(
+        operation_id="shrines_nearest_list",
+        summary="Nearest shrines",
+        description="lat,lng と任意の q から距離順で神社を返す（配列）。",
+        tags=["shrines"],
+        parameters=[
+            OpenApiParameter(
+                name="lat", type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, required=True
+            ),
+            OpenApiParameter(
+                name="lng", type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, required=True
+            ),
+            OpenApiParameter(
+                name="q", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                name="limit", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False
+            ),
+        ],
+        responses={200: ShrineListSerializer(many=True)},  # ← 配列を明示
     )
     def nearest(self, request):
         params = request.query_params
