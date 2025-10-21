@@ -94,15 +94,15 @@ urlpatterns = [
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
-    # ==== スキーマ & ドキュメント ====
-    path("api/schema/", SpectacularJSONAPIView.as_view(api_version="v1"), name="schema"),
+    # ==== スキーマ & ドキュメント（/schema 配下に統一）====
+    path("schema/", SpectacularJSONAPIView.as_view(), name="schema"),  # ← ここをJSONに
     path(
-        "api/schema/swagger-ui/",
+        "schema/swagger-ui/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
     path(
-        "api/schema/redoc/",
+        "schema/redoc/",
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
