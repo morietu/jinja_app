@@ -1,4 +1,7 @@
 # backend/temples/api/views/route.py
+import os
+
+import requests
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import models
@@ -12,9 +15,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.models import Shrine
 from temples.route_service import Point, build_route
-from temples.serializers.routes import RouteRequestSerializer, RouteResponseSerializer
+from temples.serializers.routes import (
+    RouteRequestSerializer,
+    RouteResponseSerializer,
+)
 
 UserModel = get_user_model()
+
+# .env(.local) で OSRM_BASE_URL を上書き（例: http://127.0.0.1:5001）
+OSRM_BASE = os.getenv("OSRM_BASE_URL", "http://127.0.0.1:5000")
 
 
 def _has_owner_schema(shrine: Shrine) -> bool:
@@ -60,11 +69,88 @@ def _is_owner(user, shrine: Shrine) -> bool:
 
 
 class RouteAPIView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "routes"
+
     @extend_schema(
-        summary="Compute route",
+        summary="Compute route (OSRM)",
+        description=(
+            "OSRMで2点間のルートを返す。"
+            "distance(m) / duration(s) / geometry(GeoJSON LineString)。"
+        ),
+        tags=["routes"],
+        parameters=[
+            OpenApiParameter("from_lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("from_lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("to_lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("to_lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter(
+                "mode",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=False,
+                description="driving|car（car.luaのみならdriving固定でも可）",
+            ),
+        ],
+        responses={200: RouteResponseSerializer},
+    )
+    def get(self, request):
+        try:
+            lat1 = float(request.GET.get("from_lat"))
+            lng1 = float(request.GET.get("from_lng"))
+            lat2 = float(request.GET.get("to_lat"))
+            lng2 = float(request.GET.get("to_lng"))
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "from_lat/from_lng/to_lat/to_lng are required floats."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not (
+            -90 <= lat1 <= 90 and -180 <= lng1 <= 180 and -90 <= lat2 <= 90 and -180 <= lng2 <= 180
+        ):
+            return Response(
+                {"detail": "coordinates out of range."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile = (request.GET.get("mode") or "driving").lower()
+        if profile not in {"driving", "car"}:
+            profile = "driving"
+
+        url = f"{OSRM_BASE}/route/v1/{profile}/{lng1},{lat1};{lng2},{lat2}"
+        params = {"overview": "full", "geometries": "geojson"}
+        try:
+            r = requests.get(url, params=params, timeout=6)
+            data = r.json()
+        except Exception as e:
+            return Response(
+                {"detail": f"OSRM error: {e}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if not data or data.get("code") != "Ok" or not data.get("routes"):
+            return Response(
+                {"detail": "No route found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        route = data["routes"][0]
+        return Response(
+            {
+                "distance_m": route["distance"],
+                "duration_s": route["duration"],
+                "geometry": route["geometry"],  # GeoJSON LineString
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        summary="Compute multi-stop route",
+        description="（内部サービス）複数目的地向け。",
+        tags=["routes"],
         request=RouteRequestSerializer,
         responses={200: RouteResponseSerializer},
-        tags=["routes"],
     )
     def post(self, request):
         ser = RouteRequestSerializer(data=request.data)
