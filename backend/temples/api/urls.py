@@ -1,10 +1,11 @@
 # backend/temples/api/urls.py
 from django.http import Http404, HttpResponsePermanentRedirect
 from django.urls import include, path
+from drf_spectacular.utils import extend_schema  # 追記：schema制御に使用
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
-from temples.api.views.route import RouteAPIView, RouteView, route_legacy
+from temples.api.views.route import RouteAPIView, RouteView
 
 try:
     # route_health が無い環境があるため、あれば使う/無ければフォールバック
@@ -99,15 +100,24 @@ urlpatterns = [
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     # ---- Popular（複数形に） ------------------------------------------------
-    path("populars/", RankingAPIView.as_view(), name="populars"),
+    # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
+    path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
     path("concierges/chats/", concierge.chat, name="concierge-chat"),
     path("concierges/plans/", concierge.plan, name="concierge-plan"),
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Concierge（単数形: 互換・当面は直結推奨） -----------------------
-    path("concierge/chat/", concierge.chat, name="concierge-chat-legacy"),
+    # chat: 単数形エンドポイントはOpenAPIスタイル違反になるため schema exclude
+    path(
+        "concierge/chat/", extend_schema(exclude=True)(concierge.chat), name="concierge-chat-legacy"
+    ),
     path("concierge/plan/", concierge.plan, name="concierge-plan-legacy"),
-    path("concierge/history/", ConciergeHistoryView.as_view(), name="concierge-history-legacy"),
+    # history: 同様に schema exclude（Viewを as_view したものにデコレータ適用）
+    path(
+        "concierge/history/",
+        extend_schema(exclude=True)(ConciergeHistoryView.as_view()),
+        name="concierge-history-legacy",
+    ),
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
@@ -124,8 +134,8 @@ urlpatterns = [
     # --- Geocode (単数形: レガシー。schema から除外されるハンドラに接続) ---
     path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
     path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
-    # --- Route (単数形: レガシー。schema から除外) ---
-    path("route/", route_legacy, name="route-legacy"),
+    # --- Route (単数形: レガシー) --- スタイル上は除外しつつ、POSTをRouteAPIViewへ
+    path("route/", extend_schema(exclude=True)(RouteAPIView.as_view()), name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
     path("", include(router.urls)),
 ]
