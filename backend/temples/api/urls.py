@@ -108,7 +108,11 @@ urlpatterns = [
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Concierge（単数形: 互換・当面は直結推奨） -----------------------
     # chat: 単数形エンドポイントはOpenAPIスタイル違反になるため schema exclude
-    path("concierge/chat/", concierge.chat, name="concierge-chat-legacy"),
+    path(
+        "concierge/chat/",
+        extend_schema(exclude=True)(concierge.chat),
+        name="concierge-chat-legacy",
+    ),
     path("concierge/plan/", concierge.plan, name="concierge-plan-legacy"),
     # history: 同様に schema exclude（Viewを as_view したものにデコレータ適用）
     path(
