@@ -4,7 +4,18 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
-from temples.api.views.route import RouteAPIView, RouteView, route_health, route_legacy
+from temples.api.views.route import RouteAPIView, RouteView, route_legacy
+
+try:
+    # route_health が無い環境があるため、あれば使う/無ければフォールバック
+    from temples.api.views.route import route_health  # type: ignore
+except ImportError:
+    from django.http import JsonResponse
+
+    def route_health(request):
+        return JsonResponse({"status": "ok", "service": "route"})
+
+
 from temples.api.views.search import (
     detail,
     detail_query,
@@ -88,7 +99,7 @@ urlpatterns = [
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     # ---- Popular（複数形に） ------------------------------------------------
-    path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
+    path("populars/", RankingAPIView.as_view(), name="populars"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
     path("concierges/chats/", concierge.chat, name="concierge-chat"),
     path("concierges/plans/", concierge.plan, name="concierge-plan"),
@@ -116,6 +127,5 @@ urlpatterns = [
     # --- Route (単数形: レガシー。schema から除外) ---
     path("route/", route_legacy, name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
-    path("populars/", RankingAPIView.as_view(), name="populars"),
     path("", include(router.urls)),
 ]
