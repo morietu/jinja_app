@@ -70,7 +70,8 @@ if not SECRET_KEY:
 DEBUG = env.bool("DEBUG", default=True)
 
 # --- LLM flags ---
-USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
+# USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
+USE_LLM_CONCIERGE = False
 LLM_MODEL = env.str("LLM_MODEL")
 LLM_PROVIDER = env.str("LLM_PROVIDER")
 LLM_TIMEOUT_MS = env.int("LLM_TIMEOUT_MS")
@@ -253,6 +254,7 @@ REST_FRAMEWORK = {
         "route": "20/min",
         "geocode": "30/min",
         "favorites": "30/min",
+        "routes": "60/min",
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

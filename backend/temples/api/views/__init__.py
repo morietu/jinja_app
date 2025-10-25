@@ -1,3 +1,8 @@
 # backend/temples/api/views/__init__.py
-# ⚠️ ここでサブモジュールをimportしない（副作用回避）
-__all__: list[str] = []
+from .concierge import ConciergeChatView
+
+# 既存URLの互換参照（関数ビューとして公開）
+chat = ConciergeChatView.as_view()
+chat_legacy = chat
+
+__all__ = ["chat", "chat_legacy"]
