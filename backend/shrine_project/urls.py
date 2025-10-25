@@ -1,4 +1,4 @@
-# backend/shrine_project/urls.py
+# backend/shrine_project/urls.py（抜粋・最終形）
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -11,48 +11,32 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.decorators import (
-    api_view,
-    authentication_classes,
-    permission_classes,
-)
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from temples import api_views_concierge as concierge
-from temples.api_views_concierge import (
-    ConciergeChatViewLegacy,
-    ConciergePlanViewLegacy,
-)
 
 from .views import favicon, index
 
 
-# ---- ここから lambda をやめて関数ビュー化 ----
-@extend_schema(
-    summary="Health check",
-    responses={200: OpenApiTypes.OBJECT},
-    tags=["misc"],
-)
+# ---- util/debug ----
+@extend_schema(summary="Health check", responses={200: OpenApiTypes.OBJECT}, tags=["misc"])
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def healthz(request):
     return JsonResponse({"ok": True})
 
 
-@extend_schema(exclude=True)  # スキーマに載せない場合は exclude
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def robots_txt(request):
     return HttpResponse("User-agent: *\nDisallow:", content_type="text/plain")
 
 
-@extend_schema(exclude=True)  # デバッグ用は除外でOK
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def whoami(request):
@@ -65,7 +49,7 @@ def whoami(request):
     )
 
 
-@extend_schema(exclude=True)  # こちらもデバッグ用
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([AllowAny])
@@ -80,7 +64,7 @@ def whoami_jwt(request):
     )
 
 
-# ---- レガシー concierge を OpenAPI から除外する薄いラッパー（ここから） ----
+# ---- レガシー concierge: スキーマから除外する薄い関数ラッパ ----
 @extend_schema(exclude=True)
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -95,42 +79,26 @@ def concierge_chat_legacy_excluded(request, *args, **kwargs):
     return concierge.chat_legacy(request, *args, **kwargs)
 
 
-# ---- レガシー concierge を OpenAPI から除外する薄いラッパー（ここまで） ----
-
-# ---- ここまで ----
-
-
 urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
     path("admin/", admin.site.urls),
-    # API ルート
+    # API ルート（既存の include はそのまま）
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-    # レガシーはスキーマから除外
-    # ---- レガシー concierge は薄い関数で exclude する ----
-    # plan
-    path("api/concierge/plan/", ConciergePlanViewLegacy.as_view(), name="concierge-plan"),
-    path("api/concierge/chat/", ConciergeChatViewLegacy.as_view(), name="concierge-chat"),
+    # レガシー concierge（URLは据え置き、スキーマからは除外）
+    path("api/concierge/plan/", concierge_plan_legacy_excluded, name="concierge-plan"),
+    path("api/concierge/chat/", concierge_chat_legacy_excluded, name="concierge-chat"),
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
-    # ==== スキーマ & ドキュメント（/schema 配下に統一）====
-    path("schema/", SpectacularJSONAPIView.as_view(), name="schema"),  # ← ここをJSONに
-    path(
-        "schema/swagger-ui/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger-ui",
-    ),
-    path(
-        "schema/redoc/",
-        SpectacularRedocView.as_view(url_name="schema"),
-        name="redoc",
-    ),
-    # OpenAPI (JSON)
-    # debug (lambda を関数に置換)
+    # ==== OpenAPI スキーマ/ドキュメント（既存の /api/schema を維持）====
+    path("api/schema/", SpectacularJSONAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # debug
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
     # misc

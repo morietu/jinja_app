@@ -70,7 +70,8 @@ if not SECRET_KEY:
 DEBUG = env.bool("DEBUG", default=True)
 
 # --- LLM flags ---
-USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
+# USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
+USE_LLM_CONCIERGE = False
 LLM_MODEL = env.str("LLM_MODEL")
 LLM_PROVIDER = env.str("LLM_PROVIDER")
 LLM_TIMEOUT_MS = env.int("LLM_TIMEOUT_MS")
