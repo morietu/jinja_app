@@ -25,6 +25,10 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 from temples import api_views_concierge as concierge
+from temples.api_views_concierge import (
+    ConciergeChatViewLegacy,
+    ConciergePlanViewLegacy,
+)
 
 from .views import favicon, index
 
@@ -76,6 +80,23 @@ def whoami_jwt(request):
     )
 
 
+# ---- レガシー concierge を OpenAPI から除外する薄いラッパー（ここから） ----
+@extend_schema(exclude=True)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def concierge_plan_legacy_excluded(request, *args, **kwargs):
+    return concierge.plan_legacy(request, *args, **kwargs)
+
+
+@extend_schema(exclude=True)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def concierge_chat_legacy_excluded(request, *args, **kwargs):
+    return concierge.chat_legacy(request, *args, **kwargs)
+
+
+# ---- レガシー concierge を OpenAPI から除外する薄いラッパー（ここまで） ----
+
 # ---- ここまで ----
 
 
@@ -87,9 +108,11 @@ urlpatterns = [
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-    # concierge
-    path("api/concierge/plan/", concierge.plan_legacy, name="concierge-plan"),
-    path("api/concierge/chat/", concierge.chat_legacy, name="concierge-chat"),  # ← 追加
+    # レガシーはスキーマから除外
+    # ---- レガシー concierge は薄い関数で exclude する ----
+    # plan
+    path("api/concierge/plan/", ConciergePlanViewLegacy.as_view(), name="concierge-plan"),
+    path("api/concierge/chat/", ConciergeChatViewLegacy.as_view(), name="concierge-chat"),
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),

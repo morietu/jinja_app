@@ -253,6 +253,7 @@ REST_FRAMEWORK = {
         "route": "20/min",
         "geocode": "30/min",
         "favorites": "30/min",
+        "routes": "60/min",
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

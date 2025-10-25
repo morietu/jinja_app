@@ -107,19 +107,7 @@ urlpatterns = [
     path("concierges/plans/", concierge.plan, name="concierge-plan"),
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Concierge（単数形: 互換・当面は直結推奨） -----------------------
-    # chat: 単数形エンドポイントはOpenAPIスタイル違反になるため schema exclude
-    path(
-        "concierge/chat/",
-        extend_schema(exclude=True)(concierge.chat),
-        name="concierge-chat-legacy",
-    ),
-    path("concierge/plan/", concierge.plan, name="concierge-plan-legacy"),
-    # history: 同様に schema exclude（Viewを as_view したものにデコレータ適用）
-    path(
-        "concierge/history/",
-        ConciergeHistoryView.as_view(),
-        name="concierge-history-legacy",
-    ),
+    # OpenAPI から除外したいので CBV 直指定（ConciergeChatView.schema = None 済）
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
