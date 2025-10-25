@@ -176,7 +176,16 @@ class OSRMAdapter(BaseRouteAdapter):
 
 # ---- Adapter選択（環境変数） ----
 def get_adapter() -> Tuple[str, BaseRouteAdapter]:
-    provider = (getenv("ROUTE_PROVIDER") or "dummy").lower()
+    # 1) pytest 中は常に dummy（外部アクセス禁止）
+    if getattr(settings, "IS_PYTEST", False):
+        provider = "dummy"
+    else:
+        # 2) settings を最優先、無ければ環境変数、最後に既定
+        provider = getattr(settings, "ROUTE_PROVIDER", None)
+        if provider:
+            provider = provider.lower()
+        else:
+            provider = (getenv("ROUTE_PROVIDER") or "dummy").lower()
     if provider == "ors":
         key = getenv("ORS_KEY", "")
         base = getenv("ORS_BASE", "https://api.openrouteservice.org")
