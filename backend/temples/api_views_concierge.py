@@ -2,7 +2,6 @@
 import logging
 import os
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -24,30 +23,6 @@ from temples.llm.orchestrator import ConciergeOrchestrator
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
-
-p = Path("temples/api_views_concierge.py")
-s = p.read_text()
-
-pat = re.compile(r"^(\s*)center\s*=\s*bf\._geocode_text_center\(area_text\)\s*$", re.M)
-
-
-def repl(m):
-    ind = m.group(1)
-    return (
-        f'{ind}if os.getenv("DISABLE_EXTERNAL_APIS") == "1":\n'
-        f"{ind}    center = None\n"
-        f"{ind}else:\n"
-        f"{ind}    center = bf._geocode_text_center(area_text)"
-    )
-
-
-new, n = pat.subn(repl, s)
-if n == 0:
-    print("⚠️ 置換対象が見つかりませんでした（既にガード済みの可能性）。")
-else:
-    p.write_text(new)
-    print(f"✅ 置換完了: {n} 箇所")
-
 
 llm = get_llm_adapter(
     provider=settings.LLM_PROVIDER,
