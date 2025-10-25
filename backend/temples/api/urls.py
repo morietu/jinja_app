@@ -1,7 +1,7 @@
 # backend/temples/api/urls.py
 from django.http import Http404, HttpResponsePermanentRedirect
 from django.urls import include, path
-from drf_spectacular.utils import extend_schema  # 追記：schema制御に使用
+from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
@@ -108,14 +108,12 @@ urlpatterns = [
     path("concierges/histories/", ConciergeHistoryView.as_view(), name="concierge-history"),
     # ---- Concierge（単数形: 互換・当面は直結推奨） -----------------------
     # chat: 単数形エンドポイントはOpenAPIスタイル違反になるため schema exclude
-    path(
-        "concierge/chat/", extend_schema(exclude=True)(concierge.chat), name="concierge-chat-legacy"
-    ),
+    path("concierge/chat/", concierge.chat, name="concierge-chat-legacy"),
     path("concierge/plan/", concierge.plan, name="concierge-plan-legacy"),
     # history: 同様に schema exclude（Viewを as_view したものにデコレータ適用）
     path(
         "concierge/history/",
-        extend_schema(exclude=True)(ConciergeHistoryView.as_view()),
+        ConciergeHistoryView.as_view(),
         name="concierge-history-legacy",
     ),
     # ---- Places（kebab-case & {id} 統一） -----------------------------------

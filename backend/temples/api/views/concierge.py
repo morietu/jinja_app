@@ -26,6 +26,8 @@ from temples.models import ConciergeHistory, GoriyakuTag, Shrine
 
 
 class ConciergeChatView(APIView):
+    # drf-spectacular: このビューはスキーマ対象外にする
+    schema = None
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # CSRF回避のためセッション認証を外す
     throttle_scope = "concierge"
