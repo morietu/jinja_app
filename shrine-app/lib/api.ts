@@ -80,17 +80,18 @@ export type ConciergePlanResponse = {
 // ---- API ----
 export const api = {
   // /api/shrines/popular/?limit=..&near=lat,lng&radius_km=..&format=json
+
   popular(limit = 10, near?: { lat: number; lng: number; radius_km: number }) {
     const params: Record<string, string> = {
-      format: "json",
       limit: String(Math.max(1, Math.min(50, limit))),
     };
     if (near) {
       params.near = `${near.lat},${near.lng}`;
       params.radius_km = String(near.radius_km);
     }
-    return j<Shrine[]>(url("/shrines/popular/", params));
+    return j<{ items: Shrine[] }>(url("/populars/", params)).then((res) => res.items);
   },
+
 
   // /api/shrines/:id/?format=json
   shrine(id: number | string) {

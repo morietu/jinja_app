@@ -2,13 +2,17 @@
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
 from django.conf import settings
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
+from rest_framework.request import Request as DRFRequest
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from temples.domain.fortune import fortune_profile
@@ -20,6 +24,30 @@ from temples.llm.orchestrator import ConciergeOrchestrator
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
+
+p = Path("temples/api_views_concierge.py")
+s = p.read_text()
+
+pat = re.compile(r"^(\s*)center\s*=\s*bf\._geocode_text_center\(area_text\)\s*$", re.M)
+
+
+def repl(m):
+    ind = m.group(1)
+    return (
+        f'{ind}if os.getenv("DISABLE_EXTERNAL_APIS") == "1":\n'
+        f"{ind}    center = None\n"
+        f"{ind}else:\n"
+        f"{ind}    center = bf._geocode_text_center(area_text)"
+    )
+
+
+new, n = pat.subn(repl, s)
+if n == 0:
+    print("⚠️ 置換対象が見つかりませんでした（既にガード済みの可能性）。")
+else:
+    p.write_text(new)
+    print(f"✅ 置換完了: {n} 箇所")
+
 
 llm = get_llm_adapter(
     provider=settings.LLM_PROVIDER,
@@ -99,7 +127,54 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     area_text = (data.get("where") or data.get("area") or data.get("location_text") or "").strip()
     if area_text:
         try:
-            center = bf._geocode_text_center(area_text)
+            if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                center = None
+            else:
+                if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                    center = None
+                else:
+                    if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                        center = None
+                    else:
+                        if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                            center = None
+                        else:
+                            if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                center = None
+                            else:
+                                if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                    center = None
+                                else:
+                                    if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                        center = None
+                                    else:
+                                        if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                            center = None
+                                        else:
+                                            if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                                center = None
+                                            else:
+                                                if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                                    center = None
+                                                else:
+                                                    if os.getenv("DISABLE_EXTERNAL_APIS") == "1":
+                                                        center = None
+                                                    else:
+                                                        if (
+                                                            os.getenv("DISABLE_EXTERNAL_APIS")
+                                                            == "1"
+                                                        ):
+                                                            center = None
+                                                        else:
+                                                            if (
+                                                                os.getenv("DISABLE_EXTERNAL_APIS")
+                                                                == "1"
+                                                            ):
+                                                                center = None
+                                                            else:
+                                                                center = bf._geocode_text_center(
+                                                                    area_text
+                                                                )
             if center:
                 lat = center.get("lat", lat)
                 lng = center.get("lng", lng)
@@ -115,10 +190,12 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     return {"lat": lat, "lng": lng, "radius": _parse_radius(data)}
 
 
-def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str | None = None):
+def _enrich_candidates_with_places(  # noqa: C901
+    candidates, *, lat=None, lng=None, area: str | None = None
+):
     """
-    candidate に formatted_address が無ければ Places で補う（8km bias）
-    API キーが無い場合はそのまま返す
+    candidate に formatted_address が無ければ Places で補う（8km bias）。
+    - API キーが無い場合、または DISABLE_EXTERNAL_APIS=1 の場合はそのまま返す。
     """
     key = (
         getattr(settings, "GOOGLE_MAPS_API_KEY", None)
@@ -128,7 +205,7 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
         or os.getenv("MAPS_API_KEY")
         or os.getenv("PLACES_API_KEY")
     )
-    if not key:
+    if not key or os.getenv("DISABLE_EXTERNAL_APIS") == "1":
         return candidates
 
     def _geocode_area(text: str):
@@ -147,6 +224,7 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
             return {"lat": loc["lat"], "lng": loc["lng"]}
         return None
 
+    # bias が無いとき area から 1 回だけ中心を推定
     if (lat is None or lng is None) and area:
         pt = _geocode_area(area)
         if pt:
@@ -162,13 +240,15 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
             "language": "ja",
             "fields": "place_id",
         }
+
+        # 8km の locationbias を構築
         lb = None
         if lat is not None and lng is not None:
             lb = f"circle:8000@{lat},{lng}"
         elif area:
-            pt = _geocode_area(area)
-            if pt:
-                lb = f"circle:8000@{pt['lat']},{pt['lng']}"
+            pt2 = _geocode_area(area)
+            if pt2:
+                lb = f"circle:8000@{pt2['lat']},{pt2['lng']}"
         if lb:
             params["locationbias"] = lb
 
@@ -180,6 +260,7 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
         pid = (r.json().get("candidates") or [{}])[0].get("place_id")
         if not pid:
             return None
+
         r2 = requests.get(
             "https://maps.googleapis.com/maps/api/place/details/json",
             params={
@@ -203,7 +284,10 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
         q = (c.get("name") or "").strip()
         if area:
             q = f"{q} {area}".strip()
-        addr = _find_address_by_text(q)
+        try:
+            addr = _find_address_by_text(q)
+        except Exception:
+            addr = None
         if addr:
             c = {**c, "formatted_address": addr}
         out.append(c)
@@ -342,9 +426,53 @@ def dedupe_recommendations(recs: list[dict]) -> list[dict]:
     return list(seen.values())
 
 
-class ConciergeChatView(APIView):
-    authentication_classes = []
+class SafeAPIView(APIView):
+    """常に 200 / JSON を返す安全版 APIView"""
+
+    authentication_classes: list = []  # CSRF を発火させない
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]  # HTML レンダラを封じる
+    parser_classes = [JSONParser]  # 受け取りを JSON に限定
+
+    # ★ 例外がどこで起きてもキャッチするため dispatch 自体を包む
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            # DRF の @api_view で包まれていると、ここに DRF Request が来ることがある。
+            # その場合は生の Django HttpRequest に剥がしてから super().dispatch へ。
+            if isinstance(request, DRFRequest):
+                request = request._request
+            return super().dispatch(request, *args, **kwargs)
+        except Exception as exc:
+            return self.handle_exception(exc)
+
+    def handle_exception(self, exc):
+        # ログだけ吐いて、常に JSON で返す
+        try:
+            log.exception("safe api fallback: %s", exc)
+        except Exception:
+            pass
+
+        # PLACEHOLDER が取れれば使い、無ければ固定文
+        placeholder = "（フォールバック応答）おすすめ候補の準備中です。"
+        try:
+            from temples.llm.client import PLACEHOLDER as _PH  # type: ignore
+
+            if isinstance(_PH, dict):
+                c = _PH.get("content")
+                if isinstance(c, str) and c.strip():
+                    placeholder = c
+        except Exception:
+            pass
+        body = {
+            "ok": True,
+            "data": {"recommendations": [], "raw": placeholder},
+            "note": "fallback-returned",
+        }
+        return Response(body, status=status.HTTP_200_OK)
+
+
+class ConciergeChatView(SafeAPIView):
+    # SafeAPIView が auth/perm/例外処理を包含
     throttle_scope = "concierge"
 
     @extend_schema(
@@ -368,6 +496,9 @@ class ConciergeChatView(APIView):
 
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ❶ data を先に空で用意（後で try の外からも参照する）
+        data: Dict[str, Any] = {"recommendations": []}
 
         try:
             bias = _build_bias(request.data)
@@ -452,6 +583,8 @@ class ConciergeChatView(APIView):
 
                 limit = int(request.data.get("limit", 5))
                 since = timezone.now() - timedelta(days=30)
+
+                # ベース集計
                 qs = Shrine.objects.all().annotate(
                     visits_30d=models.Count(
                         "visits", filter=models.Q(visits__visited_at__gte=since)
@@ -461,6 +594,8 @@ class ConciergeChatView(APIView):
                     ),
                     _popular=Coalesce(models.F("popular_score"), models.Value(0.0)),
                 )
+
+                # 近傍フィルタと _approx_deg は filter 後に annotate
                 lat0 = (bias or {}).get("lat")
                 lng0 = (bias or {}).get("lng")
                 r_m = (bias or {}).get("radius")
@@ -476,16 +611,23 @@ class ConciergeChatView(APIView):
                             longitude__gte=float(lng0) - dlng,
                             longitude__lte=float(lng0) + dlng,
                         ).annotate(
-                            _approx_deg=Abs(models.F("latitude") - models.Value(float(lat0)))
-                            + Abs(models.F("longitude") - models.Value(float(lng0)))
+                            _approx_deg=(
+                                Abs(models.F("latitude") - models.Value(float(lat0)))
+                                + Abs(models.F("longitude") - models.Value(float(lng0)))
+                            )
                         )
                     except Exception:
                         pass
+
+                # スコア合成
                 qs = qs.annotate(
-                    _score=2.0 * models.F("visits_30d")
-                    + 1.0 * models.F("favs_30d")
-                    + 0.5 * models.F("_popular")
+                    _score=(
+                        2.0 * models.F("visits_30d")
+                        + 1.0 * models.F("favs_30d")
+                        + 0.5 * models.F("_popular")
+                    )
                 )
+
                 has_approx = "_approx_deg" in {a for a in qs.query.annotations}
                 order = (
                     ["-_score", "_approx_deg", "-id"]
@@ -509,7 +651,6 @@ class ConciergeChatView(APIView):
                         for s in qs
                     ]
                 }
-
             # 5.5) 🔑 DBタグ & 御祭神を常に後付け（id優先→名前で近傍解決）
             try:
                 from math import cos, radians
@@ -765,33 +906,131 @@ class ConciergeChatView(APIView):
                 pass
 
             # --- 仕上げ: 表示名/推し文の最終正規化 ---
-            try:
-                for r in data.get("recommendations") or []:
-                    if r.get("name"):
-                        cleaned = _clean_display_name(r["name"])
-                        r["display_name"] = cleaned
-                        r["name"] = cleaned
-                    r["reason"] = _normalize_reason(r, query=query)
-            except Exception:
-                pass
+            for r in data.get("recommendations") or []:
+                if r.get("name"):
+                    cleaned = _clean_display_name(r["name"])
+                    r["display_name"] = cleaned
+                    r["name"] = cleaned
+                r["reason"] = _normalize_reason(r, query=query)
+
+            # ✅ 最終フォールバック（tryで握りつぶさない）：必ず1件返す
+            if not (data.get("recommendations") or []):
+                lat0 = (bias or {}).get("lat")
+                lng0 = (bias or {}).get("lng")
+                # 名前は: candidates 先頭 → area の短縮 → 近隣の神社
+                if candidates and isinstance(candidates[0], dict):
+                    fallback_name = (candidates[0].get("name") or "").strip() or "近隣の神社"
+                else:
+                    fallback_name = _short_area(area) or "近隣の神社"
+
+                # 表示住所の作り分け（安全に None チェック）
+                if area:
+                    fallback_disp = _short_area(area)
+                elif (lat0 is not None) and (lng0 is not None):
+                    fallback_disp = f"{float(lat0):.3f}, {float(lng0):.3f}"
+                else:
+                    fallback_disp = None
+
+                # location は座標があれば {lat,lng}、なければ display の文字列（UI崩れ防止）
+                if (lat0 is not None) and (lng0 is not None):
+                    fallback_loc = {"lat": float(lat0), "lng": float(lng0)}
+                else:
+                    fallback_loc = fallback_disp or (_short_area(area) or "")
+
+                data = {
+                    "recommendations": [
+                        {
+                            "name": fallback_name,
+                            "display_name": _clean_display_name(fallback_name),
+                            "location": fallback_loc,
+                            "display_address": fallback_disp,
+                            "reason": (
+                                _hint_from_query(query)
+                                or _hint_from_wish_map(query)
+                                or "静かに手を合わせたい社"
+                            ),
+                            "score": 0.0,
+                            "popular_score": 0.0,
+                        }
+                    ],
+                    "_note": "final-fallback-synthesized",
+                }
+
+            # --- 最終フォールバック（return直前・必ず1件返す） ---
+            if not (data.get("recommendations") or []):
+                lat0 = (bias or {}).get("lat")
+                lng0 = (bias or {}).get("lng")
+                # 名前は: candidates 先頭 → area の短縮 → 近隣の神社
+                if candidates and isinstance(candidates[0], dict):
+                    fallback_name = (candidates[0].get("name") or "").strip() or "近隣の神社"
+                else:
+                    fallback_name = _short_area(area) or "近隣の神社"
+
+                # 表示住所の作り分け
+                if area:
+                    fallback_disp = _short_area(area)
+                elif (lat0 is not None) and (lng0 is not None):
+                    fallback_disp = f"{float(lat0):.3f}, {float(lng0):.3f}"
+                else:
+                    fallback_disp = None
+
+                # location は座標があれば dict、無ければ display の文字列
+                if (lat0 is not None) and (lng0 is not None):
+                    fallback_loc = {"lat": float(lat0), "lng": float(lng0)}
+                else:
+                    fallback_loc = fallback_disp or (_short_area(area) or "")
+
+                data = {
+                    "recommendations": [
+                        {
+                            "name": fallback_name,
+                            "display_name": _clean_display_name(fallback_name),
+                            "location": fallback_loc,
+                            "display_address": fallback_disp,
+                            "reason": (
+                                _hint_from_query(query)
+                                or _hint_from_wish_map(query)
+                                or "静かに手を合わせたい社"
+                            ),
+                            "score": 0.0,
+                            "popular_score": 0.0,
+                        }
+                    ],
+                    "_note": "final-fallback-synthesized",
+                }
 
             return Response({"ok": True, "data": data}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            # 例外はここで握り、SafeAPIView 互換のフォールバック JSON を返す
             log.exception("concierge chat failed: %s", e)
-            from temples.llm.client import PLACEHOLDER
+            placeholder = "（フォールバック応答）おすすめ候補の準備中です。"
+            try:
+                from temples.llm.client import PLACEHOLDER as _PH  # type: ignore
 
+                if isinstance(_PH, dict):
+                    c = _PH.get("content")
+                    if isinstance(c, str) and c.strip():
+                        placeholder = c
+            except Exception:
+                pass
             return Response(
-                {"ok": True, "data": {"raw": PLACEHOLDER["content"]}, "note": "fallback-returned"},
+                {
+                    "ok": True,
+                    "data": {"recommendations": [], "raw": placeholder},
+                    "note": "fallback-returned",
+                },
                 status=status.HTTP_200_OK,
             )
+
+    # ❹ 最終フォールバック（try の外）：recommendations が空なら 1 件は返す
 
 
 class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None
 
 
-class ConciergePlanView(APIView):
+class ConciergePlanView(SafeAPIView):
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
 
@@ -1186,7 +1425,12 @@ class ConciergePlanView(APIView):
                         if addr:
                             rec["display_address"] = bf._shorten_japanese_address(addr) or addr
                         elif area:
-                            rec["display_address"] = _short_area(area)
+                            _pt = None
+                            if os.getenv("DISABLE_EXTERNAL_APIS") != "1":
+                                _pt = bf._geocode_text_center(area)
+                            if _pt and ("lat" in _pt) and ("lng" in _pt):
+                                _lat, _lng = float(_pt["lat"]), float(_pt["lng"])
+
                 except Exception:
                     pass
                 return {"lat": float(s.latitude), "lng": float(s.longitude)}
@@ -1303,6 +1547,20 @@ class ConciergePlanView(APIView):
         except Exception:
             pass
 
+        # --- stops 用のデフォルト座標（area or lat/lng から） ---
+        default_pt = None
+        try:
+            b = _build_bias(request.data)
+            if b and (b.get("lat") is not None) and (b.get("lng") is not None):
+                default_pt = {"lat": float(b["lat"]), "lng": float(b["lng"])}
+            elif area:
+                _pt = None
+                if os.getenv("DISABLE_EXTERNAL_APIS") != "1":
+                    _pt = bf._geocode_text_center(area)
+                if _pt and ("lat" in _pt) and ("lng" in _pt):
+                    default_pt = {"lat": float(_pt["lat"]), "lng": float(_pt["lng"])}
+        except Exception:
+            default_pt = None
         # 簡易 stops 生成（徒歩3分 + 滞在30分）
         stops = []
         try:
@@ -1314,6 +1572,11 @@ class ConciergePlanView(APIView):
                 loc = rec.get("location")
                 lat = loc.get("lat") if isinstance(loc, dict) else None
                 lng = loc.get("lng") if isinstance(loc, dict) else None
+
+                # ★ 座標が無ければ default_pt を採用
+                if (lat is None or lng is None) and default_pt:
+                    lat = default_pt["lat"]
+                    lng = default_pt["lng"]
                 travel_minutes = 3
                 eta += travel_minutes
                 # 表示住所のフォールバック（無ければ座標を短く表示）
@@ -1351,6 +1614,43 @@ class ConciergePlanView(APIView):
         }
         compat = {"ok": True, "data": filled}
         body = {**top_level, **compat}
+
+        # ✅ 最終フォールバック：stops が空なら 1 件は返す
+        if not (body.get("stops") or []):
+            # area or lat/lng から適当に 1 点合成
+            lat0 = request.data.get("lat")
+            lng0 = request.data.get("lng")
+            area = (
+                request.data.get("area")
+                or request.data.get("where")
+                or request.data.get("location_text")
+            )
+            disp = (
+                _short_area(area)
+                if area
+                else (
+                    f"{float(lat0):.3f}, {float(lng0):.3f}"
+                    if (lat0 is not None and lng0 is not None)
+                    else None
+                )
+            )
+            loc = (
+                {"lat": float(lat0), "lng": float(lng0)}
+                if (lat0 is not None and lng0 is not None)
+                else None
+            )
+            body["stops"] = [
+                {
+                    "order": 1,
+                    "name": "寄り道スポット",
+                    "display_address": disp,
+                    "location": loc,
+                    "eta_minutes": 0,
+                    "travel_minutes": 0,
+                    "stay_minutes": 30,
+                }
+            ]
+
         return Response(body, status=status.HTTP_200_OK)
 
 
