@@ -69,6 +69,8 @@ def _is_owner(user, shrine: Shrine) -> bool:
 
 
 class RouteAPIView(APIView):
+    # drf-spectacular: このビューはスキーマ対象外
+    schema = None
     permission_classes = [AllowAny]
     throttle_scope = "routes"
 
