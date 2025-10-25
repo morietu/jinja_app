@@ -133,7 +133,7 @@ urlpatterns = [
     path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
     path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
     # --- Route (単数形: レガシー) --- スタイル上は除外しつつ、POSTをRouteAPIViewへ
-    path("route/", extend_schema(exclude=True)(RouteAPIView.as_view()), name="route-legacy"),
+    path("route/", RouteAPIView.as_view(), name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
     path("", include(router.urls)),
 ]
