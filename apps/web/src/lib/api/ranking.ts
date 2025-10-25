@@ -1,3 +1,4 @@
+// src/lib/api/ranking.ts
 import api from "./client";
 import { GoriyakuTag } from "./types";
 
@@ -14,7 +15,11 @@ export type RankingItem = {
 };
 
 // 月間／年間ランキングを取得
-export async function fetchRanking(type: "monthly" | "yearly" = "monthly"): Promise<RankingItem[]> {
-  const res = await api.get(`/ranking/?period=${type}`);
-  return res.data;
+export async function fetchRanking(
+  type: "monthly" | "yearly" = "monthly"
+): Promise<RankingItem[]> {
+  const res = await api.get(`/populars/?period=${type}`);
+  const data = res.data;
+  // res.data が配列ならそのまま、そうでなければ data.results を使う
+  return Array.isArray(data) ? data : (data?.results ?? []);
 }
