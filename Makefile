@@ -57,9 +57,10 @@ test: spectacular unit
 
 # OpenAPI スキーマ生成（失敗したら CI も失敗）
 spectacular:
-	GOOGLE_PLACES_API_KEY=$${GOOGLE_PLACES_API_KEY:-dummy} \
-	GOOGLE_MAPS_API_KEY=$${GOOGLE_MAPS_API_KEY:-dummy} \
-	PYTHONPATH=$(PYTHONPATH) $(PY) backend/manage.py spectacular --file api_schema.yaml
+	GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-dummy} \
+	GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-dummy} \
+	DISABLE_EXTERNAL_APIS=1 \
+	PYTHONPATH=backend python backend/manage.py spectacular --file api_schema.yaml
 
 
 # 実体のテスト実行（ローカルでも使いやすい設定）
