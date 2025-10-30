@@ -1,0 +1,2320 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Shrine API",
+        "version": "v1 (v1)"
+    },
+    "paths": {
+        "/api/auth/jwt/create/": {
+            "post": {
+                "operationId": "api_auth_jwt_create_create",
+                "description": "Takes a set of user credentials and returns an access and refresh JSON web\ntoken pair to prove the authentication of those credentials.",
+                "tags": [
+                    "api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenObtainPair"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenObtainPair"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenObtainPair"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenObtainPair"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/auth/jwt/refresh/": {
+            "post": {
+                "operationId": "api_auth_jwt_refresh_create",
+                "description": "Takes a refresh type JSON web token and returns an access type JSON web\ntoken if the refresh token is valid.",
+                "tags": [
+                    "api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenRefresh"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/auth/jwt/verify/": {
+            "post": {
+                "operationId": "api_auth_jwt_verify_create",
+                "description": "Takes a token and indicates if it is valid.  This view provides no\ninformation about a token's fitness for a particular use.",
+                "tags": [
+                    "api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenVerify"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenVerify"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenVerify"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenVerify"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/concierges/chats/": {
+            "post": {
+                "operationId": "api_concierges_chats_create",
+                "description": "フリーテキストの希望（query）等から神社候補をレコメンドします。",
+                "summary": "Concierge chat",
+                "tags": [
+                    "concierge"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/concierges/histories/": {
+            "get": {
+                "operationId": "api_concierges_histories_list",
+                "description": "GET /api/concierge/history/        -> {\"items\": [...]}  （自身の履歴のみ、降順）\nPOST /api/concierge/history/       -> 1件作成（userは強制的に現在ユーザー）",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedConciergeHistoryList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_concierges_histories_create",
+                "description": "GET /api/concierge/history/        -> {\"items\": [...]}  （自身の履歴のみ、降順）\nPOST /api/concierge/history/       -> 1件作成（userは強制的に現在ユーザー）",
+                "tags": [
+                    "api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergeHistory"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergeHistory"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergeHistory"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConciergeHistory"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/concierges/plans/": {
+            "post": {
+                "operationId": "api_concierges_plans_create",
+                "description": "query を元に簡易的な参拝プラン（stops 等）を返します。",
+                "summary": "Concierge trip plan",
+                "tags": [
+                    "concierge"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergePlanRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergePlanRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConciergePlanRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/favorites/": {
+            "get": {
+                "operationId": "api_favorites_list",
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Favorite"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_favorites_create",
+                "tags": [
+                    "api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FavoriteCreate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FavoriteCreate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FavoriteCreate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FavoriteCreate"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/favorites/{id}/": {
+            "delete": {
+                "operationId": "api_favorites_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this favorite.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/geocodes/reverse/": {
+            "get": {
+                "operationId": "api_geocodes_reverse_retrieve",
+                "description": "緯度経度から住所を推定します。",
+                "summary": "Reverse geocode",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "lang",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "言語 (既定: ja)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        },
+                        "description": "緯度",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        },
+                        "description": "経度",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "geocodes"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReverseResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/geocodes/search/": {
+            "get": {
+                "operationId": "api_geocodes_search_retrieve",
+                "description": "住所/地名をクエリで与えてジオコーディングします。",
+                "summary": "Geocode search",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "lang",
+                        "schema": {
+                            "type": "string",
+                            "default": "ja",
+                            "minLength": 1
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 20,
+                            "minimum": 1,
+                            "default": 5
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "minLength": 1
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "geocodes"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/detail/": {
+            "get": {
+                "operationId": "api_places_detail_by_query",
+                "summary": "Places: detail (query version)",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "place_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlaceDetailResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/detail/{id}/": {
+            "get": {
+                "operationId": "api_places_detail_by_id",
+                "summary": "Places: detail",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlaceDetailResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/nearby-search/": {
+            "get": {
+                "operationId": "api_places_nearby_search_retrieve",
+                "summary": "Places: nearby search",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "keyword",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "radius",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NearbySearchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/photo/": {
+            "get": {
+                "operationId": "api_places_photo_retrieve",
+                "description": "/api/places/photo/?photo_reference=...&maxwidth=...\nservices.google_places.photo は (bytes, content_type) を返す契約",
+                "summary": "Places: photo (binary)",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "maxwidth",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "photo_reference",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/search/": {
+            "get": {
+                "operationId": "api_places_search_retrieve",
+                "summary": "Places: search",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "検索クエリ（query も可）",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "radius",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlacesSearchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/places/text-search/": {
+            "get": {
+                "operationId": "api_places_text_search_retrieve",
+                "summary": "Places: text search",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "検索クエリ（query も可）",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "radius",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "places"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TextSearchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/populars/": {
+            "get": {
+                "operationId": "api_populars_list",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedShrineListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/routes/": {
+            "post": {
+                "operationId": "api_routes_create",
+                "summary": "Compute route",
+                "tags": [
+                    "routes"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RouteRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RouteRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RouteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RouteResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/shrines/": {
+            "get": {
+                "operationId": "api_shrines_list",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedShrineListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/shrines/{id}/": {
+            "get": {
+                "operationId": "api_shrines_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this shrine.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShrineDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/shrines/{id}/route/": {
+            "get": {
+                "operationId": "api_shrines_route_retrieve",
+                "summary": "Route page for a shrine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "routes"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/shrines/nearest/": {
+            "get": {
+                "operationId": "api_shrines_nearest_retrieve",
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShrineDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/users/me/": {
+            "get": {
+                "operationId": "api_users_me_retrieve",
+                "summary": "Get current user profile",
+                "tags": [
+                    "users"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserMe"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_users_me_partial_update",
+                "summary": "Update current user profile",
+                "tags": [
+                    "users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUserProfileUpdate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUserProfileUpdate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUserProfileUpdate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserMe"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/users/signup/": {
+            "post": {
+                "operationId": "api_users_signup_create",
+                "summary": "Signup",
+                "tags": [
+                    "users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Signup"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Signup"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Signup"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SignupResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/healthz/": {
+            "get": {
+                "operationId": "healthz_retrieve",
+                "summary": "Health check",
+                "tags": [
+                    "misc"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BlankEnum": {
+                "enum": [
+                    ""
+                ]
+            },
+            "CategoryEnum": {
+                "enum": [
+                    "ご利益",
+                    "神格",
+                    "地域"
+                ],
+                "type": "string",
+                "description": "* `ご利益` - 願望・テーマ別\n* `神格` - 祭神の種類\n* `地域` - 地域や役割"
+            },
+            "ConciergeHistory": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "query": {
+                        "type": "string"
+                    },
+                    "tags": {},
+                    "shrine": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "query",
+                    "shrine"
+                ]
+            },
+            "ConciergePlanRequest": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string"
+                    },
+                    "language": {
+                        "type": "string",
+                        "default": "ja"
+                    },
+                    "locationbias": {
+                        "type": "string"
+                    },
+                    "transportation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TransportationEnum"
+                            }
+                        ],
+                        "default": "walk"
+                    }
+                },
+                "required": [
+                    "query"
+                ]
+            },
+            "Favorite": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "target_type": {
+                        "$ref": "#/components/schemas/TargetTypeEnum"
+                    },
+                    "target_id": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "shrine": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            }
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "shrine",
+                    "target_id",
+                    "target_type"
+                ]
+            },
+            "FavoriteCreate": {
+                "type": "object",
+                "properties": {
+                    "target_type": {
+                        "type": "string",
+                        "default": "shrine"
+                    },
+                    "target_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "shrine_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            },
+            "GeocodeItem": {
+                "type": "object",
+                "properties": {
+                    "place_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lat": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "address": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "class_": {
+                        "type": "string",
+                        "title": "Class "
+                    }
+                },
+                "required": [
+                    "lat",
+                    "lng",
+                    "name",
+                    "place_id"
+                ]
+            },
+            "GoriyakuTag": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "category": {
+                        "$ref": "#/components/schemas/CategoryEnum"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "KindEnum": {
+                "enum": [
+                    "shrine",
+                    "temple"
+                ],
+                "type": "string",
+                "description": "* `shrine` - 神社\n* `temple` - 寺院"
+            },
+            "KyuseiEnum": {
+                "enum": [
+                    "一白水星",
+                    "二黒土星",
+                    "三碧木星",
+                    "四緑木星",
+                    "五黄土星",
+                    "六白金星",
+                    "七赤金星",
+                    "八白土星",
+                    "九紫火星"
+                ],
+                "type": "string",
+                "description": "* `一白水星` - 一白水星\n* `二黒土星` - 二黒土星\n* `三碧木星` - 三碧木星\n* `四緑木星` - 四緑木星\n* `五黄土星` - 五黄土星\n* `六白金星` - 六白金星\n* `七赤金星` - 七赤金星\n* `八白土星` - 八白土星\n* `九紫火星` - 九紫火星"
+            },
+            "ModeEnum": {
+                "enum": [
+                    "walking",
+                    "driving"
+                ],
+                "type": "string",
+                "description": "* `walking` - walking\n* `driving` - driving"
+            },
+            "NearbySearchResponse": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    }
+                }
+            },
+            "NullEnum": {
+                "enum": [
+                    null
+                ]
+            },
+            "PaginatedConciergeHistoryList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ConciergeHistory"
+                        }
+                    }
+                }
+            },
+            "PaginatedShrineListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ShrineList"
+                        }
+                    }
+                }
+            },
+            "PatchedUserProfileUpdate": {
+                "type": "object",
+                "properties": {
+                    "nickname": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "is_public": {
+                        "type": "boolean"
+                    },
+                    "bio": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                }
+            },
+            "PlaceDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "place_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rating": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "user_ratings_total": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "types": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "location": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    "photo_reference": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "place_id"
+                ]
+            },
+            "PlaceItem": {
+                "type": "object",
+                "properties": {
+                    "place_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lat": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "address": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "types": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "place_id"
+                ]
+            },
+            "PlacesSearchResponse": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    }
+                }
+            },
+            "Point": {
+                "type": "object",
+                "properties": {
+                    "lat": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 90.0,
+                        "minimum": -90.0
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 180.0,
+                        "minimum": -180.0
+                    }
+                },
+                "required": [
+                    "lat",
+                    "lng"
+                ]
+            },
+            "ReverseResponse": {
+                "type": "object",
+                "properties": {
+                    "item": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GeocodeItem"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "cached",
+                    "item",
+                    "provider"
+                ]
+            },
+            "RouteLeg": {
+                "type": "object",
+                "properties": {
+                    "from_": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Point"
+                            }
+                        ],
+                        "title": "From "
+                    },
+                    "to": {
+                        "$ref": "#/components/schemas/Point"
+                    },
+                    "distance_m": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "duration_s": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "geometry": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2
+                        }
+                    }
+                },
+                "required": [
+                    "distance_m",
+                    "duration_s",
+                    "from_",
+                    "geometry",
+                    "to"
+                ]
+            },
+            "RouteRequest": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ModeEnum"
+                            }
+                        ],
+                        "default": "walking"
+                    },
+                    "origin": {
+                        "$ref": "#/components/schemas/Point"
+                    },
+                    "destinations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Point"
+                        }
+                    }
+                },
+                "required": [
+                    "destinations",
+                    "origin"
+                ]
+            },
+            "RouteResponse": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "$ref": "#/components/schemas/ModeEnum"
+                    },
+                    "legs": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RouteLeg"
+                        }
+                    },
+                    "distance_m_total": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "duration_s_total": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "provider": {
+                        "type": "string"
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "cached",
+                    "distance_m_total",
+                    "duration_s_total",
+                    "legs",
+                    "mode",
+                    "provider"
+                ]
+            },
+            "SearchResponse": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GeocodeItem"
+                        }
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "cached",
+                    "items",
+                    "provider"
+                ]
+            },
+            "ShrineDetail": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/KindEnum"
+                    },
+                    "name_jp": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "name_romaji": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 100
+                    },
+                    "address": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 90.0,
+                        "minimum": -90.0,
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 180.0,
+                        "minimum": -180.0,
+                        "nullable": true
+                    },
+                    "goriyaku": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "ご利益（自由メモ）"
+                    },
+                    "goriyaku_tags": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GoriyakuTag"
+                        },
+                        "readOnly": true
+                    },
+                    "deities": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "distance": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "distance_text": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "location": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "readOnly": true
+                    },
+                    "kyusei": {
+                        "nullable": true,
+                        "description": "九星（例: 九紫火星）\n\n* `一白水星` - 一白水星\n* `二黒土星` - 二黒土星\n* `三碧木星` - 三碧木星\n* `四緑木星` - 四緑木星\n* `五黄土星` - 五黄土星\n* `六白金星` - 六白金星\n* `七赤金星` - 七赤金星\n* `八白土星` - 八白土星\n* `九紫火星` - 九紫火星",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/KyuseiEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "address",
+                    "distance",
+                    "distance_text",
+                    "goriyaku_tags",
+                    "id",
+                    "is_favorite",
+                    "location",
+                    "name_jp"
+                ]
+            },
+            "ShrineList": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/KindEnum"
+                    },
+                    "name_jp": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "address": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "goriyaku_tags": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GoriyakuTag"
+                        },
+                        "readOnly": true
+                    },
+                    "deities": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "distance": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "distance_text": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "location": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "readOnly": true
+                    },
+                    "kyusei": {
+                        "nullable": true,
+                        "description": "九星（例: 九紫火星）\n\n* `一白水星` - 一白水星\n* `二黒土星` - 二黒土星\n* `三碧木星` - 三碧木星\n* `四緑木星` - 四緑木星\n* `五黄土星` - 五黄土星\n* `六白金星` - 六白金星\n* `七赤金星` - 七赤金星\n* `八白土星` - 八白土星\n* `九紫火星` - 九紫火星",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/KyuseiEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "address",
+                    "distance",
+                    "distance_text",
+                    "goriyaku_tags",
+                    "id",
+                    "is_favorite",
+                    "latitude",
+                    "location",
+                    "longitude",
+                    "name_jp"
+                ]
+            },
+            "Signup": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "title": "ユーザー名",
+                        "description": "この項目は必須です。半角アルファベット、半角数字、@/./+/-/_ で150文字以下にしてください。",
+                        "pattern": "^[\\w.@+-]+$",
+                        "maxLength": 150
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "minLength": 8
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "password",
+                    "username"
+                ]
+            },
+            "SignupResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "username": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "username"
+                ]
+            },
+            "TargetTypeEnum": {
+                "enum": [
+                    "shrine"
+                ],
+                "type": "string",
+                "description": "* `shrine` - Shrine"
+            },
+            "TextSearchResponse": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PlaceItem"
+                        }
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    }
+                }
+            },
+            "TokenObtainPair": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "access": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "refresh": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "access",
+                    "password",
+                    "refresh",
+                    "username"
+                ]
+            },
+            "TokenRefresh": {
+                "type": "object",
+                "properties": {
+                    "access": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "refresh": {
+                        "type": "string",
+                        "writeOnly": true
+                    }
+                },
+                "required": [
+                    "access",
+                    "refresh"
+                ]
+            },
+            "TokenVerify": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "writeOnly": true
+                    }
+                },
+                "required": [
+                    "token"
+                ]
+            },
+            "TransportationEnum": {
+                "enum": [
+                    "walk",
+                    "car"
+                ],
+                "type": "string",
+                "description": "* `walk` - walk\n* `car` - car"
+            },
+            "UserMe": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "title": "ユーザー名",
+                        "description": "この項目は必須です。半角アルファベット、半角数字、@/./+/-/_ で150文字以下にしてください。",
+                        "pattern": "^[\\w.@+-]+$",
+                        "maxLength": 150
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "title": "メールアドレス",
+                        "maxLength": 254
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "title": "名",
+                        "maxLength": 150
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "title": "姓",
+                        "maxLength": 150
+                    },
+                    "profile": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserProfile"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "profile",
+                    "username"
+                ]
+            },
+            "UserProfile": {
+                "type": "object",
+                "properties": {
+                    "nickname": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "is_public": {
+                        "type": "boolean"
+                    },
+                    "bio": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true
+                    },
+                    "icon_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "icon",
+                    "icon_url"
+                ]
+            }
+        },
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "sessionid"
+            },
+            "jwtAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

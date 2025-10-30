@@ -32,6 +32,9 @@ export default function ShrineDetailPage() {
   if (loading) return <p className="p-4">読み込み中...</p>;
   if (error) return <p className="p-4 text-red-500">{error}</p>;
   if (!shrine) return <p className="p-4">神社が見つかりません</p>;
+  if (res.status === 404) {
+    return <div className="p-4 text-sm text-gray-600">このスポットの詳細は準備中です。</div>;
+  }
 
   const hasCoords =
     shrine.latitude != null &&

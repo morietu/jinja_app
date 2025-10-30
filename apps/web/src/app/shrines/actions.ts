@@ -14,7 +14,7 @@ export type CreateShrineInput = {
 
 // 一覧
 export async function getShrines() {
-  return apiGet(`/shrines/`);
+  return apiGet(`shrines/`);
 }
 
 // 追加
@@ -28,5 +28,5 @@ export async function createShrine(input: CreateShrineInput) {
     sajin: input.sajin ?? null,
     goriyaku_tags: input.goriyakuTagIds,
   };
-  return apiPost(`/shrines/`, payload);
+  return apiPost(`shrines/`, payload);
 }

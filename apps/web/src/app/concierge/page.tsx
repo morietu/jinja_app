@@ -1,6 +1,6 @@
 // src/app/concierge/page.tsx
 "use client";
-
+import axios from "axios";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,8 @@ type ShrineLite = {
   latitude: number | string;
   longitude: number | string;
   goriyaku_tags?: { id: number; name: string }[];
-  distance?: number; // km
+  distance_m?: number;
+  distance_text?: string;
 };
 
 type GeocodeResult = {
@@ -30,28 +31,29 @@ type GeocodeResult = {
   provider: string;
 };
 
-// ===== 共通GET（null返しでUIを落とさない） =====
+// ===== 共通GET（null返しでUIを落とさない / Axios版） =====
 async function apiGet<T>(
   path: string,
   params?: Record<string, string | number>,
   signal?: AbortSignal
 ): Promise<T | null> {
-  const qs = new URLSearchParams();
-  if (params) for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
-  const url = `/api${path.startsWith("/") ? path : `/${path}`}${qs.toString() ? `?${qs.toString()}` : ""}`;
-
   try {
-    const res = await fetch(url, { cache: "no-store", signal, credentials: "same-origin" });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    // 先頭スラッシュは削る（baseURLと二重スラッシュ防止）
+    const p = path.replace(/^\//, "");
+    const res = await api.get<T>(p, { params, signal });
+    return (res.data as T) ?? null;
   } catch {
     return null;
   }
 }
 
-function fmtDistanceKm(km?: number) {
-  if (typeof km !== "number") return "";
-  if (km < 1) return `${Math.round(km * 1000)}m`;
+
+
+function fmtDistance({ meters, text }: { meters?: number; text?: string }) {
+  if (text && text.trim()) return text;
+  if (typeof meters !== "number") return "";
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  const km = meters / 1000;
   return `${(Math.round(km * 10) / 10).toFixed(1)}km`;
 }
 
@@ -122,10 +124,10 @@ export default function ConciergePage() {
 
         let list: any[] = [];
 
-        // 近い順モード：/shrines/nearby/（起点が必要）
+        // 近い順モード：/shrines/nearest/（起点が必要）
         if (mode === "nearby" && o) {
-          const params = { ...baseParams, radius: radiusM };
-          const data = await apiGet<any>("/shrines/nearby/", params, listAbortRef.current.signal);
+          const params = { ...baseParams, lat: o.lat, lng: o.lng };
+          const data = await apiGet<any>("/shrines/nearest/", params, listAbortRef.current.signal);
           list = Array.isArray(data) ? data : (data as any)?.results ?? [];
           if (list.length > 0) {
             const cs: ShrineLite[] = list.slice(0, 3).map((s: any) => ({
@@ -135,7 +137,8 @@ export default function ConciergePage() {
               latitude: Number(s.latitude),
               longitude: Number(s.longitude),
               goriyaku_tags: s.goriyaku_tags,
-              distance: typeof s.distance === "number" ? s.distance : undefined,
+              distance_m: typeof s.distance === "number" ? s.distance : undefined,
+              distance_text: typeof s.distance_text === "string" ? s.distance_text : undefined,
             }));
             setCandidates(cs);
             setSelectedIdx(0);
@@ -143,11 +146,12 @@ export default function ConciergePage() {
           }
         }
 
-        // 人気順（or nearbyでデータなし）→ ranking → shrines
+        // 人気順（or nearbyでデータなし）→ populars → shrines
         if (!list || list.length === 0) {
-          const rankParams = { ...baseParams, period: "monthly", ...(o ? { lat: o.lat, lng: o.lng } : {}) };
-          let data = await apiGet<any>("/ranking/", rankParams, listAbortRef.current.signal);
+          const popParams = { ...baseParams, ...(o ? { lat: o.lat, lng: o.lng } : {}) };
+          let data = await apiGet<any>("/populars/", popParams, listAbortRef.current.signal);
           list = Array.isArray(data) ? data : (data as any)?.results ?? [];
+
 
           if (!list || list.length === 0) {
             data = await apiGet<any>("/shrines/", baseParams, listAbortRef.current.signal);
@@ -191,6 +195,13 @@ export default function ConciergePage() {
   // 住所検索
   const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 外部API遮断中はスキップ
+    if (process.env.NEXT_PUBLIC_DISABLE_EXTERNAL_APIS === "1") {
+      setGeoMsg("開発モード: 外部APIが無効です（場所検索はOFF）。現在地ボタン or 手動で候補を選んでください。");
+      return;
+    }
+
     if (!q.trim()) return;
     setSearching(true);
     setGeoCandidates([]);
@@ -223,9 +234,26 @@ export default function ConciergePage() {
   const ac = new AbortController();
   (async () => {
     try {
-      await api.get("/concierge/history/", { signal: ac.signal });
+
+      const r = await api.get("concierges/histories/", {
+        signal: ac.signal,
+        // 401 を「許容するステータス」にする → 例外にならない
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 401,
+      });
+      if (r.status === 401) {
+        // 未ログインなので履歴はスキップ
+        return;
+      }
     } catch (e:any) {
-      if (e.name !== "CanceledError" && e.name !== "AbortError") console.error(e);
+
+      if (
+        axios.isAxiosError(e) &&
+        (e.code === "ERR_CANCELED" || e.name === "CanceledError" || e.name === "AbortError")
+      ) {
+        // 未ログインなので履歴はスキップ
+      } else if (e.name !== "CanceledError" && e.name !== "AbortError") {
+        console.error(e);
+      }
     }
   })();
   return () => ac.abort();
@@ -367,17 +395,14 @@ export default function ConciergePage() {
                 <div className="text-sm text-gray-600">{s.address ?? ""}</div>
 
                 {/* 距離（nearby応答にあれば表示、単位はmに丸め） */}
-                {typeof s.distance === "number" && (
-                  <div className="text-xs text-gray-500 mt-1">{fmtDistanceKm(s.distance)}</div>
+                {(typeof s.distance_m === "number" || s.distance_text) && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {fmtDistance({ meters: s.distance_m, text: s.distance_text })}
+                  </div>
                 )}
-
                 {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {s.goriyaku_tags.slice(0, 4).map((t) => (
-                      <span key={t.id} className="px-1.5 py-0.5 bg-gray-200 rounded text-xs">
-                        {t.name}
-                      </span>
-                    ))}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(s as any).distance_text ?? fmtDistanceKm(s.distance)}
                   </div>
                 )}
 

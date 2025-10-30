@@ -1,26 +1,18 @@
-// apps/web/src/lib/auth.ts
-import { login as loginApi } from "@/lib/api/auth";
+// 送信元（フォームのsubmit）例
+import { login } from "@/lib/api/auth"; // = loginUser の別名
 
-export async function login({ username, password }: { username: string; password: string }) {
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  return res.ok;
-}
+const onSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const u = form.username?.trim();
+  const p = form.password ?? "";
+  if (!u || !p) { setErr("ユーザー名とパスワードを入力してね"); return; }
 
-export async function logout() {
-  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-  window.location.href = "/login";
-}
-
-/** 旧API互換（移行中だけ残す。完了したら削除OK） */
-export async function loginAndFetchMe(username: string, password: string) {
-  const ok = await login({ username, password });
-  if (!ok) throw new Error("Login failed");
-  // Cookie方式なので Authorization ヘッダは不要
-  const meRes = await fetch("/api/users/me/", { credentials: "include" });
-  if (!meRes.ok) throw new Error("GET /api/users/me failed");
-  return meRes.json();
-}
+  try {
+    const { access, refresh } = await login({ username: u, password: p });
+    // 成功したら遷移
+    router.push("/mypage?tab=goshuin");
+  } catch (e:any) {
+    console.error("login failed:", e?.response?.data ?? e);
+    setErr("ログインに失敗しました");
+  }
+};

@@ -1,22 +1,27 @@
 // apps/web/src/app/login/LoginForm.tsx
 "use client";
+
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { AxiosError } from "axios";
+import { isAxiosError } from "axios";
 import { login as loginApi } from "@/lib/api/auth";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { getCurrentUser } from "@/lib/api/users";
+// （任意）アプリの認証状態を同期したい場合だけ使う
+// import { useAuth } from "@/lib/hooks/useAuth";
 
-export default function LoginForm({ next }: { next: string }) {
+type Props = { next?: string };
+
+export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const inFlight = useRef(false);          // 連打ガード
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const inFlight = useRef(false);
   const router = useRouter();
-  const { login } = useAuth();
+  // const { login: refreshAuth } = useAuth(); // 使うならコメントアウト解除
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();                    // ★ これが超大事（暗黙送信を止める）
+    e.preventDefault(); // 暗黙送信を止める
     if (inFlight.current || loading) return;
     if (!username || !password) {
       setError("ユーザー名とパスワードを入力してください");
@@ -25,25 +30,25 @@ export default function LoginForm({ next }: { next: string }) {
     inFlight.current = true;
     setLoading(true);
     setError(null);
-
     try {
-      // 必ずオブジェクト形で呼ぶ（配列形は使わない）
-      await loginApi({ username, password });
-
-      try { await login(); } catch (e) { console.warn("me取得失敗:", e); }
+      // 1) ログイン（トークン保存）
+      await loginApi({ username, password });  // ← ★ここで tokens.set が走る
+      // 2) me で確認（Authorization ヘッダが付くはず）
+      try { await getCurrentUser(); } catch (_) {}
+      // 3) 遷移
       router.replace(next);
-    } catch (err) {
-      const e = err as AxiosError;
+    } catch (err: unknown) {
       let msg = "ログインに失敗しました。";
-      if (e?.response) {
-        if (e.response.status === 401) msg = "ユーザー名またはパスワードが正しくありません。";
-        else if (e.response.status === 400) msg = "リクエストが正しくありません。";
-        else if ((e.response.status ?? 0) >= 500) msg = "サーバーエラーが発生しました。";
-        else msg = `エラーが発生しました (${e.response.status})`;
-      } else if (e?.request) {
-        msg = "サーバーに接続できません。バックエンドの起動を確認してください。";
-      } else if (e instanceof Error) {
-        msg = e.message;
+      if (isAxiosError(err)) {
+        const s = err.response?.status ?? 0;
+        if (s === 400) msg = "リクエストが正しくありません。";
+        else if (s === 401) msg = "ユーザー名またはパスワードが正しくありません。";
+        else if (s >= 500) msg = "サーバーエラーが発生しました。";
+        else if (!err.response && err.request) {
+          msg = "サーバーに接続できません。バックエンドの起動を確認してください。";
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
       }
       setError(msg);
     } finally {
@@ -55,9 +60,13 @@ export default function LoginForm({ next }: { next: string }) {
   return (
     <main className="p-4 max-w-sm mx-auto">
       <h1 className="text-xl font-bold mb-4">ログイン</h1>
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
-      {/* ★ form にして submit だけに統一 */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">ユーザー名</label>
@@ -69,6 +78,7 @@ export default function LoginForm({ next }: { next: string }) {
             autoComplete="username"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium mb-1">パスワード</label>
           <input
@@ -80,8 +90,9 @@ export default function LoginForm({ next }: { next: string }) {
             autoComplete="current-password"
           />
         </div>
+
         <button
-          type="submit"                      // ★ submit
+          type="submit"
           disabled={loading}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
