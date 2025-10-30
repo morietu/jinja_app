@@ -5,6 +5,8 @@ import "./globals.css";
 import Link from "next/link";
 import Script from "next/script";
 import ClientBootstrap from "./providers/ClientBootstrap";
+import "leaflet/dist/leaflet.css";
+import type { ReactNode } from "react";
 // import HamburgerMenu from "@/components/navigation/HamburgerMenu"; // 使うなら残す
 
 const geistSans = localFont({
@@ -27,9 +29,11 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
 });
 
-// 必要なら有効化
-// export const metadata: Metadata = { title: "AI参拝ナビ", description: "..." };
 
+export const metadata = {
+  title: "Shrine Map",
+  description: "Map preview",
+};
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 

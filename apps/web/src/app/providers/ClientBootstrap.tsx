@@ -1,10 +1,11 @@
 "use client";
 import { useEffect } from "react";
-import { install401Retry } from "@/lib/axios";
+// 旧: import { install401Retry } from "@/lib/axios";
+// 何もせずにマウントだけ（client.ts の interceptors が有効）
 
 export default function ClientBootstrap() {
   useEffect(() => {
-    install401Retry(); // 1回だけ
+    // no-op: api interceptors are defined in "@/lib/api/client"
   }, []);
   return null;
 }

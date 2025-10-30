@@ -1,15 +1,23 @@
 // apps/web/src/lib/auth/token.ts
 export const ACCESS_KEY = "access_token";
+export const REFRESH_KEY = "refresh";
 
-export const authToken = {
+
+export const tokens = {
   get access() {
     return typeof window === "undefined" ? null : localStorage.getItem(ACCESS_KEY);
   },
-  set access(v: string | null) {
+  get refresh() {
+    return typeof window === "undefined" ? null : localStorage.getItem(REFRESH_KEY);
+  },
+  set(access: string, refresh: string) {
     if (typeof window === "undefined") return;
-    v ? localStorage.setItem(ACCESS_KEY, v) : localStorage.removeItem(ACCESS_KEY);
+    localStorage.setItem(ACCESS_KEY, access);
+    localStorage.setItem(REFRESH_KEY, refresh);
   },
   clear() {
-    this.access = null;
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(REFRESH_KEY);
   },
 };

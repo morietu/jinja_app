@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../.."),
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:8000/api/:path*", // Django dev
+      },
+    ];
+  },
 
   //async rewrites() {
     // どちらか定義されている方を採用（NEXT_PUBLIC_ でも OK）

@@ -1,79 +1,46 @@
 // apps/web/src/lib/api/client.ts
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import { tokens } from "@/lib/auth/token";
 
-declare module "axios" {
-  // カスタムフラグを許可
-  interface AxiosRequestConfig {
-    _retry?: boolean;
-  }
-}
+const baseURL = (process.env.NEXT_PUBLIC_API_BASE ?? "/api/").replace(/\/+$/, "") + "/";
 
-// ── SSR/CSR で baseURL を分岐（SSRは絶対URL、CSRは相対URL） ──
-const isServer = typeof window === "undefined";
-
-const SELF_ORIGIN =
-  process.env.APP_ORIGIN ||
-  process.env.NEXT_PUBLIC_APP_ORIGIN ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : `http://localhost:${process.env.PORT ?? "3000"}`);
-
-const baseURL = isServer
-  ? `${SELF_ORIGIN.replace(/\/+$/, "")}/api/`
-  : "/api/";
-
-// ここだけで api を1回だけ作る
 const api = axios.create({
   baseURL,
   withCredentials: true,
-  headers: { Accept: "application/json" },
+  timeout: 15000,
+  headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
 });
 
-// ── 401時の自動リフレッシュ（多重リクエストは1回に集約）──
-let refreshing = false;
-let waiters: ((ok: boolean) => void)[] = [];
-
-async function callRefresh(): Promise<boolean> {
-  if (refreshing) {
-    return new Promise((res) => waiters.push(res));
+// リクエスト前に Bearer 付与
+api.interceptors.request.use((cfg) => {
+  const t = tokens.access;
+  console.debug("[api] ->", cfg.method?.toUpperCase(), cfg.baseURL, cfg.url, { hasAuth: !!t });
+  if (t) {
+    cfg.headers = cfg.headers ?? {};
+    (cfg.headers as any).Authorization = `Bearer ${t}`;
   }
-  refreshing = true;
-  try {
-    const r = await fetch("/api/auth/refresh", {
-      method: "POST",
-      credentials: "include",
-    });
-    const ok = r.ok;
-    // 溜まっている待機者へ結果を配信
-    waiters.forEach((w) => w(ok));
-    return ok;
-  } catch {
-    waiters.forEach((w) => w(false));
-    return false;
-  } finally {
-    refreshing = false;
-    waiters = [];
-  }
-}
+  return cfg;
+});
 
+// 401 → refresh → 再送
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    const response = error.response;
-    const original = error.config as AxiosRequestConfig | undefined;
+    const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
+    if (!error.response || error.response.status !== 401 || !original || original._retry) throw error;
 
-    // レスポンスなし（ネットワーク系）や再試行済みは素通し
-    if (!response || response.status !== 401 || !original || original._retry) {
+    const refresh = tokens.refresh;
+    if (!refresh) throw error;
+
+    try {
+      const r = await api.post<{ access: string }>("auth/jwt/refresh/", { refresh });
+      tokens.set(r.data.access, refresh);
+      original._retry = true;
+      return api.request(original);
+    } catch {
+      tokens.clear();
       throw error;
     }
-
-    // リフレッシュ試行
-    const ok = await callRefresh();
-    if (!ok) throw error;
-
-    // 1回だけ再試行（httpOnly Cookie が更新済み）
-    original._retry = true;
-    return api.request(original);
   }
 );
 

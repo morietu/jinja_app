@@ -1,35 +1,25 @@
 // apps/web/src/lib/api/auth.ts
-import { apiPost } from "@/lib/api/http";
+import api from "@/lib/api/client";
+import { tokens } from "@/lib/auth/token";
 
 export type LoginPayload = { username: string; password: string };
 export type TokenPair   = { access: string; refresh: string };
 
-export async function login(payload: LoginPayload | [string, string]): Promise<TokenPair> {
-  const body = Array.isArray(payload)
-    ? { username: payload[0], password: payload[1] }
-    : payload;
-  return apiPost<TokenPair>("auth/jwt/create/", body);
+export async function loginUser(payload: LoginPayload): Promise<TokenPair> {
+  const r = await api.post<TokenPair>("auth/jwt/create/", payload);
+  tokens.set(r.data.access, r.data.refresh);
+  return r.data;
 }
 
-export async function refreshToken(refresh: string): Promise<{ access: string }> {
-  return apiPost<{ access: string }>("auth/jwt/refresh/", { refresh });
-}
+// 互換エクスポート（他の箇所の import { login } を壊さない）
+export const login = loginUser;
 
-export async function verifyToken(token: string): Promise<Record<string, unknown>> {
-  return apiPost("auth/jwt/verify/", { token });
+// 他はそのまま（必要なら）
+export async function refreshToken(refresh: string) {
+  const r = await api.post<{ access: string }>("auth/jwt/refresh/", { refresh });
+  return r.data;
 }
-
-// 使っているので実装しておく
-export async function signup(payload: { username: string; password: string; email?: string }) {
-  // サインアップAPIが別にあるならそちらへ。なければ一旦 501 を返すか TODO コメントでもOK
-  return apiPost<any>("users/signup/", payload);
-}
-
-// hooks/useAuth.ts から呼ばれている想定
-export async function logout(): Promise<void> {
-  try {
-    // サーバーにブラックリスト化APIがあれば叩く（任意）
-    // await apiPost("auth/jwt/blacklist/", { refresh });
-  } catch { /* no-op */ }
-  // トークン破棄は呼び出し側に任せるなら何もしないでもOK
+export async function verifyToken(token: string) {
+  const r = await api.post("auth/jwt/verify/", { token });
+  return r.data as Record<string, unknown>;
 }
