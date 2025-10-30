@@ -22,8 +22,7 @@ export async function createFavoriteByShrineId(shrineId: number): Promise<Favori
 
 // 削除（Favorite PK で）
 export async function deleteFavorite(id: number): Promise<void> {
-  await apiDelete(`/favorites/${id}/`);
-}
+  await apiDelete(`favorites/${id}/`);
 
 // トグル（存在すれば削除、無ければ作成）
 export async function toggleFavorite(getId: () => Promise<number | null>, shrineId: number) {

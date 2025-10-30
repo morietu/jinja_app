@@ -1,25 +1,27 @@
+// apps/web/src/lib/api/http.ts
 import type { AxiosRequestConfig } from "axios";
-import api from "./client";
+import api from "@/lib/api/client";
 
-const norm = (u: string) => (u.startsWith("/") ? u : `/${u}`); // ← 復活
+// 先頭スラッシュを剥がす（baseURL が末尾 `/` 前提）
+const strip = (u: string) => u.replace(/^\//, "");
 
 export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
-  const { data } = await api.get<T>(norm(url), config);
+  const { data } = await api.get<T>(strip(url), config);
   return data;
 }
 export async function apiPost<T>(url: string, body?: any, config: AxiosRequestConfig = {}): Promise<T> {
-  const { data } = await api.post<T>(norm(url), body, config);
+  const { data } = await api.post<T>(strip(url), body, config);
   return data;
 }
 export async function apiPatch<T>(url: string, body?: any, config: AxiosRequestConfig = {}): Promise<T> {
-  const { data } = await api.patch<T>(norm(url), body, config);
+  const { data } = await api.patch<T>(strip(url), body, config);
   return data;
 }
 export async function apiDelete(url: string, config: AxiosRequestConfig = {}): Promise<void> {
-  await api.delete(norm(url), config);
+  await api.delete(strip(url), config);
 }
 export async function apiPatchForm<T>(url: string, form: FormData, config: AxiosRequestConfig = {}): Promise<T> {
-  const { data } = await api.patch<T>(norm(url), form, {
+  const { data } = await api.patch<T>(strip(url), form, {
     headers: { "Content-Type": "multipart/form-data", ...(config.headers || {}) },
     ...config,
   });

@@ -9,6 +9,27 @@ module.exports = {
       files: ["src/**/*.{ts,tsx,js,jsx}"],
       rules: {
         "no-restricted-syntax": [
+          "error",
+      {
+        selector: "CallExpression[callee.object.name='axios'][callee.property.name='create']",
+        message: "axios.createは禁止。@/lib/api/client を使ってください。",
+      },
+    ],
+    // ② 直 fetch で /api/ を叩くのを禁止（BFF/Rewrite経由の混入を防ぐ）
+    "no-restricted-globals": [
+      "error",
+      { name: "fetch", message: "fetchで /api を叩かないで。@/lib/api/http を使って。" },
+    ],
+    // ③ window.axios なども念のため禁止
+    "no-restricted-properties": [
+      "error",
+      {
+        object: "window",
+        property: "axios",
+        message: "window.axiosは禁止。@/lib/api/client を使うこと。",
+      },
+    ],
+  },
           "warn",
           {
             selector: "Literal[value=/^https?:\\/\\//]",
