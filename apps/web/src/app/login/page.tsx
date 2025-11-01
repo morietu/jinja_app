@@ -2,7 +2,6 @@
 import ClientLoginPage from "./ClientLoginPage";
 
 function sanitizeNext(next?: string) {
-  // 内部URLのみ許可（open redirect対策）
   if (!next) return "/mypage";
   if (!next.startsWith("/") || next.startsWith("//") || next.includes("://")) {
     return "/mypage";
@@ -10,14 +9,14 @@ function sanitizeNext(next?: string) {
   return next;
 }
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  // Next.js 15: searchParams は Promise を await する
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const raw = searchParams?.next;
-  const nextRaw = Array.isArray(raw) ? raw[0] : raw;
-  const next = sanitizeNext(nextRaw);
-
+  const sp = (await searchParams) ?? {};
+  const raw = sp.next;
+  const next = sanitizeNext(Array.isArray(raw) ? raw[0] : raw);
   return <ClientLoginPage next={next} />;
 }
