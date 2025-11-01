@@ -1,25 +1,23 @@
 // apps/web/src/lib/api/auth.ts
-import api from "@/lib/api/client";
-import { tokens } from "@/lib/auth/token";
+export type LoginInput = { username: string; password: string };
 
-export type LoginPayload = { username: string; password: string };
-export type TokenPair   = { access: string; refresh: string };
-
-export async function loginUser(payload: LoginPayload): Promise<TokenPair> {
-  const r = await api.post<TokenPair>("auth/jwt/create/", payload);
-  tokens.set(r.data.access, r.data.refresh);
-  return r.data;
+export async function login(body: LoginInput): Promise<void> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    throw new Error(msg || `login failed: ${res.status}`);
+  }
 }
 
-// 互換エクスポート（他の箇所の import { login } を壊さない）
-export const login = loginUser;
-
-// 他はそのまま（必要なら）
-export async function refreshToken(refresh: string) {
-  const r = await api.post<{ access: string }>("auth/jwt/refresh/", { refresh });
-  return r.data;
-}
-export async function verifyToken(token: string) {
-  const r = await api.post("auth/jwt/verify/", { token });
-  return r.data as Record<string, unknown>;
+export async function logout(): Promise<void> {
+  // 200 以外でも致命的ではないので握りつぶしでOK
+  await fetch("/api/auth/logout", {
+    method: "POST",
+    credentials: "same-origin",
+  }).catch(() => {});
 }

@@ -29,26 +29,36 @@ export default function MyPageView() {
     })();
   }, []);
 
+  // 変更有無（前後の空白は無視して比較）
   const dirty = useMemo(() => {
     if (!user) return false;
-    return (
-      (form.nickname ?? "") !== (user.profile.nickname ?? "") ||
-      !!form.is_public !== !!user.profile.is_public
-    );
-  }, [form, user]);
+    const nick0 = (user.profile.nickname ?? "").trim();
+    const nick1 = (form.nickname ?? "").trim();
+    const nickDirty = nick1 !== nick0;
+    const publicDirty = Boolean(form.is_public) !== Boolean(user.profile.is_public);
+    return nickDirty || publicDirty;
+  }, [
+    user,                 // 取得後のスナップショットが変わったら再計算
+    form.nickname,        // 入力の変化で再計算
+    form.is_public,
+  ]);
 
   const handleSave = async () => {
     if (!user || !dirty || saving) return;
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {};
-      if ((form.nickname ?? "") !== (user.profile.nickname ?? "")) payload.nickname = form.nickname;
-      if (!!form.is_public !== !!user.profile.is_public) payload.is_public = form.is_public;
+      const nick0 = (user.profile.nickname ?? "").trim();
+      const nick1 = (form.nickname ?? "").trim();
+      if (nick1 !== nick0) payload.nickname = nick1;
+      if (Boolean(form.is_public) !== Boolean(user.profile.is_public)) {
+        payload.is_public = form.is_public;
+      }
 
       const updated = await updateUser(payload);
       setUser(updated);
       setForm({
-        nickname: updated.profile.nickname ?? "",
+        nickname: (updated.profile.nickname ?? "").trim(),
         is_public: !!updated.profile.is_public,
       });
     } finally {
@@ -94,6 +104,7 @@ export default function MyPageView() {
         <button
           onClick={handleSave}
           disabled={!dirty || saving}
+          title={!dirty ? "変更すると有効になります" : undefined}
           className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
         >
           {saving ? "保存中..." : "保存"}

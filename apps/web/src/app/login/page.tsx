@@ -1,16 +1,23 @@
 // apps/web/src/app/login/page.tsx
-import LoginForm from "./LoginForm";
-import { sanitizeNext } from "@/lib/nextParam";
+import ClientLoginPage from "./ClientLoginPage";
 
-// ※このファイルは Server Component（"use client" を付けない）
+function sanitizeNext(next?: string) {
+  // 内部URLのみ許可（open redirect対策）
+  if (!next) return "/mypage";
+  if (!next.startsWith("/") || next.startsWith("//") || next.includes("://")) {
+    return "/mypage";
+  }
+  return next;
+}
+
 export default function Page({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const raw = searchParams?.next;
   const nextRaw = Array.isArray(raw) ? raw[0] : raw;
-  const next = sanitizeNext(nextRaw); // /loginループや外部URLを排除
+  const next = sanitizeNext(nextRaw);
 
-  return <LoginForm next={next} />;
+  return <ClientLoginPage next={next} />;
 }
