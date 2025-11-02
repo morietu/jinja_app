@@ -192,10 +192,15 @@ export default function MyPage() {
 function ProfilePanel({ user }: { user: User }) {
   if (!user) return null;
 
-  const nickname = user?.profile?.nickname || user?.username || "-";
-  const isPublic = Boolean(user?.profile?.is_public);
+  const p = user.profile ?? {};
+  const nickname = p.nickname || user.username || "-";
+  const isPublic = !!p.is_public;
   const email = user?.email || "-";
   const iconUrl = user?.profile?.icon_url || "";
+
+  const birthday = p.birthday ? new Date(p.birthday) : null;
+  const age = birthday ? calcAge(birthday) : null;
+
 
   return (
     <div className="p-6 space-y-5">
@@ -227,10 +232,29 @@ function ProfilePanel({ user }: { user: User }) {
 
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-1 text-gray-500">ユーザー名</div>
-        <div className="sm:col-span-2 break-words">{user?.username ?? "-"}</div>
+        <div className="sm:col-span-2 break-words">{user.username ?? "-"}</div>
 
         <div className="sm:col-span-1 text-gray-500">メール</div>
         <div className="sm:col-span-2 break-words">{email}</div>
+
+        <div className="sm:col-span-1 text-gray-500">生年月日</div>
+        <div className="sm:col-span-2">
+          {birthday ? formatDateJp(birthday) : "-"}
+        </div>
+
+        <div className="sm:col-span-1 text-gray-500">地域</div>
+        <div className="sm:col-span-2">{p.location || "-"}</div>
+
+        <div className="sm:col-span-1 text-gray-500">Web</div>
+        <div className="sm:col-span-2">
+          {p.website ? (
+            <a className="text-blue-600 hover:underline break-all" href={p.website} target="_blank" rel="noreferrer">
+              {p.website}
+            </a>
+          ) : (
+            "-"
+          )}
+        </div>
       </dl>
 
       <p className="text-sm text-gray-500">プロフィール編集は後続対応（現状は表示のみ）。</p>
@@ -279,4 +303,15 @@ function SettingsPanel() {
       </div>
     </div>
   );
+}
+
+function calcAge(bday: Date) {
+  const today = new Date();
+  let age = today.getFullYear() - bday.getFullYear();
+  const m = today.getMonth() - bday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--;
+  return age;
+}
+function formatDateJp(d: Date) {
+  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
 }
