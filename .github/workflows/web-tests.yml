@@ -1,0 +1,55 @@
+# .github/workflows/web-tests.yml
+name: web-tests
+
+on:
+  push:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-tests.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-tests.yml"
+
+concurrency:
+  group: web-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    permissions:
+      contents: read
+    env:
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      # カバレッジ付テスト（Vitest v8カバレッジ）
+      - name: Test with coverage
+        run: pnpm test:cov
+
+      # lcov をアーティファクトとして保存（PRレビューで参照しやすい）
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage-lcov
+          path: apps/web/coverage/lcov.info
+          if-no-files-found: ignore

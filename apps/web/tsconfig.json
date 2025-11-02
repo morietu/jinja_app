@@ -11,13 +11,16 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+
+    // Next.js 推奨
     "jsx": "preserve",
+
     "incremental": true,
     "plugins": [{ "name": "next" }],
-    "baseUrl": ".",                         // そのままでOK
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],                   // 既存
-      "@shared/*": ["../../packages/shared/*"] // ← 追加：共有レイヤ
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../packages/shared/*"]
     }
   },
   "include": ["next-env.d.ts", "src/**/*", ".next/types/**/*.ts"],

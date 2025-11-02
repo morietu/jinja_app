@@ -253,6 +253,23 @@ function ProfilePanel({ user }: { user: User }) {
         <div className="sm:col-span-1 text-gray-500">地域</div>
         <div className="sm:col-span-2">{p.location || "-"}</div>
 
+        {/* Web（空なら完全に非表示） */}
+        {p.website && isHttpUrl(p.website) ? (
+          <>
+            <div className="sm:col-span-1 text-gray-500">Web</div>
+            <div className="sm:col-span-2">
+              <a
+                className="text-blue-600 hover:underline break-all"
+                href={p.website!}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {p.website}
+              </a>
+            </div>
+          </>
+        ) : null}
+
       </dl>
 
       <p className="text-sm text-gray-500">プロフィール編集は後続対応（現状は表示のみ）。</p>
@@ -313,4 +330,15 @@ function calcAge(birth: Date) {
 }
 function formatDateJp(d: Date) {
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+
+function isHttpUrl(url?: string | null) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
