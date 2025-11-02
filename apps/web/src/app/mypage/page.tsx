@@ -11,7 +11,7 @@ const TABS: TabKey[] = ["profile", "favorites", "goshuin", "settings"];
 
 function sanitizeTab(v?: string | null): TabKey {
   if (!v) return "profile";
-  return (TABS.includes(v as TabKey) ? v : "profile") as TabKey;
+  return (TABS.includes(v as TabKey) ? (v as TabKey) : "profile") as TabKey;
 }
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
@@ -38,15 +38,15 @@ export default function MyPage() {
 
   const tabs = useMemo(
     () => [
-      { key: "profile" as const,   label: "プロフィール" },
+      { key: "profile" as const, label: "プロフィール" },
       { key: "favorites" as const, label: "お気に入り（準備中）" },
-      { key: "goshuin" as const,   label: "御朱印（準備中）" },
-      { key: "settings" as const,  label: "設定" },
+      { key: "goshuin" as const, label: "御朱印（準備中）" },
+      { key: "settings" as const, label: "設定" },
     ],
     []
   );
 
-  // ← ここで1回だけ宣言（以降の条件分岐より前）
+  // タブのキーボード操作
   const onTabsKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const keys = ["ArrowLeft", "ArrowRight", "Home", "End"] as const;
@@ -56,8 +56,8 @@ export default function MyPage() {
       const idx = tabs.findIndex((t) => t.key === tab);
       const last = tabs.length - 1;
 
-      if (e.key === "Home")      setTab(tabs[0].key,  { focus: true });
-      else if (e.key === "End")  setTab(tabs[last].key, { focus: true });
+      if (e.key === "Home") setTab(tabs[0].key, { focus: true });
+      else if (e.key === "End") setTab(tabs[last].key, { focus: true });
       else if (e.key === "ArrowLeft") {
         const next = idx <= 0 ? last : idx - 1;
         setTab(tabs[next].key, { focus: true });
@@ -78,7 +78,12 @@ export default function MyPage() {
           <div className="px-3 py-1 rounded bg-gray-100 text-gray-400">…</div>
         </header>
 
-        <nav className="flex gap-2 flex-wrap" role="tablist" aria-label="マイページ内タブ" aria-orientation="horizontal">
+        <nav
+          className="flex gap-2 flex-wrap"
+          role="tablist"
+          aria-label="マイページ内タブ"
+          aria-orientation="horizontal"
+        >
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -95,7 +100,6 @@ export default function MyPage() {
           ))}
         </nav>
 
-        {/* Skeletonのみ */}
         <section className="rounded-lg border bg-white p-6" role="status" aria-busy="true" aria-live="polite">
           <div className="flex items-center gap-4 mb-4">
             <div className="size-12 rounded-full bg-gray-200 animate-pulse" />
@@ -132,7 +136,7 @@ export default function MyPage() {
     );
   }
 
-  // --- ログイン時の表示
+  // --- ログイン時
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
@@ -179,28 +183,27 @@ export default function MyPage() {
         tabIndex={0}
         className="rounded-lg border bg-white"
       >
-        {tab === "profile"   && <ProfilePanel user={user!} />}
+        {tab === "profile" && <ProfilePanel user={user!} />}
         {tab === "favorites" && <FavoritesPanel />}
-        {tab === "goshuin"   && <GoshuinPanel />}
-        {tab === "settings"  && <SettingsPanel />}
+        {tab === "goshuin" && <GoshuinPanel />}
+        {tab === "settings" && <SettingsPanel />}
       </section>
     </main>
   );
 }
 
-// --- 子では useAuth() を呼ばず、親の user を受け取る
+// ===============================
+// ProfilePanel
+// ===============================
 function ProfilePanel({ user }: { user: User }) {
   if (!user) return null;
-
   const p = user.profile ?? {};
   const nickname = p.nickname || user.username || "-";
   const isPublic = !!p.is_public;
-  const email = user?.email || "-";
-  const iconUrl = user?.profile?.icon_url || "";
-
-  const birthday = p.birthday ? new Date(p.birthday) : null;
-  const age = birthday ? calcAge(birthday) : null;
-
+  const email = user.email || "-";
+  const iconUrl = p.icon_url || "";
+  const birthdayDate = p.birthday ? new Date(p.birthday) : null;
+  const age = birthdayDate ? calcAge(birthdayDate) : null;
 
   return (
     <div className="p-6 space-y-5">
@@ -212,7 +215,6 @@ function ProfilePanel({ user }: { user: User }) {
             {nickname.slice(0, 1).toUpperCase()}
           </div>
         )}
-
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold truncate">{nickname}</h2>
@@ -239,22 +241,19 @@ function ProfilePanel({ user }: { user: User }) {
 
         <div className="sm:col-span-1 text-gray-500">生年月日</div>
         <div className="sm:col-span-2">
-          {birthday ? formatDateJp(birthday) : "-"}
+          {birthdayDate ? (
+            <>
+              {formatDateJp(birthdayDate)}
+              {age !== null && <span className="ml-2 text-gray-500">（{age}歳）</span>}
+            </>
+          ) : (
+            "-"
+          )}
         </div>
 
         <div className="sm:col-span-1 text-gray-500">地域</div>
         <div className="sm:col-span-2">{p.location || "-"}</div>
 
-        <div className="sm:col-span-1 text-gray-500">Web</div>
-        <div className="sm:col-span-2">
-          {p.website ? (
-            <a className="text-blue-600 hover:underline break-all" href={p.website} target="_blank" rel="noreferrer">
-              {p.website}
-            </a>
-          ) : (
-            "-"
-          )}
-        </div>
       </dl>
 
       <p className="text-sm text-gray-500">プロフィール編集は後続対応（現状は表示のみ）。</p>
@@ -305,13 +304,14 @@ function SettingsPanel() {
   );
 }
 
-function calcAge(bday: Date) {
+// ヘルパー
+function calcAge(birth: Date) {
   const today = new Date();
-  let age = today.getFullYear() - bday.getFullYear();
-  const m = today.getMonth() - bday.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--;
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
 }
 function formatDateJp(d: Date) {
-  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
+  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
