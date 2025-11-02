@@ -5,14 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { User } from "@/lib/types/user";
+import type { TabKey } from "./tabs";
+import { TABS, sanitizeTab } from "./tabs";
 
-type TabKey = "profile" | "favorites" | "goshuin" | "settings";
-const TABS: TabKey[] = ["profile", "favorites", "goshuin", "settings"];
 
-function sanitizeTab(v?: string | null): TabKey {
-  if (!v) return "profile";
-  return (TABS.includes(v as TabKey) ? (v as TabKey) : "profile") as TabKey;
-}
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
@@ -202,7 +198,10 @@ function ProfilePanel({ user }: { user: User }) {
   const isPublic = !!p.is_public;
   const email = user.email || "-";
   const iconUrl = p.icon_url || "";
-  const birthdayDate = p.birthday ? new Date(p.birthday) : null;
+  const birthdayDate =
+    p.birthday && !Number.isNaN(new Date(p.birthday).getTime())
+      ? new Date(p.birthday)
+      : null;
   const age = birthdayDate ? calcAge(birthdayDate) : null;
 
   return (
