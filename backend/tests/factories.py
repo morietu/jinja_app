@@ -3,6 +3,7 @@ import factory
 from django.contrib.auth import get_user_model
 from factory.django import DjangoModelFactory
 from temples.models import Shrine
+from users.models import UserProfile
 
 User = get_user_model()
 
@@ -12,12 +13,27 @@ class UserFactory(DjangoModelFactory):
         model = User
 
     username = factory.Sequence(lambda n: f"user{n}")
+    email = factory.LazyAttribute(lambda o: f"{o.username}@example.com")
+    password = factory.PostGenerationMethodCall("set_password", "testpass")
+
+
+class ProfileFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = UserProfile
+
+    user = factory.SubFactory(UserFactory)
+    nickname = "tester"
+    is_public = False
+    website = "https://example.com"
 
 
 def make_user(username="user", password="p"):
     u = UserFactory(username=username)
     u.set_password(password)
     u.save()
+    return u
+    # プロファイルは自動作成と二重にならないよう get_or_create に
+    UserProfile.objects.get_or_create(user=u)
     return u
 
 

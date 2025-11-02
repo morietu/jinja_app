@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from temples.models import Shrine
 
-from .factories import make_shrine, make_user
+from tests.factories import make_shrine, make_user
 
 User = get_user_model()
 

@@ -10,6 +10,19 @@ const BACKEND =
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// 共通：プロフィールに仮の拡張フィールドを付与
+function enrich(data: any) {
+  return {
+    ...data,
+    profile: {
+      ...(data.profile ?? {}),
+      birthday: data.profile?.birthday ?? "1990-04-10",
+      location: data.profile?.location ?? "Tokyo",
+
+    },
+  };
+}
+
 export async function GET() {
   const store = await cookies();
   let access = store.get("access_token")?.value;
@@ -84,14 +97,16 @@ export async function GET() {
       });
     }
 
-    const data = await me2.json();
-    const res = NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+    const data2 = await me2.json();
+    const enriched2 = enrich(data2);
+
+    const res = NextResponse.json(enriched2, { headers: { "Cache-Control": "no-store" } });
     res.cookies.set("access_token", newAccess, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60,
-      secure: false, // dev は http
+      maxAge: 60 * 60, // 1h
+      secure: false,   // dev は http
     });
     return res;
   }
@@ -104,6 +119,8 @@ export async function GET() {
     );
   }
 
+  // 通常成功
   const data = await me.json();
-  return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+  const enriched = enrich(data);
+  return NextResponse.json(enriched, { headers: { "Cache-Control": "no-store" } });
 }

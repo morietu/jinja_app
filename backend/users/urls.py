@@ -1,7 +1,8 @@
+# backend/users/urls.py
 from django.urls import path
 
-from .views_me import me
+from .views import MeView
 
 urlpatterns = [
-    path("users/me/", me, name="users-me"),
+    path("users/me/", MeView.as_view(), name="users-me"),
 ]

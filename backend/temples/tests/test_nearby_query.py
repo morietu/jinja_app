@@ -1,6 +1,6 @@
 import pytest
 from temples.queries import nearest_shrines
-from temples.tests.factories import make_shrine
+from tests.factories import make_shrine
 
 pytestmark = pytest.mark.postgis
 

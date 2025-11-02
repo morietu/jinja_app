@@ -330,3 +330,5 @@ conda create -n jinja_app_py311 -c conda-forge ^
 conda activate jinja_app_py311
 python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo())"
 ```
+
+![web-tests](https://github.com/morietu/jinja_app/actions/workflows/web-tests.yml/badge.svg?branch=develop)
