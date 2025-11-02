@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-
+import type { User } from "@/lib/types/user";
 
 type TabKey = "profile" | "favorites" | "goshuin" | "settings";
 const TABS: TabKey[] = ["profile", "favorites", "goshuin", "settings"];
@@ -14,14 +14,20 @@ function sanitizeTab(v?: string | null): TabKey {
   return (TABS.includes(v as TabKey) ? v : "profile") as TabKey;
 }
 
-function useTab(): [TabKey, (t: TabKey) => void] {
+function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
   const sp = useSearchParams();
   const current = sanitizeTab(sp.get("tab"));
-  const setTab = (t: TabKey) => {
+  const setTab = (t: TabKey, opts?: { focus?: boolean }) => {
     const usp = new URLSearchParams(sp.toString());
     usp.set("tab", t);
     router.replace(`/mypage?${usp.toString()}`);
+    if (opts?.focus) {
+      queueMicrotask(() => {
+        const el = document.getElementById(`tab-${t}`);
+        if (el instanceof HTMLButtonElement) el.focus();
+      });
+    }
   };
   return [current, setTab];
 }
@@ -30,17 +36,40 @@ export default function MyPage() {
   const { user, isLoggedIn, loading, logout } = useAuth();
   const [tab, setTab] = useTab();
 
-  const tabs: { key: TabKey; label: string }[] = useMemo(
+  const tabs = useMemo(
     () => [
-      { key: "profile",   label: "プロフィール" },
-      { key: "favorites", label: "お気に入り（準備中）" },
-      { key: "goshuin",   label: "御朱印（準備中）" },
-      { key: "settings",  label: "設定" },
+      { key: "profile" as const,   label: "プロフィール" },
+      { key: "favorites" as const, label: "お気に入り（準備中）" },
+      { key: "goshuin" as const,   label: "御朱印（準備中）" },
+      { key: "settings" as const,  label: "設定" },
     ],
     []
   );
 
-  // --- 読み込み中でも外枠は出す（ガタつき低減）
+  // ← ここで1回だけ宣言（以降の条件分岐より前）
+  const onTabsKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const keys = ["ArrowLeft", "ArrowRight", "Home", "End"] as const;
+      if (!keys.includes(e.key as any)) return;
+      e.preventDefault();
+
+      const idx = tabs.findIndex((t) => t.key === tab);
+      const last = tabs.length - 1;
+
+      if (e.key === "Home")      setTab(tabs[0].key,  { focus: true });
+      else if (e.key === "End")  setTab(tabs[last].key, { focus: true });
+      else if (e.key === "ArrowLeft") {
+        const next = idx <= 0 ? last : idx - 1;
+        setTab(tabs[next].key, { focus: true });
+      } else if (e.key === "ArrowRight") {
+        const next = idx >= last ? 0 : idx + 1;
+        setTab(tabs[next].key, { focus: true });
+      }
+    },
+    [tab, tabs, setTab]
+  );
+
+  // --- 読み込み中
   if (loading) {
     return (
       <main className="max-w-4xl mx-auto p-6 space-y-6">
@@ -49,44 +78,43 @@ export default function MyPage() {
           <div className="px-3 py-1 rounded bg-gray-100 text-gray-400">…</div>
         </header>
 
-        <nav className="flex gap-2 flex-wrap" role="tablist" aria-label="マイページ内タブ">
-  {tabs.map((t) => (
-    <button
-      key={t.key}
-      role="tab"
-      aria-selected={tab === t.key}
-      onClick={() => setTab(t.key)}
-      className={
-        "px-3 py-1 rounded border " +
-        (tab === t.key
-          ? "bg-blue-600 text-white border-blue-600"
-          : "bg-white hover:bg-gray-50")
-      }
-      type="button"
-    >
-      {t.label}
-    </button>
-  ))}
-</nav>
+        <nav className="flex gap-2 flex-wrap" role="tablist" aria-label="マイページ内タブ" aria-orientation="horizontal">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              id={`tab-${t.key}`}
+              role="tab"
+              aria-selected={tab === t.key}
+              aria-controls={`panel-${t.key}`}
+              className="px-3 py-1 rounded border bg-gray-50 text-gray-400 cursor-wait"
+              type="button"
+              disabled
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
 
+        {/* Skeletonのみ */}
         <section className="rounded-lg border bg-white p-6" role="status" aria-busy="true" aria-live="polite">
-  <div className="flex items-center gap-4 mb-4">
-    <div className="size-12 rounded-full bg-gray-200 animate-pulse" />
-    <div className="flex-1 space-y-2">
-      <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse" />
-      <div className="h-3 bg-gray-100 rounded w-1/4 animate-pulse" />
-    </div>
-  </div>
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-    {[...Array(4)].map((_, i) => (
-      <div key={i} className="sm:col-span-3 h-4 bg-gray-100 rounded animate-pulse" />
-    ))}
-  </div>
-</section>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="size-12 rounded-full bg-gray-200 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse" />
+              <div className="h-3 bg-gray-100 rounded w-1/4 animate-pulse" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="sm:col-span-3 h-4 bg-gray-100 rounded animate-pulse" />
+            ))}
+          </div>
+        </section>
       </main>
     );
   }
 
+  // --- 未ログイン
   if (!isLoggedIn) {
     return (
       <main className="max-w-3xl mx-auto p-6">
@@ -104,38 +132,53 @@ export default function MyPage() {
     );
   }
 
+  // --- ログイン時の表示
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">マイページ</h1>
-        <button
-          onClick={logout}
-          className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-          type="button"
-        >
+        <button onClick={logout} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300" type="button">
           ログアウト
         </button>
       </header>
 
-      <nav className="flex gap-2 flex-wrap">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={
-              "px-3 py-1 rounded border " +
-              (tab === t.key
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white hover:bg-gray-50")
-            }
-            type="button"
-          >
-            {t.label}
-          </button>
-        ))}
+      <nav
+        className="flex gap-2 flex-wrap"
+        role="tablist"
+        aria-label="マイページ内タブ"
+        aria-orientation="horizontal"
+        onKeyDown={onTabsKeyDown}
+      >
+        {tabs.map((t) => {
+          const isActive = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              id={`tab-${t.key}`}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`panel-${t.key}`}
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => setTab(t.key, { focus: true })}
+              className={
+                "px-3 py-1 rounded border " +
+                (isActive ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-gray-50")
+              }
+              type="button"
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </nav>
 
-      <section className="rounded-lg border bg-white">
+      <section
+        role="tabpanel"
+        id={`panel-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        tabIndex={0}
+        className="rounded-lg border bg-white"
+      >
         {tab === "profile"   && <ProfilePanel user={user!} />}
         {tab === "favorites" && <FavoritesPanel />}
         {tab === "goshuin"   && <GoshuinPanel />}
@@ -145,41 +188,20 @@ export default function MyPage() {
   );
 }
 
-type UserProfile = {
-  nickname?: string | null;
-  is_public?: boolean | null;
-  bio?: string | null;
-  icon_url?: string | null; // 将来サーバーが返す想定
-};
-
 // --- 子では useAuth() を呼ばず、親の user を受け取る
-type User = {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  profile?: UserProfile;
-};
-
 function ProfilePanel({ user }: { user: User }) {
   if (!user) return null;
+
   const nickname = user?.profile?.nickname || user?.username || "-";
   const isPublic = Boolean(user?.profile?.is_public);
   const email = user?.email || "-";
-  // ① 画像アイコンが来たら使う（なければ頭文字アバター）
   const iconUrl = user?.profile?.icon_url || "";
 
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
-        {/* アバター */}
         {iconUrl ? (
-          <img
-            src={iconUrl}
-            alt={nickname}
-            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
-          />
+          <img src={iconUrl} alt={nickname} className="size-12 rounded-full object-cover ring-1 ring-gray-200" />
         ) : (
           <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">
             {nickname.slice(0, 1).toUpperCase()}
@@ -189,13 +211,10 @@ function ProfilePanel({ user }: { user: User }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold truncate">{nickname}</h2>
-            {/* 公開/非公開チップ */}
             <span
               className={
                 "text-xs px-2 py-0.5 rounded-full border " +
-                (isPublic
-                  ? "bg-green-50 text-green-700 border-green-200"
-                  : "bg-gray-50 text-gray-600 border-gray-200")
+                (isPublic ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-600 border-gray-200")
               }
               title={isPublic ? "プロフィールは公開です" : "プロフィールは非公開です"}
             >
@@ -214,9 +233,7 @@ function ProfilePanel({ user }: { user: User }) {
         <div className="sm:col-span-2 break-words">{email}</div>
       </dl>
 
-      <p className="text-sm text-gray-500">
-        プロフィール編集は後続対応（現状は表示のみ）。
-      </p>
+      <p className="text-sm text-gray-500">プロフィール編集は後続対応（現状は表示のみ）。</p>
     </div>
   );
 }
@@ -239,9 +256,7 @@ function GoshuinPanel() {
   return (
     <div className="p-6 space-y-3">
       <h2 className="text-lg font-semibold">御朱印</h2>
-      <p className="text-gray-600">
-        登録・編集はサーバーの準備が整ってから有効化します（現状はUIのみ）。
-      </p>
+      <p className="text-gray-600">登録・編集はサーバーの準備が整ってから有効化します（現状はUIのみ）。</p>
       <div className="flex gap-2">
         <button className="px-3 py-1 rounded bg-gray-200 text-gray-500 cursor-not-allowed" type="button" disabled>
           新規登録（準備中）
