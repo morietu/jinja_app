@@ -2,33 +2,27 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
 from django.views import View
-from rest_framework.exceptions import NotAuthenticated, NotFound
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .serializers import MeSerializer
 
 
-class MeView(APIView):
-    permission_classes = [IsAuthenticated, IsAuthenticatedOrReadOnly]
+class MeView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MeSerializer
+    http_method_names = ["get", "patch"]
 
-    def get(self, request):
-        if not request.user.is_authenticated:
-            # フロント側は 401/403/404 を null として扱う設計
-            raise NotFound()
+    def get(self, request, *args, **kwargs):
         return Response(MeSerializer(request.user).data)
 
-    def patch(self, request):
-        if not request.user.is_authenticated:
-            raise NotAuthenticated()
+    def patch(self, request, *args, **kwargs):
+        # ... PATCH の実装（あなたの現状の処理のままでOK）
         ser = MeSerializer(request.user, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         user = ser.save()
         return Response(MeSerializer(user).data)
-
-    # PUT も PATCH と同じ扱い
-    def put(self, request):
-        return self.patch(request)
 
 
 # 会員登録ビュー（フォーム）
@@ -45,8 +39,9 @@ class RegisterView(View):
         return render(request, "registration/register.html", {"form": form})
 
 
-class CurrentUserView(APIView):
+class CurrentUserView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = MeSerializer
 
     def get(self, request):
         serializer = MeSerializer(request.user)

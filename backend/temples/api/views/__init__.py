@@ -5,4 +5,4 @@ from .concierge import ConciergeChatView
 chat = ConciergeChatView.as_view()
 chat_legacy = chat
 
-__all__ = ["chat", "chat_legacy"]
+__all__ = ["ConciergeChatView", "chat", "chat_legacy"]
