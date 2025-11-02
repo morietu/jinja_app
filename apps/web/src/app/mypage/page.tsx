@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 
+
 type TabKey = "profile" | "favorites" | "goshuin" | "settings";
 const TABS: TabKey[] = ["profile", "favorites", "goshuin", "settings"];
 
@@ -48,22 +49,40 @@ export default function MyPage() {
           <div className="px-3 py-1 rounded bg-gray-100 text-gray-400">…</div>
         </header>
 
-        <nav className="flex gap-2 flex-wrap">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              className="px-3 py-1 rounded border bg-gray-50 text-gray-400 cursor-wait"
-              type="button"
-              disabled
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <nav className="flex gap-2 flex-wrap" role="tablist" aria-label="マイページ内タブ">
+  {tabs.map((t) => (
+    <button
+      key={t.key}
+      role="tab"
+      aria-selected={tab === t.key}
+      onClick={() => setTab(t.key)}
+      className={
+        "px-3 py-1 rounded border " +
+        (tab === t.key
+          ? "bg-blue-600 text-white border-blue-600"
+          : "bg-white hover:bg-gray-50")
+      }
+      type="button"
+    >
+      {t.label}
+    </button>
+  ))}
+</nav>
 
-        <section className="rounded-lg border bg-white p-6">
-          <p>読み込み中…</p>
-        </section>
+        <section className="rounded-lg border bg-white p-6" role="status" aria-busy="true" aria-live="polite">
+  <div className="flex items-center gap-4 mb-4">
+    <div className="size-12 rounded-full bg-gray-200 animate-pulse" />
+    <div className="flex-1 space-y-2">
+      <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse" />
+      <div className="h-3 bg-gray-100 rounded w-1/4 animate-pulse" />
+    </div>
+  </div>
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    {[...Array(4)].map((_, i) => (
+      <div key={i} className="sm:col-span-3 h-4 bg-gray-100 rounded animate-pulse" />
+    ))}
+  </div>
+</section>
       </main>
     );
   }
@@ -126,6 +145,13 @@ export default function MyPage() {
   );
 }
 
+type UserProfile = {
+  nickname?: string | null;
+  is_public?: boolean | null;
+  bio?: string | null;
+  icon_url?: string | null; // 将来サーバーが返す想定
+};
+
 // --- 子では useAuth() を呼ばず、親の user を受け取る
 type User = {
   id: number;
@@ -133,22 +159,63 @@ type User = {
   email: string;
   first_name: string;
   last_name: string;
-  profile?: any;
+  profile?: UserProfile;
 };
 
 function ProfilePanel({ user }: { user: User }) {
+  if (!user) return null;
+  const nickname = user?.profile?.nickname || user?.username || "-";
+  const isPublic = Boolean(user?.profile?.is_public);
+  const email = user?.email || "-";
+  // ① 画像アイコンが来たら使う（なければ頭文字アバター）
+  const iconUrl = user?.profile?.icon_url || "";
+
   return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold">プロフィール</h2>
+    <div className="p-6 space-y-5">
+      <div className="flex items-center gap-4">
+        {/* アバター */}
+        {iconUrl ? (
+          <img
+            src={iconUrl}
+            alt={nickname}
+            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
+          />
+        ) : (
+          <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">
+            {nickname.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold truncate">{nickname}</h2>
+            {/* 公開/非公開チップ */}
+            <span
+              className={
+                "text-xs px-2 py-0.5 rounded-full border " +
+                (isPublic
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-gray-50 text-gray-600 border-gray-200")
+              }
+              title={isPublic ? "プロフィールは公開です" : "プロフィールは非公開です"}
+            >
+              {isPublic ? "公開" : "非公開"}
+            </span>
+          </div>
+          <p className="text-gray-500 text-sm truncate">{email}</p>
+        </div>
+      </div>
+
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-1 text-gray-500">ユーザー名</div>
-        <div className="sm:col-span-2">{user?.username ?? "-"}</div>
+        <div className="sm:col-span-2 break-words">{user?.username ?? "-"}</div>
 
         <div className="sm:col-span-1 text-gray-500">メール</div>
-        <div className="sm:col-span-2">{user?.email ?? "-"}</div>
+        <div className="sm:col-span-2 break-words">{email}</div>
       </dl>
+
       <p className="text-sm text-gray-500">
-        本番の編集フォームはサーバーAPI接続後に追加します（表示のみ）。
+        プロフィール編集は後続対応（現状は表示のみ）。
       </p>
     </div>
   );
