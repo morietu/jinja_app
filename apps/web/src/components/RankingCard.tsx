@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { RankingItem } from "@/lib/api/ranking";
+import type { RankingItem } from "@/lib/api/ranking";
 
 export default function RankingCard({ shrine, rank }: { shrine: RankingItem; rank: number }) {
   const router = useRouter();

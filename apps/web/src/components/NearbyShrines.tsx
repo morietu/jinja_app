@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchNearestShrines, type Shrine } from "@/lib/shrines";
+import { fetchNearestShrines, type Shrine } from "@/lib/api/shrines";
 import { useGeolocation } from "@/hooks/useGeolocation";
 
 export default function NearbyShrines({ limit = 10 }: { limit?: number }) {

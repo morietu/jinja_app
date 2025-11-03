@@ -402,7 +402,7 @@ export default function ConciergePage() {
                 )}
                 {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
                   <div className="text-xs text-gray-500 mt-1">
-                    {(s as any).distance_text ?? fmtDistanceKm(s.distance)}
+                    {(s as any).distance_text ?? ({ meters: s.distance_m })}
                   </div>
                 )}
 

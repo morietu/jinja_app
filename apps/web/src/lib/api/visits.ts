@@ -1,5 +1,5 @@
 import api from "./client";
-import { Shrine } from "./shrines";
+import type { Shrine } from "./shrines";
 
 export type Visit = {
   id: number;

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getShrines, Shrine } from "@/lib/api/shrines";
+import { getShrine } from "@/lib/api/shrines";
+import type { Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/ShrineCard";
 
 export default function ShrinesPage() {

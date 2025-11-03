@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getShrine, Shrine } from "@/lib/api/shrines";
+import { getShrine } from "@/lib/api/shrines";;
+import type { Shrine } from "@/lib/api/shrines";
 
 const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false });
 

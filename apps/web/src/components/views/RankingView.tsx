@@ -1,6 +1,6 @@
 "use client";
 
-import { RankingItem } from "@/lib/api/ranking";
+import type { RankingItem } from "@/lib/api/ranking";
 import RankingCard from "@/components/RankingCard";
 
 type Props = {

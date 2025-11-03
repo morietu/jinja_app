@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchRanking, RankingItem } from "@/lib/api/ranking";
+import { fetchRanking } from "@/lib/api/ranking";
+import type { RankingItem } from "@/lib/api/ranking";
 import { useFavorite } from "@/hooks/useFavorite";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";

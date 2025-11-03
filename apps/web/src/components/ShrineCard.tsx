@@ -35,7 +35,7 @@ export default function ShrineCard({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuth();
+  const { isLoggedIn } = useAuth();
 
   if (!shrine) return null;
 
@@ -72,7 +72,7 @@ export default function ShrineCard({
 
   const handleClick = async () => {
     if (readOnly) return;
-    if (!isAuthenticated) {
+    if (!isLoggedIn) {
       goLoginWithReturn();
       return;
     }
@@ -113,14 +113,14 @@ export default function ShrineCard({
           title={
             readOnly
               ? "一覧の閲覧専用です"
-              : isAuthenticated
+              : isLoggedIn
               ? (fav ? "お気に入り解除" : "お気に入り追加")
               : "ログインでお気に入りが使えます"
           }
           className={`px-3 py-1 rounded text-sm ${
             readOnly || !canFav
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : isAuthenticated
+              : isLoggedIn
               ? fav
                 ? "bg-red-500 text-white hover:bg-red-600"
                 : "bg-gray-200 hover:bg-gray-300"

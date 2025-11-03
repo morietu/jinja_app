@@ -1,6 +1,6 @@
 // src/lib/api/ranking.ts
 import api from "./client";
-import { GoriyakuTag } from "./types";
+import type { GoriyakuTag } from "./types";
 
 export type RankingItem = {
   id: number;

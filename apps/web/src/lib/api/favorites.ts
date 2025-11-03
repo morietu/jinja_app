@@ -1,27 +1,47 @@
 // apps/web/src/lib/api/favorites.ts
-import { apiDelete, apiPost } from "@/lib/api/http";
+import api from "./client";
 
-export type Favorite = { id: number; shrine: number };
+export type Favorite = {
+  id: number;
+  shrine_id?: number | null;
+  place_id?: string | null;
+};
 
-export async function createFavorite(shrineId: number): Promise<Favorite> {
-  return apiPost<Favorite>("favorites/", { shrine: shrineId });
+export async function getFavorites(): Promise<Favorite[]> {
+  const r = await api.get("/favorites/");
+  return Array.isArray(r.data) ? r.data : r.data?.results ?? [];
 }
 
-export async function deleteFavorite(id: number): Promise<void> {
-  await apiDelete(`favorites/${id}/`);
-} // ← ← ← これが無くてエラーになってた
-
-// トグル（存在すれば削除、無ければ作成）
-export async function toggleFavorite(
-  getId: () => Promise<number | null>,
+export async function createFavoriteByShrineId(
   shrineId: number
-) {
-  const existingId = await getId();
-  if (existingId) {
-    await deleteFavorite(existingId);
-    return { removed: true, id: existingId };
-  } else {
-    const fav = await createFavorite(shrineId);
-    return { added: true, id: fav.id };
-  }
+): Promise<Favorite> {
+  const r = await api.post("/favorites/", { shrine_id: shrineId });
+  return r.data;
+}
+
+export async function createFavoriteByPlaceId(
+  placeId: string
+): Promise<Favorite> {
+  const r = await api.post("/favorites/", { place_id: placeId });
+  return r.data;
+}
+
+export async function removeFavoriteByPk(pk: number) {
+  await api.delete(`/favorites/${pk}/`);
+}
+
+export async function removeFavoriteByShrineId(shrineId: number) {
+  await api.delete(`/favorites/by-shrine/${shrineId}/`);
+}
+
+export async function removeFavoriteByPlaceId(placeId: string) {
+  await api.delete(`/favorites/by-place/${placeId}/`);
+}
+
+export type ImportResult = { imported: number; shrine_id?: number };
+export async function importFromPlace(placeId: string): Promise<ImportResult> {
+  const r = await api.post(`/favorites/import-from-place/`, {
+    place_id: placeId,
+  });
+  return r.data;
 }

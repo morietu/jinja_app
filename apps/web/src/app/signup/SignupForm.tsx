@@ -25,7 +25,7 @@ export default function SignupForm() {
     try {
       await signup({ username, password, email: email || undefined });
       await loginApi({ username, password });
-      try { await syncMe(); } catch {}
+      try { await loginApi(username, password); } catch {}
       router.replace("/mypage");
     } catch (err) {
       const e = err as AxiosError<any>;
