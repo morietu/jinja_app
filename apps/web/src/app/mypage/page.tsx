@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import type { User } from "@/lib/types/user";
 import type { TabKey } from "./tabs";
 import { TABS, sanitizeTab } from "./tabs";
-
+import type { UserMe } from "@/lib/api/users";
 
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
@@ -191,9 +191,22 @@ export default function MyPage() {
 // ===============================
 // ProfilePanel
 // ===============================
-function ProfilePanel({ user }: { user: User }) {
+function ProfilePanel({ user }: { user: UserMe }) {
   if (!user) return null;
-  const p = user.profile ?? {};
+
+  // プロフィールはバックエンド依存でフィールドが揺れる想定：
+  // 必要フィールドだけ optional で定義して “ゆるく” 受ける
+  type ProfileLike = Partial<{
+    nickname: string;
+    is_public: boolean;
+    website: string;
+    icon_url: string;
+    birthday: string; // ISO or yyyy-mm-dd
+    location: string;
+  }>;
+
+  const p = (user.profile ?? {}) as ProfileLike;
+
   const nickname = p.nickname || user.username || "-";
   const isPublic = !!p.is_public;
   const email = user.email || "-";
@@ -202,13 +215,18 @@ function ProfilePanel({ user }: { user: User }) {
     p.birthday && !Number.isNaN(new Date(p.birthday).getTime())
       ? new Date(p.birthday)
       : null;
+
   const age = birthdayDate ? calcAge(birthdayDate) : null;
 
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
         {iconUrl ? (
-          <img src={iconUrl} alt={nickname} className="size-12 rounded-full object-cover ring-1 ring-gray-200" />
+          <img
+            src={iconUrl}
+            alt={nickname}
+            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
+          />
         ) : (
           <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">
             {nickname.slice(0, 1).toUpperCase()}
@@ -220,9 +238,13 @@ function ProfilePanel({ user }: { user: User }) {
             <span
               className={
                 "text-xs px-2 py-0.5 rounded-full border " +
-                (isPublic ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-600 border-gray-200")
+                (isPublic
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-gray-50 text-gray-600 border-gray-200")
               }
-              title={isPublic ? "プロフィールは公開です" : "プロフィールは非公開です"}
+              title={
+                isPublic ? "プロフィールは公開です" : "プロフィールは非公開です"
+              }
             >
               {isPublic ? "公開" : "非公開"}
             </span>
@@ -243,7 +265,9 @@ function ProfilePanel({ user }: { user: User }) {
           {birthdayDate ? (
             <>
               {formatDateJp(birthdayDate)}
-              {age !== null && <span className="ml-2 text-gray-500">（{age}歳）</span>}
+              {age !== null && (
+                <span className="ml-2 text-gray-500">（{age}歳）</span>
+              )}
             </>
           ) : (
             "-"
@@ -269,10 +293,11 @@ function ProfilePanel({ user }: { user: User }) {
             </div>
           </>
         ) : null}
-
       </dl>
 
-      <p className="text-sm text-gray-500">プロフィール編集は後続対応（現状は表示のみ）。</p>
+      <p className="text-sm text-gray-500">
+        プロフィール編集は後続対応（現状は表示のみ）。
+      </p>
     </div>
   );
 }

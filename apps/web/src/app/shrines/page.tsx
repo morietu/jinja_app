@@ -1,14 +1,14 @@
+// apps/web/src/app/shrines/page.tsx
 "use client";
+
 import { useEffect, useState } from "react";
-import { getShrine } from "@/lib/api/shrines";
-import type { Shrine } from "@/lib/api/shrines";
+import { getShrines, type Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/ShrineCard";
 
 export default function ShrinesPage() {
   const [shrines, setShrines] = useState<Shrine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     getShrines()

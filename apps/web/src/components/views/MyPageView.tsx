@@ -20,9 +20,10 @@ export default function MyPageView() {
       const me = await getCurrentUser();
       if (me) {
         setUser(me);
+
         setForm({
-          nickname: me.profile.nickname ?? "",
-          is_public: !!me.profile.is_public,
+          nickname: (me.profile?.nickname ?? "").trim(),
+          is_public: !!me.profile?.is_public,
         });
       }
       setLoading(false);
@@ -32,10 +33,10 @@ export default function MyPageView() {
   // 変更有無（前後の空白は無視して比較）
   const dirty = useMemo(() => {
     if (!user) return false;
-    const nick0 = (user.profile.nickname ?? "").trim();
+    const nick0 = (user.profile?.nickname ?? "").trim();
     const nick1 = (form.nickname ?? "").trim();
     const nickDirty = nick1 !== nick0;
-    const publicDirty = Boolean(form.is_public) !== Boolean(user.profile.is_public);
+    const publicDirty = Boolean(form.is_public) !== Boolean(user.profile?.is_public);
     return nickDirty || publicDirty;
   }, [
     user,                 // 取得後のスナップショットが変わったら再計算
@@ -48,18 +49,18 @@ export default function MyPageView() {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {};
-      const nick0 = (user.profile.nickname ?? "").trim();
+      const nick0 = (user.profile?.nickname ?? "").trim();
       const nick1 = (form.nickname ?? "").trim();
       if (nick1 !== nick0) payload.nickname = nick1;
-      if (Boolean(form.is_public) !== Boolean(user.profile.is_public)) {
+      if (Boolean(form.is_public) !== Boolean(user.profile?.is_public)) {
         payload.is_public = form.is_public;
       }
 
       const updated = await updateUser(payload);
       setUser(updated);
       setForm({
-        nickname: (updated.profile.nickname ?? "").trim(),
-        is_public: !!updated.profile.is_public,
+        nickname: (updated.profile?.nickname ?? "").trim(),
+        is_public: !!updated.profile?.is_public,
       });
     } finally {
       setSaving(false);
@@ -69,8 +70,8 @@ export default function MyPageView() {
   const handleReset = () => {
     if (!user) return;
     setForm({
-      nickname: user.profile.nickname ?? "",
-      is_public: !!user.profile.is_public,
+      nickname: user.profile?.nickname ?? "",
+      is_public: !!user.profile?.is_public,
     });
   };
 

@@ -1,3 +1,4 @@
+// apps/web/src/app/shrines/[id]/page.tsx
 "use client";
 
 import dynamic from "next/dynamic";
@@ -10,7 +11,6 @@ import { getShrine, type Shrine } from "@/lib/api/shrines";
 const Map = dynamic(() => import("@/components/maps/Map"), { ssr: false });
 
 export default function ShrineDetailPage() {
-  // id を安全に取り出す（string | string[] の可能性に備える）
   const params = useParams<{ id: string | string[] }>();
   const idParam = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const id = Number(idParam);
@@ -32,9 +32,6 @@ export default function ShrineDetailPage() {
   if (loading) return <p className="p-4">読み込み中...</p>;
   if (error) return <p className="p-4 text-red-500">{error}</p>;
   if (!shrine) return <p className="p-4">神社が見つかりません</p>;
-  if (res.status === 404) {
-    return <div className="p-4 text-sm text-gray-600">このスポットの詳細は準備中です。</div>;
-  }
 
   const hasCoords =
     shrine.latitude != null &&
@@ -47,7 +44,6 @@ export default function ShrineDetailPage() {
       <h1 className="text-2xl font-bold mb-2">{shrine.name_jp}</h1>
       <p className="text-gray-600 mb-4">{shrine.address}</p>
 
-      {/* ▼ 御朱印まわりの導線（ここを追加） */}
       <div className="mt-3 mb-6 flex gap-2">
         <Link
           href="/mypage?tab=goshuin"
@@ -77,24 +73,28 @@ export default function ShrineDetailPage() {
         </section>
       )}
 
-      {Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0 && (
-        <section className="mb-4">
-          <h2 className="font-semibold">タグ</h2>
-          <ul className="flex flex-wrap gap-2 mt-1">
-            {shrine.goriyaku_tags.map((tag) => (
-              <li key={tag.id} className="px-2 py-1 bg-gray-200 rounded text-sm">
-                {tag.name}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {Array.isArray(shrine.goriyaku_tags) &&
+        shrine.goriyaku_tags.length > 0 && (
+          <section className="mb-4">
+            <h2 className="font-semibold">タグ</h2>
+            <ul className="flex flex-wrap gap-2 mt-1">
+              {shrine.goriyaku_tags.map((tag) => (
+                <li
+                  key={tag.id}
+                  className="px-2 py-1 bg-gray-200 rounded text-sm"
+                >
+                  {tag.name}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
       <section className="mt-6">
         <h2 className="font-semibold mb-2">所在地</h2>
         {hasCoords ? (
           <Map
-            // ※ Map の props が { lat, lng } なら lng に直してください（lon→lng）
+            // Map の props が lat/lng か lat/lon かは実装に合わせて変更
             lat={Number(shrine.latitude)}
             lon={Number(shrine.longitude)}
           />

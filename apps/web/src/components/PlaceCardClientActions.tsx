@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { importFromPlace } from "@/lib/shrines";
+import { importFromPlace } from "@/lib/api/shrines"; // ← api/shrines からでOK
 
 export default function PlaceCardClientActions({
   placeId,
@@ -25,9 +25,14 @@ export default function PlaceCardClientActions({
       setBusy(true);
       setErr(null);
       const shrine = await importFromPlace(placeId);
-      if (shrine?.id) router.push(`/shrines/${shrine.id}`);
+      const shrineId = (shrine as any)?.id ?? (shrine as any)?.pk ?? null;
+      if (shrineId) router.push(`/shrines/${shrineId}`);
     } catch (e: any) {
-      setErr(e?.response?.status === 401 ? "ログインが必要です" : "登録に失敗しました");
+      setErr(
+        e?.response?.status === 401
+          ? "ログインが必要です"
+          : "登録に失敗しました"
+      );
     } finally {
       setBusy(false);
     }

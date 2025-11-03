@@ -1,3 +1,4 @@
+// apps/web/src/components/NearbyShrines.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,6 +10,13 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
   const [items, setItems] = useState<Shrine[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
+
+  const fmtDistance = (m?: number) =>
+    typeof m === "number"
+      ? m >= 1000
+        ? `${(m / 1000).toFixed(1)}km`
+        : `${Math.round(m)}m`
+      : "";
 
   useEffect(() => {
     async function run() {
@@ -38,12 +46,19 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       {!fetching && !items.length && <p>近くの神社が見つかりませんでした。</p>}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {items.map((s) => (
-          <li key={s.id} style={{ padding: 12, border: "1px solid #eee", borderRadius: 8 }}>
+          <li
+            key={s.id}
+            style={{ padding: 12, border: "1px solid #eee", borderRadius: 8 }}
+          >
             <strong>{s.name_jp}</strong>
-            {s.distance_text ? <span>（{s.distance_text}）</span> : null}
-            <div style={{ fontSize: 12, opacity: 0.7 }}>
-              {s.latitude.toFixed(5)}, {s.longitude.toFixed(5)}
-            </div>
+            {fmtDistance(s.distance_m) ? (
+              <span>（{fmtDistance(s.distance_m)}）</span>
+            ) : null}
+            {s.latitude != null && s.longitude != null ? (
+              <div className="text-xs text-gray-500">
+                {s.latitude.toFixed(5)}, {s.longitude.toFixed(5)}
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

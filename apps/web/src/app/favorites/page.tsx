@@ -4,6 +4,9 @@ import ShrineCard from "@/components/ShrineCard";
 import { getFavorites, type Favorite } from "@/lib/api/favorites";
 import type { Shrine } from "@/lib/api/shrines";
 
+// Favorite に shrine が付く場合も許容
+type FavoriteLike = Favorite & { shrine?: Shrine | number };
+
 // サーバーコンポーネントで取得
 export default async function FavoritesPage() {
   let favorites: Favorite[] = [];
@@ -21,8 +24,9 @@ export default async function FavoritesPage() {
         <p className="text-gray-500">お気に入りはまだありません。</p>
       ) : (
         <ul className="grid gap-3">
-          {favorites.map((f) => {
-            // shrine がオブジェクトならカード描画、数値ならリンクだけ出す
+          {favorites.map((f0) => {
+            const f = f0 as FavoriteLike;
+
             const shrineObj: Shrine | null =
               f && typeof f.shrine === "object" && f.shrine
                 ? (f.shrine as Shrine)
@@ -30,7 +34,7 @@ export default async function FavoritesPage() {
 
             const shrineId =
               typeof f.shrine === "number"
-                ? f.shrine
+                ? (f.shrine as number)
                 : (f.shrine as any)?.id ?? null;
 
             return (

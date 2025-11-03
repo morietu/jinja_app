@@ -89,8 +89,8 @@ export default function NewShrinePage() {
       const shrine = await createShrine({
         name_jp: form.name_jp,
         address: form.address || "",
-        latitude,
-        longitude,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
         goriyaku: form.goriyaku,
         sajin: form.sajin,
         goriyakuTagIds: selectedTags, // ← ここが重要（number[] をそのまま渡す）
