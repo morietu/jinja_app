@@ -3,13 +3,9 @@ name: web-tests
 
 on:
   push:
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/web-tests.yml"
+    paths: ["apps/web/**", ".github/workflows/web-tests.yml"]
   pull_request:
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/web-tests.yml"
+    paths: ["apps/web/**", ".github/workflows/web-tests.yml"]
 
 concurrency:
   group: web-tests-${{ github.ref }}
@@ -18,11 +14,6 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
-    permissions:
-      contents: read
     env:
       CI: "true"
 
@@ -38,14 +29,33 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Install deps
+      - name: Install deps (workspace root)
         run: pnpm install --frozen-lockfile
 
-      # カバレッジ付テスト（Vitest v8カバレッジ）
+      # ESLint キャッシュ復元
+      - name: Restore ESLint cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}') }}
+          restore-keys: |
+            eslint-${{ runner.os }}-
+
+      # Lint（警告も失敗 & キャッシュ使用）
+      - name: Lint (ESLint)
+        working-directory: apps/web
+        run: pnpm exec eslint . --max-warnings=0 --cache --cache-location .eslintcache
+
+      # 型チェック（noEmit）
+      - name: Type check (tsc)
+        working-directory: apps/web
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+
+      # テスト + カバレッジ
       - name: Test with coverage
+        working-directory: apps/web
         run: pnpm test:cov
 
-      # lcov をアーティファクトとして保存（PRレビューで参照しやすい）
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4

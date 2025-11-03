@@ -102,3 +102,5 @@ coverage.xml
 !**/.vscode/settings.json
 !**/.vscode/extensions.json
 /apps/web/apps/
+
+apps/web/coverage/

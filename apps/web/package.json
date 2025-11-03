@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "_test": "vitest",
+    "test": "vitest",
     "test:run": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=dot"
@@ -51,6 +51,7 @@
     "tw-animate-css": "^1.3.7",
     "typescript": "^5",
     "typescript-eslint": "^8.46.2",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.0.6"
   }
 }
