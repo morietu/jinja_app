@@ -10,7 +10,7 @@ type Place = {
   icon?: string | null;
 };
 
-export function PlaceCard({ p }: { p: Place }) {
+export default function PlaceCard({ p }: { p: Place }) {
   const gm = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     p.name
   )}&query_place_id=${encodeURIComponent(p.place_id)}`;
@@ -19,6 +19,7 @@ export function PlaceCard({ p }: { p: Place }) {
     <div className="border rounded p-3 flex gap-3 items-start">
       {p.icon ? (
         <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={p.icon} alt="" width={24} height={24} className="mt-1" />
         </>
       ) : (
@@ -45,20 +46,5 @@ export function PlaceCard({ p }: { p: Place }) {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function Hero() {
-  return (
-    <section className="py-10 text-center bg-gray-50 rounded">
-      <h2 className="text-3xl font-bold mb-2">神社ポータル</h2>
-      <p className="text-gray-600 mb-4">探す・相談する・お気に入りを管理する</p>
-      <a
-        href="/shrines/search"
-        className="inline-block px-4 py-2 bg-blue-600 text-white rounded"
-      >
-        今すぐ探す
-      </a>
-    </section>
   );
 }

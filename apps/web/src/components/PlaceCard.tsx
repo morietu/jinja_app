@@ -18,10 +18,14 @@ export default function PlaceCard({ p }: { p: Place }) {
   return (
     <div className="border rounded p-3 flex gap-3 items-start">
       {p.icon ? (
-        <img src={p.icon} alt="" width={24} height={24} className="mt-1" />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={p.icon} alt="" width={24} height={24} className="mt-1" />
+        </>
       ) : (
         <div className="w-6 h-6 mt-1 rounded bg-gray-200" />
       )}
+
       <div className="flex-1">
         <div className="font-semibold">{p.name}</div>
         <div className="text-sm text-gray-600">{p.address ?? "-"}</div>
