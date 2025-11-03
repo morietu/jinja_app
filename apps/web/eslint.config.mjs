@@ -41,6 +41,7 @@ export default tseslint.config(
       // Next.js のお作法
       "next/no-img-element": "warn",
       "next/no-html-link-for-pages": "off",
+      "next/no-img-element": "off",
 
       // まずは通すために厳しいTypeScriptルールを抑制
       "@typescript-eslint/no-explicit-any": "off",

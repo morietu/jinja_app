@@ -4,9 +4,9 @@ import React, { useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import type { User } from "@/lib/types/user";
+
 import type { TabKey } from "./tabs";
-import { TABS, sanitizeTab } from "./tabs";
+import { sanitizeTab } from "./tabs";
 import type { UserMe } from "@/lib/api/users";
 
 
@@ -222,11 +222,13 @@ function ProfilePanel({ user }: { user: UserMe }) {
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
         {iconUrl ? (
-          <img
-            src={iconUrl}
-            alt={nickname}
-            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
-          />
+          <>
+            <img
+              src={iconUrl}
+              alt={nickname}
+              className="size-12 rounded-full object-cover ring-1 ring-gray-200"
+            />
+          </>
         ) : (
           <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">
             {nickname.slice(0, 1).toUpperCase()}

@@ -62,7 +62,7 @@ export default function GoogleMap({
 
     loadGoogleMaps(key)
       .then(() => {
-        // @ts-ignore
+
         map = new window.google.maps.Map(wrapRef.current!, {
           center,
           zoom,

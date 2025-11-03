@@ -33,7 +33,9 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try {
       await logoutApi();
-    } catch {}
+    } catch {
+      /* noop */
+    }
     setUser(null);
   }, []);
 

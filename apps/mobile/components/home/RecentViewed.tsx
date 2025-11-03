@@ -19,7 +19,9 @@ export default function RecentViewed() {
         const map = new Map(SHRINES.map(s => [String(s.id), s]));
         const picked = ids.map(id => map.get(String(id))).filter(Boolean).slice(0, 5) as any[];
         setItems(picked);
-      } catch {}
+      } catch {
+        /* noop */
+      }
     })();
   }, []);
 

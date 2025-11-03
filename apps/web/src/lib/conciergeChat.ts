@@ -36,7 +36,9 @@ export async function conciergeChat(
       );
       location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     }
-  } catch {}
+  } catch {
+    /* geolocation 失敗は無視 */
+  }
 
   // api クライアントは baseURL=/api に統一済み
   const { data } = await api.post<Plan>("concierge/chat/", {

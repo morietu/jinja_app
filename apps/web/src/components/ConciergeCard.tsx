@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import api from "@/lib/api/client";
-import { createFavoriteByShrineId } from "@/lib/api/favorites";
+
 import { useFavorite } from "@/hooks/useFavorite"; // ★ 追加
 
 type Shrine = {
@@ -34,7 +34,7 @@ export default function ConciergeCard({
   const [err, setErr] = useState<string | null>(null);
 
   // お気に入りの追加/削除/トグルはフックに一元化
-  const { fav, busy, add, remove, toggle } = useFavorite({
+  const { fav, busy, add, toggle } = useFavorite({
     shrineId: s.id ?? undefined,        // あれば優先
     placeId: s.place_id ?? undefined,   // なければ place から作成してお気に入りまで
     initial: false,
@@ -102,13 +102,17 @@ export default function ConciergeCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {isPrimary && (
-            <span className="text-xs px-2 py-0.5 rounded bg-black text-white">一押し</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-black text-white">
+              一押し
+            </span>
           )}
           <h3 className="font-semibold truncate">{s.name}</h3>
         </div>
 
         {s.address && (
-          <div className="text-sm text-gray-600 mt-0.5 truncate">{s.address}</div>
+          <div className="text-sm text-gray-600 mt-0.5 truncate">
+            {s.address}
+          </div>
         )}
 
         <div className="text-sm mt-1">
@@ -136,7 +140,9 @@ export default function ConciergeCard({
             disabled={busy || imported || !s.place_id}
             onClick={onImport}
             className={`px-3 py-1 rounded ${
-              imported ? "bg-gray-200 text-gray-600" : "bg-black text-white hover:opacity-90"
+              imported
+                ? "bg-gray-200 text-gray-600"
+                : "bg-black text-white hover:opacity-90"
             } disabled:opacity-60`}
             title={!s.place_id ? "place_idが無いので保存できません" : ""}
           >

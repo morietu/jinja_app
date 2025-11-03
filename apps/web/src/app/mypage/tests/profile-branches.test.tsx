@@ -35,7 +35,7 @@ describe("Profile 分岐", () => {
     render(<MyPage />);
 
     // ロケール表記ゆれを許容（1990/04/10 か 1990-04-10）
-    expect(screen.getByText(/1990[\/-]04[\/-]10/)).toBeInTheDocument();
+    expect(screen.getByText(/1990[/-]04[/-]10/)).toBeInTheDocument();
     expect(screen.getByText(/歳/)).toBeInTheDocument();
   });
 

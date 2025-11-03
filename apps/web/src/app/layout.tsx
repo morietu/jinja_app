@@ -1,12 +1,11 @@
 // apps/web/src/app/layout.tsx
-import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import Link from "next/link";
 import Script from "next/script";
 import ClientBootstrap from "./providers/ClientBootstrap";
 import "leaflet/dist/leaflet.css";
-import type { ReactNode } from "react";
+
 // import HamburgerMenu from "@/components/navigation/HamburgerMenu"; // 使うなら残す
 
 const geistSans = localFont({

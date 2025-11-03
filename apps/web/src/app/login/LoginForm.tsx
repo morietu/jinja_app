@@ -6,22 +6,19 @@ import { useRouter } from "next/navigation";
 import { isAxiosError } from "axios";
 import { login as loginApi } from "@/lib/api/auth";
 import { getCurrentUser } from "@/lib/api/users";
-// （任意）アプリの認証状態を同期したい場合だけ使う
-// import { useAuth } from "@/lib/hooks/useAuth";
 
 type Props = { next?: string };
 
 export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const router = useRouter();
-  // const { login: refreshAuth } = useAuth(); // 使うならコメントアウト解除
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // 暗黙送信を止める
+    e.preventDefault();
     if (inFlight.current || loading) return;
     if (!username || !password) {
       setError("ユーザー名とパスワードを入力してください");
@@ -31,10 +28,14 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
     setLoading(true);
     setError(null);
     try {
-      // 1) ログイン（トークン保存）
-      await loginApi({ username, password });  // ← ★ここで tokens.set が走る
-      // 2) me で確認（Authorization ヘッダが付くはず）
-      try { await getCurrentUser(); } catch (_) {}
+      // 1) ログイン
+      await loginApi({ username, password });
+      // 2) me で確認
+      try {
+        await getCurrentUser();
+      } catch {
+        /* noop */
+      }
       // 3) 遷移
       router.replace(next);
     } catch (err: unknown) {
@@ -42,10 +43,12 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
       if (isAxiosError(err)) {
         const s = err.response?.status ?? 0;
         if (s === 400) msg = "リクエストが正しくありません。";
-        else if (s === 401) msg = "ユーザー名またはパスワードが正しくありません。";
+        else if (s === 401)
+          msg = "ユーザー名またはパスワードが正しくありません。";
         else if (s >= 500) msg = "サーバーエラーが発生しました。";
         else if (!err.response && err.request) {
-          msg = "サーバーに接続できません。バックエンドの起動を確認してください。";
+          msg =
+            "サーバーに接続できません。バックエンドの起動を確認してください。";
         }
       } else if (err instanceof Error) {
         msg = err.message;

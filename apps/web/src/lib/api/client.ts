@@ -1,7 +1,5 @@
 // apps/web/src/lib/api/client.ts
-import axios, { AxiosError } from "axios";
-import type { AxiosRequestConfig } from "axios";
-// もし使っていれば：import { tokens } from "@/lib/auth/token";
+import axios from "axios";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api",

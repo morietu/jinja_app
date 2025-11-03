@@ -1,3 +1,6 @@
+// apps/web/src/components/PlaceCard.tsx
+"use client";
+
 type Place = {
   place_id: string;
   name: string;
@@ -24,10 +27,17 @@ export default function PlaceCard({ p }: { p: Place }) {
         <div className="text-sm text-gray-600">{p.address ?? "-"}</div>
         <div className="text-xs text-gray-500 mt-1">
           {p.rating ? `★ ${p.rating.toFixed(1)}` : "評価なし"}
-          {typeof p.user_ratings_total === "number" ? `（${p.user_ratings_total}件）` : ""}
+          {typeof p.user_ratings_total === "number"
+            ? `（${p.user_ratings_total}件）`
+            : ""}
         </div>
         <div className="mt-2">
-          <a href={gm} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">
+          <a
+            href={gm}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 underline text-sm"
+          >
             Googleマップで見る
           </a>
         </div>

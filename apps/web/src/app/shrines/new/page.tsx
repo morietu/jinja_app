@@ -97,7 +97,7 @@ export default function NewShrinePage() {
       });
 
       router.push(`/shrines/${shrine.id}`);
-    } catch (err) {
+    } catch {
       setErrors((prev) => ({ ...prev, general: "登録に失敗しました。" }));
     }
   };

@@ -11,7 +11,7 @@ export async function resolvePlaceFromUtterance(text: string) {
     });
     // ここで found に shrine_id などが入っていれば “取り込み/紐付け済み”
     return { kind: "found", data: found } as const;
-  } catch (e: any) {
+  } catch {
     // 404/422 等で解決不可なら A にフォールバック
     const res = await searchPlaces({
       q: text,
