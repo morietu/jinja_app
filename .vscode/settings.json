@@ -1,6 +1,89 @@
 {
+  // ---- ウォッチ/検索を軽く ----
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.ruff_cache/**": true,
+    "**/.cache/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/coverage*/**": true,
+    "**/.next/**": true,
+    "**/.turbo/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.cache": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/coverage*": true,
+    "**/.next": true,
+    "**/.turbo": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.DS_Store": true
+  },
+
+  // ---- 改行/末尾 ----
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
-  "CodeGPT.apiKey": "Anthropic"
+
+  // ---- Python（プロジェクト直下に .venv がある前提）----
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/.pytest_cache/**",
+    "**/.ruff_cache/**",
+    "**/.cache/**"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["backend"],
+  "python.analysis.autoImportCompletions": false,
+  "python.analysis.memory.keepLibraryAst": false,
+
+  // ---- TypeScript / ESLint（monorepoをルートから開く前提）----
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.tsserver.watchOptions": {
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority"
+  },
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": [
+    { "directory": "apps/web", "changeProcessCWD": true }
+  ],
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "json"
+  ],
+
+  // ---- フォーマッタ競合回避 ----
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "[javascript][javascriptreact][typescript][typescriptreact][json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
+
+// ---- TypeScript / ESLint ----
+"typescript.disableAutomaticTypeAcquisition": true,
+"typescript.tsserver.experimental.enableProjectDiagnostics": false,
+"typescript.tsserver.watchOptions": {
+  "watchDirectory": "useFsEvents",
+  "fallbackPolling": "dynamicPriority"
+},
+// 追加候補（任意）：構文用サーバを分離して体感を安定させる
+"typescript.tsserver.useSeparateSyntaxServer": true

@@ -91,3 +91,13 @@ venv/
 coverage-html/
 htmlcov/
 coverage.xml
+
+# まず .vscode 配下を全部無視
+**/.vscode/*
+
+# ← これが重要：ディレクトリ自体を “再許可”
+!**/.vscode/
+
+# そのうえで、入れたいファイルだけ再許可
+!**/.vscode/settings.json
+!**/.vscode/extensions.json
