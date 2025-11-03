@@ -101,6 +101,7 @@ coverage.xml
 # そのうえで、入れたいファイルだけ再許可
 !**/.vscode/settings.json
 !**/.vscode/extensions.json
-/apps/web/apps/
+
 
 apps/web/coverage/
+.eslintcache
