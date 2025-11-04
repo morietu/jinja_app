@@ -14,7 +14,7 @@ jobs:
         image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: admin
-          POSTGRES_PASSWORD: jdb50515
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: jinja_test
         ports:
           - "5432:5432"
@@ -31,7 +31,8 @@ jobs:
       IS_PYTEST: "1"
       ROUTE_PROVIDER: "dummy"
       DISABLE_THROTTLE: "1"
-      DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_test
+      # services で 5432 を localhost に公開しているため localhost でOK
+      DATABASE_URL: postgis://admin:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/jinja_test
       GOOGLE_PLACES_API_KEY: "dummy"
       GOOGLE_MAPS_API_KEY: "dummy"
 
@@ -79,6 +80,10 @@ jobs:
             sleep 2
           done
           pg_isready -h localhost -p 5432 -U admin -d jinja_test
+
+      - name: Migrate
+        working-directory: backend
+        run: python manage.py migrate --noinput
 
       - name: Run tests via Makefile (repo root)
         working-directory: .

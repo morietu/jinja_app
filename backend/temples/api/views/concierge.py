@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
 from django.db.models import Prefetch
 from openai import OpenAI
 from rest_framework import generics, permissions, serializers, status
@@ -20,11 +19,22 @@ from temples.api.serializers.concierge import (
     ConciergeRecommendationsResponse,
     ShrineNearbySerializer,
 )
-from temples.geocoding.client import GeocodingClient, GeocodingError
 from temples.llm.orchestrator import chat_to_plan
 from temples.models import ConciergeHistory, GoriyakuTag, Shrine
 
 from .throttles import ConciergeThrottle
+
+
+def _haversine_m(lat1, lon1, lat2, lon2):
+    """2点間の距離[m]（球面近似）"""
+    R = 6371000.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 
 class ConciergeChatView(APIView):
@@ -73,26 +83,16 @@ class ConciergeRecommendationsView(APIView):
         lat = params.get("lat")
         lng = params.get("lng")
 
-        origin_point = None
         origin_label = None
 
         # 起点を決める（lat/lng 優先 → q を geocode）
-        try:
-            if lat is not None and lng is not None:
-                origin_point = Point(float(lng), float(lat), srid=4326)
-                origin_label = "origin"
-            elif q:
-                try:
-                    gc = GeocodingClient()
-                    cands = gc.geocode_candidates(q, limit=1)
-                    if cands:
-                        r0 = cands[0]
-                        origin_point = Point(float(r0.lon), float(r0.lat), srid=4326)
-                        origin_label = r0.formatted or q
-                except GeocodingError:
-                    origin_point = None
-        except Exception:
-            origin_point = None
+        # 位置ラベルだけ付ける（座標生成や外部呼び出しはしない）
+        if lat is not None and lng is not None:
+            origin_label = "origin"
+        elif q:
+            # ひとまずクエリ文字列をラベルに採用（外部APIには依存しない）
+            origin_label = q
+            pass
 
         # ベースQuery（座標未設定は除外）
         qs = (
@@ -107,14 +107,11 @@ class ConciergeRecommendationsView(APIView):
         if theme:
             qs = qs.filter(goriyaku_tags__name__icontains=theme).distinct()
 
-        if origin_point:
-            # SRID=4326 の Distance は近似値（必要なら ST_DistanceSphere に差し替え可）
-            qs = qs.annotate(distance=Distance("location", origin_point)).order_by("distance")
-        else:
-            qs = qs.order_by("id")
+        # 一旦候補を少し多めに拾ってから Python 側で距離付け→ソート
+        candidates = list(qs.only("id", "name_jp", "address", "latitude", "longitude")[:50])
 
         rows = []
-        for s in qs[:limit]:
+        for s in candidates:
             item = {
                 "id": s.id,
                 "name_jp": s.name_jp,
@@ -122,20 +119,26 @@ class ConciergeRecommendationsView(APIView):
                 "latitude": float(s.latitude),
                 "longitude": float(s.longitude),
             }
-            if origin_point and hasattr(s, "distance") and s.distance is not None:
-                # GeoDjango の Distance は .m でメートル（バックエンドの実装環境によっては単位なしの場合あり）
-                item["distance_m"] = (
-                    float(s.distance.m) if hasattr(s.distance, "m") else float(s.distance)
-                )
+            if lat is not None and lng is not None:
+                try:
+                    item["distance_m"] = _haversine_m(
+                        float(lat), float(lng), float(s.latitude), float(s.longitude)
+                    )
+                except Exception:
+                    item["distance_m"] = None
             item["goriyaku_tags"] = [{"id": t.id, "name": t.name} for t in s.goriyaku_tags.all()]
             rows.append(item)
 
-        data = {"results": ShrineNearbySerializer(rows, many=True).data}
-        if origin_point is not None:
-            data["origin"] = {"lat": origin_point.y, "lng": origin_point.x}
-            if origin_label:
-                data["origin"]["label"] = origin_label
+        if lat is not None and lng is not None:
+            rows.sort(key=lambda r: (r.get("distance_m") is None, r.get("distance_m") or 0.0))
 
+        rows = rows[:limit]
+
+        data = {"results": ShrineNearbySerializer(rows, many=True).data}
+        if lat is not None and lng is not None:
+            data["origin"] = {"lat": float(lat), "lng": float(lng)}
+            if origin_label:  # q から推定した場合などのラベル
+                data["origin"]["label"] = origin_label
         # レスポンス型で最終整形
         return Response(ConciergeRecommendationsResponse(data).data, status=status.HTTP_200_OK)
 

@@ -9,6 +9,7 @@ import environ
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
+USE_SPATIALITE = os.getenv("USE_SPATIALITE", "1") == "1"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ DISABLE_GIS_FOR_TESTS = env_bool("DISABLE_GIS_FOR_TESTS", default=False)
 # pytest で GIS を無効化したい時だけ off
 if IS_PYTEST and DISABLE_GIS_FOR_TESTS:
     USE_GIS = False
+
 
 # --- environ init & load .env (最初に読む) ---
 env = environ.Env(
@@ -108,7 +110,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if USE_SQLITE:
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
+            "ENGINE": "django.contrib.gis.db.backends.spatialite",
             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
             "TEST": {"NAME": f"test_{DB_NAME}"},
         }
@@ -262,6 +264,20 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
+if os.getenv("DISABLE_THROTTLE") == "1":
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+        "anon": "1000/min",
+        "user": "2000/min",
+        "concierge": "1000/min",
+        "places": "1000/min",
+        "places-nearby": "1000/min",
+        "shrines": "1000/min",
+        "route": "1000/min",
+        "geocode": "1000/min",
+        "favorites": "1000/min",
+        "routes": "1000/min",
+    }
+
 REST_FRAMEWORK.update(
     {
         "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -271,7 +287,10 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Shrine API",
     "VERSION": "v1",
 }
-
+if IS_PYTEST:
+    REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
+    # テストでは concierge だけ緩める。他のスロットル（places-nearby等）は有効のまま
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
