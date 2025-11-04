@@ -24,9 +24,13 @@ from temples.geocoding.client import GeocodingClient, GeocodingError
 from temples.llm.orchestrator import chat_to_plan
 from temples.models import ConciergeHistory, GoriyakuTag, Shrine
 
+from .throttles import ConciergeThrottle
+
 
 class ConciergeChatView(APIView):
     # drf-spectacular: このビューはスキーマ対象外にする
+    throttle_classes = [ConciergeThrottle]
+
     schema = None
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # CSRF回避のためセッション認証を外す
@@ -40,8 +44,8 @@ class ConciergeChatView(APIView):
         transport = (request.data.get("transport") or "walking").lower()
         if not q or lat is None or lng is None:
             return Response({"detail": "query, lat, lng are required"}, status=400)
-        plan = chat_to_plan(q, float(lat), float(lng), transport)
-        return Response(plan, status=200)
+        _ = chat_to_plan(q, float(lat), float(lng), transport)
+        return Response({...}, status=status.HTTP_200_OK)
 
 
 class ConciergeRecommendationsView(APIView):

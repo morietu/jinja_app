@@ -1,5 +1,6 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
+// eslint-disable-next-line @next/next/no-img-element
+
 import React, { useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -41,25 +42,19 @@ export default function MyPage() {
     []
   );
 
-  // タブのキーボード操作
   const onTabsKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const keys = ["ArrowLeft", "ArrowRight", "Home", "End"] as const;
       if (!keys.includes(e.key as any)) return;
       e.preventDefault();
-
       const idx = tabs.findIndex((t) => t.key === tab);
       const last = tabs.length - 1;
-
       if (e.key === "Home") setTab(tabs[0].key, { focus: true });
       else if (e.key === "End") setTab(tabs[last].key, { focus: true });
-      else if (e.key === "ArrowLeft") {
-        const next = idx <= 0 ? last : idx - 1;
-        setTab(tabs[next].key, { focus: true });
-      } else if (e.key === "ArrowRight") {
-        const next = idx >= last ? 0 : idx + 1;
-        setTab(tabs[next].key, { focus: true });
-      }
+      else if (e.key === "ArrowLeft")
+        setTab(tabs[idx <= 0 ? last : idx - 1].key, { focus: true });
+      else if (e.key === "ArrowRight")
+        setTab(tabs[idx >= last ? 0 : idx + 1].key, { focus: true });
     },
     [tab, tabs, setTab]
   );
@@ -144,13 +139,21 @@ export default function MyPage() {
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">マイページ</h1>
-        <button
-          onClick={logout}
-          className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-          type="button"
-        >
-          ログアウト
-        </button>
+        <div className="flex gap-2">
+          <a
+            href="/mypage/edit"
+            className="px-3 py-1 rounded border hover:bg-gray-50"
+          >
+            編集へ
+          </a>
+          <button
+            onClick={logout}
+            className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+            type="button"
+          >
+            ログアウト
+          </button>
+        </div>
       </header>
 
       <nav
@@ -207,14 +210,12 @@ export default function MyPage() {
 function ProfilePanel({ user }: { user: UserMe }) {
   if (!user) return null;
 
-  // プロフィールはバックエンド依存でフィールドが揺れる想定：
-  // 必要フィールドだけ optional で定義して “ゆるく” 受ける
   type ProfileLike = Partial<{
     nickname: string;
     is_public: boolean;
     website: string;
     icon_url: string;
-    birthday: string; // ISO or yyyy-mm-dd
+    birthday: string;
     location: string;
   }>;
 
@@ -235,13 +236,11 @@ function ProfilePanel({ user }: { user: UserMe }) {
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
         {iconUrl ? (
-          <>
-            <img
-              src={iconUrl}
-              alt={nickname}
-              className="size-12 rounded-full object-cover ring-1 ring-gray-200"
-            />
-          </>
+          <img
+            src={iconUrl}
+            alt={nickname}
+            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
+          />
         ) : (
           <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">
             {nickname.slice(0, 1).toUpperCase()}
@@ -292,7 +291,6 @@ function ProfilePanel({ user }: { user: UserMe }) {
         <div className="sm:col-span-1 text-gray-500">地域</div>
         <div className="sm:col-span-2">{p.location || "-"}</div>
 
-        {/* Web（空なら完全に非表示） */}
         {p.website && isHttpUrl(p.website) ? (
           <>
             <div className="sm:col-span-1 text-gray-500">Web</div>
@@ -386,7 +384,6 @@ function formatDateJp(d: Date) {
     day: "2-digit",
   });
 }
-
 function isHttpUrl(url?: string | null) {
   if (!url) return false;
   try {

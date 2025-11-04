@@ -247,7 +247,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/min",
         "user": "120/min",
-        "concierge": "60/min",
+        # フィーチャ別スコープ
+        "concierge": "5/day",  # ← 無料枠的にここは “日次” にするのがオススメ
         "places": "30/min",
         "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
         "shrines": "60/min",

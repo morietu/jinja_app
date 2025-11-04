@@ -1,4 +1,20 @@
 // apps/web/src/lib/api/users.ts
+import api from "@/lib/api/client";
+
+export type UpdateMePayload = Partial<{
+  nickname: string;
+  is_public: boolean;
+  website: string;
+  icon_url: string;
+  birthday: string; // yyyy-mm-dd or ISO
+  location: string;
+}>;
+
+export async function updateMe(payload: UpdateMePayload) {
+  const { data } = await api.patch("users/me/", payload);
+  return data;
+}
+
 export type UserMe = {
   id: number;
   username: string;
