@@ -1,10 +1,10 @@
 // apps/web/src/components/ConciergeCard.tsx
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState } from "react";
 import api from "@/lib/api/client";
 import { useFavorite } from "@/hooks/useFavorite";
+import Image from "next/image";
 
 type Shrine = {
   name: string;
@@ -85,11 +85,16 @@ export default function ConciergeCard({
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       {!!s.photo_url && (
-        <img
-          src={s.photo_url}
-          alt={s.name}
-          className="mb-3 h-36 w-full rounded-lg object-cover"
-        />
+        <div className="relative mb-3 h-36 w-full">
+          <Image
+            src={s.photo_url}
+            alt={s.name}
+            fill
+            className="rounded-lg object-cover"
+            sizes="(max-width: 768px) 100vw, 600px"
+            priority={index === 0}
+          />
+        </div>
       )}
 
       <div className="flex items-start gap-3">

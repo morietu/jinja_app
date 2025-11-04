@@ -1,6 +1,6 @@
 "use client";
-// eslint-disable-next-line @next/next/no-img-element
 
+import Image from "next/image";
 import React, { useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -236,10 +236,12 @@ function ProfilePanel({ user }: { user: UserMe }) {
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
         {iconUrl ? (
-          <img
+          <Image
             src={iconUrl}
             alt={nickname}
-            className="size-12 rounded-full object-cover ring-1 ring-gray-200"
+            width={48}
+            height={48}
+            className="rounded-full object-cover ring-1 ring-gray-200"
           />
         ) : (
           <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold select-none">

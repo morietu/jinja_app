@@ -1,6 +1,7 @@
 // apps/web/src/components/PlaceCard.tsx
 "use client";
-/* eslint-disable @next/next/no-img-element */
+import Image from "next/image";
+
 
 type Place = {
   place_id: string;
@@ -22,9 +23,9 @@ export default function PlaceCard({ p }: { p: Place }) {
     <div className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center rounded-full bg-gray-100">
-          - { }
+          - {}
           {p.icon ? (
-            <img src={p.icon} alt="" width={20} height={20} loading="lazy" />
+            <Image src={p.icon} alt="" width={20} height={20} />
           ) : (
             <span className="text-sm text-gray-500">◎</span>
           )}
