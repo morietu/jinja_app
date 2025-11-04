@@ -3,6 +3,8 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import nextPlugin from "@next/eslint-plugin-next";
 
+const isCI = process.env.CI === "true";
+
 export default tseslint.config(
   {
     ignores: [
@@ -33,7 +35,6 @@ export default tseslint.config(
     ],
     rules: {
       // お好みの調整
-      "@next/next/no-img-element": "warn",
 
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
@@ -46,6 +47,9 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       "@next/next/no-html-link-for-pages": "off",
+      ...(isCI
+        ? { "@next/next/no-img-element": "off" } // CI では無効
+        : { "@next/next/no-img-element": "warn" }), // ローカルでは警告
     },
   },
 

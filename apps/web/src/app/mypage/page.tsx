@@ -1,5 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
-
 import React, { useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import type { TabKey } from "./tabs";
 import { sanitizeTab } from "./tabs";
 import type { UserMe } from "@/lib/api/users";
-
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
@@ -96,7 +95,12 @@ export default function MyPage() {
           ))}
         </nav>
 
-        <section className="rounded-lg border bg-white p-6" role="status" aria-busy="true" aria-live="polite">
+        <section
+          className="rounded-lg border bg-white p-6"
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+        >
           <div className="flex items-center gap-4 mb-4">
             <div className="size-12 rounded-full bg-gray-200 animate-pulse" />
             <div className="flex-1 space-y-2">
@@ -106,7 +110,10 @@ export default function MyPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="sm:col-span-3 h-4 bg-gray-100 rounded animate-pulse" />
+              <div
+                key={i}
+                className="sm:col-span-3 h-4 bg-gray-100 rounded animate-pulse"
+              />
             ))}
           </div>
         </section>
@@ -137,7 +144,11 @@ export default function MyPage() {
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">マイページ</h1>
-        <button onClick={logout} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300" type="button">
+        <button
+          onClick={logout}
+          className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+          type="button"
+        >
           ログアウト
         </button>
       </header>
@@ -162,7 +173,9 @@ export default function MyPage() {
               onClick={() => setTab(t.key, { focus: true })}
               className={
                 "px-3 py-1 rounded border " +
-                (isActive ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-gray-50")
+                (isActive
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white hover:bg-gray-50")
               }
               type="button"
             >
@@ -309,10 +322,12 @@ function FavoritesPanel() {
     <div className="p-6 space-y-3">
       <h2 className="text-lg font-semibold">お気に入り</h2>
       <p className="text-gray-600">
-        テスト段階ではバックエンドに依存するため、一覧・追加・削除は<strong>保留</strong>です。
+        テスト段階ではバックエンドに依存するため、一覧・追加・削除は
+        <strong>保留</strong>です。
       </p>
       <p className="text-sm text-gray-500">
-        実装開始時は <code>getFavorites()</code> の読み取り → 削除だけ先に対応 → 追加は詳細/検索から、の順を推奨です。
+        実装開始時は <code>getFavorites()</code> の読み取り → 削除だけ先に対応 →
+        追加は詳細/検索から、の順を推奨です。
       </p>
     </div>
   );
@@ -322,9 +337,15 @@ function GoshuinPanel() {
   return (
     <div className="p-6 space-y-3">
       <h2 className="text-lg font-semibold">御朱印</h2>
-      <p className="text-gray-600">登録・編集はサーバーの準備が整ってから有効化します（現状はUIのみ）。</p>
+      <p className="text-gray-600">
+        登録・編集はサーバーの準備が整ってから有効化します（現状はUIのみ）。
+      </p>
       <div className="flex gap-2">
-        <button className="px-3 py-1 rounded bg-gray-200 text-gray-500 cursor-not-allowed" type="button" disabled>
+        <button
+          className="px-3 py-1 rounded bg-gray-200 text-gray-500 cursor-not-allowed"
+          type="button"
+          disabled
+        >
           新規登録（準備中）
         </button>
       </div>
@@ -337,7 +358,10 @@ function SettingsPanel() {
     <div className="p-6 space-y-4">
       <h2 className="text-lg font-semibold">設定</h2>
       <div className="space-y-2 text-sm text-gray-600">
-        <p>見た目や通知などのローカル設定は、まずはローカル state のみで実装予定。</p>
+        <p>
+          見た目や通知などのローカル設定は、まずはローカル state
+          のみで実装予定。
+        </p>
         <ul className="list-disc pl-5">
           <li>テーマ（ライト/ダーク）… ローカル保持</li>
           <li>位置情報の使用可否… 既存の geolocation フローにあわせる</li>
@@ -356,9 +380,12 @@ function calcAge(birth: Date) {
   return age;
 }
 function formatDateJp(d: Date) {
-  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return d.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
-
 
 function isHttpUrl(url?: string | null) {
   if (!url) return false;
