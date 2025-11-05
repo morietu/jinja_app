@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import L from "leaflet";
 
 type LatLng = { lat: number; lng: number };
@@ -16,6 +16,14 @@ export default function LeafletMap({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<L.Map | null>(null);
+
+  const markersKey = useMemo(
+    () =>
+      markers
+        .map((m) => m.id ?? `${m.position.lat},${m.position.lng}`)
+        .join("|"),
+    [markers]
+  );
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -42,8 +50,7 @@ export default function LeafletMap({
     return () => {
       map.remove();
     };
-    // markers はディープ比較。量が多くなったらキーで差分更新にする余地あり
-  }, [center.lat, center.lng, zoom, JSON.stringify(markers)]);
-
+  }, [center.lat, center.lng, zoom, markersKey]);
+  
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
 }

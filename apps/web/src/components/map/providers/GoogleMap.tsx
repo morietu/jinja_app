@@ -1,7 +1,7 @@
 // apps/web/src/components/map/providers/GoogleMap.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 
 type LatLng = { lat: number; lng: number };
@@ -21,6 +21,14 @@ export default function GoogleMap({
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerObjs = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const centerKey = `${center.lat},${center.lng}`;
+  const markersKey = useMemo(
+    () =>
+      markers
+        .map((m) => m.id ?? `${m.position.lat},${m.position.lng}`)
+        .join("|"),
+    [markers]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +76,7 @@ export default function GoogleMap({
       markerObjs.current = [];
       mapRef.current = null;
     };
-  }, [center.lat, center.lng, zoom]);
+  }, [centerKey, zoom, markersKey]);
 
   // マーカー更新は簡易化（必要に応じて依存配列に markers を追加して再生成）
   return (
