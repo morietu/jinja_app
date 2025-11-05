@@ -1,3 +1,4 @@
+// apps/web/src/components/map/MapSwitcher.tsx
 "use client";
 
 import { useMemo } from "react";
@@ -13,14 +14,34 @@ type Props = {
   className?: string;
 };
 
-export default function MapSwitcher({ initial, center, zoom = 13, markers = [], className }: Props) {
+export default function MapSwitcher({
+  initial,
+  center,
+  zoom = 13,
+  markers = [],
+  className,
+}: Props) {
   const provider = useMemo<"maplibre" | "google">(() => initial, [initial]);
 
   if (provider === "google") {
     const GoogleMap = require("./providers/GoogleMap").default;
-    return <GoogleMap center={center} zoom={zoom} markers={markers} className={className} />;
+    return (
+      <GoogleMap
+        center={center}
+        zoom={zoom}
+        markers={markers}
+        className={className}
+      />
+    );
   }
 
   const MapLibreMap = require("./providers/MapLibreMap").default;
-  return <MapLibreMap center={center} zoom={zoom} markers={markers} className={className} />;
+  return (
+    <MapLibreMap
+      center={center}
+      zoom={zoom}
+      markers={markers}
+      className={className}
+    />
+  );
 }

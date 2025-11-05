@@ -1,3 +1,4 @@
+// apps/web/src/components/map/providers/GoogleMap.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -26,17 +27,32 @@ export default function GoogleMap({
     (async () => {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
       const loader = new Loader({ apiKey, version: "weekly" });
-      const { Map } = (await loader.importLibrary("maps")) as google.maps.MapsLibrary;
-      const { AdvancedMarkerElement } = (await loader.importLibrary("marker")) as google.maps.MarkerLibrary;
+
+      // 新しい AdvancedMarker を使う（v=weekly）
+      const { Map } = (await loader.importLibrary(
+        "maps"
+      )) as google.maps.MapsLibrary;
+      const { AdvancedMarkerElement } = (await loader.importLibrary(
+        "marker"
+      )) as google.maps.MarkerLibrary;
 
       if (cancelled || !ref.current) return;
 
-      mapRef.current = new Map(ref.current, { center, zoom, disableDefaultUI: true });
+      mapRef.current = new Map(ref.current, {
+        center,
+        zoom,
+        disableDefaultUI: true,
+      });
 
+      // 既存クリア
       markerObjs.current.forEach((m) => (m.map = null as any));
+      markerObjs.current = [];
+
+      // マーカー描画
       markerObjs.current = markers.map((m) => {
         const el = document.createElement("div");
-        el.style.cssText = "background:#2563eb;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
+        el.style.cssText =
+          "background:#2563eb;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
         el.textContent = m.label || "";
         return new AdvancedMarkerElement({
           map: mapRef.current!,
@@ -54,5 +70,8 @@ export default function GoogleMap({
     };
   }, [center.lat, center.lng, zoom]);
 
-  return <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />;
+  // マーカー更新は簡易化（必要に応じて依存配列に markers を追加して再生成）
+  return (
+    <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />
+  );
 }

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "@/lib/api/client";               // ← ここが重要: 直URL禁止
 import { useFavorite } from "@/hooks/useFavorite";
 
-const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/map/RouteMap"), { ssr: false });
 
 // ===== Types =====
 type LatLng = { lat: number; lng: number };

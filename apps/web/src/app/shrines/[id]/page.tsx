@@ -8,7 +8,7 @@ import Link from "next/link";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
 
 // Map はブラウザ API 依存なので SSR 無効で読み込み
-const Map = dynamic(() => import("@/components/maps/Map"), { ssr: false });
+const Map = dynamic(() => import("@/components/map/Map"), { ssr: false });
 
 export default function ShrineDetailPage() {
   const params = useParams<{ id: string | string[] }>();

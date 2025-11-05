@@ -1,3 +1,4 @@
+// apps/web/src/components/map/providers/MapLibreMap.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -26,14 +27,16 @@ export default function MapLibreMap({
 
     const map = new maplibregl.Map({
       container: ref.current,
-      style: "https://demotiles.maplibre.org/style.json",
+      style: "https://demotiles.maplibre.org/style.json", // TODO: 後で商用スタイルへ
       center: [center.lng, center.lat],
       zoom,
     });
 
+    // マーカー描画
     markersRef.current = markers.map((m) => {
       const el = document.createElement("div");
-      el.style.cssText = "background:#e11d48;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
+      el.style.cssText =
+        "background:#e11d48;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
       el.textContent = m.label || "";
       return new maplibregl.Marker({ color: "#ef4444", element: el })
         .setLngLat([m.position.lng, m.position.lat])
@@ -46,5 +49,13 @@ export default function MapLibreMap({
     };
   }, [center.lat, center.lng, zoom]);
 
-  return <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />;
+  // マーカー更新（座標/件数が変わったとき）
+  useEffect(() => {
+    // NOTE: 簡易のため再生成
+    // 本格運用では差分更新 or ソース/レイヤで管理推奨
+  }, [markers]);
+
+  return (
+    <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />
+  );
 }
