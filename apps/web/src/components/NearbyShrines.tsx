@@ -1,67 +1,101 @@
 // apps/web/src/components/NearbyShrines.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchNearestShrines, type Shrine } from "@/lib/api/shrines";
+import { useEffect, useMemo, useState } from "react";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { fetchNearestShrines, type Shrine } from "@/lib/api/shrines";
+import { NearbyList } from "@/components/nearby/NearbyList";
+import type { ShrineListItem } from "@/components/nearby/NearbyList.Item";
+import { useRouter } from "next/navigation";
+
+type UIState = "loading" | "success" | "empty" | "error";
 
 export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
-  const { coords, error: geoError, loading } = useGeolocation();
-  const [items, setItems] = useState<Shrine[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [fetching, setFetching] = useState(false);
+  const { coords, error: geoError, loading: geoLoading } = useGeolocation();
+  const [state, setState] = useState<UIState>("loading");
+  const [items, setItems] = useState<ShrineListItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const router = useRouter();
 
-  const fmtDistance = (m?: number) =>
-    typeof m === "number"
-      ? m >= 1000
-        ? `${(m / 1000).toFixed(1)}km`
-        : `${Math.round(m)}m`
-      : "";
+  const canFetch = useMemo(() => !!coords && !geoError, [coords, geoError]);
+
+  const toItem = (s: Shrine): ShrineListItem => ({
+    id: String((s as any).id ?? (s as any).shrine_id ?? crypto.randomUUID()),
+    name: (s as any).name_jp ?? (s as any).name ?? "名称未設定",
+    address: (s as any).address ?? undefined,
+    distanceMeters: (s as any).distance_m ?? 0,
+    durationMinutes: (s as any).walking_minutes ?? undefined,
+  });
+
+  const load = async () => {
+    if (!coords) return;
+    setState("loading");
+    setErrorMessage(undefined);
+    try {
+      const list = await fetchNearestShrines(coords.lat, coords.lng, limit);
+      const mapped = (list ?? []).map(toItem);
+      if (mapped.length === 0) {
+        setItems([]);
+        setState("empty");
+      } else {
+        setItems(mapped);
+        setState("success");
+      }
+    } catch (e: any) {
+      setItems([]);
+      setErrorMessage(e?.message ?? "取得に失敗しました");
+      setState("error");
+    }
+  };
 
   useEffect(() => {
-    async function run() {
-      if (!coords) return;
-      setFetching(true);
-      setErr(null);
-      try {
-        const list = await fetchNearestShrines(coords.lat, coords.lng, limit);
-        setItems(list);
-      } catch (e: any) {
-        setErr(e?.message ?? "取得に失敗しました");
-      } finally {
-        setFetching(false);
-      }
-    }
-    run();
-  }, [coords, limit]);
+    if (!canFetch) return;
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canFetch, limit, coords?.lat, coords?.lng]);
 
-  if (loading) return <p>現在地を取得中…</p>;
-  if (geoError) return <p>位置情報エラー: {geoError}</p>;
+  // 位置情報段階のUIも NearbyList へ委譲（Error/Emptyを使い回せる）
+  if (geoLoading) {
+    return (
+      <NearbyList
+        lat={coords?.lat ?? 0}
+        lng={coords?.lng ?? 0}
+        limit={limit}
+        state="loading"
+        className="space-y-3"
+        aria-label="現在地取得中"
+      />
+    );
+  }
+
+  if (geoError) {
+    return (
+      <NearbyList
+        lat={coords?.lat ?? 0}
+        lng={coords?.lng ?? 0}
+        limit={limit}
+        state="error"
+        errorMessage={`位置情報エラー: ${geoError}`}
+        onRetry={() => location.reload()}
+        className="space-y-3"
+        aria-label="位置情報エラー"
+      />
+    );
+  }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <h2>近くの神社</h2>
-      {fetching && <p>読み込み中…</p>}
-      {err && <p style={{ color: "crimson" }}>{err}</p>}
-      {!fetching && !items.length && <p>近くの神社が見つかりませんでした。</p>}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {items.map((s) => (
-          <li
-            key={s.id}
-            style={{ padding: 12, border: "1px solid #eee", borderRadius: 8 }}
-          >
-            <strong>{s.name_jp}</strong>
-            {fmtDistance(s.distance_m) ? (
-              <span>（{fmtDistance(s.distance_m)}）</span>
-            ) : null}
-            {s.latitude != null && s.longitude != null ? (
-              <div className="text-xs text-gray-500">
-                {s.latitude.toFixed(5)}, {s.longitude.toFixed(5)}
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <NearbyList
+      lat={coords?.lat ?? 0}
+      lng={coords?.lng ?? 0}
+      limit={limit}
+      state={state}
+      items={items}
+      errorMessage={errorMessage}
+      onRefetch={() => load()}
+      onRetry={() => load()}
+      onItemClick={(id) => router.push(`/shrines/${id}`)}
+      className="space-y-3"
+      aria-label="近くの神社"
+    />
   );
 }
