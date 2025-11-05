@@ -39,6 +39,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       ROUTE_PROVIDER: "dummy"
+      DISABLE_THROTTLE: "1"
 
     defaults:
       run:
@@ -104,3 +105,11 @@ jobs:
           else
             echo "No postgis container found"
           fi
+
+      - name: Debug throttle env & settings
+        run: |
+          echo "DISABLE_THROTTLE=$DISABLE_THROTTLE"
+          python - <<'PY'
+          from django.conf import settings
+          print("THROTTLES:", settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"])
+          PY

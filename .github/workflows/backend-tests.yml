@@ -22,7 +22,8 @@ jobs:
           --health-cmd="pg_isready -U admin -d jinja_test"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=30
+          --health-start-period=120s
 
     env:
       USE_GIS: "1"
@@ -76,7 +77,7 @@ jobs:
         run: |
           for i in {1..60}; do
             pg_isready -h localhost -p 5432 -U admin -d jinja_test && break
-            echo "waiting for Postgres... ($i/60)"
+            echo "waiting for Postgres... ($i/120)"
             sleep 2
           done
           pg_isready -h localhost -p 5432 -U admin -d jinja_test
@@ -84,6 +85,8 @@ jobs:
       - name: Migrate
         working-directory: backend
         run: python manage.py migrate --noinput
+        env:
+          DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_test
 
       - name: Run tests via Makefile (repo root)
         working-directory: .
@@ -91,6 +94,7 @@ jobs:
         env:
           GOOGLE_PLACES_API_KEY: dummy
           GOOGLE_MAPS_API_KEY: dummy
+          DISABLE_THROTTLE: "1"
           PYTEST_ADDOPTS: >-
             --cov=backend
             --cov-report=xml

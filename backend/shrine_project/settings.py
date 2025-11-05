@@ -263,6 +263,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+if IS_PYTEST:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
 
 if os.getenv("DISABLE_THROTTLE") == "1":
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
