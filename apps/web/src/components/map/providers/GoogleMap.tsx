@@ -29,6 +29,9 @@ export default function GoogleMap({
         .join("|"),
     [markers]
   );
+  // effect内で参照する値はメモ化したものに限定（ルール回避＆無駄な再描画防止）
+  const memoCenter = useMemo(() => ({ lat: center.lat, lng: center.lng }), [centerKey]);
+  const memoMarkers = useMemo(() => markers, [markersKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +50,7 @@ export default function GoogleMap({
       if (cancelled || !ref.current) return;
 
       mapRef.current = new Map(ref.current, {
-        center,
+        center: memoCenter,
         zoom,
         disableDefaultUI: true,
       });
@@ -57,7 +60,7 @@ export default function GoogleMap({
       markerObjs.current = [];
 
       // マーカー描画
-      markerObjs.current = markers.map((m) => {
+      markerObjs.current = memoMarkers.map((m) => {
         const el = document.createElement("div");
         el.style.cssText =
           "background:#2563eb;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
@@ -76,7 +79,7 @@ export default function GoogleMap({
       markerObjs.current = [];
       mapRef.current = null;
     };
-  }, [centerKey, zoom, markersKey]);
+  }, [centerKey, markersKey, zoom]);
 
   // マーカー更新は簡易化（必要に応じて依存配列に markers を追加して再生成）
   return (

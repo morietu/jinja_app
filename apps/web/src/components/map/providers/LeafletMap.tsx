@@ -24,6 +24,8 @@ export default function LeafletMap({
         .join("|"),
     [markers]
   );
+  const memoMarkers = useMemo(() => markers, [markersKey]);
+
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -42,7 +44,7 @@ export default function LeafletMap({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
     }).addTo(map);
 
-    markers.forEach((m) => {
+    memoMarkers.forEach((m) => {
       const marker = L.marker([m.position.lat, m.position.lng]).addTo(map);
       if (m.label) marker.bindPopup(m.label);
     });
@@ -51,6 +53,6 @@ export default function LeafletMap({
       map.remove();
     };
   }, [center.lat, center.lng, zoom, markersKey]);
-  
+
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
 }

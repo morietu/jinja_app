@@ -109,11 +109,41 @@ export const apiHandlers = [
     const mode =
       (url.searchParams.get("mode") as "walking" | "driving") || "walking";
 
-    // 超最小のダミー距離・時間
+    // origin/dest を使用して概算距離を算出（ハバースイン）
+    const parseLL = (s: string) => s.split(",").map(Number) as [number, number];
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const R = 6371000; // meters
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.max(1, Math.round(R * c));
+    };
+
+    let distance = 1850; // fallback
+    try {
+      const [olat, olng] = parseLL(origin);
+      const [dlat, dlng] = parseLL(dest);
+      if ([olat, olng, dlat, dlng].every((n) => Number.isFinite(n))) {
+        distance = haversine(olat, olng, dlat, dlng);
+      }
+    } catch {
+       // ignore parse errors -> use fallback
+     }
+      // ignore parse errors -> use fallback
+    }
+    const duration_min =
+      mode === "walking"
+        ? Math.round((distance / 80) * 10) / 10 // 4.8km/h ≒ 80m/分
+        : Math.round((distance / 500) * 10) / 10; // 30km/h ≒ 500m/分
+
     const payload: DirectionsResponse = {
       mode,
-      distance_m: 1850,
-      duration_min: mode === "walking" ? 24.5 : 8.2,
+      distance_m: distance,
+      duration_min,
       polyline: "}a~vF|y`uO??_seK`@", // ダミー
     };
     return HttpResponse.json(payload, { status: 200 });

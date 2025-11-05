@@ -33,7 +33,7 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       }
     }
     run();
-  }, [coords, limit]);
+  }, [coords]);
 
   if (loading) return <p>現在地を取得中…</p>;
   if (geoError) return <p>位置情報エラー: {geoError}</p>;
