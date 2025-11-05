@@ -1,7 +1,7 @@
 // apps/web/src/components/nearby/__tests__/NearbyList.states.test.tsx
 import { render, screen, fireEvent } from "@testing-library/react";
-import { NearbyListEmpty } from "../NearbyList.Empty";
-import { NearbyListError } from "../NearbyList.Error";
+import { NearbyListEmpty, NearbyListError } from "../NearbyList";
+
 
 describe("NearbyList states", () => {
   it("Empty: uses suggestion and calls onRefetch", () => {
