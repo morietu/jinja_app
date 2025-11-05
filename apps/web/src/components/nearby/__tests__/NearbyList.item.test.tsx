@@ -1,9 +1,5 @@
 // apps/web/src/components/nearby/__tests__/NearbyList.item.test.tsx
-import {
-  NearbyListEmpty,
-  NearbyListError,
-  NearbyListItem,
-} from "../NearbyList";
+import { NearbyListItem } from "../NearbyList.Item";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 describe("NearbyListItem", () => {

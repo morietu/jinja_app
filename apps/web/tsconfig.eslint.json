@@ -5,6 +5,9 @@
   },
   "include": [
     "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".storybook/**/*",
     "middleware.ts",
     "vitest.setup.ts",
     "lib/**/*",
@@ -20,5 +23,5 @@
     "src/**/*.spec.tsx",
     "src/app/**/tests/**/*"
   ],
-  "exclude": ["node_modules", ".next", "dist", "coverage"]
+  "exclude": ["node_modules", ".next", "dist", "coverage", "out", "storybook-static"]
 }

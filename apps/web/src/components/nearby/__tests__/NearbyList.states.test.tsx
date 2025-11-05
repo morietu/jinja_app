@@ -1,6 +1,8 @@
 // apps/web/src/components/nearby/__tests__/NearbyList.states.test.tsx
 import { render, screen, fireEvent } from "@testing-library/react";
-import { NearbyListEmpty, NearbyListError } from "../NearbyList";
+import { NearbyListEmpty } from "../NearbyList.Empty";
+import { NearbyListError } from "../NearbyList.Error";
+
 
 
 describe("NearbyList states", () => {

@@ -1,56 +1,79 @@
-// 先頭はそのまま
+// apps/web/eslint.config.mjs
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import nextPlugin from "@next/eslint-plugin-next";
-// import next from "eslint-config-next"; // ← 未使用なら削除
+import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import nextPlugin from "@next/eslint-plugin-next";
+import globals from "globals";
 
 const isCI = process.env.CI === "true";
 
-export default tseslint.config(
+export default [
+  // 無視（.eslintignoreの代わり）
   {
     ignores: [
       "node_modules/",
       ".next/",
+      "out/",
       "dist/",
       "coverage/",
+      "storybook-static/",
+      ".storybook-cache/",
       "**/*.config.*",
       "**/*.d.ts",
+      ".eslintcache",
     ],
   },
 
+  // 推奨プリセットは配列に“そのまま”挿入
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  // プロジェクトのメイン設定
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true }, // ← ここに移動！
+      },
+      globals: { ...globals.browser, ...globals.node },
     },
     plugins: {
       "@typescript-eslint": tseslint.plugin,
-      "react-hooks": reactHooks, // ← 追加
+      react,
+      "react-hooks": reactHooks,
+      "jsx-a11y": jsxA11y,
+      "@next/next": nextPlugin,
     },
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      nextPlugin.configs.recommended, // Next 推奨
-      // nextPlugin.configs["core-web-vitals"], // 必要なら
-    ],
+    settings: { react: { version: "detect" } },
     rules: {
-      // React Hooks ルールを有効化（これが無いと “rule not found”）
+      // Next Core Web Vitals 相当
+      ...nextPlugin.configs["core-web-vitals"].rules,
+
+      // React 17+ は import React 不要
+      "react/react-in-jsx-scope": "off",
+
+      // Hooks
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
-      // お好みの調整
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-base-to-string": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      // 未使用変数は TS 側で。先頭 _ は許容
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+
+      // うるさめ緩和
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+
+      // Next お好み
       "@next/next/no-html-link-for-pages": "off",
       ...(isCI
         ? { "@next/next/no-img-element": "off" }
@@ -58,23 +81,16 @@ export default tseslint.config(
     },
   },
 
-  { files: ["**/*.{js,jsx}"], extends: [js.configs.recommended] },
-
+  // テストのグローバル
   {
     files: ["**/*.{test,spec}.{ts,tsx,js,jsx}"],
-    languageOptions: {
-      globals: {
-        describe: "readonly",
-        it: "readonly",
-        test: "readonly",
-        expect: "readonly",
-        beforeAll: "readonly",
-        beforeEach: "readonly",
-        afterAll: "readonly",
-        afterEach: "readonly",
-        vi: "readonly",
-        jest: "readonly",
-      },
+    languageOptions: { globals: { ...globals.jest } },
+  },
+
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
-  }
-);
+  },
+];

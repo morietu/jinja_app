@@ -4,6 +4,7 @@ import { NearbyListLoading } from "./NearbyList.Loading";
 import { NearbyListEmpty } from "./NearbyList.Empty";
 import { NearbyListError } from "./NearbyList.Error";
 
+
 export type NearbyListState = "loading" | "success" | "empty" | "error";
 
 export type NearbyListProps = {
@@ -65,3 +66,9 @@ export function NearbyList({
     </section>
   );
 }
+
+// re-export subcomponents for convenient imports in tests and stories
+export { NearbyListItem, type ShrineListItem } from "./NearbyList.Item";
+export { NearbyListLoading } from "./NearbyList.Loading";
+export { NearbyListEmpty } from "./NearbyList.Empty";
+export { NearbyListError } from "./NearbyList.Error";
