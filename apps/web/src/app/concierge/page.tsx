@@ -1,3 +1,4 @@
+import { api } from "@/lib/api";
 // src/app/concierge/page.tsx
 "use client";
 import axios from "axios";
