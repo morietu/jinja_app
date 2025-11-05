@@ -1,4 +1,5 @@
 // apps/web/src/mocks/handlers/api.ts
+import { http, HttpResponse } from "msw";
 import type { PopularsResponse, NearestResponse } from "@/lib/schemas/api";
 
 const base = "/api";
