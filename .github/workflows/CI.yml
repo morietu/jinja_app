@@ -29,3 +29,14 @@ jobs:
       concierge_throttle: "1000/min"
       use_gis: true
     secrets: inherit
+  
+  - name: Build Storybook
+  working-directory: apps/web
+  run: pnpm build-storybook
+
+- name: Upload Storybook artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: storybook-static
+    path: apps/web/storybook-static
+    retention-days: 7

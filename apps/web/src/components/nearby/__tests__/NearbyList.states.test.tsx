@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { NearbyListEmpty } from "../NearbyList.Empty";
 import { NearbyListError } from "../NearbyList.Error";
 
+
+
 describe("NearbyList states", () => {
   it("Empty: uses suggestion and calls onRefetch", () => {
     const onRefetch = vi.fn();
