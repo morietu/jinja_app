@@ -1,10 +1,6 @@
-// apps/web/src/app/map/page.tsx
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-
-// NOTE: ディレクトリは単数形 "map"
 import type { LatLng, Marker } from "@/components/map/MapSwitcher";
 
 const MapSwitcher = dynamic(() => import("@/components/map/MapSwitcher"), {
@@ -12,18 +8,17 @@ const MapSwitcher = dynamic(() => import("@/components/map/MapSwitcher"), {
 });
 
 export default function MapPage() {
-  const center: LatLng = { lat: 35.681236, lng: 139.767125 }; // 東京駅
+  const center: LatLng = { lat: 35.681236, lng: 139.767125 };
   const markers: Marker[] = [{ id: "tokyo", position: center, label: "Tokyo" }];
 
   const disableExternal = process.env.NEXT_PUBLIC_DISABLE_EXTERNAL_APIS === "1";
   const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  // provider: maplibre | google
-  const [provider, setProvider] = useState<"maplibre" | "google">("maplibre");
+  // ここは "google" | "maplibre" でOK
+  const [provider, setProvider] = useState<"google" | "maplibre">("google");
 
   useEffect(() => {
-    if (!disableExternal && googleKey) return; // Google OK
-    setProvider("maplibre"); // デフォルト/フォールバック
+    if (disableExternal || !googleKey) setProvider("maplibre");
   }, [disableExternal, googleKey]);
 
   const ui = useMemo(

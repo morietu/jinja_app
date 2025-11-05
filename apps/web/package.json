@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:cov": "vitest run --coverage",
-    "test:ci": "vitest run --coverage --reporter=dot"
+    "test:ci": "vitest run --coverage --reporter=dot",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",

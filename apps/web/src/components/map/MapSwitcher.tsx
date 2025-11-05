@@ -1,47 +1,40 @@
-// apps/web/src/components/map/MapSwitcher.tsx
 "use client";
-
 import { useMemo } from "react";
+import GoogleMap from "./providers/GoogleMap";
+import MapLibreMap from "./providers/MapLibreMap";
 
 export type LatLng = { lat: number; lng: number };
 export type Marker = { id: string; position: LatLng; label?: string };
 
+// ここを変更: "maplibre" を正式に採用し、後方互換で "leaflet" も受け取る
+type Provider = "google" | "maplibre";
+type LegacyProvider = "leaflet"; // 互換
+type AnyProvider = Provider | LegacyProvider;
+
 type Props = {
-  initial: "maplibre" | "google";
+  initial?: AnyProvider;
   center: LatLng;
   zoom?: number;
   markers?: Marker[];
-  className?: string;
 };
 
-export default function MapSwitcher({
-  initial,
-  center,
-  zoom = 13,
-  markers = [],
-  className,
-}: Props) {
-  const provider = useMemo<"maplibre" | "google">(() => initial, [initial]);
+function normalizeProvider(p?: AnyProvider): Provider {
+  if (p === "leaflet") return "maplibre";
+  return p ?? "maplibre";
+}
+
+export default function MapSwitcher(props: Props) {
+  const { center, zoom = 14, markers = [] } = props;
+  const provider = useMemo(
+    () => normalizeProvider(props.initial),
+    [props.initial]
+  );
 
   if (provider === "google") {
-    const GoogleMap = require("./providers/GoogleMap").default;
-    return (
-      <GoogleMap
-        center={center}
-        zoom={zoom}
-        markers={markers}
-        className={className}
-      />
-    );
+    return <GoogleMap center={center} zoom={zoom} markers={markers} />;
   }
-
-  const MapLibreMap = require("./providers/MapLibreMap").default;
-  return (
-    <MapLibreMap
-      center={center}
-      zoom={zoom}
-      markers={markers}
-      className={className}
-    />
-  );
+  // maplibre デフォルト
+  return <MapLibreMap center={center} zoom={zoom} markers={markers} />;
 }
+
+export type { Props as MapSwitcherProps };
