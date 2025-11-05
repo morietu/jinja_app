@@ -21,18 +21,14 @@ export default function GoogleMap({
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerObjs = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
-  
-  // effect内で参照する値はメモ化したものに限定（ルール回避＆無駄な再描画防止）
-  const memoCenter = useMemo(() => ({ lat: center.lat, lng: center.lng }), [centerKey]);
-  const memoMarkers = useMemo(() => markers, [markersKey]);
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
       const loader = new Loader({ apiKey, version: "weekly" });
 
-      // 新しい AdvancedMarker を使う（v=weekly）
       const { Map } = (await loader.importLibrary(
         "maps"
       )) as google.maps.MapsLibrary;
@@ -42,17 +38,18 @@ export default function GoogleMap({
 
       if (cancelled || !ref.current) return;
 
+      // Map生成
       mapRef.current = new Map(ref.current, {
         center,
         zoom,
         disableDefaultUI: true,
       });
 
-      // 既存クリア
+      // 既存マーカークリア
       markerObjs.current.forEach((m) => (m.map = null as any));
       markerObjs.current = [];
 
-      // マーカー描画
+      // マーカー再描画
       markerObjs.current = markers.map((m) => {
         const el = document.createElement("div");
         el.style.cssText =
@@ -74,7 +71,6 @@ export default function GoogleMap({
     };
   }, [center, markers, zoom]);
 
-  // マーカー更新は簡易化（必要に応じて依存配列に markers を追加して再生成）
   return (
     <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />
   );
