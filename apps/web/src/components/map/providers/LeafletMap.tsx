@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 
 type LatLng = { lat: number; lng: number };
@@ -17,14 +17,6 @@ export default function LeafletMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<L.Map | null>(null);
 
-  const markersKey = useMemo(
-    () =>
-      markers
-        .map((m) => m.id ?? `${m.position.lat},${m.position.lng}`)
-        .join("|"),
-    [markers]
-  );
-  const memoMarkers = useMemo(() => markers, [markersKey]);
 
 
   useEffect(() => {
@@ -44,7 +36,7 @@ export default function LeafletMap({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
     }).addTo(map);
 
-    memoMarkers.forEach((m) => {
+    markers.forEach((m) => {
       const marker = L.marker([m.position.lat, m.position.lng]).addTo(map);
       if (m.label) marker.bindPopup(m.label);
     });
@@ -52,7 +44,7 @@ export default function LeafletMap({
     return () => {
       map.remove();
     };
-  }, [center.lat, center.lng, zoom, markersKey]);
+  }, [center, markers, zoom]);
 
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
 }
