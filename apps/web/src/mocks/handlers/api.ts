@@ -1,6 +1,6 @@
 // apps/web/src/mocks/handlers/api.ts
 import { http, HttpResponse } from "msw";
-import {
+import type {
   PopularsResponse,
   NearestResponse,
   ConciergeHistoriesResponse,
@@ -71,7 +71,7 @@ export const apiHandlers = [
     return HttpResponse.json(mock, { status: 200 });
   }),
 
-    // GET /api/directions/?origin=lat,lng&dest=lat,lng&mode=walking|driving
+  // GET /api/directions/?origin=lat,lng&dest=lat,lng&mode=walking|driving
   http.get(`${base}/directions/`, ({ request }) => {
     const url = new URL(request.url);
     const origin = url.searchParams.get("origin") || "";
@@ -82,7 +82,12 @@ export const apiHandlers = [
     // origin/dest を使用して概算距離を算出（ハバースイン）
     const parseLL = (s: string) => s.split(",").map(Number) as [number, number];
     const toRad = (x: number) => (x * Math.PI) / 180;
-    const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const haversine = (
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number
+    ) => {
       const R = 6371000; // meters
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -102,6 +107,7 @@ export const apiHandlers = [
       }
     } catch (_err) {
       // ignore parse errors -> use fallback
+      void _err;
     }
 
     const duration_min =
@@ -118,6 +124,7 @@ export const apiHandlers = [
     return HttpResponse.json(payload, { status: 200 });
   }),
 
+  // ===== directions handler（ここから置き換えOK）=====
 
   // GET /api/directions/?origin=lat,lng&dest=lat,lng&mode=walking|driving
   http.get(`${base}/directions/`, ({ request }) => {
@@ -130,7 +137,12 @@ export const apiHandlers = [
     // origin/dest を使用して概算距離を算出（ハバースイン）
     const parseLL = (s: string) => s.split(",").map(Number) as [number, number];
     const toRad = (x: number) => (x * Math.PI) / 180;
-    const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const haversine = (
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number
+    ) => {
       const R = 6371000; // meters
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -149,10 +161,10 @@ export const apiHandlers = [
         distance = haversine(olat, olng, dlat, dlng);
       }
     } catch (_err) {
-       // ignore parse errors -> use fallback
-     }
       // ignore parse errors -> use fallback
+      void _err;
     }
+
     const duration_min =
       mode === "walking"
         ? Math.round((distance / 80) * 10) / 10 // 4.8km/h ≒ 80m/分
@@ -164,6 +176,41 @@ export const apiHandlers = [
       duration_min,
       polyline: "}a~vF|y`uO??_seK`@", // ダミー
     };
+
     return HttpResponse.json(payload, { status: 200 });
-  }),
-];
+  }), // ← ★ここ、配列要素なので「カンマ」を忘れない
+]; // ← ★handlers 配列の終わりを確実にクローズする
+
+
+  // GET /api/concierges/histories/
+http.get(`${base}/concierges/histories/`, () => {
+  const payload = {
+    items: [
+      {
+        id: 5001,
+        created_at: new Date().toISOString(),
+        query: "仕事運・徒歩で20分以内",
+        recommendations: [
+          {
+            id: 11,
+            name: "日枝神社",
+            lat: 35.6749,
+            lng: 139.7414,
+            address: "東京都千代田区",
+          },
+          {
+            id: 12,
+            name: "烏森神社",
+            lat: 35.6646,
+            lng: 139.7599,
+            address: "東京都港区",
+          },
+        ],
+      },
+    ],
+  } satisfies ConciergeHistoriesResponse;
+
+  return HttpResponse.json(payload, { status: 200 });
+
+
+export { apiHandlers };
