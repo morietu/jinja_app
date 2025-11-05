@@ -263,6 +263,18 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+# --- throttle overrides from env (CI等で concierge だけ緩めたい) ---
+_rates = REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+# ローカルで全部OFFに近くする用途（CIでは使わない）
+if os.getenv("DISABLE_THROTTLE", "0") == "1":
+    for k in list(_rates.keys()):
+        _rates[k] = "1000/min" if k != "user" else "2000/min"
+
+# CI等：concierge だけ個別に緩める
+_concierge_rate = os.getenv("CONCIERGE_THROTTLE")
+if _concierge_rate:
+    _rates["concierge"] = _concierge_rate
 if IS_PYTEST:
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
 

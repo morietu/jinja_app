@@ -39,7 +39,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       ROUTE_PROVIDER: "dummy"
-      DISABLE_THROTTLE: "1"
+      CONCIERGE_THROTTLE: "1000/min"
 
     defaults:
       run:
