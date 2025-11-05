@@ -1,0 +1,48 @@
+name: Contract CI
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  openapi-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm/Node セットアップ（安定版）
+      - name: Setup Node & pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          node -v && pnpm -v
+
+      # Spectral はMVP方針でerrorのみfail
+      - name: Install spectral
+        run: pnpm -w add -D @stoplight/spectral-cli
+
+      - name: Lint OpenAPI (non-strict)
+        run: pnpm lint:openapi
+        # scripts.lint:openapi は npx 形式でもOK: npx -y @stoplight/spectral-cli ...
+
+  web-contract-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node & pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          node -v && pnpm -v
+
+      - name: Install deps (web)
+        run: pnpm i --frozen-lockfile
+
+      - name: Run contract tests (Vitest + MSW)
+        run: pnpm test:contract

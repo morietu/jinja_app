@@ -1,0 +1,6 @@
+extends: ["spectral:oas"]
+rules:
+  operation-operationId: off
+  oas3-api-servers: warn
+  # DRF はトレーリングスラッシュがデフォルトなので許容
+  path-keys-no-trailing-slash: off

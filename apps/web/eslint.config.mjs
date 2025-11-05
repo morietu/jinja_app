@@ -2,6 +2,8 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import nextPlugin from "@next/eslint-plugin-next";
+// import next from "eslint-config-next"; // ← 未使用なら削除
+import reactHooks from "eslint-plugin-react-hooks";
 
 const isCI = process.env.CI === "true";
 
@@ -25,17 +27,20 @@ export default tseslint.config(
     },
     plugins: {
       "@typescript-eslint": tseslint.plugin,
+      "react-hooks": reactHooks, // ← 追加
     },
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
-      // （任意）Next の推奨セットを取り込む
-      nextPlugin.configs.recommended,
+      nextPlugin.configs.recommended, // Next 推奨
       // nextPlugin.configs["core-web-vitals"], // 必要なら
     ],
     rules: {
-      // お好みの調整
+      // React Hooks ルールを有効化（これが無いと “rule not found”）
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
 
+      // お好みの調整
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
@@ -48,8 +53,8 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       "@next/next/no-html-link-for-pages": "off",
       ...(isCI
-        ? { "@next/next/no-img-element": "off" } // CI では無効
-        : { "@next/next/no-img-element": "warn" }), // ローカルでは警告
+        ? { "@next/next/no-img-element": "off" }
+        : { "@next/next/no-img-element": "warn" }),
     },
   },
 

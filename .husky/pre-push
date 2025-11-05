@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "▶ pre-push: OpenAPI lint を実行します…"
+pnpm lint:openapi || exit $?
+
+echo "▶ pre-push: Web契約テストを実行します…"
+pnpm test:contract || exit $?
