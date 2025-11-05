@@ -1,14 +1,17 @@
-import { api } from "@/lib/api";
-// src/app/concierge/page.tsx
 "use client";
+// src/app/concierge/page.tsx
+
+import api from "@/lib/api";
+
 import axios from "axios";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api from "@/lib/api/client";               // ← ここが重要: 直URL禁止
 import { useFavorite } from "@/hooks/useFavorite";
 
-const RouteMap = dynamic(() => import("@/components/map/RouteMap"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/map/RouteMap"), {
+  ssr: false,
+});
 
 // ===== Types =====
 type LatLng = { lat: number; lng: number };
@@ -48,8 +51,6 @@ async function apiGet<T>(
   }
 }
 
-
-
 function fmtDistance({ meters, text }: { meters?: number; text?: string }) {
   if (text && text.trim()) return text;
   if (typeof meters !== "number") return "";
@@ -62,7 +63,12 @@ function fmtDistance({ meters, text }: { meters?: number; text?: string }) {
 function FavButton({ shrineId }: { shrineId: number }) {
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: false });
   return (
-    <button onClick={toggle} disabled={busy} aria-pressed={fav} className="text-sm">
+    <button
+      onClick={toggle}
+      disabled={busy}
+      aria-pressed={fav}
+      className="text-sm"
+    >
       {busy ? "…" : fav ? "★" : "☆"}
     </button>
   );
@@ -128,7 +134,11 @@ export default function ConciergePage() {
         // 近い順モード：/shrines/nearest/（起点が必要）
         if (mode === "nearby" && o) {
           const params = { ...baseParams, lat: o.lat, lng: o.lng };
-          const data = await apiGet<any>("/shrines/nearest/", params, listAbortRef.current.signal);
+          const data = await apiGet<any>(
+            "/shrines/nearest/",
+            params,
+            listAbortRef.current.signal
+          );
           list = Array.isArray(data) ? data : (data as any)?.results ?? [];
           if (list.length > 0) {
             const cs: ShrineLite[] = list.slice(0, 3).map((s: any) => ({
@@ -138,8 +148,12 @@ export default function ConciergePage() {
               latitude: Number(s.latitude),
               longitude: Number(s.longitude),
               goriyaku_tags: s.goriyaku_tags,
-              distance_m: typeof s.distance === "number" ? s.distance : undefined,
-              distance_text: typeof s.distance_text === "string" ? s.distance_text : undefined,
+              distance_m:
+                typeof s.distance === "number" ? s.distance : undefined,
+              distance_text:
+                typeof s.distance_text === "string"
+                  ? s.distance_text
+                  : undefined,
             }));
             setCandidates(cs);
             setSelectedIdx(0);
@@ -149,13 +163,23 @@ export default function ConciergePage() {
 
         // 人気順（or nearbyでデータなし）→ populars → shrines
         if (!list || list.length === 0) {
-          const popParams = { ...baseParams, ...(o ? { lat: o.lat, lng: o.lng } : {}) };
-          let data = await apiGet<any>("/populars/", popParams, listAbortRef.current.signal);
+          const popParams = {
+            ...baseParams,
+            ...(o ? { lat: o.lat, lng: o.lng } : {}),
+          };
+          let data = await apiGet<any>(
+            "/populars/",
+            popParams,
+            listAbortRef.current.signal
+          );
           list = Array.isArray(data) ? data : (data as any)?.results ?? [];
 
-
           if (!list || list.length === 0) {
-            data = await apiGet<any>("/shrines/", baseParams, listAbortRef.current.signal);
+            data = await apiGet<any>(
+              "/shrines/",
+              baseParams,
+              listAbortRef.current.signal
+            );
             list = Array.isArray(data) ? data : (data as any)?.results ?? [];
           }
         }
@@ -173,7 +197,7 @@ export default function ConciergePage() {
           latitude: Number(s.latitude),
           longitude: Number(s.longitude),
           goriyaku_tags: s.goriyaku_tags,
-          distance: typeof s.distance === "number" ? s.distance : undefined,
+          distance_m: typeof s.distance === "number" ? s.distance : undefined,
         }));
         setCandidates(cs);
         setSelectedIdx(0);
@@ -199,7 +223,9 @@ export default function ConciergePage() {
 
     // 外部API遮断中はスキップ
     if (process.env.NEXT_PUBLIC_DISABLE_EXTERNAL_APIS === "1") {
-      setGeoMsg("開発モード: 外部APIが無効です（場所検索はOFF）。現在地ボタン or 手動で候補を選んでください。");
+      setGeoMsg(
+        "開発モード: 外部APIが無効です（場所検索はOFF）。現在地ボタン or 手動で候補を選んでください。"
+      );
       return;
     }
 
@@ -213,9 +239,17 @@ export default function ConciergePage() {
 
     try {
       // /places/search/?q=...（プロキシ経由）
-      const data = await apiGet<any>("/places/search/", { q }, geocodeAbortRef.current.signal);
+      const data = await apiGet<any>(
+        "/places/search/",
+        { q },
+        geocodeAbortRef.current.signal
+      );
       const first = data?.results?.[0];
-      if (first && typeof first.lat === "number" && typeof first.lng === "number") {
+      if (
+        first &&
+        typeof first.lat === "number" &&
+        typeof first.lng === "number"
+      ) {
         const o = { lat: first.lat, lng: first.lng };
         setOrigin(o);
         setOriginLabel(first.name ?? first.address ?? q);
@@ -232,33 +266,33 @@ export default function ConciergePage() {
   };
 
   useEffect(() => {
-  const ac = new AbortController();
-  (async () => {
-    try {
-
-      const r = await api.get("concierges/histories/", {
-        signal: ac.signal,
-        // 401 を「許容するステータス」にする → 例外にならない
-        validateStatus: (s) => (s >= 200 && s < 300) || s === 401,
-      });
-      if (r.status === 401) {
-        // 未ログインなので履歴はスキップ
-        return;
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const r = await api.get("concierges/histories/", {
+          signal: ac.signal,
+          // 401 を「許容するステータス」にする → 例外にならない
+          validateStatus: (s) => (s >= 200 && s < 300) || s === 401,
+        });
+        if (r.status === 401) {
+          // 未ログインなので履歴はスキップ
+          return;
+        }
+      } catch (e: any) {
+        if (
+          axios.isAxiosError(e) &&
+          (e.code === "ERR_CANCELED" ||
+            e.name === "CanceledError" ||
+            e.name === "AbortError")
+        ) {
+          // 未ログインなので履歴はスキップ
+        } else if (e.name !== "CanceledError" && e.name !== "AbortError") {
+          console.error(e);
+        }
       }
-    } catch (e:any) {
-
-      if (
-        axios.isAxiosError(e) &&
-        (e.code === "ERR_CANCELED" || e.name === "CanceledError" || e.name === "AbortError")
-      ) {
-        // 未ログインなので履歴はスキップ
-      } else if (e.name !== "CanceledError" && e.name !== "AbortError") {
-        console.error(e);
-      }
-    }
-  })();
-  return () => ac.abort();
-}, []); // 依存は本当に必要なものだけ
+    })();
+    return () => ac.abort();
+  }, []); // 依存は本当に必要なものだけ
 
   // 候補から起点選択
   const selectGeocode = (g: GeocodeResult) => {
@@ -272,25 +306,34 @@ export default function ConciergePage() {
 
   const selected = candidates[selectedIdx] || null;
   const destination = useMemo(
-    () => (selected ? { lat: Number(selected.latitude), lng: Number(selected.longitude) } : null),
+    () =>
+      selected
+        ? { lat: Number(selected.latitude), lng: Number(selected.longitude) }
+        : null,
     [selected]
   );
 
   return (
     <main className="p-4 space-y-6">
-      <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
+      <h1 className="text-xl font-bold">
+        AI神社コンシェルジュ（スポット×ルート）
+      </h1>
 
       {/* 並び替え + 半径 */}
       <div className="flex gap-2 items-center">
         <button
-          className={`px-2 py-1 rounded ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+          className={`px-2 py-1 rounded ${
+            mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"
+          }`}
           onClick={() => setMode("popular")}
         >
           人気順
         </button>
 
         <button
-          className={`px-2 py-1 rounded ${mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+          className={`px-2 py-1 rounded ${
+            mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"
+          }`}
           onClick={() => setMode("nearby")}
           disabled={!origin}
           title={!origin ? "起点を設定してください" : ""}
@@ -344,7 +387,10 @@ export default function ConciergePage() {
               if (!navigator.geolocation) return;
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                  const o = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                  const o = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                  };
                   setOrigin(o);
                   setOriginLabel("現在地");
                   fetchCandidates(o);
@@ -368,7 +414,8 @@ export default function ConciergePage() {
                 className="p-2 hover:bg-gray-50 cursor-pointer"
                 onClick={() => selectGeocode(g)}
               >
-                {g.formatted} <span className="text-xs text-gray-500">({g.precision})</span>
+                {g.formatted}{" "}
+                <span className="text-xs text-gray-500">({g.precision})</span>
               </li>
             ))}
           </ul>
@@ -389,7 +436,9 @@ export default function ConciergePage() {
             {candidates.map((s, idx) => (
               <li
                 key={s.id}
-                className={`border rounded p-3 cursor-pointer ${idx === selectedIdx ? "ring-2 ring-blue-400" : ""}`}
+                className={`border rounded p-3 cursor-pointer ${
+                  idx === selectedIdx ? "ring-2 ring-blue-400" : ""
+                }`}
                 onClick={() => setSelectedIdx(idx)}
               >
                 <div className="font-semibold">{s.name_jp ?? s.name}</div>
@@ -398,17 +447,24 @@ export default function ConciergePage() {
                 {/* 距離（nearby応答にあれば表示、単位はmに丸め） */}
                 {(typeof s.distance_m === "number" || s.distance_text) && (
                   <div className="text-xs text-gray-500 mt-1">
-                    {fmtDistance({ meters: s.distance_m, text: s.distance_text })}
+                    {fmtDistance({
+                      meters: s.distance_m,
+                      text: s.distance_text,
+                    })}
                   </div>
                 )}
-                {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {(s as any).distance_text ?? ({ meters: s.distance_m })}
-                  </div>
-                )}
+                {Array.isArray(s.goriyaku_tags) &&
+                  s.goriyaku_tags.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {(s as any).distance_text ?? { meters: s.distance_m }}
+                    </div>
+                  )}
 
                 <div className="mt-2 flex gap-2 items-center">
-                  <Link href={`/shrines/${s.id}`} className="text-blue-600 underline text-sm">
+                  <Link
+                    href={`/shrines/${s.id}`}
+                    className="text-blue-600 underline text-sm"
+                  >
                     詳細へ
                   </Link>
                   <FavButton shrineId={s.id} />
@@ -421,9 +477,11 @@ export default function ConciergePage() {
                     className="text-xs underline mt-2 inline-block"
                     target="_blank"
                     rel="noopener noreferrer"
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${Number(
-                      s.latitude
-                    )},${Number(s.longitude)}`}
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${
+                      origin.lat
+                    },${origin.lng}&destination=${Number(s.latitude)},${Number(
+                      s.longitude
+                    )}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     外部マップで経路
