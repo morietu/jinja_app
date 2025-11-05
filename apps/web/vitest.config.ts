@@ -6,11 +6,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [
     tsconfigPaths({ projects: ["./tsconfig.json"], ignoreConfigErrors: true }),
-    react(), // ← JSX 自動トランスフォーム（import React不要）
+    react(),
   ],
-  esbuild: {
-    jsx: "automatic",
-  },
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "jsdom",
     environmentOptions: { jsdom: { url: "http://localhost/" } },
@@ -32,6 +30,7 @@ export default defineConfig({
         "**/*.d.ts",
         "vitest.config.ts",
         "vitest.setup.ts",
+        "storybook-static/**", // ← apps/web 配下の出力を除外
       ],
     },
   },
