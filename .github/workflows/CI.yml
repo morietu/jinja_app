@@ -1,4 +1,3 @@
-# .github/workflows/CI.yml
 name: CI
 permissions:
   contents: read
@@ -14,15 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend Tests
+  unit:
+    name: Unit (no GIS)
+    uses: ./.github/workflows/backend-tests.yml
+    with:
+      concierge_throttle: "1000/min"
+      use_gis: false
+    secrets: inherit
+
+  integration:
+    name: Integration (GIS/Postgres)
+    needs: unit
     uses: ./.github/workflows/backend-tests.yml
     with:
       concierge_throttle: "1000/min"
       use_gis: true
     secrets: inherit
-
-  # 例: 他のワークフローを呼ぶ場合
-  # web:
-  #   uses: ./.github/workflows/web-tests.yml
-  #   secrets: inherit
