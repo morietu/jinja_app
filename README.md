@@ -331,4 +331,13 @@ conda activate jinja_app_py311
 python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo())"
 ```
 
+### OpenAPI Lint 方針（MVP）
+- ツール: Spectral v6
+- 置き場所: `docs/openapi.yaml`
+- ルール: `.spectral.yaml`（DRFのtrailing slash許容）
+- 実行: `pnpm lint:openapi`
+- ポリシー: **error のみ CI fail / warning は通知のみ**（MVPの安定運用を優先）
+
+
 ![web-tests](https://github.com/morietu/jinja_app/actions/workflows/web-tests.yml/badge.svg?branch=develop)
+[![contract-ci](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml)

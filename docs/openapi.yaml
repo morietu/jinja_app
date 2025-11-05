@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: 神社_APP API (MVP)
+  version: 0.1.0
+  description: >
+    神社_APP の最小MVP向けAPI定義。人気神社、最寄神社、コンシェルジュ履歴、経路取得を提供します。
+  contact:
+    name: Jinja_APP Team
+    email: dev@example.com
+servers:
+  - url: http://127.0.0.1:8000
+
+tags:
+  - name: Shrines
+    description: 神社の検索・ランキングなど
+  - name: Concierge
+    description: コンシェルジュ機能の履歴参照
+  - name: Routes
+    description: 経路検索（距離・時間・ポリライン）
+
+paths:
+  /api/populars/:
+    get:
+      summary: 人気神社の最小一覧（30日スコア順）
+      description: 直近期間の人気スコアで並べた神社一覧を返します。最小形のレスポンスのみを返却します。
+      tags: [Shrines]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularsResponse"
+
+  /api/shrines/nearest/:
+    get:
+      summary: 現在地から近い神社（最小情報）
+      description: 指定された緯度経度から近い神社を距離順で返します。distance_m は必須、所要時間は任意です。
+      tags: [Shrines]
+      parameters:
+        - in: query
+          name: lat
+          schema: { type: number }
+          required: true
+        - in: query
+          name: lng
+          schema: { type: number }
+          required: true
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NearestResponse"
+
+  /api/concierges/histories/:
+    get:
+      summary: コンシェルジュ履歴の最小一覧
+      description: これまでの質問と推薦結果の履歴を最小形で返します（最大3件の推薦）。
+      tags: [Concierge]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConciergeHistoriesResponse"
+
+  /api/directions/:
+    get:
+      summary: 単一経路の最小結果（エンコードポリライン付き）
+      description: origin/dest を lat,lng 文字列で受け取り、距離・時間・ポリラインのみ返します。
+      tags: [Routes]
+      parameters:
+        - in: query
+          name: origin
+          description: "lat,lng（例: 35.681236,139.767125）"
+          schema: { type: string, pattern: "^-?\\d+\\.?\\d*,-?\\d+\\.?\\d*$" }
+          required: true
+        - in: query
+          name: dest
+          description: "lat,lng（例: 35.658034,139.701636）"
+          schema: { type: string, pattern: "^-?\\d+\\.?\\d*,-?\\d+\\.?\\d*$" }
+          required: true
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [walking, driving]
+          required: false
+          description: 省略時は walking
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectionsResponse"
+
+
+components:
+  schemas:
+    ShrineLite:
+      type: object
+      required: [id, name, lat, lng]
+      properties:
+        id: { type: integer, example: 123 }
+        name: { type: string, example: "明治神宮" }
+        lat: { type: number, format: double, example: 35.6764 }
+        lng: { type: number, format: double, example: 139.6993 }
+        address:
+          type: string
+          nullable: true
+          example: "東京都渋谷区代々木神園町1-1"
+
+    PopularItem:
+      type: object
+      required: [shrine, score]
+      properties:
+        shrine: { $ref: "#/components/schemas/ShrineLite" }
+        score: { type: number, example: 87.3 }
+        period_days: { type: integer, example: 30 }
+
+    PopularsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PopularItem" }
+
+    NearestItem:
+      type: object
+      required: [shrine, distance_m]
+      properties:
+        shrine: { $ref: "#/components/schemas/ShrineLite" }
+        distance_m: { type: integer, example: 420 }
+        walking_minutes:
+          type: number
+          nullable: true
+          example: 6
+        driving_minutes:
+          type: number
+          nullable: true
+          example: 2
+
+    NearestResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/NearestItem" }
+
+    ConciergeHistory:
+      type: object
+      required: [id, created_at, query, recommendations]
+      properties:
+        id: { type: integer, example: 555 }
+        created_at: { type: string, format: date-time }
+        query: { type: string, example: "恋愛運アップ・徒歩で30分以内" }
+        recommendations:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { $ref: "#/components/schemas/ShrineLite" }
+
+    ConciergeHistoriesResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ConciergeHistory" }
+
+    DirectionsResponse:
+      type: object
+      required: [mode, distance_m, duration_min, polyline]
+      properties:
+        mode:
+          type: string
+          enum: [walking, driving]
+          example: walking
+        distance_m: { type: integer, example: 1850 }
+        duration_min: { type: number, example: 24.5 }
+        polyline:
+          type: string
+          description: "Google/Mapbox 互換のエンコードポリライン"
+          example: "}a~vF|y`uO??_seK`@"

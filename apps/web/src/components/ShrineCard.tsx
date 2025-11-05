@@ -1,8 +1,15 @@
+// apps/web/src/components/ShrineCard.tsx
 "use client";
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useFavorite } from "@/hooks/useFavorite";
 
@@ -19,15 +26,13 @@ type ShrineLite = {
 
 type Props = {
   shrine: ShrineLite;
-  favoritePk?: number | null;   // マイページから渡せると削除高速化
-  initialFav?: boolean;         // 未指定時は is_favorite / isFavorite を吸収
-  readOnly?: boolean;           // trueでトグル無効（閲覧専用）
+  initialFav?: boolean; // 未指定時は is_favorite / isFavorite を吸収
+  readOnly?: boolean; // trueでトグル無効（閲覧専用）
   onToggled?: (next: boolean) => void;
 };
 
 export default function ShrineCard({
   shrine,
-  favoritePk = null,
   initialFav,
   readOnly = false,
   onToggled,
@@ -37,36 +42,43 @@ export default function ShrineCard({
   const searchParams = useSearchParams();
   const { isLoggedIn } = useAuth();
 
-  if (!shrine) return null;
+  // shrine が undefined の可能性があっても、フックは常に呼ぶ
+  // （rules-of-hooks 回避のため、早期 return より前に置く）
 
   // 初期fav（命名ゆれ吸収）
   const init =
     typeof initialFav === "boolean"
       ? initialFav
-      : ((shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false);
+      : (shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false;
 
   // shrineId 正規化（正の整数のみ）
   const shrineIdNum =
-    typeof shrine.id === "number" && Number.isInteger(shrine.id) && shrine.id > 0
+    typeof shrine.id === "number" &&
+    Number.isInteger(shrine.id) &&
+    shrine.id > 0
       ? shrine.id
       : typeof shrine.id === "string" && /^\d+$/.test(shrine.id)
       ? Number(shrine.id)
       : undefined;
 
-  const placeId = shrine.place_id ?? undefined;
-  const canFav = !!shrineIdNum || !!placeId; // 手掛かりが無ければ操作しない
 
-  // フック（呼ぶのは canFav が true のときだけ）
-  const { fav, busy, toggle } = useFavorite({
-    shrineId: shrineIdNum,
+  // ✅ Hook は常にトップレベルで呼ぶ（条件分岐の外）
+  // Hook の API が shrineId のみでも undefined を渡して問題ない実装にしておく
+  const placeId = shrine?.place_id ?? undefined;
+  // フックは常に呼ぶ（IDが無い時は 0 を渡す前提で hook 側が無効判定する）
+  const { fav, busy, toggle, canFav } = useFavorite({
+    shrineId: shrineIdNum ?? 0,
     placeId,
-    initial: Boolean(init),
-    initialFavoritePk: favoritePk ?? null,
-    disabled: !canFav,
+    initial: init,
   });
 
+  if (!shrine) return null;
+
+
   const goLoginWithReturn = () => {
-    const next = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
+    const next = `${pathname}${
+      searchParams?.toString() ? `?${searchParams.toString()}` : ""
+    }`;
     router.push(`/login?next=${encodeURIComponent(next)}`);
   };
 
@@ -76,11 +88,11 @@ export default function ShrineCard({
       goLoginWithReturn();
       return;
     }
-    if (!canFav) return;
+    if (!canFav) return;  // hook からの可否
 
     try {
       const next = !fav;
-      await toggle();     // 楽観更新＋失敗時ロールバックはフック側
+      await toggle(); // 楽観更新＋失敗時ロールバックはフック側に委譲
       onToggled?.(next);
     } catch (e) {
       console.error("お気に入りトグル失敗:", e);
@@ -88,7 +100,6 @@ export default function ShrineCard({
     }
   };
 
-  // ▼ ここから下は「必要」です（UI描画）
   return (
     <Card className="hover:shadow-md transition">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
@@ -96,7 +107,11 @@ export default function ShrineCard({
           <CardTitle>
             <Link
               href={shrineIdNum ? `/shrines/${shrineIdNum}` : "#"}
-              className={shrineIdNum ? "text-blue-600 hover:underline" : "text-gray-500 cursor-default"}
+              className={
+                shrineIdNum
+                  ? "text-blue-600 hover:underline"
+                  : "text-gray-500 cursor-default"
+              }
               aria-disabled={!shrineIdNum}
             >
               {shrine.name_jp ?? shrine.name ?? "神社"}
@@ -114,7 +129,9 @@ export default function ShrineCard({
             readOnly
               ? "一覧の閲覧専用です"
               : isLoggedIn
-              ? (fav ? "お気に入り解除" : "お気に入り追加")
+              ? fav
+                ? "お気に入り解除"
+                : "お気に入り追加"
               : "ログインでお気に入りが使えます"
           }
           className={`px-3 py-1 rounded text-sm ${
@@ -136,7 +153,10 @@ export default function ShrineCard({
         {!!shrine.goriyaku_tags?.length && (
           <div className="flex flex-wrap gap-2 mb-3">
             {shrine.goriyaku_tags.map((tag) => (
-              <span key={tag.id} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+              <span
+                key={tag.id}
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded"
+              >
                 {tag.name}
               </span>
             ))}

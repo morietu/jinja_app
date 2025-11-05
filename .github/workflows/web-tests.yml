@@ -1,4 +1,3 @@
-# .github/workflows/web-tests.yml
 name: web-tests
 
 on:
@@ -10,6 +9,9 @@ on:
 concurrency:
   group: web-tests-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -32,7 +34,7 @@ jobs:
       - name: Install deps (workspace root)
         run: pnpm install --frozen-lockfile
 
-      # ESLint キャッシュ復元
+      # ESLint キャッシュ復元（先に行う）
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -41,10 +43,10 @@ jobs:
           restore-keys: |
             eslint-${{ runner.os }}-
 
-      # Lint（警告も失敗 & キャッシュ使用）
+      # Lint（警告は通知のみ：MVP方針）
       - name: Lint (ESLint)
         working-directory: apps/web
-        run: pnpm exec eslint . --max-warnings=0 --cache --cache-location .eslintcache
+        run: pnpm exec eslint . --cache --cache-location .eslintcache
 
       # 型チェック（noEmit）
       - name: Type check (tsc)

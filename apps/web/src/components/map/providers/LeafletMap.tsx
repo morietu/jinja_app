@@ -17,6 +17,8 @@ export default function LeafletMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<L.Map | null>(null);
 
+
+
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -42,8 +44,7 @@ export default function LeafletMap({
     return () => {
       map.remove();
     };
-    // markers はディープ比較。量が多くなったらキーで差分更新にする余地あり
-  }, [center.lat, center.lng, zoom, JSON.stringify(markers)]);
+  }, [center, markers, zoom]);
 
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
 }
