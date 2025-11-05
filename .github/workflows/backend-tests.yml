@@ -79,17 +79,11 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
 
-      - name: Cache apt
-        uses: actions/cache@v4
+      - name: Cache & install apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          path: /var/cache/apt
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/backend-tests.yml') }}
-          restore-keys: ${{ runner.os }}-apt-
-
-      - name: Install system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev postgresql-client jq
+        packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq
+        version: 1
 
       # setup-pythonのcacheを使うなら、下のCache pipは削ってOK（残しても可）
       # - name: Cache pip
