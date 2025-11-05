@@ -116,7 +116,7 @@ export const apiHandlers = [
       lat2: number,
       lon2: number
     ) => {
-      const R = 6371000; // meters
+      const R = 6371000;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a =
@@ -126,7 +126,7 @@ export const apiHandlers = [
       return Math.max(1, Math.round(R * c));
     };
 
-    let distance = 1850; // fallback
+    let distance = 1850;
     try {
       const [olat, olng] = parseLL(origin);
       const [dlat, dlng] = parseLL(dest);
@@ -134,14 +134,13 @@ export const apiHandlers = [
         distance = haversine(olat, olng, dlat, dlng);
       }
     } catch (_err) {
-      // ignore parse errors -> use fallback
-      void _err;
+      void _err; // ignore parse errors -> use fallback
     }
 
     const duration_min =
       mode === "walking"
-        ? Math.round((distance / 80) * 10) / 10 // 4.8km/h ≒ 80m/分
-        : Math.round((distance / 500) * 10) / 10; // 30km/h ≒ 500m/分
+        ? Math.round((distance / 80) * 10) / 10
+        : Math.round((distance / 500) * 10) / 10;
 
     const payload: DirectionsResponse = {
       mode,
