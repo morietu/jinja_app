@@ -1,8 +1,17 @@
 #!/bin/sh
-set -e
+# Husky v10-ready, local-only contract checks
+set -euo pipefail
+
+# CI環境ではスキップ（GitHub Actions 等）
+if [ "${CI:-}" = "true" ]; then
+  echo "▶ pre-push: CI で実行中のためフックスキップ"
+  exit 0
+fi
 
 echo "▶ pre-push: OpenAPI lint を実行します…"
 pnpm lint:openapi
 
 echo "▶ pre-push: Web契約テストを実行します…"
 pnpm test:contract
+
+echo "✅ pre-push: すべてのチェックを通過しました"
