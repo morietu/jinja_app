@@ -1,0 +1,468 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`NearbyList stories parity > Empty snapshot 1`] = `
+<DocumentFragment>
+  <section>
+    <span
+      class="sr-only"
+    >
+      現在地 緯度0.0000 経度0.0000、上限 20 件
+    </span>
+    <div
+      aria-live="polite"
+      class="text-center px-4 py-12"
+      role="status"
+    >
+      <div
+        class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-search-x h-6 w-6"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="m13.5 8.5-5 5"
+          />
+          <path
+            d="m8.5 8.5 5 5"
+          />
+          <circle
+            cx="11"
+            cy="11"
+            r="8"
+          />
+          <path
+            d="m21 21-4.3-4.3"
+          />
+        </svg>
+      </div>
+      <p
+        class="font-medium"
+      >
+        見つかりませんでした
+      </p>
+      <p
+        class="text-sm text-muted-foreground mt-1"
+      >
+        検索半径を広げるか、キーワードを調整してください。
+      </p>
+    </div>
+  </section>
+</DocumentFragment>
+`;
+
+exports[`NearbyList stories parity > Error snapshot 1`] = `
+<DocumentFragment>
+  <section>
+    <span
+      class="sr-only"
+    >
+      現在地 緯度0.0000 経度0.0000、上限 20 件
+    </span>
+    <div
+      aria-live="assertive"
+      class="px-4 py-8 text-center"
+      role="alert"
+    >
+      <div
+        class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-circle-alert h-6 w-6"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <line
+            x1="12"
+            x2="12"
+            y1="8"
+            y2="12"
+          />
+          <line
+            x1="12"
+            x2="12.01"
+            y1="16"
+            y2="16"
+          />
+        </svg>
+      </div>
+      <p
+        class="font-medium"
+      >
+        取得に失敗しました
+      </p>
+      <p
+        class="text-sm text-muted-foreground mt-1"
+      >
+        ネットワークエラー
+      </p>
+    </div>
+  </section>
+</DocumentFragment>
+`;
+
+exports[`NearbyList stories parity > Loading snapshot 1`] = `
+<DocumentFragment>
+  <section>
+    <span
+      class="sr-only"
+    >
+      現在地 緯度0.0000 経度0.0000、上限 20 件
+    </span>
+    <div
+      aria-busy="true"
+      class="space-y-3"
+      role="status"
+    >
+      <div
+        class="flex gap-3 rounded-2xl border p-4"
+      >
+        <div
+          class="h-10 w-10 rounded-xl bg-muted animate-pulse"
+        />
+        <div
+          class="flex-1 space-y-2"
+        >
+          <div
+            class="h-4 w-1/2 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="h-3 w-2/3 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="flex gap-2"
+          >
+            <div
+              class="h-3 w-20 bg-muted rounded animate-pulse"
+            />
+            <div
+              class="h-3 w-24 bg-muted rounded animate-pulse"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="flex gap-3 rounded-2xl border p-4"
+      >
+        <div
+          class="h-10 w-10 rounded-xl bg-muted animate-pulse"
+        />
+        <div
+          class="flex-1 space-y-2"
+        >
+          <div
+            class="h-4 w-1/2 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="h-3 w-2/3 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="flex gap-2"
+          >
+            <div
+              class="h-3 w-20 bg-muted rounded animate-pulse"
+            />
+            <div
+              class="h-3 w-24 bg-muted rounded animate-pulse"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="flex gap-3 rounded-2xl border p-4"
+      >
+        <div
+          class="h-10 w-10 rounded-xl bg-muted animate-pulse"
+        />
+        <div
+          class="flex-1 space-y-2"
+        >
+          <div
+            class="h-4 w-1/2 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="h-3 w-2/3 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="flex gap-2"
+          >
+            <div
+              class="h-3 w-20 bg-muted rounded animate-pulse"
+            />
+            <div
+              class="h-3 w-24 bg-muted rounded animate-pulse"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="flex gap-3 rounded-2xl border p-4"
+      >
+        <div
+          class="h-10 w-10 rounded-xl bg-muted animate-pulse"
+        />
+        <div
+          class="flex-1 space-y-2"
+        >
+          <div
+            class="h-4 w-1/2 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="h-3 w-2/3 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="flex gap-2"
+          >
+            <div
+              class="h-3 w-20 bg-muted rounded animate-pulse"
+            />
+            <div
+              class="h-3 w-24 bg-muted rounded animate-pulse"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="flex gap-3 rounded-2xl border p-4"
+      >
+        <div
+          class="h-10 w-10 rounded-xl bg-muted animate-pulse"
+        />
+        <div
+          class="flex-1 space-y-2"
+        >
+          <div
+            class="h-4 w-1/2 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="h-3 w-2/3 bg-muted rounded animate-pulse"
+          />
+          <div
+            class="flex gap-2"
+          >
+            <div
+              class="h-3 w-20 bg-muted rounded animate-pulse"
+            />
+            <div
+              class="h-3 w-24 bg-muted rounded animate-pulse"
+            />
+          </div>
+        </div>
+      </div>
+      <span
+        class="sr-only"
+      >
+        読み込み中
+      </span>
+    </div>
+  </section>
+</DocumentFragment>
+`;
+
+exports[`NearbyList stories parity > Success snapshot 1`] = `
+<DocumentFragment>
+  <section>
+    <span
+      class="sr-only"
+    >
+      現在地 緯度35.6800 経度139.7600、上限 20 件
+    </span>
+    <div
+      aria-label="近隣の神社一覧"
+      class="space-y-3"
+      role="list"
+    >
+      <div
+        aria-label="明治神宮、距離 850 m、所要 12 分"
+        class="bg-card text-card-foreground flex flex-col gap-6 border py-6 cursor-pointer rounded-2xl shadow-sm hover:shadow transition"
+        data-slot="card"
+        role="listitem"
+        tabindex="0"
+      >
+        <div
+          class="p-4 flex items-start gap-3"
+          data-slot="card-content"
+        >
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-map-pin h-5 w-5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
+              />
+              <circle
+                cx="12"
+                cy="10"
+                r="3"
+              />
+            </svg>
+          </div>
+          <div
+            class="min-w-0 flex-1"
+          >
+            <div
+              class="font-medium truncate"
+            >
+              明治神宮
+            </div>
+            <div
+              class="text-sm text-muted-foreground truncate"
+            >
+              東京都渋谷区
+            </div>
+            <div
+              class="mt-1 flex items-center gap-3 text-sm"
+            >
+              <span
+                class="inline-flex items-center gap-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-navigation h-4 w-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <polygon
+                    points="3 11 22 2 13 21 11 13 3 11"
+                  />
+                </svg>
+                 850 m
+              </span>
+              <span
+                aria-label="徒歩所要時間"
+              >
+                所要 12 分
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        aria-label="神田明神、距離 2.3 km、所要 28 分"
+        class="bg-card text-card-foreground flex flex-col gap-6 border py-6 cursor-pointer rounded-2xl shadow-sm hover:shadow transition"
+        data-slot="card"
+        role="listitem"
+        tabindex="0"
+      >
+        <div
+          class="p-4 flex items-start gap-3"
+          data-slot="card-content"
+        >
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-map-pin h-5 w-5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
+              />
+              <circle
+                cx="12"
+                cy="10"
+                r="3"
+              />
+            </svg>
+          </div>
+          <div
+            class="min-w-0 flex-1"
+          >
+            <div
+              class="font-medium truncate"
+            >
+              神田明神
+            </div>
+            <div
+              class="text-sm text-muted-foreground truncate"
+            >
+              東京都千代田区
+            </div>
+            <div
+              class="mt-1 flex items-center gap-3 text-sm"
+            >
+              <span
+                class="inline-flex items-center gap-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-navigation h-4 w-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <polygon
+                    points="3 11 22 2 13 21 11 13 3 11"
+                  />
+                </svg>
+                 2.3 km
+              </span>
+              <span
+                aria-label="徒歩所要時間"
+              >
+                所要 28 分
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</DocumentFragment>
+`;
