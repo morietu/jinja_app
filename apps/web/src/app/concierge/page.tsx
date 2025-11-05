@@ -133,7 +133,7 @@ export default function ConciergePage() {
 
         // 近い順モード：/shrines/nearest/（起点が必要）
         if (mode === "nearby" && o) {
-          const params = { ...baseParams, lat: o.lat, lng: o.lng };
+          const params = { ...baseParams, lat: o.lat, lng: o.lng, radius_m: radiusM };
           const data = await apiGet<any>(
             "/shrines/nearest/",
             params,
@@ -272,9 +272,10 @@ export default function ConciergePage() {
         const r = await api.get("concierges/histories/", {
           signal: ac.signal,
           // 401 を「許容するステータス」にする → 例外にならない
-          validateStatus: (s) => (s >= 200 && s < 300) || s === 401,
+          validateStatus: (s) =>
+            (s >= 200 && s < 300) || s === 401 || s === 404,
         });
-        if (r.status === 401) {
+        if (r.status === 401 || r.status === 404) {
           // 未ログインなので履歴はスキップ
           return;
         }
@@ -283,7 +284,8 @@ export default function ConciergePage() {
           axios.isAxiosError(e) &&
           (e.code === "ERR_CANCELED" ||
             e.name === "CanceledError" ||
-            e.name === "AbortError")
+            e.name === "AbortError" ||
+            e.response?.status === 404)
         ) {
           // 未ログインなので履歴はスキップ
         } else if (e.name !== "CanceledError" && e.name !== "AbortError") {
