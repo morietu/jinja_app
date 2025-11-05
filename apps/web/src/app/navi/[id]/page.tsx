@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { getShrine } from "@/lib/api/shrines";;
 import type { Shrine } from "@/lib/api/shrines";
 
-const RouteMap = dynamic(() => import("@/components/maps/RouteMap"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/map/RouteMap"), { ssr: false });
 
 export default function NaviPage() {
   const params = useParams();

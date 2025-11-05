@@ -1,10 +1,9 @@
-// apps/web/src/app/map/page.tsx
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import type { LatLng, Marker } from "@/components/maps/MapSwitcher";
+import type { LatLng, Marker } from "@/components/map/MapSwitcher";
 
-const MapSwitcher = dynamic(() => import("@/components/maps/MapSwitcher"), {
+const MapSwitcher = dynamic(() => import("@/components/map/MapSwitcher"), {
   ssr: false,
 });
 
@@ -14,20 +13,22 @@ export default function MapPage() {
 
   const disableExternal = process.env.NEXT_PUBLIC_DISABLE_EXTERNAL_APIS === "1";
   const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const [provider, setProvider] = useState<"leaflet" | "google">("google");
+
+  // ここは "google" | "maplibre" でOK
+  const [provider, setProvider] = useState<"google" | "maplibre">("google");
 
   useEffect(() => {
-    if (disableExternal || !googleKey) setProvider("leaflet");
+    if (disableExternal || !googleKey) setProvider("maplibre");
   }, [disableExternal, googleKey]);
 
   const ui = useMemo(
     () => (
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <button
-          onClick={() => setProvider("leaflet")}
-          disabled={provider === "leaflet"}
+          onClick={() => setProvider("maplibre")}
+          disabled={provider === "maplibre"}
         >
-          Leaflet
+          MapLibre
         </button>
         <button
           onClick={() => setProvider("google")}
