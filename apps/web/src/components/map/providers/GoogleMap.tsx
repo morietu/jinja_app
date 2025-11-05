@@ -1,7 +1,7 @@
 // apps/web/src/components/map/providers/GoogleMap.tsx
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 
 type LatLng = { lat: number; lng: number };
@@ -21,14 +21,7 @@ export default function GoogleMap({
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerObjs = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
-  const centerKey = `${center.lat},${center.lng}`;
-  const markersKey = useMemo(
-    () =>
-      markers
-        .map((m) => m.id ?? `${m.position.lat},${m.position.lng}`)
-        .join("|"),
-    [markers]
-  );
+  
   // effect内で参照する値はメモ化したものに限定（ルール回避＆無駄な再描画防止）
   const memoCenter = useMemo(() => ({ lat: center.lat, lng: center.lng }), [centerKey]);
   const memoMarkers = useMemo(() => markers, [markersKey]);
@@ -50,7 +43,7 @@ export default function GoogleMap({
       if (cancelled || !ref.current) return;
 
       mapRef.current = new Map(ref.current, {
-        center: memoCenter,
+        center,
         zoom,
         disableDefaultUI: true,
       });
@@ -60,7 +53,7 @@ export default function GoogleMap({
       markerObjs.current = [];
 
       // マーカー描画
-      markerObjs.current = memoMarkers.map((m) => {
+      markerObjs.current = markers.map((m) => {
         const el = document.createElement("div");
         el.style.cssText =
           "background:#2563eb;color:white;padding:2px 6px;border-radius:8px;font-size:12px;";
@@ -79,7 +72,7 @@ export default function GoogleMap({
       markerObjs.current = [];
       mapRef.current = null;
     };
-  }, [centerKey, markersKey, zoom]);
+  }, [center, markers, zoom]);
 
   // マーカー更新は簡易化（必要に応じて依存配列に markers を追加して再生成）
   return (

@@ -130,7 +130,7 @@ export const apiHandlers = [
       if ([olat, olng, dlat, dlng].every((n) => Number.isFinite(n))) {
         distance = haversine(olat, olng, dlat, dlng);
       }
-    } catch {
+    } catch (_err) {
        // ignore parse errors -> use fallback
      }
       // ignore parse errors -> use fallback
