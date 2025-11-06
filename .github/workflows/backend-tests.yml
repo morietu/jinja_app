@@ -82,8 +82,8 @@ jobs:
       - name: Cache & install apt packages
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-        packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq
-        version: 1
+          packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq
+          version: 1
 
       # setup-pythonのcacheを使うなら、下のCache pipは削ってOK（残しても可）
       # - name: Cache pip
