@@ -40,25 +40,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
-      - uses: pnpm/action-setup@v3
-        with:
-          version: '20'
-      
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9.12.3
-          standalone: true
+      - name: Enable corepack & pin pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+      - name: Show versions
+        run: |
+          node -v
+          pnpm -v
 
-      - run: pnpm -v
       - run: pnpm install --frozen-lockfile
 
       - name: Lint (workspace)
