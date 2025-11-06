@@ -3,6 +3,9 @@ import SearchBar from "@/components/SearchBar";
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
 import { apiGet } from "@/lib/api/http";
+import Link from "next/link";
+
+
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -18,7 +21,8 @@ async function fetchPlaces(params: FetchParams) {
   );
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  return apiGet<{ results: any[] }>(`/places/search/?${usp.toString()}`);
+  return apiGet<{ results: any[] }>(`/api/places/search?${usp.toString()}`);
+
 }
 
 export default async function SearchPage({
@@ -87,17 +91,27 @@ export default async function SearchPage({
 
           return (
             <div key={place.place_id ?? place.name} className="space-y-2">
-              <PlaceCard p={place} />
+              {/* 検索結果から詳細へ遷移できるようにリンクで包む */}
+              {place.place_id ? (
+                <a
+                  href={`/shrines/${place.place_id}`}
+                  data-testid="search-result-item"
+                  className="block"
+                >
+                  <PlaceCard p={place} />
+                </a>
+              ) : (
+                <PlaceCard p={place} />
+              )}
               <div className="flex gap-2">
                 {mapsUrl && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    マップで見る（徒歩）
-                  </a>
+              <Link
+                href={`/shrines/${place.place_id}`}
+                data-testid="search-result-item"
+                className="block"
+              >
+
+              </Link>
                 )}
                 <a
                   href={planHref}
