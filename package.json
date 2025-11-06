@@ -1,7 +1,7 @@
 {
   "name": "jinja_app",
   "private": true,
-  "packageManager": "pnpm@8.15.4",
+  "packageManager": "pnpm@9.12.3",
   "workspaces": [
     "apps/*",
     "backend"
@@ -18,7 +18,7 @@
   },
   "engines": {
     "node": ">=20",
-    "pnpm": "8.15.4"
+    "pnpm": ">=9"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
