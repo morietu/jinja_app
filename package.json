@@ -1,19 +1,34 @@
 {
-	"scripts": {
-		"lint:openapi:ci": "npx spectral lint docs/openapi.yaml",
-		"test:contract": "pnpm --filter ./apps/web test:contract",
-		"lint:openapi": "npx -y @stoplight/spectral-cli lint docs/openapi.yaml",
-		"prepare": "husky"
-	},
-	"devDependencies": {
-		"@eslint/js": "^9.39.0",
-		"@next/eslint-plugin-next": "^16.0.1",
-		"@stoplight/spectral-cli": "^6.15.0",
-		"eslint": "^9.35.0",
-		"eslint-plugin-react": "^7.37.5",
-		"eslint-plugin-react-hooks": "^5.2.0",
-		"husky": "^9.1.7",
-		"typescript-eslint": "^8.46.2",
-		"vite-tsconfig-paths": "^5.1.4"
-	}
+  "name": "jinja_app",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "workspaces": [
+    "apps/*",
+    "backend"
+  ],
+  "scripts": {
+    "lint:openapi:ci": "npx spectral lint docs/openapi.yaml",
+    "test:contract": "pnpm --filter ./apps/web test:contract",
+    "lint:openapi": "npx -y @stoplight/spectral-cli lint docs/openapi.yaml",
+    "prepare": "husky",
+    "lint": "pnpm -r run lint",
+    "lint:fix": "pnpm -r run lint:fix",
+    "lint:web": "pnpm -C apps/web run lint",
+    "e2e:web": "pnpm -C apps/web run test:e2e"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": "8.15.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@next/eslint-plugin-next": "^16.0.1",
+    "@stoplight/spectral-cli": "^6.15.0",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
+    "typescript-eslint": "^8.46.2",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
 }
