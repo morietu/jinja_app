@@ -1,6 +1,5 @@
-// apps/web/src/app/api/places/search/route.ts
+// apps/web/src/app/api/places/find/route.ts
 import { NextResponse } from "next/server";
-
 export function GET() {
   return NextResponse.json({
     results: [
