@@ -40,9 +40,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'             # 依存キャッシュのみ（pnpm本体は入らない）
+          cache: 'pnpm'   # 依存キャッシュのみ
 
-      # ✅ pnpm を確実に PATH に導入（corepack は使わない）
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.3
@@ -53,7 +52,6 @@ jobs:
           node -v
           pnpm -v
           which pnpm
-          echo "PATH=$PATH"
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
