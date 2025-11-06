@@ -43,7 +43,12 @@ jobs:
 
       - uses: pnpm/action-setup@v3
         with:
+          version: '20'
+      
+      - uses: pnpm/action-setup@v3
+        with:
           version: 9.12.3
+          standalone: true
 
       - name: Cache pnpm store
         uses: actions/cache@v4

@@ -7,22 +7,25 @@ test("検索から詳細に遷移できる", async ({ page }) => {
   const first = page.getByTestId("search-result-item").first();
   await expect(first).toBeVisible();
 
-  // ★ サーバーfetchは待たずに、URL & 見出しで待つ
-  // クリック → URL遷移を待つ。Safariで稀に取りこぼすのでフォールバックも用意
+  // a[href] の想定。nullだったらフォールバックでクリックのみ。
   const href = await first.getAttribute("href");
+
+  // クリック → URL遷移を待つ（WebKitの取りこぼし対策あり）
   await first.click({ force: true });
-  // devサーバのFast Refresh介入で遷移がキャンセルされることがあるため少し長めに待つ
-  await page.waitForTimeout(50); // クリックの同期ズレ吸収
+  await page.waitForTimeout(50); // クリック直後の同期ズレ吸収
+
   try {
     await expect(page).toHaveURL(/\/shrines\/\w+/, { timeout: 8000 });
-  } catch {
-    // まだ /search にいる場合は href に明示遷移（WebKitの安全弁）
+  } catch (err) {
+    // まだ /search にいるなら安全弁で明示遷移
     if (href && page.url().includes("/search")) {
       await page.goto(href);
       await expect(page).toHaveURL(/\/shrines\/\w+/);
     } else {
-      throw err;
+      throw err; // 本当に失敗しているケースは投げ直す
     }
   }
+
+  // 詳細ページのH1が見えるまで待つ
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
