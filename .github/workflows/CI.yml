@@ -40,11 +40,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'   # 依存キャッシュのみ
+          cache: 'pnpm'
 
+      # pnpm を PATH に確実導入
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.3
+          standalone: true      # ← Node の corepack に依存しないバイナリを取得
           run_install: false
 
       - name: Show versions
@@ -52,6 +54,12 @@ jobs:
           node -v
           pnpm -v
           which pnpm
+          echo "PATH=$PATH"
+
+      # 念のためのフォールバック（想定外の PATH 問題に備える）
+      - name: Fallback install pnpm (last resort)
+        if: ${{ failure() }}
+        run: npm i -g pnpm@9.12.3
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
