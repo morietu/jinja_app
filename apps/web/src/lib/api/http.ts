@@ -6,6 +6,9 @@ const api = axios.create({
 });
 
 function resolveUrl(url: string) {
+  // 余計なスラッシュを除去: /api/foo/?a=1 → /api/foo?a=1
+  if (url.includes("/?")) url = url.replace("/?", "?");
+
   // すでに絶対URLならそのまま
   try {
     new URL(url);
