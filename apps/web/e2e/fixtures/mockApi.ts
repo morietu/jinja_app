@@ -1,8 +1,7 @@
 /* eslint react-hooks/rules-of-hooks: "off" */
-
 import { test as base, expect } from "@playwright/test";
-export { expect }; // 各 spec から expect も使えるように
-// ← これが無いと "does not provide an export named 'expect'"
+
+export { expect }; // 各 spec で使えるように再エクスポート
 
 export const test = base.extend({
   page: async ({ page, context: _context }, provide) => {

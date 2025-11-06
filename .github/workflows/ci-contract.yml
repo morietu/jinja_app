@@ -2,9 +2,9 @@ name: Contract CI
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [develop, main]
   pull_request:
-    branches: [ develop, main ]
+    branches: [develop, main]
 
 jobs:
   openapi-lint:
@@ -12,37 +12,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm/Node セットアップ（安定版）
-      - name: Setup Node & pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.15.9 --activate
-          node -v && pnpm -v
+      # Node / pnpm を確実に固定（corepackは使わず）
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      # Spectral はMVP方針でerrorのみfail
-      - name: Install spectral
-        run: pnpm -w add -D @stoplight/spectral-cli
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.12.3        # packageManager と合わせる
+          standalone: true
 
+      - name: Install deps (workspace root)
+        run: pnpm -w install --frozen-lockfile
+
+      # Spectral は devDeps に入っているのでそのまま script でOK
       - name: Lint OpenAPI (non-strict)
         run: pnpm lint:openapi
-        # scripts.lint:openapi は npx 形式でもOK: npx -y @stoplight/spectral-cli ...
 
   web-contract-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node & pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.15.9 --activate
-          node -v && pnpm -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install deps (web)
-        run: pnpm i --frozen-lockfile
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.12.3
+          standalone: true
 
+      # ★ ルートでインストール（ロックはルートにあるため）
+      - name: Install deps (workspace root)
+        run: pnpm -w install --frozen-lockfile
+
+      # ★ テスト実行は web 配下
       - name: Run contract tests (Vitest + MSW)
+        working-directory: apps/web
         run: pnpm test:contract

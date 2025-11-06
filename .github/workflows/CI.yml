@@ -29,14 +29,51 @@ jobs:
       concierge_throttle: "1000/min"
       use_gis: true
     secrets: inherit
-  
-  - name: Build Storybook
-  working-directory: apps/web
-  run: pnpm build-storybook
 
-- name: Upload Storybook artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: storybook-static
-    path: apps/web/storybook-static
-    retention-days: 7
+  web:
+    name: Web (lint, e2e, storybook)
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: '20'
+      
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.12.3
+          standalone: true
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm -v
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint (workspace)
+        run: pnpm -w run lint
+
+      - name: E2E (apps/web)
+        run: pnpm -w run e2e:web
+
+      - name: Build Storybook
+        working-directory: apps/web
+        run: pnpm build-storybook
+
+      - name: Upload Storybook artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-static
+          path: apps/web/storybook-static
+          retention-days: 7
