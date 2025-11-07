@@ -9,8 +9,6 @@ import environ
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
-USE_SPATIALITE = os.getenv("USE_SPATIALITE", "1") == "1"
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def env_bool(name: str, default: bool = False) -> bool:
@@ -33,6 +31,12 @@ DISABLE_GIS_FOR_TESTS = env_bool("DISABLE_GIS_FOR_TESTS", default=False)
 # pytest で GIS を無効化したい時だけ off
 if IS_PYTEST and DISABLE_GIS_FOR_TESTS:
     USE_GIS = False
+
+--- SQLite + GIS を使う場合のためのヒント（現状 USE_GIS が false なら無効） ---
+if USE_SQLITE and USE_GIS:
+    # ランナー環境によっては不要だが、用意だけしておくと移行が楽
+    # Ubuntu の spatialite がこのパスに無い場合は CI 側で libspatialite を入れる
+    os.environ.setdefault("SPATIALITE_LIBRARY_PATH", "mod_spatialite")
 
 
 # --- environ init & load .env (最初に読む) ---
@@ -104,13 +108,17 @@ DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "jinja_db")
 DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "admin")
 DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
 
-# --- DATABASES（SQLite を選ぶ時だけ SQLite。デフォルトは Postgres/PostGIS） ---
+# --- DATABASES（SQLite を選ぶ時だけ SQLite。デフォルトは Postgres / USE_GIS で切替） ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if USE_SQLITE:
+    # SQLite を使う場合、GIS=1 なら spatialite、GIS=0 なら通常 sqlite3
+    sqlite_engine = (
+        "django.contrib.gis.db.backends.spatialite" if USE_GIS else "django.db.backends.sqlite3"
+    )
     DATABASES = {
         "default": {
-            "ENGINE": "django.contrib.gis.db.backends.spatialite",
+            "ENGINE": sqlite_engine,
             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
             "TEST": {"NAME": f"test_{DB_NAME}"},
         }
@@ -129,7 +137,7 @@ else:
             )
         DATABASES = {"default": db}
     else:
-        # DATABASE_URL が無い時の既定：PostgreSQL/（GISはフラグで切替）
+        # DATABASE_URL が無い時の既定：PostgreSQL（GISはフラグで切替）
         DATABASES = {
             "default": {
                 "ENGINE": (
@@ -165,6 +173,19 @@ else:
     DATABASES["default"].setdefault("PORT", DB_PORT)
     DATABASES["default"].setdefault("USER", DB_USER)
     DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
+
+# --- 起動時サマリ（DEBUG または CI） ---
+if DEBUG or os.getenv("CI") == "true":
+    try:
+        _eng = DATABASES["default"]["ENGINE"]
+        _name = DATABASES["default"].get("NAME") or DATABASE_URL or "<from env>"
+        print(
+            f"[settings] IS_PYTEST={IS_PYTEST} USE_GIS={USE_GIS} USE_SQLITE={USE_SQLITE} "
+            f"ENGINE={_eng} NAME={_name}",
+            file=sys.stderr,
+        )
+    except Exception:
+        pass
 
 # --- Apps / Middleware ---
 INSTALLED_APPS = [
@@ -262,6 +283,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 # --- throttle overrides from env (CI等で concierge だけ緩めたい) ---
@@ -275,36 +297,17 @@ if os.getenv("DISABLE_THROTTLE", "0") == "1":
 _concierge_rate = os.getenv("CONCIERGE_THROTTLE")
 if _concierge_rate:
     _rates["concierge"] = _concierge_rate
-if IS_PYTEST:
-    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
 
-if os.getenv("DISABLE_THROTTLE") == "1":
-    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-        "anon": "1000/min",
-        "user": "2000/min",
-        "concierge": "1000/min",
-        "places": "1000/min",
-        "places-nearby": "1000/min",
-        "shrines": "1000/min",
-        "route": "1000/min",
-        "geocode": "1000/min",
-        "favorites": "1000/min",
-        "routes": "1000/min",
-    }
-
-REST_FRAMEWORK.update(
-    {
-        "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    }
-)
-SPECTACULAR_SETTINGS = {
-    "TITLE": "Shrine API",
-    "VERSION": "v1",
-}
 if IS_PYTEST:
     REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
     # テストでは concierge だけ緩める。他のスロットル（places-nearby等）は有効のまま
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Shrine API",
+    "VERSION": "v1",
+}
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -317,13 +320,11 @@ AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
 
-
 # --- Hosts / CORS ---
 def _split_csv(s, default=None):
     if s is None:
         return default or []
     return [x.strip() for x in s.split(",") if x.strip()]
-
 
 ALLOWED_HOSTS = _split_csv(os.environ.get("ALLOWED_HOSTS"), ["localhost", "127.0.0.1", "web"])
 CSRF_TRUSTED_ORIGINS = _split_csv(
