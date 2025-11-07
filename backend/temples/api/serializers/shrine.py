@@ -3,7 +3,6 @@ from typing import Optional
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
 from temples.models import GoriyakuTag, Shrine, Visit
-from temples.geo_utils import to_lat_lng_dict
 
 
 class GoriyakuTagSerializer(serializers.ModelSerializer):
@@ -107,8 +106,13 @@ class ShrineListSerializer(
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
-        return to_lat_lng_dict(getattr(obj, "location", None))
-
+        loc = getattr(obj, "location", None)
+        if not loc:
+            return None
+        lat, lng = self._to_latlng(loc)
+        if lat is None or lng is None:
+            return None
+        return {"lat": lat, "lng": lng}
 
 
 # === 詳細
@@ -143,7 +147,10 @@ class ShrineDetailSerializer(
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
-        return to_lat_lng_dict(getattr(obj, "location", None))
+        loc = getattr(obj, "location", None)
+        if not loc:
+            return None
+        return {"lat": float(loc.y), "lng": float(loc.x)}
 
 
 # 互換名
