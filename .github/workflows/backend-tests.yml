@@ -151,3 +151,22 @@ jobs:
         run: |
           echo "DISABLE_THROTTLE=${DISABLE_THROTTLE}"
           python -c "import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE','shrine_project.settings'); django.setup(); from django.conf import settings; print('THROTTLES:', settings.REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES'))"
+
+
+      # .github/workflows/backend-tests.yml（再利用ワークフロー）内の「pytest 実行」ステップを置き換え
+      - name: Run tests
+        shell: bash
+        env:
+          CI: true
+          DJANGO_SETTINGS_MODULE: shrine_project.settings
+          # これが超重要：余計なプラグインの自動ロードを止める
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          # これは Unit のときだけ true にしたい（inputs.use_gis が false なら 1）
+          IS_PYTEST: "1"
+          DISABLE_GIS_FOR_TESTS: ${{ inputs.use_gis && '0' || '1' }}
+
+        run: |
+          python -V
+          python -c "import django;import sys;print('django', django.get_version());print('py', sys.version)"
+          # 見やすいオプションで
+          python -m pytest -vv -ra --maxfail=1 --durations=10
