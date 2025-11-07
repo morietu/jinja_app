@@ -1,16 +1,15 @@
 name: backend-integration
 on:
-  workflow_dispatch: {}
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend-integration.yml"]
-
+    branches: ['**']
+  push:
+    branches: ['main','develop']
+  workflow_dispatch: {}
 concurrency:
-  group: backend-integration-${{ github.ref }}
+  group: backend-integration-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
   call:
     uses: ./.github/workflows/backend-tests.yml

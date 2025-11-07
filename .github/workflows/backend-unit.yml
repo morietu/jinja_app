@@ -1,17 +1,14 @@
 name: backend-unit
 on:
-  push:
-    paths: ["backend/**", ".github/workflows/backend-unit.yml"]
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend-unit.yml"]
-
+    branches: ['**']
+  push:
+    branches: ['main','develop']
 concurrency:
-  group: backend-unit-${{ github.ref }}
+  group: backend-unit-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
   call:
     uses: ./.github/workflows/backend-tests.yml
