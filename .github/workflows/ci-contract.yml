@@ -24,7 +24,7 @@ jobs:
       - run: pnpm -v
       # npx -y spectral を使っているなら install 不要
       - name: Lint OpenAPI (non-strict)
-        run: pnpm lint:openapi
+        run: pnpm dlx @stoplight/spectral-cli@6.15.0 lint docs/openapi.yaml
 
   web-contract-test:
     needs: openapi-lint
