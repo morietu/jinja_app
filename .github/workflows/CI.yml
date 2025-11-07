@@ -38,39 +38,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1) Node を入れる（ここでは cache を使わない）
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 2) pnpm を PATH に入れる（standalone で確実に）
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.3
           standalone: true
           run_install: false
-      
+
+      # 3) pnpm ストアをキャッシュ
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
       - name: Show pnpm
         run: |
           which pnpm || true
           pnpm -v || true
           echo "PATH=$PATH"
-      
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'   # 依存キャッシュのみ
-          cache-dependency-path: |
-            pnpm-lock.yaml
-            apps/web/pnpm-lock.yaml
-
-        with:
-          version: 9.12.3
-          run_install: false
-
-      - name: Show versions
-        run: |
-          node -v
-          pnpm -v
-          which pnpm
-
-      - name: Install deps
-        run: pnpm install --frozen-lockfile
+      - name: Install deps (workspace root)
+        run: pnpm -w install --frozen-lockfile
 
       - name: Lint (workspace)
         run: pnpm -w run lint
