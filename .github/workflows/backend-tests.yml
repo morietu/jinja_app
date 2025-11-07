@@ -65,7 +65,7 @@ jobs:
         run: |
           python -V
           python -c "import django,sys;print('django', django.get_version());print(sys.version)"
-          python -m pytest -vv -ra --maxfail=1 --durations=10
+          python -m pytest -vv -ra --maxfail=1 --durations=10 -p pytest_django
 
   integration:
     if: ${{ inputs.mode == 'integration' }}
@@ -136,7 +136,7 @@ jobs:
         run: |
           python -V
           python -c "import django,sys;print('django', django.get_version());print(sys.version)"
-          python -m pytest -vv -ra --maxfail=1 --durations=10
+          python -m pytest -vv -ra --maxfail=1 --durations=10 -p pytest_django
       - name: Show DB container logs (always)
         if: always()
         run: |
