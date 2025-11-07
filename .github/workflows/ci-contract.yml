@@ -20,9 +20,8 @@ jobs:
         with:
           node-version: '20'
           # lintジョブは依存をインストールしないためキャッシュ不要
-          cache: 'none'
       - run: pnpm -v
-      # npx -y spectral を使っているなら install 不要
+      # npx / pnpm dlx で十分。install は不要
       - name: Lint OpenAPI (non-strict)
         run: pnpm dlx @stoplight/spectral-cli@6.15.0 lint docs/openapi.yaml
 
