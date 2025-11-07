@@ -41,11 +41,23 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.3
+          standalone: true
           run_install: false
+      
+      - name: Show pnpm
+        run: |
+          which pnpm || true
+          pnpm -v || true
+          echo "PATH=$PATH"
+      
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'   # 依存キャッシュのみ
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            apps/web/pnpm-lock.yaml
 
         with:
           version: 9.12.3
