@@ -119,10 +119,11 @@ jobs:
         working-directory: .
         run: make spectacular
 
-  - name: Generate OpenAPI schema (only when USE_GIS=1)
-    if: env.USE_GIS == '1'
-    working-directory: .
-    run: make spectacular
+      - name: Generate OpenAPI schema (only when USE_GIS=1)
+        if: env.USE_GIS == '1'
+        working-directory: .
+        run: make spectacular
+
       - name: Run tests via Makefile (repo root)
         working-directory: .
         run: |
