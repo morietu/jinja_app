@@ -5,68 +5,50 @@ on:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
 
 jobs:
   openapi-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # 1) 先に pnpm を入れる（standalone で corepack 非依存）
       - uses: pnpm/action-setup@v4
         with:
           standalone: true
           run_install: false
-
-      # 2) 次に Node + pnpm キャッシュ
       - uses: actions/setup-node@v4
-          node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - name: Setup pnpm (from packageManager)
-        uses: pnpm/action-setup@v4
         with:
-          run_install: false
-          standalone: true
-          package_json_file: package.json
-
-
-
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm -v
+      # npx -y spectral を使っているなら install 不要
       - name: Lint OpenAPI (non-strict)
         run: pnpm lint:openapi
 
   web-contract-test:
+    needs: openapi-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # 1) 先に pnpm
       - uses: pnpm/action-setup@v4
         with:
           standalone: true
           run_install: false
-
-      # 2) 次に Node + pnpm キャッシュ
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: '20'
+          cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm -v
 
-      - name: Check pnpm version
-        run: pnpm -v
+      # ここが肝：ワークスペース全体の依存を解決
+      - name: Install all workspace deps
+        run: pnpm -r install --frozen-lockfile
 
-      # ルートに lockfile があるのでルートでインストール
-      - name: Install deps (workspace root)
-        run: pnpm -w install --frozen-lockfile
-
-      # web 配下の契約テスト実行
-      - name: Check pnpm version
-        run: pnpm -v
-      - name: Install deps (workspace root)
-        run: pnpm -w install --frozen-lockfile
-
-
+      # 任意のデバッグ（必要になったら残すと便利）
+      # - name: Debug vitest resolution
+      #   run: pnpm why -r vitest || true
 
       - name: Run web contract test
         working-directory: apps/web
