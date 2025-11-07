@@ -1,0 +1,22 @@
+name: backend-integration
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-integration.yml"]
+
+concurrency:
+  group: backend-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  call:
+    uses: ./.github/workflows/backend-tests.yml
+    with:
+      mode: integration
+      concierge_throttle: "100/min"
+    secrets:
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
