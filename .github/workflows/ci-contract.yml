@@ -1,11 +1,11 @@
 name: Contract CI
 
 on:
-  workflow_dispatch:
   push:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
 
 jobs:
   openapi-lint:
@@ -21,10 +21,13 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm -r install --frozen-lockfile
-      - run: pnpm lint:openapi
+      - run: pnpm -v
+      # npx -y spectral を使っているなら install 不要
+      - name: Lint OpenAPI (non-strict)
+        run: pnpm lint:openapi
 
   web-contract-test:
+    needs: openapi-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +41,15 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm -v
-      # ここが肝：ワークスペース全体を入れる
-      - run: pnpm -r install --frozen-lockfile
+
+      # ここが肝：ワークスペース全体の依存を解決
+      - name: Install all workspace deps
+        run: pnpm -r install --frozen-lockfile
+
+      # 任意のデバッグ（必要になったら残すと便利）
+      # - name: Debug vitest resolution
+      #   run: pnpm why -r vitest || true
+
       - name: Run web contract test
         working-directory: apps/web
         env:
