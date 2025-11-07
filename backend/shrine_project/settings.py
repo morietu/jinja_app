@@ -32,6 +32,12 @@ DISABLE_GIS_FOR_TESTS = env_bool("DISABLE_GIS_FOR_TESTS", default=False)
 if IS_PYTEST and DISABLE_GIS_FOR_TESTS:
     USE_GIS = False
 
+--- SQLite + GIS を使う場合のためのヒント（現状 USE_GIS が false なら無効） ---
+if USE_SQLITE and USE_GIS:
+    # ランナー環境によっては不要だが、用意だけしておくと移行が楽
+    # Ubuntu の spatialite がこのパスに無い場合は CI 側で libspatialite を入れる
+    os.environ.setdefault("SPATIALITE_LIBRARY_PATH", "mod_spatialite")
+
 
 # --- environ init & load .env (最初に読む) ---
 env = environ.Env(
@@ -167,6 +173,19 @@ else:
     DATABASES["default"].setdefault("PORT", DB_PORT)
     DATABASES["default"].setdefault("USER", DB_USER)
     DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
+
+# --- 起動時サマリ（DEBUG または CI） ---
+if DEBUG or os.getenv("CI") == "true":
+    try:
+        _eng = DATABASES["default"]["ENGINE"]
+        _name = DATABASES["default"].get("NAME") or DATABASE_URL or "<from env>"
+        print(
+            f"[settings] IS_PYTEST={IS_PYTEST} USE_GIS={USE_GIS} USE_SQLITE={USE_SQLITE} "
+            f"ENGINE={_eng} NAME={_name}",
+            file=sys.stderr,
+        )
+    except Exception:
+        pass
 
 # --- Apps / Middleware ---
 INSTALLED_APPS = [
