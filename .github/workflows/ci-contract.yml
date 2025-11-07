@@ -15,28 +15,22 @@ jobs:
       # 1) 先に pnpm を入れる（standalone で corepack 非依存）
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.12.3
           standalone: true
           run_install: false
 
       # 2) 次に Node + pnpm キャッシュ
       - uses: actions/setup-node@v4
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
       - name: Setup pnpm (from packageManager)
         uses: pnpm/action-setup@v4
         with:
           run_install: false
           standalone: true
           package_json_file: package.json
-        with:
-          node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Check pnpm version
-        run: pnpm -v
 
-      - name: Install deps (workspace root)
-        run: pnpm -w install --frozen-lockfile
 
       - name: Lint OpenAPI (non-strict)
         run: pnpm lint:openapi
@@ -49,7 +43,6 @@ jobs:
       # 1) 先に pnpm
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.12.3
           standalone: true
           run_install: false
 
@@ -72,21 +65,8 @@ jobs:
         run: pnpm -v
       - name: Install deps (workspace root)
         run: pnpm -w install --frozen-lockfile
-      - name: Install deps (web)
-        working-directory: apps/web
-        run: pnpm install --frozen-lockfile
-      - name: Run web contract test
-        working-directory: apps/web
-        env:
-          OPENAPI: ../../docs/openapi.yaml
-        run: pnpm test:contract
 
-      - name: Enable corepack (fallback)
-        run: corepack enable
 
-      - name: Install deps (web)
-        working-directory: apps/web
-        run: pnpm install --frozen-lockfile
 
       - name: Run web contract test
         working-directory: apps/web
