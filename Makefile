@@ -52,15 +52,19 @@ PYTEST := PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
 	  --ds=shrine_project.settings \
 	  --reuse-db
 
-# CI / デフォルト: スキーマ生成 -> unit
-test: spectacular unit
+# CI / Unit は pytest のみ実行（schema は別ターゲットで）
+test:
+	$(PY) -m pytest -q
+
 
 # OpenAPI スキーマ生成（失敗したら CI も失敗）
 spectacular:
 	GOOGLE_PLACES_API_KEY=$${GOOGLE_PLACES_API_KEY:-dummy} \
 	GOOGLE_MAPS_API_KEY=$${GOOGLE_MAPS_API_KEY:-dummy} \
 	PYTHONPATH=$(PYTHONPATH) $(PY) backend/manage.py spectacular --file api_schema.yaml
+	
 
+test-with-schema: spectacular test
 
 # 実体のテスト実行（ローカルでも使いやすい設定）
 unit:

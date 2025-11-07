@@ -79,11 +79,17 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
 
-      - name: Cache & install apt packages
+      - name: Cache & install apt packages (only when USE_GIS=1)
+        if: env.USE_GIS == '1'
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-        packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq
-        version: 1
+          packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq
+          version: 1
+      # OpenAPI スキーマ生成は Integration のみ
+      - name: Generate OpenAPI schema (only when USE_GIS=1)
+        if: env.USE_GIS == '1'
+        working-directory: .
+        run: make spectacular
 
       # setup-pythonのcacheを使うなら、下のCache pipは削ってOK（残しても可）
       # - name: Cache pip
@@ -108,6 +114,15 @@ jobs:
           done
           pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
+      - name: Generate OpenAPI schema (only when USE_GIS=1)
+        if: env.USE_GIS == '1'
+        working-directory: .
+        run: make spectacular
+
+  - name: Generate OpenAPI schema (only when USE_GIS=1)
+    if: env.USE_GIS == '1'
+    working-directory: .
+    run: make spectacular
       - name: Run tests via Makefile (repo root)
         working-directory: .
         run: |
