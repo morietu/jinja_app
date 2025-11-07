@@ -1,0 +1,15 @@
+# .github/workflows/CI.yml
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - '**'   # すべてのPRで実行（または main / develop に絞ってもOK）
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
