@@ -341,3 +341,6 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
 
 ![web-tests](https://github.com/morietu/jinja_app/actions/workflows/web-tests.yml/badge.svg?branch=develop)
 [![contract-ci](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml)
+![Contract CI](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)
+[![backend-unit](https://github.com/morietu/jinja_app/actions/workflows/backend-unit.yml/badge.svg)](…)
+[![backend-integration](https://github.com/morietu/jinja_app/actions/workflows/backend-integration.yml/badge.svg)](…)

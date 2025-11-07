@@ -1,48 +1,79 @@
-# temples/migrations/0033_fix_location_geometry.py
+# backend/temples/migrations/0033_fix_location_geometry.py
 from django.db import migrations
 
-SQL = r"""
-DO $$
-BEGIN
-  -- temples_shrine.location が bytea のままなら geometry(Point,4326) に作り直す
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public'
-      AND table_name='temples_shrine'
-      AND column_name='location'
-      AND data_type='bytea'
-  ) THEN
-    ALTER TABLE public.temples_shrine DROP COLUMN location;
-    ALTER TABLE public.temples_shrine ADD COLUMN location geometry(Point,4326);
-  ELSIF NOT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public'
-      AND table_name='temples_shrine'
-      AND column_name='location'
-  ) THEN
-    -- location 列が無ければ追加
-    ALTER TABLE public.temples_shrine ADD COLUMN location geometry(Point,4326);
-  END IF;
+INDEX_NAME = "shrine_location_gist"
 
-  -- 念のため（環境によっては自動インデックスが無い場合がある）
-  CREATE INDEX IF NOT EXISTS shrine_location_gist
-    ON public.temples_shrine USING GIST (location);
-END $$;
-"""
+def fix_location_and_index(apps, schema_editor):
+    # PostgreSQL 以外は何もしない（SQLite ではスキップ）
+    if schema_editor.connection.vendor != "postgresql":
+        return
 
-REVERSE = r"""
--- 逆マイグレーションではインデックスだけ落とす（列は残す）
-DROP INDEX IF EXISTS public.shrine_location_gist;
-"""
+    with schema_editor.connection.cursor() as cur:
+        # location 列の存在＆型を確認
+        cur.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema='public'
+              AND table_name='temples_shrine'
+              AND column_name='location'
+            """
+        )
+        row = cur.fetchone()
+        data_type = (row[0].lower() if row and row[0] else None)
 
+        # bytea → geometry(Point,4326) に作り直し
+        if data_type == "bytea":
+            cur.execute('ALTER TABLE public.temples_shrine DROP COLUMN "location";')
+            cur.execute(
+                'ALTER TABLE public.temples_shrine '
+                'ADD COLUMN "location" geometry(Point,4326);'
+            )
+        # そもそも列が無ければ追加
+        elif row is None:
+            cur.execute(
+                'ALTER TABLE public.temples_shrine '
+                'ADD COLUMN "location" geometry(Point,4326);'
+            )
+        # geometry なら何もしない
+
+    # GiST index を Django API で作成（USING GIST の生SQLは使わない）
+    try:
+        from django.contrib.gis.db.models.indexes import GiSTIndex
+        Shrine = apps.get_model("temples", "Shrine")
+
+        # 既存確認
+        with schema_editor.connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relname = %s AND n.nspname = 'public'
+                """,
+                [INDEX_NAME],
+            )
+            exists = cur.fetchone() is not None
+
+        if not exists:
+            index = GiSTIndex(fields=["location"], name=INDEX_NAME)
+            try:
+                schema_editor.add_index(Shrine, index)
+            except Exception:
+                pass
+    except Exception:
+        # GeoDjango の import に失敗するなどのケースは黙ってスキップ
+        pass
+
+
+def drop_index_reverse(apps, schema_editor):
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    with schema_editor.connection.cursor() as cur:
+        cur.execute("DROP INDEX IF EXISTS public.%s;" % INDEX_NAME)
 
 class Migration(migrations.Migration):
-    dependencies = [
-        # あなたの 0031 ファイル名に合わせる
-        ("temples", "0032_shrine_location_alter_shrine_latitude_and_more"),
-    ]
+    dependencies = [("temples", "0032_shrine_location_alter_shrine_latitude_and_more")]
     operations = [
-        migrations.RunSQL(SQL, reverse_sql=REVERSE),
+        migrations.RunPython(fix_location_and_index, reverse_code=drop_index_reverse),
     ]

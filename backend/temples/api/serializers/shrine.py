@@ -86,12 +86,33 @@ class ShrineListSerializer(
             "updated_at",
         )
 
+    @staticmethod
+    def _to_latlng(loc):
+        # GEOS Point
+        if hasattr(loc, "x") and hasattr(loc, "y"):
+            return float(loc.y), float(loc.x)  # (lat, lng)
+        # GeoJSON-like dict: {"type":"Point","coordinates":[lng, lat]} or {"lat":..,"lng":..}
+        if isinstance(loc, dict):
+            if "coordinates" in loc:
+                coords = loc.get("coordinates") or []
+                if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                    return float(coords[1]), float(coords[0])
+            if "lat" in loc and "lng" in loc:
+                return float(loc["lat"]), float(loc["lng"])
+        # tuple/list [lng, lat] or (lng, lat)
+        if isinstance(loc, (list, tuple)) and len(loc) == 2:
+            return float(loc[1]), float(loc[0])
+        return None, None
+
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
         loc = getattr(obj, "location", None)
         if not loc:
             return None
-        return {"lat": float(loc.y), "lng": float(loc.x)}  # GEOS: y=lat, x=lng
+        lat, lng = self._to_latlng(loc)
+        if lat is None or lng is None:
+            return None
+        return {"lat": lat, "lng": lng}
 
 
 # === 詳細

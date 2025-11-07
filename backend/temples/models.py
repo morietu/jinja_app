@@ -1,11 +1,32 @@
 from django.conf import settings
-from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Point
+from django.db import models as dj_models
 from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+
+# --- PointField を環境に応じて差し替える shim -------------------------------
+# GIS を使うときだけ本物の PointField を、テスト(SQLite)では安全な JSON/Text に置換
+USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
+    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
+)
+
+if USE_REAL_GIS:
+    from django.contrib.gis.db.models import PointField as _RealPointField
+    from django.contrib.gis.geos import Point  # 実GIS時のみ import
+    PointFieldBase = _RealPointField  # 本物
+else:
+    # 非GIS環境では JSONField（または TextField）にフォールバック
+    # 既存コードの引数互換性のため **kwargs 受け取り＆無視
+    class PointFieldBase(dj_models.JSONField):
+        def __init__(self, *args, srid=None, geography=None, spatial_index=None, **kwargs):
+            # srid 等は無視。NULL/BLANK 指定はそのまま通す
+            super().__init__(*args, **kwargs)
+
+# 以降、この PointFieldBase を PointField として使う
+class PointField(PointFieldBase):
+    pass
 
 # --- 追加ここから ---
 KYUSEI_CHOICES = [
@@ -62,41 +83,41 @@ class GoriyakuTag(models.Model):
 
 class Shrine(models.Model):
     KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
-    kind = gis_models.CharField(
+    kind = models.CharField(
         max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True
     )
     # 基本情報
-    name_jp = gis_models.CharField(max_length=100)
-    name_romaji = gis_models.CharField(max_length=100, blank=True, null=True)
-    address = gis_models.CharField(max_length=255)
+    name_jp = models.CharField(max_length=100)
+    name_romaji = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=255)
     deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
 
     # 位置情報
-    latitude = gis_models.FloatField(
+    latitude = models.FloatField(
         null=True, blank=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
     )
-    longitude = gis_models.FloatField(
+    longitude = models.FloatField(
         null=True, blank=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
-    location = gis_models.PointField(srid=4326, null=True, blank=True)
+    location = PointField(srid=4326, null=True, blank=True)
 
     # ご利益・祭神など
-    goriyaku = gis_models.TextField(
+    goriyaku = models.TextField(
         help_text="ご利益（自由メモ）", blank=True, null=True, default=""
     )
-    sajin = gis_models.TextField(help_text="祭神", blank=True, null=True, default="")
-    description = gis_models.TextField(blank=True, null=True)
+    sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
+    description = models.TextField(blank=True, null=True)
 
     # 多対多
-    goriyaku_tags = gis_models.ManyToManyField("GoriyakuTag", related_name="shrines", blank=True)
+    goriyaku_tags = models.ManyToManyField("GoriyakuTag", related_name="shrines", blank=True)
 
     # 五行・属性
-    element = gis_models.CharField(
+    element = models.CharField(
         max_length=10, blank=True, null=True, help_text="五行属性: 木火土金水"
     )
 
     # 九星（任意入力・タグ用途）
-    kyusei = gis_models.CharField(
+    kyusei = models.CharField(
         max_length=8,
         blank=True,
         null=True,
@@ -104,14 +125,14 @@ class Shrine(models.Model):
         help_text="九星（例: 九紫火星）",
     )
 
-    created_at = gis_models.DateTimeField(default=timezone.now)
-    updated_at = gis_models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # 人気集計（直近30日）
-    views_30d = gis_models.PositiveIntegerField(default=0)
-    favorites_30d = gis_models.PositiveIntegerField(default=0)
-    popular_score = gis_models.FloatField(default=0.0)
-    last_popular_calc_at = gis_models.DateTimeField(null=True, blank=True)
+    views_30d = models.PositiveIntegerField(default=0)
+    favorites_30d = models.PositiveIntegerField(default=0)
+    popular_score = models.FloatField(default=0.0)
+    last_popular_calc_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name_jp
@@ -167,13 +188,24 @@ class Shrine(models.Model):
 
         new_location = None
         if lat is not None and lng is not None:
-            new_location = Point(float(lng), float(lat), srid=4326)
+            if USE_REAL_GIS:
+                new_location = Point(float(lng), float(lat), srid=4326)
+            else:
+                # 非GISは JSONField。GeoJSON 風に格納しておく（比較もしやすい）
+                new_location = {
+                    "type": "Point",
+                    "coordinates": [float(lng), float(lat)],
+                    "srid": 4326,
+                }
 
-        if (self.location is None) != (new_location is None) or (
-            self.location is not None
-            and new_location is not None
-            and (self.location.x != new_location.x or self.location.y != new_location.y)
-        ):
+        def _loc_changed(old, new):
+            if old is None or new is None:
+                return (old is None) != (new is None)
+            if USE_REAL_GIS:
+                return (old.x != new["coordinates"][0]) or (old.y != new["coordinates"][1])
+            return old != new
+
+        if _loc_changed(self.location, new_location):
             self.location = new_location
             if "update_fields" in kwargs and kwargs["update_fields"] is not None:
                 kwargs["update_fields"] = set(kwargs["update_fields"])

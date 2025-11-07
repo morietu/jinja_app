@@ -62,17 +62,35 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
 
+    def _extract_lon_lat(geom):
+            # GEOS Point
+            if hasattr(geom, "x") and hasattr(geom, "y"):
+                return float(geom.x), float(geom.y)
+            # GeoJSON 風 dict
+            if isinstance(geom, dict):
+                coords = geom.get("coordinates")
+                if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                    return float(coords[0]), float(coords[1])
+            # タプル/リスト (lon, lat)
+            if isinstance(geom, (list, tuple)) and len(geom) == 2:
+                return float(geom[0]), float(geom[1])
+            return None, None
+
     distances = []
     for obj in base_qs:
         geom = obj.location
         if geom is None:
             continue
-        obj_lon, obj_lat = geom.x, geom.y
+        obj_lon, obj_lat = _extract_lon_lat(geom)
+        if obj_lon is None or obj_lat is None:
+            continue
         d = haversine_m(lon, lat, obj_lon, obj_lat)
         if radius_m is not None and d > radius_m:
             continue
         distances.append((obj.id, d))
-
+        # 半径フィルタがある場合はここで除外
+        if radius_m is not None:
+            distances = [(d, o) for (d, o) in distances if d <= float(radius_m)]
     # sort and limit
     distances.sort(key=lambda t: t[1])
     distances = distances[:limit]
