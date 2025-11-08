@@ -88,7 +88,6 @@ try:
 except Exception as e:
     print("temples NG:", repr(e))
 PY
-
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -128,7 +127,7 @@ PY
       AUTO_GEOCODE_ON_SAVE: "0"
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
       # ✅ グローバル env を参照
-      CONCIERGE_THROTTLE: ${{ env.CONCIERGE_THROTTLE }}
+      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
