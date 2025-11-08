@@ -1,4 +1,4 @@
-
+from django.contrib.postgres.indexes import GistIndex
 from django.db import migrations
 
 INDEX_NAME = "shrine_location_gist"
@@ -24,10 +24,10 @@ def ensure_gist_index(apps, schema_editor):
     if exists:
         return
 
-    # Django の GiSTIndex を使って作成（USING GIST の生SQLは使わない）
-    from django.contrib.gis.db.models.indexes import GiSTIndex  # GeoDjango が入ってるPG環境でOK
+    # Django の GistIndex を使って作成（USING GIST の生SQLは使わない）
+    from django.contrib.postgres.indexes import GistIndex  # GeoDjango が入ってるPG環境でOK
     Shrine = apps.get_model("temples", "Shrine")
-    index = GiSTIndex(fields=["location"], name=INDEX_NAME)
+    index = GistIndex(fields=["location"], name=INDEX_NAME)
     # 既存重複に備えて例外は握りつぶし
     try:
         schema_editor.add_index(Shrine, index)
