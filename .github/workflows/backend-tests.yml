@@ -51,7 +51,7 @@ jobs:
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
       # ✅ グローバル env を参照
-      CONCIERGE_THROTTLE: ${{ env.CONCIERGE_THROTTLE }}
+      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
@@ -78,16 +78,16 @@ jobs:
       - name: Show import path & locate temples
         run: |
           python - <<'PY'
-import sys, importlib
-print("=== sys.path ===")
-print("\n".join(sys.path))
-print("=== try import temples ===")
-try:
-    m = importlib.import_module("temples")
-    print("temples OK:", m, getattr(m, "__file__", None))
-except Exception as e:
-    print("temples NG:", repr(e))
-PY
+      import sys, importlib
+      print("=== sys.path ===")
+      print("\n".join(sys.path))
+      print("=== try import temples ===")
+      try:
+          m = importlib.import_module("temples")
+          print("temples OK:", m, getattr(m, "__file__", None))
+      except Exception as e:
+          print("temples NG:", repr(e))
+      PY
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -171,16 +171,16 @@ PY
       - name: Show import path & locate temples
         run: |
           python - <<'PY'
-import sys, importlib
-print("=== sys.path ===")
-print("\n".join(sys.path))
-print("=== try import temples ===")
-try:
-    m = importlib.import_module("temples")
-    print("temples OK:", m, getattr(m, "__file__", None))
-except Exception as e:
-    print("temples NG:", repr(e))
-PY
+      import sys, importlib
+      print("=== sys.path ===")
+      print("\n".join(sys.path))
+      print("=== try import temples ===")
+      try:
+          m = importlib.import_module("temples")
+          print("temples OK:", m, getattr(m, "__file__", None))
+      except Exception as e:
+          print("temples NG:", repr(e))
+      PY
 
       - name: Run pytest (integration, postgis)
         env:
@@ -202,3 +202,4 @@ PY
             docker logs "$CID" || true
           else
             echo "No postgis container found"
+          fi
