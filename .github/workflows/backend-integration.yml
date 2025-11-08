@@ -1,8 +1,11 @@
 name: backend-integration
 on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-integration.yml'
   workflow_dispatch: {}
-  pull_request:
-    paths: ["backend/**", ".github/workflows/backend-integration.yml"]
 
 concurrency:
   group: backend-integration-${{ github.ref }}
