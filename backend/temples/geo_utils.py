@@ -1,5 +1,5 @@
 # backend/temples/geo_utils.py
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 LonLat = Tuple[float, float]
 
@@ -15,6 +15,10 @@ def to_lon_lat(value: Any) -> LonLat:
       - {"lat":.., "lng"/"lon"/"longitude":..} / {"latitude":..}
       - GEOS/Shapely風: x=lon, y=lat
     """
+    # None/空は未対応（呼び出し側で to_lat_lng_dict が面倒を見る）
+    if value in (None, ""):
+        raise TypeError("to_lon_lat: 未対応の入力型")
+
     # GEOS/Shapely 風
     if hasattr(value, "x") and hasattr(value, "y"):
         return (_to_float(value.x), _to_float(value.y))
@@ -35,15 +39,19 @@ def to_lon_lat(value: Any) -> LonLat:
     # 2要素
     if isinstance(value, (list, tuple)) and len(value) == 2:
         a, b = value
-        # a が緯度として妥当(<=90) かつ b が経度として妥当(<=180)なら (lat,lng) と解釈
-        if abs(float(a)) <= 90 and abs(float(b)) <= 180:
-            return (_to_float(b), _to_float(a))  # (lat,lng) -> (lon,lat)
-        return (_to_float(a), _to_float(b))      # それ以外は (lon,lat)
+        if abs(float(a)) <= 90 and abs(float(b)) <= 180:  # (lat, lng)
+            return (_to_float(b), _to_float(a))
+        return (_to_float(a), _to_float(b))               # (lon, lat)
 
     raise TypeError("to_lon_lat: 未対応の入力型")
 
-def to_lat_lng_dict(value: Any) -> Dict[str, float]:
+def to_lat_lng_dict(value: Any) -> Optional[Dict[str, float]]:
+    """
+    位置を {lat, lng} に正規化。None/空は None を返す（nullable）。
+    """
+    # ★ ここが重要：populars など location が NULL の行を安全に処理
+    if value in (None, ""):
+        return None
 
-    # すべて to_lon_lat で正規化してから返す（GeoJSONも吸収）
     lon, lat = to_lon_lat(value)
     return {"lat": _to_float(lat), "lng": _to_float(lon)}
