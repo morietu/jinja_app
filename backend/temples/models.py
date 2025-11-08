@@ -1,34 +1,13 @@
 from django.conf import settings
-from django.db import models as dj_models
 from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+from django.contrib.gis.db.models import PointField
 from django.contrib.gis.geos import Point
 
 
-# --- PointField を環境に応じて差し替える shim -------------------------------
-# GIS を使うときだけ本物の PointField を、テスト(SQLite)では安全な JSON/Text に置換
-USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
-    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
-)
-
-if USE_REAL_GIS:
-    from django.contrib.gis.db.models import PointField as _RealPointField
-    from django.contrib.gis.geos import Point  # 実GIS時のみ import
-    PointFieldBase = _RealPointField  # 本物
-else:
-    # 非GIS環境では JSONField（または TextField）にフォールバック
-    # 既存コードの引数互換性のため **kwargs 受け取り＆無視
-    class PointFieldBase(dj_models.JSONField):
-        def __init__(self, *args, srid=None, geography=None, spatial_index=None, **kwargs):
-            # srid 等は無視。NULL/BLANK 指定はそのまま通す
-            super().__init__(*args, **kwargs)
-
-# 以降、この PointFieldBase を PointField として使う
-class PointField(PointFieldBase):
-    pass
 
 # --- 追加ここから ---
 KYUSEI_CHOICES = [
@@ -188,30 +167,15 @@ class Shrine(models.Model):
         lat = _norm(self.latitude)
         lng = _norm(self.longitude)
 
-        new_location = None
+        # 常に PostGIS の Point を格納
         if lat is not None and lng is not None:
-            if USE_REAL_GIS:
-                new_location = Point(float(lng), float(lat), srid=4326)
-            else:
-                # 非GISは JSONField。GeoJSON 風に格納しておく（比較もしやすい）
-                new_location = {
-                    "type": "Point",
-                    "coordinates": [float(lng), float(lat)],
-                    "srid": 4326,
-                }
-
-        def _loc_changed(old, new):
-            if old is None or new is None:
-                return (old is None) != (new is None)
-            if USE_REAL_GIS:
-                return (old.x != new["coordinates"][0]) or (old.y != new["coordinates"][1])
-            return old != new
-
-        if _loc_changed(self.location, new_location):
-            self.location = new_location
-            if "update_fields" in kwargs and kwargs["update_fields"] is not None:
-                kwargs["update_fields"] = set(kwargs["update_fields"])
-                kwargs["update_fields"].add("location")
+            new_location = Point(float(lng), float(lat), srid=4326)
+            # 変更検出（Point同士の比較）
+            if (self.location is None) or (self.location.x != new_location.x) or (self.location.y != new_location.y):
+                self.location = new_location
+                if "update_fields" in kwargs and kwargs["update_fields"] is not None:
+                    kwargs["update_fields"] = set(kwargs["update_fields"])
+                    kwargs["update_fields"].add("location")
 
         if "update_fields" in kwargs and kwargs["update_fields"] is not None:
             if "latitude" in kwargs["update_fields"]:
@@ -223,13 +187,6 @@ class Shrine(models.Model):
             self.latitude = lat
             self.longitude = lng
         
-        # PostGIS: geometry(Point, 4326) を格納
-        if self.latitude is not None and self.longitude is not None:
-            try:
-                self.location = Point(float(self.longitude), float(self.latitude), srid=4326)
-            except Exception:
-                # 値が不正なら location は触らない
-                pass
 
         return super().save(*args, **kwargs)
 
