@@ -32,7 +32,7 @@ jobs:
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
-      
+      PYTHONPATH: ${{ github.workspace }}/backend
       IS_PYTEST: "1"
       DISABLE_GIS_FOR_TESTS: "1"
       USE_SQLITE: "1"
@@ -90,7 +90,7 @@ jobs:
     env:
       CI: "true"
       DJANGO_SETTINGS_MODULE: shrine_project.settings
-      
+      PYTHONPATH: ${{ github.workspace }}/backend
       IS_PYTEST: "1"
       USE_SQLITE: "0"
       USE_GIS: "1"
