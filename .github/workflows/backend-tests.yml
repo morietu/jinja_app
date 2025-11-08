@@ -74,7 +74,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-
       - name: Show import path & locate temples
         shell: bash
         run: |
@@ -89,7 +88,7 @@ jobs:
           except Exception as e:
               print("temples NG:", repr(e))
           PY
-      
+
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -184,6 +183,16 @@ jobs:
           except Exception as e:
               print("temples NG:", repr(e))
           PY
+      - name: Show effective settings flags
+        run: |
+          echo "ENV USE_GIS=${USE_GIS}"
+          python - <<'PY'
+          import django
+          from django.conf import settings
+          django.setup()
+          print(f"[settings-check] USE_GIS={getattr(settings,'USE_GIS',None)} "
+                f"ENGINE={settings.DATABASES['default']['ENGINE']}")
+          PY
 
       - name: Run pytest (integration, postgis)
         env:
@@ -206,3 +215,5 @@ jobs:
           else
             echo "No postgis container found"
           fi
+
+      # .github/workflows/backend-tests.yml（reusable）
