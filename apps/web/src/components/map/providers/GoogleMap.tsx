@@ -27,17 +27,32 @@ export default function GoogleMap({
 
     (async () => {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-      const loader = new Loader({ apiKey, version: "weekly" });
+      const loader = new Loader({
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+        version: "weekly",
+        // libraries の指定はあってもなくても OK（importLibrary で明示ロードするため）
+      });
 
-      const { Map } = (await loader.importLibrary(
-        "maps"
-      )) as google.maps.MapsLibrary;
-      const { AdvancedMarkerElement } = (await loader.importLibrary(
-        "marker"
-      )) as google.maps.MarkerLibrary;
+      // const { Map } = (await loader.importLibrary(
+      //"maps"
+      //)) as google.maps.MapsLibrary;
+      //const { AdvancedMarkerElement } = (await loader.importLibrary(
+      //"marker"
+      // )) as google.maps.MarkerLibrary;
 
       if (cancelled || !ref.current) return;
+      
 
+      // 型定義が古くても落ちないよう any キャストで吸収
+      const { Map } = await(google.maps as any).importLibrary("maps") as {
+        Map: typeof google.maps.Map;
+      };
+
+      const { AdvancedMarkerElement } = await(google.maps as any).importLibrary(
+        "marker"
+      ) as {
+        AdvancedMarkerElement: any; // 必要なら適切な型に差し替え
+      };
       // Map生成
       mapRef.current = new Map(ref.current, {
         center,
