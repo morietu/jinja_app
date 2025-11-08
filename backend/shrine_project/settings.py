@@ -32,7 +32,7 @@ DISABLE_GIS_FOR_TESTS = env_bool("DISABLE_GIS_FOR_TESTS", default=False)
 if IS_PYTEST and DISABLE_GIS_FOR_TESTS:
     USE_GIS = False
 
---- SQLite + GIS を使う場合のためのヒント（現状 USE_GIS が false なら無効） ---
+# SQLite + GIS を使う場合のためのヒント（現状 USE_GIS が false なら無効） ---
 if USE_SQLITE and USE_GIS:
     # ランナー環境によっては不要だが、用意だけしておくと移行が楽
     # Ubuntu の spatialite がこのパスに無い場合は CI 側で libspatialite を入れる
@@ -186,7 +186,23 @@ if DEBUG or os.getenv("CI") == "true":
         )
     except Exception:
         pass
+# --- GISを使わないテスト環境用の簡易パッチ ---
+# CI/ローカルで USE_GIS=0 かつ SQLite の時に、GISフィールドを通常のテキスト型として扱う
+if os.getenv("DISABLE_GIS_FOR_TESTS") == "1" and os.getenv("USE_GIS", "0") in ("0", "", "false", "False"):
+    try:
+        from django.contrib.gis.db.models.fields import GeometryField, PointField
 
+        def _db_type_as_text(self, connection):
+            # SQLite 非GISバックエンドでも通るよう 'text' を返す
+            return "text"
+
+        # マイグレーション時の型解決だけすり替えれば十分（インデックスも無効化）
+        GeometryField.db_type = _db_type_as_text  # type: ignore[method-assign]
+        PointField.db_type = _db_type_as_text     # type: ignore[method-assign]
+        GeometryField.spatial_index = False       # 空間インデックスを作らない
+    except Exception:
+        # gis パッケージが無い/読み込めない場合は何もしない
+        pass
 # --- Apps / Middleware ---
 INSTALLED_APPS = [
     "favorites",

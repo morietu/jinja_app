@@ -23,7 +23,6 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
-    "@googlemaps/js-api-loader": "^2.0.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
@@ -42,6 +41,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.39.1",
+    "@googlemaps/js-api-loader": "^1.16.10",
     "@next/eslint-plugin-next": "^16.0.1",
     "@playwright/test": "^1.56.1",
     "@storybook/addon-a11y": "^10.0.5",

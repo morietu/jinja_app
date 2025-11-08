@@ -13,6 +13,52 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RemoveConstraint(
+            model_name="favorite",
+            name="uq_favorite_user_shrine",
+        ),
+        migrations.RemoveConstraint(
+            model_name="favorite",
+            name="uq_favorite_user_place",
+        ),
+        migrations.RemoveConstraint(
+            model_name="favorite",
+            name="favorite_exactly_one_target",
+        ),
+        # --- Like: shrine/user の複合 UQ が残っていると列削除で死ぬ ---
+        migrations.RemoveConstraint(
+            model_name="like",
+            name="uq_like_shrine_user",
+        ),
+
+        # --- RankingLog: shrine を外す前に UQ を落とす ---
+        migrations.RemoveConstraint(
+            model_name="rankinglog",
+            name="uq_rankinglog_shrine_date",
+        ),
+
+        # --- Shrine: 後でモデルを削除するが、万一のため事前に制約を外しておくと安全 ---
+        migrations.RemoveConstraint(
+            model_name="shrine",
+            name="uq_shrine_name_loc",
+        ),
+        migrations.RemoveConstraint(
+            model_name="shrine",
+            name="uq_shrine_name_addr_when_loc_null",
+        ),
+        migrations.RemoveConstraint(
+            model_name="shrine",
+            name="chk_lat_range",
+        ),
+        migrations.RemoveConstraint(
+            model_name="shrine",
+            name="chk_lng_range",
+        ),
+        migrations.RemoveConstraint(
+            model_name="shrine",
+            name="chk_lat_lng_both_or_none",
+        ),
+
         migrations.CreateModel(
             name="ConciergeMessage",
             fields=[

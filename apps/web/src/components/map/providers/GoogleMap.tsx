@@ -26,16 +26,20 @@ export default function GoogleMap({
     let cancelled = false;
 
     (async () => {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-      const loader = new Loader({ apiKey, version: "weekly" });
+      const loader = new Loader({
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
+        version: "weekly",
+        libraries: ["places"],
+      });
 
-      const { Map } = (await loader.importLibrary(
+      await loader.load();
+
+      const { Map } = (await google.maps.importLibrary(
         "maps"
       )) as google.maps.MapsLibrary;
-      const { AdvancedMarkerElement } = (await loader.importLibrary(
+      const { AdvancedMarkerElement } = (await google.maps.importLibrary(
         "marker"
       )) as google.maps.MarkerLibrary;
-
       if (cancelled || !ref.current) return;
 
       // Map生成

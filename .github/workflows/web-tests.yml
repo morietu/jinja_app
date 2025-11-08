@@ -6,12 +6,13 @@ on:
   pull_request:
     paths: ["apps/web/**", ".github/workflows/web-tests.yml"]
 
+permissions:
+  contents: read
+
 concurrency:
   group: web-tests-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
 
 jobs:
   test:
@@ -22,16 +23,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+
+      # pnpm のセットアップ（standalone で OK / run_install は false）
       - uses: pnpm/action-setup@v4
         with:
+          standalone: true
+          run_install: false
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install deps (workspace root)
-        run: pnpm install --frozen-lockfile
+        run: pnpm -r install --frozen-lockfile
 
       # ESLint キャッシュ復元（先に行う）
       - name: Restore ESLint cache

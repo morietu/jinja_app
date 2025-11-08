@@ -7,6 +7,15 @@ on:
     branches: [develop, main]
   workflow_dispatch:
 
+# 余計な権限を絞る（トップレベル）
+permissions:
+  contents: read
+
+# ラン競合の防止（トップレベル）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   openapi-lint:
     runs-on: ubuntu-latest

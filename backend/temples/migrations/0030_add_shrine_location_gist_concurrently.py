@@ -1,56 +1,51 @@
-# temples/migrations/0030_add_shrine_location_gist_concurrently.py
+
 from django.db import migrations
 
 INDEX_NAME = "shrine_location_gist"
 
-
-def create_gist_index(apps, schema_editor):
+def ensure_gist_index(apps, schema_editor):
+    # PostgreSQL 以外は何もしない（SQLite ではスキップ）
     if schema_editor.connection.vendor != "postgresql":
         return
-    with schema_editor.connection.cursor() as cur:
-        # すでに存在すれば何もしない（CONCURRENTLY + IF NOT EXISTS はPGでOK）
-        cur.execute(
-            f"""
-            CREATE INDEX IF NOT EXISTS {INDEX_NAME}
-            ON temples_shrine
-            USING GIST (location);
-            """
-        )
 
-
-def drop_gist_index(apps, schema_editor):
-    if schema_editor.connection.vendor != "postgresql":
-        return
+    # 既に index があるか確認
     with schema_editor.connection.cursor() as cur:
         cur.execute(
             """
-        DO $$
-        DECLARE v_typ text;
-        BEGIN
-          SELECT data_type INTO v_typ
-          FROM information_schema.columns
-          WHERE table_schema='public' AND table_name='temples_shrine' AND column_name='location';
-
-          -- geometry のときだけ（bytea のときは何もしない）
-          IF v_typ IS NULL OR v_typ <> 'USER-DEFINED' THEN
-            RETURN;
-          END IF;
-
-          -- 念のため
-          CREATE INDEX IF NOT EXISTS shrine_location_gist
-            ON public.temples_shrine USING GIST (location);
-        END $$;
-        """
+            SELECT 1
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = %s AND n.nspname = 'public'
+            """,
+            [INDEX_NAME],
         )
+        exists = cur.fetchone() is not None
+
+    if exists:
+        return
+
+    # Django の GiSTIndex を使って作成（USING GIST の生SQLは使わない）
+    from django.contrib.gis.db.models.indexes import GiSTIndex  # GeoDjango が入ってるPG環境でOK
+    Shrine = apps.get_model("temples", "Shrine")
+    index = GiSTIndex(fields=["location"], name=INDEX_NAME)
+    # 既存重複に備えて例外は握りつぶし
+    try:
+        schema_editor.add_index(Shrine, index)
+    except Exception:
+        pass
 
 
-def drop_gist_index(apps, schema_editor):
+def noop_reverse(apps, schema_editor):
+    # 逆方向ではインデックスは落とさない（従来同様に運用）
     if schema_editor.connection.vendor != "postgresql":
         return
-    with schema_editor.connection.cursor() as cur:
-        cur.execute("DROP INDEX IF EXISTS public.shrine_location_gist;")
-
+    # 必要なら以下を有効化：
+    # with schema_editor.connection.cursor() as cur:
+    #     cur.execute("DROP INDEX IF EXISTS public.%s;" % INDEX_NAME)
 
 class Migration(migrations.Migration):
     dependencies = [("temples", "0029_drop_auto_gist_location")]
-    operations = []
+    # もう CONCURRENTLY を使わないので atomic=True のままでOK
+    operations = [
+        migrations.RunPython(ensure_gist_index, reverse_code=noop_reverse),
+    ]
