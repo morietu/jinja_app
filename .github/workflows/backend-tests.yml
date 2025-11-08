@@ -76,18 +76,20 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Show import path & locate temples
+        shell: bash
         run: |
           python - <<'PY'
-      import sys, importlib
-      print("=== sys.path ===")
-      print("\n".join(sys.path))
-      print("=== try import temples ===")
-      try:
+          import sys, importlib
+          print("=== sys.path ===")
+          print("\n".join(sys.path))
+          print("=== try import temples ===")
+          try:
           m = importlib.import_module("temples")
           print("temples OK:", m, getattr(m, "__file__", None))
-      except Exception as e:
+          except Exception as e:
           print("temples NG:", repr(e))
-      PY
+          PY
+      
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -169,18 +171,19 @@ jobs:
           pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
       - name: Show import path & locate temples
+        shell: bash
         run: |
           python - <<'PY'
-      import sys, importlib
-      print("=== sys.path ===")
-      print("\n".join(sys.path))
-      print("=== try import temples ===")
-      try:
+          import sys, importlib
+          print("=== sys.path ===")
+          print("\n".join(sys.path))
+          print("=== try import temples ===")
+          try:
           m = importlib.import_module("temples")
           print("temples OK:", m, getattr(m, "__file__", None))
-      except Exception as e:
+          except Exception as e:
           print("temples NG:", repr(e))
-      PY
+          PY
 
       - name: Run pytest (integration, postgis)
         env:
