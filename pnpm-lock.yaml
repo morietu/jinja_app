@@ -11,18 +11,12 @@ importers:
       '@eslint/js':
         specifier: ^9.39.0
         version: 9.39.1
-      '@googlemaps/js-api-loader':
-        specifier: ^1.16.8
-        version: 1.16.10
       '@next/eslint-plugin-next':
         specifier: ^16.0.1
         version: 16.0.1
       '@stoplight/spectral-cli':
         specifier: ^6.15.0
         version: 6.15.0
-      '@types/google.maps':
-        specifier: ^3.55.6
-        version: 3.58.1
       eslint:
         specifier: ^9.35.0
         version: 9.39.1(jiti@2.6.1)
