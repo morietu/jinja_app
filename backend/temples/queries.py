@@ -45,9 +45,10 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     distances: list[tuple[int, float]] = []
     for obj in base_qs:
         geom = obj.location
-        if geom is None:
+        lonlat = to_lon_lat(geom)
+        if not lonlat:
             continue
-        obj_lon, obj_lat = to_lon_lat(geom)
+        obj_lon, obj_lat = lonlat
         if obj_lon is None or obj_lat is None:
             continue
         d = haversine_m(lon, lat, obj_lon, obj_lat)
