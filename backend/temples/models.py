@@ -5,6 +5,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+from django.contrib.gis.geos import Point
+
 
 # --- PointField を環境に応じて差し替える shim -------------------------------
 # GIS を使うときだけ本物の PointField を、テスト(SQLite)では安全な JSON/Text に置換
@@ -220,6 +222,14 @@ class Shrine(models.Model):
         else:
             self.latitude = lat
             self.longitude = lng
+        
+        # PostGIS: geometry(Point, 4326) を格納
+        if self.latitude is not None and self.longitude is not None:
+            try:
+                self.location = Point(float(self.longitude), float(self.latitude), srid=4326)
+            except Exception:
+                # 値が不正なら location は触らない
+                pass
 
         return super().save(*args, **kwargs)
 
