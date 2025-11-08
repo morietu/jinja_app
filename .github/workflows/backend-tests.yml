@@ -194,6 +194,12 @@ jobs:
                 f"ENGINE={settings.DATABASES['default']['ENGINE']}")
           PY
 
+      
+      - name: GIS smoke (no Django, no project pytest.ini)
+        run: |
+          USE_GIS=1 USE_SQLITE=0 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+          pytest -q -c /dev/null backend/smoke_gis/test_gis_runtime.py
+
       - name: Run pytest (integration, postgis)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -216,4 +222,11 @@ jobs:
             echo "No postgis container found"
           fi
 
-      # .github/workflows/backend-tests.yml（reusable）
+      - name: Cache & install apt packages (GIS)
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >
+            gdal-bin libgdal-dev libgeos-dev postgresql-client jq
+            libblas3 liblapack3 libopenblas0
+          # libgfortran5   # ← GDAL/NumPy のビルド差異で稀に必要。症状: libgfortran.so.5 not found
+          version: 1
