@@ -1,39 +1,38 @@
-from __future__ import annotations
-from typing import Any, Dict, Tuple, Optional
-
-def _is_geos_point(obj: Any) -> bool:
-    # GEOS Point 互換: x=lon, y=lat を持つ
-    return hasattr(obj, "x") and hasattr(obj, "y")
+# backend/temples/geo_utils.py
+from typing import Any, Dict, Optional, Tuple
 
 def to_lon_lat(value: Any) -> Optional[Tuple[float, float]]:
-    """
-    受け取り:
-      - GEOS Point: x=lon, y=lat
-      - dict: {"lat":..,"lng":..} / {"latitude":..,"longitude":..}
-      - GeoJSON: {"type":"Point","coordinates":[lon,lat]}
-      - (lat, lng) タプル/リスト
-      - None
-    戻り値: (lon, lat) or None
-    """
+    """さまざまな入力を (lon, lat) に正規化して返す。解釈できなければ None。"""
     if value is None:
         return None
 
-    # GeoDjango / GEOS Point （GeoDjangoが無くても _is_geos_point で拾える）
+    # 1) GeoJSON: {"type":"Point","coordinates":[lon,lat]}
+    if isinstance(value, dict) and value.get("type") == "Point" and "coordinates" in value:
+        coords = value["coordinates"]
+        if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+            try:
+                return float(coords[0]), float(coords[1])
+            except Exception:
+                return None
+
+    # 2) GeoDjango / GEOS Point
     try:
         from django.contrib.gis.geos import Point  # type: ignore
         if isinstance(value, Point):
+            # Point.x=lon, Point.y=lat
             return float(value.x), float(value.y)
     except Exception:
-        pass
+        pass  # GeoDjango 未インストール環境でも落ちない
 
-    if _is_geos_point(value):
+    # 3) x/y 属性（GEOS互換）
+    if hasattr(value, "x") and hasattr(value, "y"):
         try:
             return float(value.x), float(value.y)
         except Exception:
             return None
 
+    # 4) dict: {lat,lng} / {latitude,longitude}
     if isinstance(value, dict):
-        # {lat,lng} / {latitude,longitude}
         lat = value.get("lat", value.get("latitude"))
         lng = value.get("lng", value.get("longitude"))
         if lat is not None and lng is not None:
@@ -41,26 +40,17 @@ def to_lon_lat(value: Any) -> Optional[Tuple[float, float]]:
                 return float(lng), float(lat)
             except Exception:
                 return None
-        # GeoJSON Point
+
+    # 5) list/tuple は (lon, lat) 前提
     if isinstance(value, (list, tuple)) and len(value) >= 2:
         try:
-            # (lon, lat) として受け、そのまま返す
             lon, lat = value[0], value[1]
             return float(lon), float(lat)
         except Exception:
             return None
 
-+            return None
-
-    if isinstance(value, (list, tuple)) and len(value) >= 2:
-        try:
-            # (lat, lng) 前提で受けて (lon, lat) を返す
-            lat, lng = value[0], value[1]
-            return float(lng), float(lat)
-        except Exception:
-            return None
-
     return None
+
 
 def to_lat_lng_dict(value: Any) -> Optional[Dict[str, float]]:
     pair = to_lon_lat(value)
