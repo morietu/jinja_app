@@ -42,13 +42,15 @@ def to_lon_lat(value: Any) -> Optional[Tuple[float, float]]:
             except Exception:
                 return None
         # GeoJSON Point
-        if value.get("type") == "Point" and "coordinates" in value:
-            coords = value["coordinates"]
-            if isinstance(coords, (list, tuple)) and len(coords) >= 2:
-                try:
-                    return float(coords[0]), float(coords[1])
-                except Exception:
-                    return None
+    if isinstance(value, (list, tuple)) and len(value) >= 2:
+        try:
+            # (lon, lat) として受け、そのまま返す
+            lon, lat = value[0], value[1]
+            return float(lon), float(lat)
+        except Exception:
+            return None
+
++            return None
 
     if isinstance(value, (list, tuple)) and len(value) >= 2:
         try:
