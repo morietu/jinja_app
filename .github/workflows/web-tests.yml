@@ -1,10 +1,10 @@
 name: web-tests
+
 on:
+  push:
+    paths: ["apps/web/**", ".github/workflows/web-tests.yml"]
   pull_request:
-    branches: [ develop ]
-    paths:
-      - 'apps/web/**'
-      - '.github/workflows/web-tests.yml'
+    paths: ["apps/web/**", ".github/workflows/web-tests.yml"]
 
 permissions:
   contents: read
@@ -13,22 +13,33 @@ concurrency:
   group: web-tests-${{ github.ref }}
   cancel-in-progress: true
 
+
 jobs:
   test:
     runs-on: ubuntu-latest
     env:
       CI: "true"
+
     steps:
       - uses: actions/checkout@v4
+
+
+      # pnpm のセットアップ（standalone で OK / run_install は false）
       - uses: pnpm/action-setup@v4
-        with: { standalone: true, run_install: false }
+        with:
+          standalone: true
+          run_install: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+
       - name: Install deps (workspace root)
         run: pnpm -r install --frozen-lockfile
+
+      # ESLint キャッシュ復元（先に行う）
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -36,15 +47,22 @@ jobs:
           key: eslint-${{ runner.os }}-${{ hashFiles('apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}') }}
           restore-keys: |
             eslint-${{ runner.os }}-
+
+      # Lint（警告は通知のみ：MVP方針）
       - name: Lint (ESLint)
         working-directory: apps/web
         run: pnpm exec eslint . --cache --cache-location .eslintcache
+
+      # 型チェック（noEmit）
       - name: Type check (tsc)
         working-directory: apps/web
         run: pnpm exec tsc -p tsconfig.json --noEmit
+
+      # テスト + カバレッジ
       - name: Test with coverage
         working-directory: apps/web
         run: pnpm test:cov
+
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4

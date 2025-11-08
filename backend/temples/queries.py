@@ -4,7 +4,7 @@ import math
 from django.db import connection
 from django.db.models import Case, FloatField, IntegerField, Value, When
 from django.db.models.expressions import RawSQL
-from temples.geo_utils import to_lon_lat
+from .geo_utils import to_lon_lat
 from .models import Shrine
 
 
