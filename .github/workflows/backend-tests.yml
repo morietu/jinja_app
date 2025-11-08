@@ -4,23 +4,34 @@ on:
   workflow_call:
     inputs:
       mode:
-        description: "Which job to run: unit or integration"
         type: string
         required: false
-        default: "unit"
+        default: unit
+      concierge_throttle:
+        type: string
+        required: false
+        default: 1000/min
+    secrets:
+      GOOGLE_MAPS_API_KEY: { required: false }
+      GOOGLE_PLACES_API_KEY: { required: false }
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "unit or integration"
+        type: choice
+        options: [unit, integration]
+        default: unit
       concierge_throttle:
         description: "DRF throttle for concierge"
         type: string
-        required: false
-        default: "1000/min"
-    secrets:
-      GOOGLE_MAPS_API_KEY:
-        required: false
-      GOOGLE_PLACES_API_KEY:
-        required: false
+        default: 1000/min
 
-permissions:
-  contents: read
+permissions: { contents: read }
+
+
+# ここは MODE をやめ、必要なものだけ残す
+env:
+  CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
 
 jobs:
   unit:
@@ -39,7 +50,8 @@ jobs:
       USE_GIS: "0"
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
-      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle }}
+      # ✅ グローバル env を参照
+      CONCIERGE_THROTTLE: ${{ env.CONCIERGE_THROTTLE }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
@@ -115,7 +127,8 @@ PY
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
-      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle }}
+      # ✅ グローバル env を参照
+      CONCIERGE_THROTTLE: ${{ env.CONCIERGE_THROTTLE }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
