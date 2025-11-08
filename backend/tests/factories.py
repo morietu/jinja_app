@@ -2,6 +2,7 @@
 import factory
 from django.contrib.auth import get_user_model
 from factory.django import DjangoModelFactory
+from factory import post_generation
 from temples.models import Shrine
 from users.models import UserProfile
 
@@ -11,10 +12,22 @@ User = get_user_model()
 class UserFactory(DjangoModelFactory):
     class Meta:
         model = User
-
+        # Factory Boy 次メジャーでの変更に備え、自動saveを停止
+        # 代わりに post_generation で明示 save する
+        skip_postgeneration_save = True
+    
+    
     username = factory.Sequence(lambda n: f"user{n}")
     email = factory.LazyAttribute(lambda o: f"{o.username}@example.com")
-    password = factory.PostGenerationMethodCall("set_password", "testpass")
+
+    @post_generation
+    def set_password_and_save(self, create, extracted, **kwargs):
+        # 既定パスワードを設定（テスト内で上書きも可）
+        raw = "testpass"
+        self.set_password(raw)
+        if create:
+            # password のみ更新で十分
+            self.save(update_fields=["password"])
 
 
 class ProfileFactory(factory.django.DjangoModelFactory):
