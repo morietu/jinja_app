@@ -79,16 +79,16 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-              import sys, importlib
-              print("=== sys.path ===")
-              print("\n".join(sys.path))
-              print("=== try import temples ===")
-              try:
-                  m = importlib.import_module("temples")
-                  print("temples OK:", m, getattr(m, "__file__", None))
-              except Exception as e:
-                  print("temples NG:", repr(e))
-              PY
+          import sys, importlib
+          print("=== sys.path ===")
+          print("\n".join(sys.path))
+          print("=== try import temples ===")
+          try:
+          m = importlib.import_module("temples")
+          print("temples OK:", m, getattr(m, "__file__", None))
+          except Exception as e:
+          print("temples NG:", repr(e))
+          PY
       
       - name: Run pytest (unit, sqlite)
         env:
@@ -174,16 +174,16 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-      import sys, importlib
-      print("=== sys.path ===")
-      print("\n".join(sys.path))
-      print("=== try import temples ===")
-      try:
+          import sys, importlib
+          print("=== sys.path ===")
+          print("\n".join(sys.path))
+          print("=== try import temples ===")
+          try:
           m = importlib.import_module("temples")
           print("temples OK:", m, getattr(m, "__file__", None))
-      except Exception as e:
+          except Exception as e:
           print("temples NG:", repr(e))
-      PY
+          PY
 
       - name: Run pytest (integration, postgis)
         env:
