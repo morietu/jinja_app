@@ -28,7 +28,6 @@ on:
 
 permissions: { contents: read }
 
-
 # ここは MODE をやめ、必要なものだけ残す
 env:
   CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
@@ -84,10 +83,10 @@ jobs:
           print("\n".join(sys.path))
           print("=== try import temples ===")
           try:
-          m = importlib.import_module("temples")
-          print("temples OK:", m, getattr(m, "__file__", None))
+              m = importlib.import_module("temples")
+              print("temples OK:", m, getattr(m, "__file__", None))
           except Exception as e:
-          print("temples NG:", repr(e))
+              print("temples NG:", repr(e))
           PY
       
       - name: Run pytest (unit, sqlite)
@@ -179,10 +178,10 @@ jobs:
           print("\n".join(sys.path))
           print("=== try import temples ===")
           try:
-          m = importlib.import_module("temples")
-          print("temples OK:", m, getattr(m, "__file__", None))
+              m = importlib.import_module("temples")
+              print("temples OK:", m, getattr(m, "__file__", None))
           except Exception as e:
-          print("temples NG:", repr(e))
+              print("temples NG:", repr(e))
           PY
 
       - name: Run pytest (integration, postgis)
