@@ -80,3 +80,5 @@ export default function GoogleMap({
     <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />
   );
 }
+
+
