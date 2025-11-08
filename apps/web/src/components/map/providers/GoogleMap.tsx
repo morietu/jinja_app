@@ -26,7 +26,6 @@ export default function GoogleMap({
     let cancelled = false;
 
     (async () => {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
       const loader = new Loader({
         apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
         version: "weekly",
@@ -80,5 +79,3 @@ export default function GoogleMap({
     <div ref={ref} className={className ?? "w-full h-[calc(100dvh-64px)]"} />
   );
 }
-
-
