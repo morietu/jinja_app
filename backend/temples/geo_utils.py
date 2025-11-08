@@ -1,35 +1,65 @@
 # backend/temples/geo_utils.py
-from __future__ import annotations
-from typing import Any, Tuple, Optional
-from .utils.geo import to_lon_lat, to_lat_lng_dict
+from typing import Any, Dict, Tuple
 
-__all__ = ["to_lon_lat", "to_lat_lng_dict"]
+LonLat = Tuple[float, float]
 
-def to_lon_lat(obj: Any) -> Tuple[Optional[float], Optional[float]]:
-    # GEOS Point
-    if hasattr(obj, "x") and hasattr(obj, "y"):
-        try:
-            return float(obj.x), float(obj.y)
-        except Exception:
-            return None, None
-    # GeoJSON-like dict {"type":"Point","coordinates":[lon,lat]}
-    if isinstance(obj, dict):
-        coords = obj.get("coordinates")
-        if isinstance(coords, (list, tuple)) and len(coords) == 2:
-            try:
-                return float(coords[0]), float(coords[1])
-            except Exception:
-                return None, None
-    # tuple/list (lon, lat)
-    if isinstance(obj, (list, tuple)) and len(obj) == 2:
-        try:
-            return float(obj[0]), float(obj[1])
-        except Exception:
-            return None, None
-    return None, None
+def _to_float(v: Any) -> float:
+    return float(v)  # str/Decimal なども許容
 
-def to_lat_lng_dict(obj: Any) -> Optional[dict]:
-    lon, lat = to_lon_lat(obj)
-    if lon is None or lat is None:
-        return None
-    return {"lat": lat, "lng": lon}
+def to_lon_lat(value: Any) -> LonLat:
+    """
+    受け取り: 
+      - (lat, lng) のタプル/リスト
+      - {"lat": .., "lng" or "lon": ..}
+      - GEOS/Shapely 風オブジェクト (x=lon, y=lat)
+    返却:
+      - (lon, lat) のタプル
+    """
+    # GEOS/Shapely 風オブジェクト
+    if hasattr(value, "x") and hasattr(value, "y"):
+        return (_to_float(value.x), _to_float(value.y))
+
+    # dict
+    if isinstance(value, dict):
+        lat = value.get("lat") or value.get("latitude")
+        lng = (
+            value.get("lng")
+            or value.get("lon")
+            or value.get("longitude")
+        )
+        if lat is None or lng is None:
+            raise KeyError("lat/lng (or lon/latitude/longitude) が不足")
+        return (_to_float(lng), _to_float(lat))
+
+    # (lat, lng) / [lat, lng]
+    if isinstance(value, (tuple, list)) and len(value) == 2:
+        lat, lng = value
+        return (_to_float(lng), _to_float(lat))
+
+    raise TypeError("to_lon_lat: 未対応の入力型")
+
+def to_lat_lng_dict(value: Any) -> Dict[str, float]:
+    """
+    受け取り:
+      - (lon, lat) タプル/リスト
+      - {"lat":.., "lng"/"lon":..}
+      - GEOS/Shapely 風オブジェクト
+    返却:
+      - {"lat": float, "lng": float}
+    """
+    if hasattr(value, "x") and hasattr(value, "y"):
+        return {"lat": _to_float(value.y), "lng": _to_float(value.x)}
+
+    if isinstance(value, dict):
+        # 既に {lat,lng} なら正規化、{lat,lon} も許容
+        lat = value.get("lat") or value.get("latitude")
+        lng = value.get("lng") or value.get("lon") or value.get("longitude")
+        if lat is None or lng is None:
+            raise KeyError("lat/lng (or lon/latitude/longitude) が不足")
+        return {"lat": _to_float(lat), "lng": _to_float(lng)}
+
+    if isinstance(value, (tuple, list)) and len(value) == 2:
+        lon, lat = value
+        return {"lat": _to_float(lat), "lng": _to_float(lon)}
+
+    raise TypeError("to_lat_lng_dict: 未対応の入力型")
