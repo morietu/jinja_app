@@ -5,7 +5,12 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-integration.yml'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      concierge_throttle:
+        description: "DRF throttle for concierge"
+        type: string
+        default: 100/min
 
 concurrency:
   group: backend-integration-${{ github.ref }}
@@ -19,7 +24,7 @@ jobs:
     uses: ./.github/workflows/backend-tests.yml
     with:
       mode: integration
-      concierge_throttle: "100/min"
+      concierge_throttle: ${{ inputs.concierge_throttle || '100/min' }}
     secrets:
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
