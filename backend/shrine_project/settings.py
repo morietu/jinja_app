@@ -215,7 +215,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django_filters",
-    "django.contrib.gis",
     # 3rd-party
     "rest_framework",
     "rest_framework_simplejwt",
@@ -228,7 +227,13 @@ INSTALLED_APPS = [
 ]
 
 # GIS はフラグのみで制御（pytest かどうかでは切り替えない）
-
+if USE_GIS:
+    pos = (
+        INSTALLED_APPS.index("django.contrib.postgres") + 1
+        if "django.contrib.postgres" in INSTALLED_APPS
+        else len(INSTALLED_APPS)
+    )
+    INSTALLED_APPS.insert(pos, "django.contrib.gis")
 # GIS を使わない構成にする場合のみ、gisアプリを落とす（通常はUSE_GIS=1で運用）
 if not USE_GIS and "django.contrib.gis" in INSTALLED_APPS:
     INSTALLED_APPS.remove("django.contrib.gis")        
