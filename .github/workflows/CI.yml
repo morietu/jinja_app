@@ -44,12 +44,6 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
-      # 任意：GDAL/GEOSが必要なら（いまはGDAL必須テストはskip設計なので省略可）
-      # - name: (optional) Install GDAL libs
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
-
       - name: Wait for DB
         run: |
           for i in {1..60}; do
