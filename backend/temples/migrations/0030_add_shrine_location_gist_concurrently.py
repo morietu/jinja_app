@@ -10,22 +10,15 @@ def ensure_gist_index(apps, schema_editor):
 
     # 既に index があるか確認
     with schema_editor.connection.cursor() as cur:
-        cur.execute(
-            """
-            SELECT 1
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relname = %s AND n.nspname = 'public'
-            """,
-            [INDEX_NAME],
-        )
+        cur.execute('DROP INDEX IF EXISTS public."%s";' % INDEX_NAME)
         exists = cur.fetchone() is not None
 
     if exists:
         return
 
     # Django の GiSTIndex を使って作成（USING GIST の生SQLは使わない）
-    from django.contrib.gis.db.models.indexes import GiSTIndex  # GeoDjango が入ってるPG環境でOK
+    
+    from django.contrib.postgres.indexes import GistIndex
     Shrine = apps.get_model("temples", "Shrine")
     index = GiSTIndex(fields=["location"], name=INDEX_NAME)
     # 既存重複に備えて例外は握りつぶし
