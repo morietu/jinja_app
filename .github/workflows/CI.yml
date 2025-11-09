@@ -1,10 +1,7 @@
-name: backend-tests
-
+name: CI
 on:
   push:
-    branches: [develop, main, master, "feature/**", "fix/**"]
   pull_request:
-    branches: [develop, main, master]
 
 jobs:
   test:
@@ -26,62 +23,41 @@ jobs:
           --health-retries=5
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jinja_db
-      DJANGO_SETTINGS_MODULE: shrine_project.settings
       PYTHONPATH: backend
+      DJANGO_SETTINGS_MODULE: shrine_project.settings
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jinja_db
       USE_GIS: "1"
       USE_SQLITE: "0"
       IS_PYTEST: "1"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-dev.txt
 
-      - name: Install system libs (GDAL/GEOS/PROJ)
+      # 任意：GDALが必要なら（いまはテストskip想定なので省略可）
+      - name: (optional) Install GDAL libs
         run: |
           sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev proj-bin libproj-dev
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
+
+      - name: Upgrade pip
+        run: python -m pip install -U pip
 
       - name: Install Python deps
-        working-directory: backend
-        run: |
-          python -m pip install -U pip
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Wait for DB
         run: |
-          for i in {1..30}; do
+          for i in {1..60}; do
             pg_isready -h localhost -p 5432 -U postgres && break
             sleep 1
           done
 
-      - name: Smoke check migrations (optional)
-        working-directory: backend
-        run: |
-          python -m django --version
-          python -m django showmigrations temples
+      - name: Migrate
+        run: python -m django migrate --noinput
 
       - name: Run tests
-        working-directory: backend
-        run: |
-          pytest -q
-
-      - name: Export Django env
-        run: |
-          echo "PYTHONPATH=backend" >> $GITHUB_ENV
-          echo "DJANGO_SETTINGS_MODULE=shrine_project.settings" >> $GITHUB_ENV
-
-      - name: DB migrate (plan + apply)
-        run: |
-          python -m django migrate --plan
-          python -m django migrate
+        run: pytest -q
