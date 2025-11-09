@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models as dj_models
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.gis.geos import Point as GeosPoint
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
@@ -26,7 +27,35 @@ else:
 
 # 以降、この PointFieldBase を PointField として使う
 class PointField(PointFieldBase):
-    pass
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        # ❌ 現状: "django.contrib.gis.db.models.PointField"
+        # ✅ 正:   "django.contrib.gis.db.models.fields.PointField"
+        path = "django.contrib.gis.db.models.fields.PointField"
+        for k in ("geography", "spatial_index"):
+            kwargs.pop(k, None)
+        return name, path, args, kwargs
+
+def _loc_changed(old, new):
+    # どちらかが None → 変化あり/なしを厳密に
+    if old is None or new is None:
+        return (old is None) != (new is None)
+
+    def to_xy(v):
+        if isinstance(v, GeosPoint):
+            return (v.x, v.y)
+        if isinstance(v, dict) and "coordinates" in v:
+            # GeoJSON: [lon, lat]
+            coords = v["coordinates"]
+            return (coords[0], coords[1])
+        # それ以外の未知型は「変化あり」扱いにする
+        return None
+
+    old_xy = to_xy(old)
+    new_xy = to_xy(new)
+    if old_xy is None or new_xy is None:
+        return True
+    return old_xy != new_xy
 
 # --- 追加ここから ---
 KYUSEI_CHOICES = [
@@ -198,13 +227,7 @@ class Shrine(models.Model):
                     "srid": 4326,
                 }
 
-        def _loc_changed(old, new):
-            if old is None or new is None:
-                return (old is None) != (new is None)
-            if USE_REAL_GIS:
-                return (old.x != new["coordinates"][0]) or (old.y != new["coordinates"][1])
-            return old != new
-
+        # 先頭で定義した型安全な _loc_changed() を使う
         if _loc_changed(self.location, new_location):
             self.location = new_location
             if "update_fields" in kwargs and kwargs["update_fields"] is not None:
