@@ -28,7 +28,6 @@ on:
 
 permissions: { contents: read }
 
-# ここは MODE をやめ、必要なものだけ残す
 env:
   CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
 
@@ -49,7 +48,6 @@ jobs:
       USE_GIS: "0"
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
-      # ✅ グローバル env を参照
       CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
@@ -127,7 +125,6 @@ jobs:
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
-      # ✅ グローバル env を参照
       CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
@@ -152,8 +149,15 @@ jobs:
         with:
           packages: >
             gdal-bin libgdal-dev libgeos-dev postgresql-client jq
-            libblas3 liblapack3 libopenblas0
+            libblas3 liblapack3 libopenblas0 libgfortran5
           version: 1
+
+      # ★ BLAS/LAPACK はキャッシュ復元と別に必ず明示導入
+      - name: Install BLAS/LAPACK runtime (for GDAL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libblas3 liblapack3 libgfortran5
 
       - name: Install python deps
         run: |
@@ -170,7 +174,6 @@ jobs:
           pg_isready -h localhost -p 5432 -U admin -d jinja_db
 
       - name: Show import path & locate temples
-        shell: bash
         run: |
           python - <<'PY'
           import sys, importlib
@@ -183,6 +186,8 @@ jobs:
           except Exception as e:
               print("temples NG:", repr(e))
           PY
+
+      # ★ Django を触るのは BLAS 導入 “後”
       - name: Show effective settings flags
         run: |
           echo "ENV USE_GIS=${USE_GIS}"
@@ -194,11 +199,10 @@ jobs:
                 f"ENGINE={settings.DATABASES['default']['ENGINE']}")
           PY
 
-      
       - name: GIS smoke (no Django, no project pytest.ini)
         run: |
           USE_GIS=1 USE_SQLITE=0 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
-          pytest -q -c /dev/null backend/smoke_gis/test_gis_runtime.py
+          pytest -q -c /dev/null smoke_gis/test_gis_runtime.py
 
       - name: Run pytest (integration, postgis)
         env:
@@ -221,12 +225,3 @@ jobs:
           else
             echo "No postgis container found"
           fi
-
-      - name: Cache & install apt packages (GIS)
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >
-            gdal-bin libgdal-dev libgeos-dev postgresql-client jq
-            libblas3 liblapack3 libopenblas0
-          # libgfortran5   # ← GDAL/NumPy のビルド差異で稀に必要。症状: libgfortran.so.5 not found
-          version: 1
