@@ -1,0 +1,17 @@
+# .github/workflows/CI.yml
+name: CI
+
+on:
+  push:
+    branches: [ develop, feature/**, fix/**, ci/** ]
+    paths:
+      - 'apps/web/**'
+      - 'docs/openapi.yaml'
+      - '.github/workflows/CI.yml'
+  pull_request:
+    branches: [ develop ]
+    paths:
+      - 'apps/web/**'
+      - 'docs/openapi.yaml'
+      - '.github/workflows/CI.yml'
+  workflow_dispatch: {}
