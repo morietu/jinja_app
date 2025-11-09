@@ -29,9 +29,20 @@ else:
 class PointField(PointFieldBase):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
-        # ❌ 現状: "django.contrib.gis.db.models.PointField"
-        # ✅ 正:   "django.contrib.gis.db.models.fields.PointField"
-        path = "django.contrib.gis.db.models.fields.PointField"
+        # ✅ 実行環境に合わせて正しい型パスを返す
+        from django.conf import settings as _s
+        use_real_gis = bool(getattr(_s, "USE_GIS", False)) and not bool(
+            getattr(_s, "DISABLE_GIS_FOR_TESTS", False)
+        )
+        if use_real_gis:
+            path = "django.contrib.gis.db.models.fields.PointField"
+            # GIS 特有の引数は kwargs に残してOK
+        else:
+            path = "django.db.models.JSONField"
+            # 非GISでは無意味な引数を削除
+            for k in ("srid", "geography", "spatial_index"):
+                kwargs.pop(k, None)
+
         for k in ("geography", "spatial_index"):
             kwargs.pop(k, None)
         return name, path, args, kwargs
@@ -113,6 +124,10 @@ class GoriyakuTag(models.Model):
         ordering = ["category", "name"]
         indexes = [models.Index(fields=["category", "name"])]
 
+try:
+    from django.contrib.gis.geos import Point
+except Exception:  # GIS無効でも安全にimport失敗を許容
+    Point = None
 
 class Shrine(models.Model):
     KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
@@ -212,6 +227,11 @@ class Shrine(models.Model):
         ]
 
     def save(self, *args, **kwargs):
+        # NoGIS: Pointが来たら文字列に正規化（lon, lat）
+        if getattr(self, "location", None) is not None and "django.contrib.gis" not in settings.INSTALLED_APPS:
+            if Point is not None and isinstance(self.location, Point):
+                # WKT風 or CSVいずれでもOK。下はWKT風で保存。
+                self.location = f"POINT({self.location.x} {self.location.y})"
         # lat/lng → location 同期
         def _norm(v):
             return None if v in ("", None) else v

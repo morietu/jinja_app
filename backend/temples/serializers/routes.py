@@ -145,3 +145,12 @@ class GoshuinSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         url = img.image.url
         return request.build_absolute_uri(url) if request else url
+
+
+class LocationMixin(serializers.Serializer):
+    location = serializers.SerializerMethodField()
+
+    def get_location(self, obj):
+        if getattr(obj, "latitude", None) is None or getattr(obj, "longitude", None) is None:
+            return None
+        return {"lat": float(obj.latitude), "lng": float(obj.longitude)}

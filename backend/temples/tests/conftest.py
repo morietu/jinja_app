@@ -10,6 +10,11 @@ import responses as httpmock
 from django.db import connection
 from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
+from django.conf import settings
+
+assert os.getenv("DISABLE_GIS_FOR_TESTS") == "1", "tests must run with DISABLE_GIS_FOR_TESTS=1"
+assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", \
+    f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
 
 
 def _has_postgis():
