@@ -1,15 +1,17 @@
-# temples/migrations/0030_add_shrine_location_gist_concurrently.py
 from django.db import migrations
 from django.contrib.postgres.indexes import GistIndex
-from django.contrib.postgres.operations import AddIndexConcurrently  # ←これ
+from django.contrib.postgres.operations import AddIndexConcurrently
 
 INDEX_NAME = "shrine_location_gist"
 
 class Migration(migrations.Migration):
+    # ★ これが必須：CONCURRENTLY系はトランザクション外で実行する
+    atomic = False
+
+    # location を追加済みのマイグレーション以降に依存させる
     dependencies = [
         ("temples", "0029_drop_auto_gist_location"),
     ]
-    # AddIndexConcurrently 自体が atomic=False を持つので明示不要
 
     operations = [
         AddIndexConcurrently(
