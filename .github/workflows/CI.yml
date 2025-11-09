@@ -75,3 +75,13 @@ jobs:
         working-directory: backend
         run: |
           pytest -q
+
+      - name: Export Django env
+        run: |
+          echo "PYTHONPATH=backend" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=shrine_project.settings" >> $GITHUB_ENV
+
+      - name: DB migrate (plan + apply)
+        run: |
+          python -m django migrate --plan
+          python -m django migrate

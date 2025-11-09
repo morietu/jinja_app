@@ -112,3 +112,10 @@ lint:
 fmt:
 	ruff check --fix .
 	black .
+
+
+export PYTHONPATH=backend
+export DJANGO_SETTINGS_MODULE=shrine_project.settings
+
+migrate:
+	python -m django migrate
