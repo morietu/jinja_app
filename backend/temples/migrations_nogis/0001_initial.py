@@ -68,14 +68,6 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "temples_goriyakutag"},
         ),
-        migrations.CreateModel(
-            name="GoriyakuTag",
-            fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("name", models.CharField(max_length=64, unique=True)),
-            ],
-            options={"db_table": "temples_goriyakutag"},
-        ),
 
 
     ]
