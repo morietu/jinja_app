@@ -106,3 +106,7 @@ jobs:
           python --version || true
           pip --version || true
           pip freeze | sort || true
+
+
+      - name: Echo NoGIS flag
+        run: echo "DISABLE_GIS_FOR_TESTS=$DISABLE_GIS_FOR_TESTS"
