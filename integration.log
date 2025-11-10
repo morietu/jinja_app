@@ -250,7 +250,7 @@ integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5539524Z   python-ve
 integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5539727Z   cache: pip
 integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5540049Z   cache-dependency-path: backend/requirements.txt
 integration	Run actions/setup-python@v5	backend/requirements-dev.txt
-integration	Run actions/setup-python@v5	
+integration	Run actions/setup-python@v5
 integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5540433Z   check-latest: false
 integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5540747Z   token: ***
 integration	Run actions/setup-python@v5	2025-11-09T00:55:10.5540926Z   update-environment: true
@@ -287,7 +287,7 @@ integration	Run actions/setup-python@v5	2025-11-09T00:55:11.9287961Z Cache resto
 integration	Cache & install apt packages (GIS)	﻿2025-11-09T00:55:11.9510587Z ##[group]Run awalsh128/cache-apt-pkgs-action@v1
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9510922Z with:
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9511352Z   packages: gdal-bin libgdal-dev libgeos-dev postgresql-client jq libblas3 liblapack3 libopenblas0 libgfortran5
-integration	Cache & install apt packages (GIS)	
+integration	Cache & install apt packages (GIS)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9512001Z   version: 1
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9512196Z   execute_install_scripts: false
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9512425Z   debug: false
@@ -349,13 +349,13 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9650707Z   VE
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9650892Z   EXEC_INSTALL_SCRIPTS: false
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9651352Z   DEBUG: false
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9651772Z   PACKAGES: gdal-bin libgdal-dev libgeos-dev postgresql-client jq libblas3 liblapack3 libopenblas0 libgfortran5
-integration	Cache & install apt packages (GIS)	
+integration	Cache & install apt packages (GIS)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9652229Z ##[endgroup]
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:11.9785961Z Normalizing package list...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1591760Z done
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1608362Z Validating action arguments (version='1', packages='gdal-bin=3.8.4+dfsg-3ubuntu3 jq=1.7.1-3ubuntu0.24.04.1 libblas3=3.12.0-3build1.1 libgdal-dev=3.8.4+dfsg-3ubuntu3 libgeos-dev=3.12.1-3build1 libgfortran5=14.2.0-4ubuntu2~24.04 liblapack3=3.12.0-3build1.1 libopenblas0=0.3.26+ds-1 postgresql-client=16+257build1.1')...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1623527Z done
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1623713Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1623713Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1623882Z Creating cache key...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1645444Z - CPU architecture is 'x86_64'.
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.1647484Z - Value to hash is 'gdal-bin=3.8.4+dfsg-3ubuntu3 jq=1.7.1-3ubuntu0.24.04.1 libblas3=3.12.0-3build1.1 libgdal-dev=3.8.4+dfsg-3ubuntu3 libgeos-dev=3.12.1-3build1 libgfortran5=14.2.0-4ubuntu2~24.04 liblapack3=3.12.0-3build1.1 libopenblas0=0.3.26+ds-1 postgresql-client=16+257build1.1 @ 1 3'.
@@ -429,11 +429,11 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4175598Z   Py
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4175945Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4176286Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4176598Z   CACHE_KEY: 75481d98141a12f79e2f32f7313df9d8
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4176834Z   CACHE_HIT: 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4176834Z   CACHE_HIT:
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4177008Z   EXEC_INSTALL_SCRIPTS: false
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4177215Z   DEBUG: false
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4177628Z   PACKAGES: gdal-bin libgdal-dev libgeos-dev postgresql-client jq libblas3 liblapack3 libopenblas0 libgfortran5
-integration	Cache & install apt packages (GIS)	
+integration	Cache & install apt packages (GIS)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4178101Z ##[endgroup]
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.4320019Z Installing apt-fast for optimized installs...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5050200Z --2025-11-09 00:55:13--  https://raw.githubusercontent.com/ilikenwf/apt-fast/master/apt-fast
@@ -442,29 +442,29 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5345464Z Conn
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5570718Z HTTP request sent, awaiting response... 200 OK
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5571492Z Length: 23905 (23K) [text/plain]
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5572730Z Saving to: ‘/usr/local/bin/apt-fast’
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5572997Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5572997Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5577401Z      0K .......... .......... ...                             100% 36.9M=0.001s
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5577810Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5577810Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5578336Z 2025-11-09 00:55:13 (36.9 MB/s) - ‘/usr/local/bin/apt-fast’ saved [23905/23905]
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5578940Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5578940Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5749124Z --2025-11-09 00:55:13--  https://raw.githubusercontent.com/ilikenwf/apt-fast/master/apt-fast.conf
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.5989512Z Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.111.133, 185.199.110.133, 185.199.109.133, ...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6044996Z Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.111.133|:443... connected.
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6269959Z HTTP request sent, awaiting response... 200 OK
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6270729Z Length: 5052 (4.9K) [text/plain]
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6271616Z Saving to: ‘/etc/apt-fast.conf’
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6271976Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6271976Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6272260Z      0K ....                                                  100% 32.5M=0s
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6272678Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6272678Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6273221Z 2025-11-09 00:55:13 (32.5 MB/s) - ‘/etc/apt-fast.conf’ saved [5052/5052]
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6273743Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6273743Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6294855Z done
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6295581Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6295581Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:13.6295700Z Updating APT package list...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:23.8361681Z done
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:23.8361947Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:23.8361947Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0840171Z Clean installing and caching 9 package(s).
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0841007Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0841007Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0841153Z Package list:
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0841505Z - gdal-bin=3.8.4+dfsg-3ubuntu3
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0841953Z - jq=1.7.1-3ubuntu0.24.04.1
@@ -477,21 +477,21 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0844353Z - li
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0844766Z - postgresql-client=16+257build1.1
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0845617Z Writing main packages manifest to /home/runner/cache-apt-pkgs/manifest_main.log...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0866590Z done
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0866798Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0866798Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:24.0866982Z Clean installing 9 packages...
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3074328Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3074328Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3074859Z Running kernel seems to be up-to-date.
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075443Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075443Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075597Z No services need to be restarted.
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075781Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075781Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3075949Z No containers need to be restarted.
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3076236Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3076236Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3076674Z No user sessions are running outdated binaries.
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3077161Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3077161Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:55.3077581Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4116817Z done
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4117677Z Installation log written to /home/runner/cache-apt-pkgs/install.log
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4118152Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4118152Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4282469Z Installed package list:
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4312811Z - poppler-data (0.4.12-1)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.4338652Z - default-libmysqlclient-dev (1.1.0build1)
@@ -608,7 +608,7 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7100358Z - li
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7126230Z - unixodbc-dev (2.3.12-1ubuntu0.24.04.1)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7150854Z - libgdal-dev (3.8.4+dfsg-3ubuntu3)
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7175895Z - proj-bin (9.4.0-1build2)
-integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7176170Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7176170Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7193051Z Caching 115 installed packages...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7200296Z   * Caching poppler-data to /home/runner/cache-apt-pkgs/poppler-data=0.4.12-1.tar...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:55:56.7743098Z     done (compressed size 13M).
@@ -841,10 +841,10 @@ integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7042123Z     
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7048560Z   * Caching proj-bin to /home/runner/cache-apt-pkgs/proj-bin=9.4.0-1build2.tar...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7222722Z     done (compressed size 480K).
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7256305Z done (total cache size 495M)
-integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7256619Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7256619Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7258143Z Writing all packages manifest to /home/runner/cache-apt-pkgs/manifest_all.log...
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7282066Z done
-integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7285494Z 
+integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7285494Z
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7374972Z ##[group]Run actions/cache/save@v4
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7375425Z with:
 integration	Cache & install apt packages (GIS)	2025-11-09T00:56:00.7375617Z   path: ~/cache-apt-pkgs
@@ -1213,7 +1213,7 @@ integration	Install python deps	2025-11-09T00:56:11.8077379Z Using cached uritem
 integration	Install python deps	2025-11-09T00:56:11.8090484Z Using cached types_pyyaml-6.0.12.20250915-py3-none-any.whl (20 kB)
 integration	Install python deps	2025-11-09T00:56:11.8103405Z Using cached tzdata-2025.2-py2.py3-none-any.whl (347 kB)
 integration	Install python deps	2025-11-09T00:56:12.0731871Z Installing collected packages: whitenoise, urllib3, uritemplate, tzdata, typing-extensions, types-pyyaml, types-psycopg2, tqdm, sqlparse, sniffio, six, ruff, rpds-py, redis, pyyaml, python-dotenv, pyjwt, pygments, psycopg-binary, pluggy, platformdirs, Pillow, pathspec, packaging, mypy-extensions, jiter, iniconfig, inflection, idna, h11, execnet, django-environ, distro, coverage, click, charset_normalizer, certifi, attrs, asgiref, annotated-types, typing-inspection, types-requests, requests, referencing, python-dateutil, pytest, pydantic-core, psycopg, mypy, httpcore, gunicorn, Faker, Django, black, anyio, responses, requests-mock, pytest-xdist, pytest-env, pytest-dotenv, pytest-django, pytest-cov, pydantic, jsonschema-specifications, httpx, freezegun, factory_boy, djangorestframework, django-stubs-ext, django-redis, django-filter, django-cors-headers, dj-database-url, openai, jsonschema, djangorestframework_simplejwt, django-stubs, drf-spectacular
-integration	Install python deps	2025-11-09T00:56:20.5455632Z 
+integration	Install python deps	2025-11-09T00:56:20.5455632Z
 integration	Install python deps	2025-11-09T00:56:20.5497099Z Successfully installed Django-5.2.7 Faker-37.8.0 Pillow-11.3.0 annotated-types-0.7.0 anyio-4.11.0 asgiref-3.10.0 attrs-25.4.0 black-24.10.0 certifi-2025.10.5 charset_normalizer-3.4.4 click-8.3.0 coverage-7.10.3 distro-1.9.0 dj-database-url-3.0.1 django-cors-headers-4.7.0 django-environ-0.12.0 django-filter-24.3 django-redis-6.0.0 django-stubs-5.2.7 django-stubs-ext-5.2.7 djangorestframework-3.16.1 djangorestframework_simplejwt-5.5.1 drf-spectacular-0.27.2 execnet-2.1.1 factory_boy-3.3.3 freezegun-1.5.5 gunicorn-23.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.27.2 idna-3.11 inflection-0.5.1 iniconfig-2.3.0 jiter-0.11.1 jsonschema-4.25.1 jsonschema-specifications-2025.9.1 mypy-1.18.2 mypy-extensions-1.1.0 openai-1.40.8 packaging-25.0 pathspec-0.12.1 platformdirs-4.5.0 pluggy-1.6.0 psycopg-3.2.9 psycopg-binary-3.2.9 pydantic-2.12.4 pydantic-core-2.41.5 pygments-2.19.2 pyjwt-2.10.1 pytest-8.4.2 pytest-cov-5.0.0 pytest-django-4.11.1 pytest-dotenv-0.5.2 pytest-env-1.1.5 pytest-xdist-3.8.0 python-dateutil-2.9.0.post0 python-dotenv-1.1.1 pyyaml-6.0.3 redis-7.0.1 referencing-0.37.0 requests-2.32.5 requests-mock-1.12.1 responses-0.25.8 rpds-py-0.28.0 ruff-0.12.8 six-1.17.0 sniffio-1.3.1 sqlparse-0.5.3 tqdm-4.67.1 types-psycopg2-2.9.21.20251012 types-pyyaml-6.0.12.20250915 types-requests-2.32.4.20250913 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2025.2 uritemplate-4.2.0 urllib3-2.5.0 whitenoise-6.9.0
 integration	Wait for DB	﻿2025-11-09T00:56:21.2348467Z ##[group]Run for i in $(seq 1 60); do
 integration	Wait for DB	2025-11-09T00:56:21.2348812Z [36;1mfor i in $(seq 1 60); do[0m
@@ -1287,7 +1287,7 @@ integration	Show import path & locate temples	2025-11-09T00:56:21.3481972Z   LD_
 integration	Show import path & locate temples	2025-11-09T00:56:21.3482284Z   CACHE_KEY: 75481d98141a12f79e2f32f7313df9d8
 integration	Show import path & locate temples	2025-11-09T00:56:21.3482525Z ##[endgroup]
 integration	Show import path & locate temples	2025-11-09T00:56:21.3711320Z === sys.path ===
-integration	Show import path & locate temples	2025-11-09T00:56:21.3711586Z 
+integration	Show import path & locate temples	2025-11-09T00:56:21.3711586Z
 integration	Show import path & locate temples	2025-11-09T00:56:21.3711808Z /home/runner/work/jinja_app/jinja_app/backend
 integration	Show import path & locate temples	2025-11-09T00:56:21.3712366Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python311.zip
 integration	Show import path & locate temples	2025-11-09T00:56:21.3712807Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11
@@ -1365,7 +1365,7 @@ integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.327
 integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3278474Z ../../../../../../opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/_pytest/cacheprovider.py:475
 integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3279864Z   /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/_pytest/cacheprovider.py:475: PytestCacheWarning: could not create cache path /dev/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/dev/pytest-cache-files-gff530ms'
 integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3281103Z     config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
-integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3281394Z 
+integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3281394Z
 integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3281635Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 integration	GIS smoke (no Django, no project pytest.ini)	2025-11-09T00:56:23.3282049Z 1 passed, 1 warning in 0.04s
 integration	Run pytest (integration, postgis)	﻿2025-11-09T00:56:23.4342226Z ##[group]Run python -V
@@ -1409,18 +1409,18 @@ integration	Run pytest (integration, postgis)	2025-11-09T00:56:24.9020476Z confi
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:24.9020768Z testpaths: temples/tests, users/tests, tests
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:24.9021339Z plugins: anyio-4.11.0, dotenv-0.5.2, requests-mock-1.12.1, env-1.1.5, cov-5.0.0, django-4.11.1, Faker-37.8.0, xdist-3.8.0
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:25.1734184Z collecting ... collected 119 items
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:25.1734684Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:25.1734684Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9552829Z temples/tests/api/test_concierge_plan_api.py::test_post_concierge_plan ERROR [  0%]
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9553631Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9553631Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9553841Z ==================================== ERRORS ====================================
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9554513Z __________________ ERROR at setup of test_post_concierge_plan __________________
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9554997Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9554997Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9555635Z request = <SubRequest 'django_db_setup' for <Function test_post_concierge_plan>>
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9556321Z django_test_environment = None
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9556917Z django_db_blocker = <pytest_django.plugin.DjangoDbBlocker object at 0x7f4ec98c5890>
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9557630Z django_db_use_migrations = True, django_db_keepdb = False
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9558193Z django_db_createdb = False, django_db_modify_db_settings = None
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9558567Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9558567Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9558713Z     @pytest.fixture(scope="session")
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9559091Z     def django_db_setup(
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9559447Z         request: pytest.FixtureRequest,
@@ -1433,17 +1433,17 @@ integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9562103Z      
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9562505Z     ) -> Generator[None, None, None]:
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9562986Z         """Top level fixture to ensure test databases are available"""
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9563634Z         from django.test.utils import setup_databases, teardown_databases
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564113Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564113Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564373Z         setup_databases_args = {}
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564699Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564699Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9564959Z         if not django_db_use_migrations:
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9565598Z             _disable_migrations()
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9565917Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9565917Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9566206Z         if django_db_keepdb and not django_db_createdb:
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9566660Z             setup_databases_args["keepdb"] = True
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9567032Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9567032Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9567470Z         aliases, serialized_aliases = _get_databases_for_setup(request.session.items)
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9568017Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9568017Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9568284Z         with django_db_blocker.unblock():
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9568673Z >           db_cfg = setup_databases(
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9569107Z                 verbosity=request.config.option.verbose,
@@ -1452,9 +1452,9 @@ integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9569885Z      
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9570253Z                 serialized_aliases=serialized_aliases,
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9570664Z                 **setup_databases_args,
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9570993Z             )
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9571150Z 
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9571597Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pytest_django/fixtures.py:198: 
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9572329Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9571150Z
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9571597Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pytest_django/fixtures.py:198:
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9572329Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9573155Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/django/test/utils.py:204: in setup_databases
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9573918Z     connection.creation.create_test_db(
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9574759Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/django/db/backends/base/creation.py:78: in create_test_db
@@ -1481,16 +1481,16 @@ integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9590051Z /opt/
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9590884Z     operation.database_forwards(
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9591800Z /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/django/db/migrations/operations/special.py:196: in database_forwards
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9592766Z     self.code(from_state.apps, schema_editor)
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9593227Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9593532Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9593227Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9593532Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9593812Z apps = <django.db.migrations.state.StateApps object at 0x7f4e9ddb7bd0>
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9594740Z schema_editor = <django.contrib.gis.db.backends.postgis.schema.PostGISSchemaEditor object at 0x7f4e9dd65290>
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9595665Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9595665Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9595826Z     def ensure_gist_index(apps, schema_editor):
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9596571Z         # PostgreSQL 以外は何もしない（SQLite ではスキップ）
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9597039Z         if schema_editor.connection.vendor != "postgresql":
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9597471Z             return
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9597739Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9597739Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9598054Z         # 既に index があるか確認
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9598439Z         with schema_editor.connection.cursor() as cur:
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9598877Z             cur.execute(
@@ -1503,15 +1503,15 @@ integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9601073Z      
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9601381Z                 [INDEX_NAME],
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9601690Z             )
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9601976Z             exists = cur.fetchone() is not None
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9602330Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9602330Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9602569Z         if exists:
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9602827Z             return
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9603087Z     
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9603087Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9603549Z         # Django の GiSTIndex を使って作成（USING GIST の生SQLは使わない）
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9604331Z >       from django.contrib.gis.db.models.indexes import GiSTIndex  # GeoDjango が入ってるPG環境でOK
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9605420Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9606025Z E       ModuleNotFoundError: No module named 'django.contrib.gis.db.models.indexes'
-integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9606513Z 
+integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9606513Z
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9606879Z temples/migrations/0030_add_shrine_location_gist_concurrently.py:28: ModuleNotFoundError
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9607624Z ---------------------------- Captured stdout setup -----------------------------
 integration	Run pytest (integration, postgis)	2025-11-09T00:56:26.9608176Z Operations to perform:
@@ -1675,13 +1675,13 @@ integration	Show DB container logs (always)	2025-11-09T00:56:27.4296306Z 2025-11
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4297145Z 2025-11-09 00:55:06.287 UTC [72] LOG:  database system was shut down at 2025-11-09 00:55:06 UTC
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4297911Z 2025-11-09 00:55:06.292 UTC [1] LOG:  database system is ready to accept connections
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4298550Z This user must also own the server process.
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4298863Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4298863Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4299126Z The database cluster will be initialized with locale "en_US.utf8".
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4299774Z The default database encoding has accordingly been set to "UTF8".
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4300394Z The default text search configuration will be set to "english".
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4300791Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4300791Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4300951Z Data page checksums are disabled.
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4301216Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4301216Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4301532Z fixing permissions on existing directory /var/lib/postgresql/data ... ok
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4302123Z creating subdirectories ... ok
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4302609Z selecting dynamic shared memory implementation ... posix
@@ -1692,12 +1692,12 @@ integration	Show DB container logs (always)	2025-11-09T00:56:27.4304481Z creatin
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4304912Z running bootstrap script ... ok
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4305540Z performing post-bootstrap initialization ... ok
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4306028Z syncing data to disk ... ok
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4306264Z 
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4306271Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4306264Z
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4306271Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4306491Z Success. You can now start the database server using:
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4306845Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4306845Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4307058Z     pg_ctl -D /var/lib/postgresql/data -l logfile start
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4307387Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4307387Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4308183Z waiting for server to start....2025-11-09 00:55:04.482 UTC [48] LOG:  starting PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4309451Z 2025-11-09 00:55:04.482 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4310274Z 2025-11-09 00:55:04.486 UTC [51] LOG:  database system was shut down at 2025-11-09 00:55:04 UTC
@@ -1705,8 +1705,8 @@ integration	Show DB container logs (always)	2025-11-09T00:56:27.4311017Z 2025-11
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4312088Z  done
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4312382Z server started
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4312583Z CREATE DATABASE
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4323203Z 
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4323222Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4323203Z
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4323222Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4323656Z /usr/local/bin/docker-entrypoint.sh: sourcing /docker-entrypoint-initdb.d/10_postgis.sh
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4324278Z CREATE DATABASE
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4324533Z Loading PostGIS extensions into template_postgis
@@ -1721,7 +1721,7 @@ integration	Show DB container logs (always)	2025-11-09T00:56:27.4326915Z CREATE 
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4327169Z You are now connected to database "jinja_db" as user "admin".
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4327467Z CREATE EXTENSION
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4327649Z CREATE EXTENSION
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4327757Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4327757Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4327913Z 2025-11-09 00:55:06.163 UTC [48] LOG:  received fast shutdown request
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4328374Z waiting for server to shut down....2025-11-09 00:55:06.163 UTC [48] LOG:  aborting any active transactions
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4328960Z 2025-11-09 00:55:06.165 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
@@ -1731,9 +1731,9 @@ integration	Show DB container logs (always)	2025-11-09T00:56:27.4330712Z 2025-11
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4331598Z 2025-11-09 00:55:06.236 UTC [48] LOG:  database system is shut down
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4331888Z  done
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4332053Z server stopped
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4332163Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4332163Z
 integration	Show DB container logs (always)	2025-11-09T00:56:27.4332304Z PostgreSQL init process complete; ready for start up.
-integration	Show DB container logs (always)	2025-11-09T00:56:27.4332512Z 
+integration	Show DB container logs (always)	2025-11-09T00:56:27.4332512Z
 integration	Post Run actions/checkout@v4	﻿2025-11-09T00:56:27.4383863Z Post job cleanup.
 integration	Post Run actions/checkout@v4	2025-11-09T00:56:27.5351583Z [command]/usr/bin/git version
 integration	Post Run actions/checkout@v4	2025-11-09T00:56:27.5389522Z git version 2.51.2
@@ -1758,13 +1758,13 @@ integration	Stop containers	2025-11-09T00:56:27.6340109Z  2025-11-09 00:55:06.28
 integration	Stop containers	2025-11-09T00:56:27.6340594Z  2025-11-09 00:55:06.287 UTC [72] LOG:  database system was shut down at 2025-11-09 00:55:06 UTC
 integration	Stop containers	2025-11-09T00:56:27.6341032Z  2025-11-09 00:55:06.292 UTC [1] LOG:  database system is ready to accept connections
 integration	Stop containers	2025-11-09T00:56:27.6341383Z  This user must also own the server process.
-integration	Stop containers	2025-11-09T00:56:27.6341629Z  
+integration	Stop containers	2025-11-09T00:56:27.6341629Z
 integration	Stop containers	2025-11-09T00:56:27.6341887Z  The database cluster will be initialized with locale "en_US.utf8".
 integration	Stop containers	2025-11-09T00:56:27.6342292Z  The default database encoding has accordingly been set to "UTF8".
 integration	Stop containers	2025-11-09T00:56:27.6342675Z  The default text search configuration will be set to "english".
-integration	Stop containers	2025-11-09T00:56:27.6342972Z  
+integration	Stop containers	2025-11-09T00:56:27.6342972Z
 integration	Stop containers	2025-11-09T00:56:27.6343146Z  Data page checksums are disabled.
-integration	Stop containers	2025-11-09T00:56:27.6343370Z  
+integration	Stop containers	2025-11-09T00:56:27.6343370Z
 integration	Stop containers	2025-11-09T00:56:27.6343641Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
 integration	Stop containers	2025-11-09T00:56:27.6344003Z  creating subdirectories ... ok
 integration	Stop containers	2025-11-09T00:56:27.6344291Z  selecting dynamic shared memory implementation ... posix
@@ -1775,12 +1775,12 @@ integration	Stop containers	2025-11-09T00:56:27.6345634Z  creating configuration
 integration	Stop containers	2025-11-09T00:56:27.6345885Z  running bootstrap script ... ok
 integration	Stop containers	2025-11-09T00:56:27.6346154Z  performing post-bootstrap initialization ... ok
 integration	Stop containers	2025-11-09T00:56:27.6346429Z  syncing data to disk ... ok
-integration	Stop containers	2025-11-09T00:56:27.6346634Z  
-integration	Stop containers	2025-11-09T00:56:27.6346775Z  
+integration	Stop containers	2025-11-09T00:56:27.6346634Z
+integration	Stop containers	2025-11-09T00:56:27.6346775Z
 integration	Stop containers	2025-11-09T00:56:27.6346979Z  Success. You can now start the database server using:
-integration	Stop containers	2025-11-09T00:56:27.6347252Z  
+integration	Stop containers	2025-11-09T00:56:27.6347252Z
 integration	Stop containers	2025-11-09T00:56:27.6347470Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
-integration	Stop containers	2025-11-09T00:56:27.6347732Z  
+integration	Stop containers	2025-11-09T00:56:27.6347732Z
 integration	Stop containers	2025-11-09T00:56:27.6348281Z  waiting for server to start....2025-11-09 00:55:04.482 UTC [48] LOG:  starting PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
 integration	Stop containers	2025-11-09T00:56:27.6349589Z  2025-11-09 00:55:04.482 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
 integration	Stop containers	2025-11-09T00:56:27.6350401Z  2025-11-09 00:55:04.486 UTC [51] LOG:  database system was shut down at 2025-11-09 00:55:04 UTC
@@ -1788,8 +1788,8 @@ integration	Stop containers	2025-11-09T00:56:27.6350851Z  2025-11-09 00:55:04.48
 integration	Stop containers	2025-11-09T00:56:27.6351176Z   done
 integration	Stop containers	2025-11-09T00:56:27.6351344Z  server started
 integration	Stop containers	2025-11-09T00:56:27.6351522Z  CREATE DATABASE
-integration	Stop containers	2025-11-09T00:56:27.6351699Z  
-integration	Stop containers	2025-11-09T00:56:27.6351856Z  
+integration	Stop containers	2025-11-09T00:56:27.6351699Z
+integration	Stop containers	2025-11-09T00:56:27.6351856Z
 integration	Stop containers	2025-11-09T00:56:27.6352183Z  /usr/local/bin/docker-entrypoint.sh: sourcing /docker-entrypoint-initdb.d/10_postgis.sh
 integration	Stop containers	2025-11-09T00:56:27.6352585Z  CREATE DATABASE
 integration	Stop containers	2025-11-09T00:56:27.6352808Z  Loading PostGIS extensions into template_postgis
@@ -1804,7 +1804,7 @@ integration	Stop containers	2025-11-09T00:56:27.6354886Z  CREATE EXTENSION
 integration	Stop containers	2025-11-09T00:56:27.6355294Z  You are now connected to database "jinja_db" as user "admin".
 integration	Stop containers	2025-11-09T00:56:27.6355617Z  CREATE EXTENSION
 integration	Stop containers	2025-11-09T00:56:27.6355818Z  CREATE EXTENSION
-integration	Stop containers	2025-11-09T00:56:27.6355989Z  
+integration	Stop containers	2025-11-09T00:56:27.6355989Z
 integration	Stop containers	2025-11-09T00:56:27.6356220Z  2025-11-09 00:55:06.163 UTC [48] LOG:  received fast shutdown request
 integration	Stop containers	2025-11-09T00:56:27.6356674Z  waiting for server to shut down....2025-11-09 00:55:06.163 UTC [48] LOG:  aborting any active transactions
 integration	Stop containers	2025-11-09T00:56:27.6357407Z  2025-11-09 00:55:06.165 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
@@ -1814,9 +1814,9 @@ integration	Stop containers	2025-11-09T00:56:27.6359133Z  2025-11-09 00:55:06.22
 integration	Stop containers	2025-11-09T00:56:27.6360008Z  2025-11-09 00:55:06.236 UTC [48] LOG:  database system is shut down
 integration	Stop containers	2025-11-09T00:56:27.6360294Z   done
 integration	Stop containers	2025-11-09T00:56:27.6360458Z  server stopped
-integration	Stop containers	2025-11-09T00:56:27.6360635Z  
+integration	Stop containers	2025-11-09T00:56:27.6360635Z
 integration	Stop containers	2025-11-09T00:56:27.6360850Z  PostgreSQL init process complete; ready for start up.
-integration	Stop containers	2025-11-09T00:56:27.6361139Z  
+integration	Stop containers	2025-11-09T00:56:27.6361139Z
 integration	Stop containers	2025-11-09T00:56:27.6367992Z Stop and remove container: 51fd955e447542a388d5828f7490c98f_postgispostgis1634_38c817
 integration	Stop containers	2025-11-09T00:56:27.6372909Z ##[command]/usr/bin/docker rm --force 6d421e103e5a5def0baf33825db32c77271a5a47a6a1fb3778a03136eb7b3791
 integration	Stop containers	2025-11-09T00:56:28.2020894Z 6d421e103e5a5def0baf33825db32c77271a5a47a6a1fb3778a03136eb7b3791

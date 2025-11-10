@@ -53,4 +53,3 @@ export async function getNearbyShrines({ lat, lng, limit = 20 }: NearbyParams) {
   const data: NearbyShrine[] = await res.json();
   return { data, abort: () => ctrl.abort() };
 }
-

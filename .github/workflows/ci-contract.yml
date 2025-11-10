@@ -1,8 +1,7 @@
 name: Contract CI
 permissions:
   contents: read
-permissions:
-  contents: read
+
 
 on:
   push:
@@ -12,8 +11,7 @@ on:
   workflow_dispatch:
 
 # 余計な権限を絞る（トップレベル）
-permissions:
-  contents: read
+
 
 # ラン競合の防止（トップレベル）
 concurrency:

@@ -12,10 +12,7 @@ on:
     - cron: "0 18 * * 0"  # 週1（JSTで月曜03:00頃）
 
 # ワークフロー全体の既定を最小に（警告対策）
-permissions:
-  contents: read
-  security-events: write
-  actions: read
+
 
 jobs:
   analyze:

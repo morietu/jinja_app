@@ -1,10 +1,20 @@
 from django.conf import settings
-from django.contrib.gis.db import models
 from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+
+# GeoDjangoを使うのは USE_GIS が真 かつ テスト無効化フラグが立っていないときだけ
+USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
+    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
+)
+if USE_REAL_GIS:
+    from django.contrib.gis.db import models as models  # type: ignore
+    from django.contrib.gis.geos import Point  # 実GIS時のみ
+else:
+    models = dj_models  # type: ignore
+    Point = None
 
 # --- PointField を環境に応じて差し替える shim -------------------------------
 # GIS を使うときだけ本物の PointField を、テスト(SQLite)では安全な JSON/Text に置換
@@ -14,9 +24,8 @@ USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
 
 if USE_REAL_GIS:
     from django.contrib.gis.db.models import PointField as _RealPointField
-    from django.contrib.gis.geos import Point  # 実GIS時のみ import
 
-    PointFieldBase = _RealPointField  # 本物
+    PointFieldBase = _RealPointField
 else:
     # 非GIS環境では JSONField（または TextField）にフォールバック
     # 既存コードの引数互換性のため **kwargs 受け取り＆無視
@@ -129,10 +138,7 @@ class GoriyakuTag(models.Model):
         indexes = [models.Index(fields=["category", "name"])]
 
 
-try:
-    from django.contrib.gis.geos import Point
-except Exception:  # GIS無効でも安全にimport失敗を許容
-    Point = None
+# ここでの Point は上のブロックで既に import/None 設定済み
 
 
 class Shrine(models.Model):

@@ -2,12 +2,8 @@ name: dependency-review
 permissions:
   contents: read
   pull-requests: read
-permissions:
-  contents: read
-  pull-requests: read
 on: [pull_request]
-permissions:
-  contents: read
+
 jobs:
   review:
     runs-on: ubuntu-latest

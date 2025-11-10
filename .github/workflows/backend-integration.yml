@@ -1,6 +1,5 @@
 name: backend-integration
-permissions:
-  contents: read
+
 permissions:
   contents: read
 on:
@@ -20,8 +19,7 @@ concurrency:
   group: backend-integration-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+
 
 jobs:
   call:
