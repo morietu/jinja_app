@@ -21,14 +21,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.0",
+    "@eslint/js": "^9.39.1",
     "@next/eslint-plugin-next": "^16.0.1",
     "@stoplight/spectral-cli": "^6.15.0",
-    "eslint": "^9.35.0",
+    "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
-    "typescript-eslint": "^8.46.2",
+    "typescript-eslint": "^8.46.3",
     "vite-tsconfig-paths": "^5.1.4"
   }
 }
