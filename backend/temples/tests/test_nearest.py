@@ -1,10 +1,15 @@
 # temples/tests/test_nearest.py
 import pytest
-from django.contrib.gis.geos import Point
+
 from temples.models import Shrine
 from temples.queries import nearest_shrines
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.postgis]  # PostGIS前提
+
+try:
+    from django.contrib.gis.geos import Point  # noqa: F401
+except Exception as e:
+    pytest.skip(f"GIS not available on this job: {e}", allow_module_level=True)
 
 
 def test_nearest_shrines_returns_ordered_results():
