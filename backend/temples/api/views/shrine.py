@@ -1,7 +1,6 @@
-# backend/temples/api/views/shrine.py
+# -*- coding: utf-8 -*-
 import math
 from datetime import timedelta
-
 
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
@@ -24,32 +23,27 @@ from temples.api.serializers.shrine import (
     ShrineListSerializer,
 )
 from temples.models import GoriyakuTag, Shrine
-from temples.queries import nearest_queryset  # ← NoGIS/GIS両対応の自前実装
-
-
-USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
-    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
-)
+from temples.queries import nearest_queryset  # NoGIS/GIS 両対応の自前実装
 
 
 class NearestShrinesAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def get(self, request, *args, **kwargs):
         q = request.query_params
 
-        # lat / lng|lon を安全に受け取る（どれか無ければ 400）
+        # lat / lng|lon を受け取る（どれか無ければ 400）
         lat_raw = q.get("lat") or q.get("latitude")
         lng_raw = q.get("lng") or q.get("lon") or q.get("longitude")
         if lat_raw is None or lng_raw is None:
             return Response({"detail": "lat and lng(lon) are required."}, status=400)
-        
+
         try:
             lat = float(lat_raw)
             lng = float(lng_raw)
         except ValueError:
             return Response({"detail": "lat/lng must be float."}, status=400)
-        
+
         # 半径と件数（任意）
         radius_raw = q.get("radius")
         limit_raw = q.get("limit")
@@ -70,33 +64,31 @@ class NearestShrinesAPIView(APIView):
         if radius_m is not None and radius_m <= 0:
             return Response({"detail": "radius must be > 0."}, status=400)
 
-        # クエリ実行（distance_m or d_m を許容）
-        from temples.queries import nearest_shrines  # 既存実装を利用
+        # 近傍検索（distance_m / d_m いずれかが付く）
+        from temples.queries import nearest_shrines
 
         qs = nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
-        # シリアライズ（tests は body["results"][i]["distance_m"] を参照）
+
+        # 結果を既存テスト互換で JSON 化
         results = []
         for s in qs:
             dist = getattr(s, "distance_m", None)
             if dist is None:
                 dist = getattr(s, "d_m", None)
-            # JSON では整数で返す（既存テストが int を期待）
             if dist is not None:
                 try:
                     dist = int(dist)
                 except Exception:
                     pass
-            results.append({
-                "id": s.id,
-                "name_jp": getattr(s, "name_jp", None),
-                "distance_m": dist,
-            })
+            results.append(
+                {
+                    "id": s.id,
+                    "name_jp": getattr(s, "name_jp", None),
+                    "distance_m": dist,
+                }
+            )
 
         return Response({"results": results}, status=status.HTTP_200_OK)
-
-
-
-        
 
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
@@ -132,10 +124,12 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(goriyaku_tags__name__icontains=q)
             )
 
+        # name（部分一致）
         name = params.get("name")
         if name:
             qs = qs.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
 
+        # タグ（OR）
         for key in ("goriyaku", "shinkaku", "region"):
             vals = params.getlist(key)
             if vals:
@@ -203,7 +197,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 name="limit", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False
             ),
         ],
-        responses={200: ShrineListSerializer(many=True)},  # ← 配列を明示
+        responses={200: ShrineListSerializer(many=True)},
     )
     def nearest(self, request):
         params = request.query_params
@@ -321,7 +315,8 @@ class RankingAPIView(ListAPIView):
                     longitude__lte=lng0 + lng_delta,
                 )
             except Exception:
-                pass  # パラメータ不正は黙って無視
+                # パラメータ不正は黙って無視
+                pass
 
         # 合成スコア： 直近30日の訪問(×2.0) + popular_score(×0.5)
         qs = (
