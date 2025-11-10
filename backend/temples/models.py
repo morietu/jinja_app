@@ -24,6 +24,7 @@ USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
 
 if USE_REAL_GIS:
     from django.contrib.gis.db.models import PointField as _RealPointField
+
     PointFieldBase = _RealPointField
 else:
     # 非GIS環境では JSONField（または TextField）にフォールバック

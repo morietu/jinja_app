@@ -106,9 +106,6 @@ urlpatterns = [
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-
-
-
     # concierge
     path("api/concierge/plan/", concierge.plan_legacy, name="concierge-plan"),
     path("api/concierge/chat/", concierge.chat_legacy, name="concierge-chat"),  # ← 追加
