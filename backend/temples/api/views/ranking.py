@@ -53,9 +53,7 @@ class RankingAPIView(APIView):
             _popular=Coalesce(F("popular_score"), Value(0.0)),
         ).annotate(
             # 重み: 訪問×2 + お気に入り×1 + 人気スコア×0.5
-            score=F("visits_30d_dyn") * 2
-            + F("favorites_30d_dyn") * 1
-            + F("_popular") * 0.5,
+            score=F("visits_30d_dyn") * 2 + F("favorites_30d_dyn") * 1 + F("_popular") * 0.5,
         )
 
         # 並び順: スコア降順 → popular_score降順 → id昇順 →（近傍指定時）_approx_deg
