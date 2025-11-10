@@ -79,15 +79,15 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
 
         if radius_m is not None:
             qs = Shrine.objects.filter(location__isnull=False).annotate(
-            _knn=RawSQL(f"location <-> {point_sql}", point_params),
-            # 球面距離[m] を distance_m / d_m の両方に付与（テスト互換）
-            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-            d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-        )
-        if radius_m is not None:
-            qs = qs.filter(d_m__lte=float(radius_m))
-        qs = qs.order_by("_knn", "d_m")
-        return qs[:limit]
+                knn=RawSQL(f"location <-> {point_sql}", point_params),
+                # 球面距離[m] を distance_m / d_m の両方に付与（テスト互換）
+                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+            )
+            if radius_m is not None:
+                qs = qs.filter(d_m__lte=float(radius_m))
+            qs = qs.order_by("knn", "d_m")
+            return qs[:limit]
 
     # ---------- NoGIS: PostgreSQL ----------
     if connection.vendor == "postgresql":
