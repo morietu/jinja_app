@@ -3,7 +3,6 @@ import math
 from datetime import timedelta
 
 
-
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -29,24 +28,77 @@ from django.conf import settings
 from rest_framework.views import APIView
 
 from temples.queries import nearest_queryset  # ← NoGIS/GIS両対応の自前実装
-from temples.api.serializers.shrine import ShrineListSerializer
+
 
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
 )
 
 class NearestShrinesAPIView(APIView):
+    permission_classes = [AllowAny]
+    
     def get(self, request, *args, **kwargs):
-        try:
-            lon = float(request.query_params.get("lon"))
-            lat = float(request.query_params.get("lat"))
-        except (TypeError, ValueError):
-            return Response({"detail": "lon/lat を数値で指定してください。"}, status=400)
+        q = request.query_params
 
-        limit = int(request.query_params.get("limit", 20))
-        qs = nearest_queryset(lon, lat)[:limit]  # ← 距離計算は temples.queries に集約
-        data = ShrineListSerializer(qs, many=True).data
-        return Response(data)
+        # lat / lng|lon を安全に受け取る（どれか無ければ 400）
+        lat_raw = q.get("lat") or q.get("latitude")
+        lng_raw = q.get("lng") or q.get("lon") or q.get("longitude")
+        if lat_raw is None or lng_raw is None:
+            return Response({"detail": "lat and lng(lon) are required."}, status=400)
+        
+        try:
+            lat = float(lat_raw)
+            lng = float(lng_raw)
+        except ValueError:
+            return Response({"detail": "lat/lng must be float."}, status=400)
+        
+        # 半径と件数（任意）
+        radius_raw = q.get("radius")
+        limit_raw = q.get("limit")
+        try:
+            radius_m = int(radius_raw) if radius_raw is not None else None
+        except ValueError:
+            return Response({"detail": "radius must be int (meters)."}, status=400)
+        try:
+            limit = int(limit_raw) if limit_raw is not None else 20
+        except ValueError:
+            return Response({"detail": "limit must be int."}, status=400)
+
+        # 上限・下限の護り
+        if limit <= 0:
+            limit = 1
+        if limit > 100:
+            limit = 100
+        if radius_m is not None and radius_m <= 0:
+            return Response({"detail": "radius must be > 0."}, status=400)
+
+        # クエリ実行（distance_m or d_m を許容）
+        from temples.queries import nearest_shrines  # 既存実装を利用
+
+        qs = nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
+        # シリアライズ（tests は body["results"][i]["distance_m"] を参照）
+        results = []
+        for s in qs:
+            dist = getattr(s, "distance_m", None)
+            if dist is None:
+                dist = getattr(s, "d_m", None)
+            # JSON では整数で返す（既存テストが int を期待）
+            if dist is not None:
+                try:
+                    dist = int(dist)
+                except Exception:
+                    pass
+            results.append({
+                "id": s.id,
+                "name_jp": getattr(s, "name_jp", None),
+                "distance_m": dist,
+            })
+
+        return Response({"results": results}, status=status.HTTP_200_OK)
+
+
+
+        
 
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
