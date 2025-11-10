@@ -34,7 +34,9 @@ export default function GoogleMap({
         libraries: ["places"],
       });
 
-      await loader.importLibrary("places");
+      // 旧/古い型でも通る安全ルート：一度 SDK をロードしてから global の importLibrary を使う
+      await loader.load();
+      await google.maps.importLibrary("places");
 
       const { Map } = (await google.maps.importLibrary(
         "maps"
