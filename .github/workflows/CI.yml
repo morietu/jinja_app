@@ -9,7 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -24,7 +23,6 @@ jobs:
             pgport: 5433
             use_gis: "1"
             disable_gis_for_tests: "0"
-
     name: python (${{ matrix.name }})
 
     services:
@@ -54,6 +52,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node/pnpm（Web契約テストやtypecheck等がある場合のため）
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -111,16 +119,13 @@ jobs:
 
       - name: Ruff
         run: ruff check .
-
       - name: Black
         run: black --check .
-
       - name: mypy (soft-fail)
         run: mypy . || true
 
-  # ← 必ず jobs: 配下に置く（無条件で動く診断ジョブ）
+  # 無条件で動く診断ジョブ
   debug:
-    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Show GitHub context

@@ -27,8 +27,6 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-# 既にあればスキップ
 from temples.api.serializers.shrine import ShrineDetailSerializer, ShrineListSerializer
 from temples.geo_utils import to_lon_lat
 from temples.models import Shrine
@@ -42,13 +40,6 @@ except Exception:
 
 
 EARTH_RADIUS_M = 6371000.0
-
-try:
-    from temples.api.utils import annotate_is_favorite
-except Exception:
-
-    def annotate_is_favorite(qs, request):
-        return qs
 
 
 def _use_real_gis() -> bool:
