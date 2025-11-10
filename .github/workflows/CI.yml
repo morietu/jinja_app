@@ -99,7 +99,7 @@ jobs:
             pip install pytest pytest-django pytest-cov
           fi
 
-      - name: Wait for DB
+            - name: Wait for DB
         run: |
           for i in {1..90}; do
             pg_isready -h localhost -p ${{ matrix.pgport }} -U postgres -d jinja_db && break
