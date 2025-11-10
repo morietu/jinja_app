@@ -5,6 +5,12 @@ from tests.factories import make_shrine
 
 pytestmark = pytest.mark.postgis  # PostGIS前提
 
+try:
+    from django.contrib.gis.geos import Point
+except Exception as e:  # ImportError/ImproperlyConfigured などを包括
+    pytest.skip(f"GIS not available on this job: {e}")
+    
+
 # 東京駅(35.6812, 139.7671) からの距離イメージで配置
 TOKYO_EKI = (35.6812, 139.7671)
 NEAR_BY = [
