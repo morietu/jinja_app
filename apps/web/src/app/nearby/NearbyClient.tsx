@@ -1,6 +1,6 @@
 // apps/web/src/app/nearby/NearbyClient.tsx
 "use client";
-import { apiGet } from "@/lib/api/http";
+
 import { useEffect, useState } from "react";
 
 type Item = { id: string; name: string };
