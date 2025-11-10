@@ -8,21 +8,39 @@ from pathlib import Path
 import pytest
 import responses as httpmock
 from django.db import connection
+from django.conf import settings as dj_settings
 from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
 from django.conf import settings
 
-# NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときだけ、NoGIS用マイグレーションを厳密チェック
-if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
-    assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", \
-        f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
 
-def _has_postgis():
-    try:
-        with connection.cursor() as cur:
-            cur.execute("SELECT postgis_version();")
-            cur.fetchone()
+# NoGISジョブ（CIのみ）で厳密チェック
+if os.getenv("CI") == "true" and os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
+    assert (
+        settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis"
+    ), f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
+
+
+def _has_postgis() -> bool:
+    """
+    pytest マーカー `postgis` の有効/無効を DB実体で判定する。
+    - ENGINE に postgis が含まれているか
+    - pg_extension に postgis 拡張があるか
+    環境変数 FORCE_POSTGIS_TESTS=1 で強制的に True。
+    """
+    import os
+
+    if os.getenv("FORCE_POSTGIS_TESTS") == "1":
         return True
+    try:
+        eng = connection.settings_dict.get("ENGINE", "")
+        if "postgis" not in eng:
+            # ここで False を返すと skip になる
+            return False
+        with connection.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_extension WHERE extname = 'postgis';")
+            ok = cur.fetchone() is not None
+        return ok
     except Exception:
         return False
 
@@ -31,7 +49,7 @@ def pytest_runtest_setup(item):
     if "postgis" in item.keywords and not _has_postgis():
         pytest.skip("PostGIS is not available in this environment.")
 
-from pathlib import Path
+
 def pytest_ignore_collect(collection_path: Path, config):
     """
     NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときは、
@@ -42,6 +60,7 @@ def pytest_ignore_collect(collection_path: Path, config):
         if name.startswith("test_gis_") and name.endswith(".py"):
             return True
     return False
+
 
 # ---- ネットワーク遮断（CIのみ・localhostだけ通す）----
 @pytest.fixture(autouse=True, scope="session")
@@ -286,3 +305,24 @@ def _reset_shrine_id_sequence():
                 );
             """
             )
+
+
+@pytest.fixture(autouse=True)
+def _force_dummy_route_provider(monkeypatch, settings):
+    import os
+
+    os.environ["ROUTE_PROVIDER"] = "dummy"
+    settings.ROUTE_PROVIDER = "dummy"
+
+
+@pytest.fixture(autouse=True)  # ← session ではなくデフォルト（function）に
+def _fast_password_hashers(settings):
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    settings.AUTH_PASSWORD_VALIDATORS = []
+
+
+# ルート計算は常にダミーを使う（外部HTTP禁止）
+@pytest.fixture(autouse=True)
+def _force_dummy_route_provider(monkeypatch, settings):
+    os.environ["ROUTE_PROVIDER"] = "dummy"
+    settings.ROUTE_PROVIDER = "dummy"

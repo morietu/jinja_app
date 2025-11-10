@@ -338,6 +338,21 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
 - 実行: `pnpm lint:openapi`
 - ポリシー: **error のみ CI fail / warning は通知のみ**（MVPの安定運用を優先）
 
+## CI: GIS/NoGIS マトリクス運用
+
+本リポジトリのCIは **NoGIS** / **PostGIS(GIS)** の2ジョブで構成。
+- **NoGIS**: Postgresのみ（GDAL/GEOSなし）。GIS依存テストは収集前にskip。
+- **GIS**: PostGIS + GDAL/GEOS を導入し、GIS依存テストを実行。
+
+必須ステータスチェック（Branch protection）
+- `CI / python (nogis)`
+- `CI / python (postgis)`
+
+### ローカルでのテスト実行
+- 全体（環境にGDALあり / なしどちらでも可）
+  ```bash
+  cd backend
+  python -m pytest -q
 
 ![web-tests](https://github.com/morietu/jinja_app/actions/workflows/web-tests.yml/badge.svg?branch=develop)
 [![contract-ci](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml)

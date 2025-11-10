@@ -1,6 +1,6 @@
 # temples/tests/test_route_view.py
 import os
-
+import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -19,6 +19,7 @@ class RouteViewTests(TestCase):
         self.user = make_user(username="u", password="p")
         self.shrine = make_shrine(name="S1", owner=self.user)
 
+    @pytest.mark.slow
     def test_requires_login_redirects_to_login(self):
         url = reverse("temples:shrine_route", args=[self.shrine.pk])
         resp = self.client.get(url)
@@ -27,6 +28,7 @@ class RouteViewTests(TestCase):
         self.assertIn("/accounts/login/", resp["Location"])
         self.assertIn("next=", resp["Location"])
 
+    @pytest.mark.slow
     def test_route_page_renders_with_script_and_map_div(self):
         # 先にログイン
         self.client.login(username="u", password="p")

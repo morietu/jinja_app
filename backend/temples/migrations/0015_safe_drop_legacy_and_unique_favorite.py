@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.db import migrations
 
+
 class Migration(migrations.Migration):
     dependencies = [
         ("temples", "0014_finalize_drop_legacy_name"),

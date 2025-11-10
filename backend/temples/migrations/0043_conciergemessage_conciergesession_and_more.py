@@ -30,13 +30,11 @@ class Migration(migrations.Migration):
             model_name="like",
             name="uq_like_shrine_user",
         ),
-
         # --- RankingLog: shrine を外す前に UQ を落とす ---
         migrations.RemoveConstraint(
             model_name="rankinglog",
             name="uq_rankinglog_shrine_date",
         ),
-
         # --- Shrine: 後でモデルを削除するが、万一のため事前に制約を外しておくと安全 ---
         migrations.RemoveConstraint(
             model_name="shrine",
@@ -58,7 +56,6 @@ class Migration(migrations.Migration):
             model_name="shrine",
             name="chk_lat_lng_both_or_none",
         ),
-
         migrations.CreateModel(
             name="ConciergeMessage",
             fields=[

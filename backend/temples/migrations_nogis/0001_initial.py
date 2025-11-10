@@ -38,7 +38,6 @@ class Migration(migrations.Migration):
                 "indexes": [models.Index(fields=["popular_score"], name="shrine_popular_idx")],
             },
         ),
-
         # --- GoriyakuTag ------------------------------------------------------
         migrations.CreateModel(
             name="GoriyakuTag",
@@ -49,7 +48,6 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "temples_goriyakutag"},
         ),
-
         # --- Deity（kana あり｜重複定義なし） -----------------------------------
         migrations.CreateModel(
             name="Deity",
@@ -63,7 +61,6 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "temples_deity"},
         ),
-
         # --- Shrine ←→ Deity の M2M 中間テーブル（テーブル名固定） ---------------
         migrations.CreateModel(
             name="ShrineDeities",
@@ -77,7 +74,6 @@ class Migration(migrations.Migration):
                 "unique_together": {("shrine", "deity")},
             },
         ),
-
         # ManyToManyField 自体も Shrine に付与（prefetch用）
         migrations.AddField(
             model_name="shrine",
@@ -89,7 +85,6 @@ class Migration(migrations.Migration):
                 through="temples.ShrineDeities",
             ),
         ),
-
         # --- Visit（ランキング/人気APIで使用） -----------------------------------
         migrations.CreateModel(
             name="Visit",
@@ -111,7 +106,6 @@ class Migration(migrations.Migration):
             model_name="visit",
             index=models.Index(fields=["shrine_id", "visited_at"], name="visit_shrine_visited_idx"),
         ),
-
         # --- Shrine.goriyaku_tags M2M -----------------------------------------
         migrations.AddField(
             model_name="shrine",

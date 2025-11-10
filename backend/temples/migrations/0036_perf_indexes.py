@@ -1,33 +1,44 @@
 from django.db import migrations, models
 
+
 def ensure_pg_trgm(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
     with schema_editor.connection.cursor() as cur:
         cur.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
+
 def create_perf_indexes(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
     with schema_editor.connection.cursor() as cur:
         # 位置情報: 近傍検索用 GiST（PostGIS）
-        cur.execute("""
+        cur.execute(
+            """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS shrine_loc_gist
             ON temples_shrine USING GIST (location);
-        """)
+        """
+        )
         # 部分一致: GIN + trigram
-        cur.execute("""
+        cur.execute(
+            """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS shrine_namejp_trgm
             ON temples_shrine USING GIN (name_jp gin_trgm_ops);
-        """)
-        cur.execute("""
+        """
+        )
+        cur.execute(
+            """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS shrine_addr_trgm
             ON temples_shrine USING GIN (address gin_trgm_ops);
-        """)
-        cur.execute("""
+        """
+        )
+        cur.execute(
+            """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS shrine_goriyaku_trgm
             ON temples_shrine USING GIN (goriyaku gin_trgm_ops);
-        """)
+        """
+        )
+
 
 def drop_perf_indexes(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
@@ -40,6 +51,7 @@ def drop_perf_indexes(apps, schema_editor):
             "shrine_goriyaku_trgm",
         ]:
             cur.execute(f"DROP INDEX IF EXISTS {name};")
+
 
 class Migration(migrations.Migration):
     # CONCURRENTLY を使うのでトランザクション外

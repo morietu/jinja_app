@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.db import migrations, models
 
+
 class Migration(migrations.Migration):
     dependencies = [
         ("temples", "0023_fix_str_methods_and_indexes"),

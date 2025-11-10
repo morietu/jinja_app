@@ -12,14 +12,14 @@ from .models import Shrine
 EARTH_RADIUS_M = 6371000.0
 
 
-
-
 def _use_real_gis() -> bool:
     return bool(getattr(settings, "USE_GIS", False)) and not bool(
         getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
     )
 
+
 __all__ = ["nearest_queryset", "nearest_shrines"]
+
 
 def nearest_queryset(lon: float, lat: float):
     """
@@ -35,11 +35,11 @@ def nearest_queryset(lon: float, lat: float):
         point_params = [lon, lat]
         return (
             qs.filter(location__isnull=False)
-              .annotate(
-                  distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-                  _knn=RawSQL(f"location <-> {point_sql}", point_params),
-              )
-              .order_by("_knn", "distance_m")
+            .annotate(
+                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                _knn=RawSQL(f"location <-> {point_sql}", point_params),
+            )
+            .order_by("_knn", "distance_m")
         )
 
     if connection.vendor == "postgresql":
@@ -54,11 +54,12 @@ def nearest_queryset(lon: float, lat: float):
         """
         return (
             qs.filter(latitude__isnull=False, longitude__isnull=False)
-              .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
-              .order_by("distance_m")
+            .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
+            .order_by("distance_m")
         )
 
     return Shrine.objects.none()
+
 
 def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """

@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, Optional, Tuple, Dict
+
+from typing import Any, Dict, Optional, Tuple
+
 
 def to_lon_lat(value: Any) -> Optional[Tuple[float, float]]:
     """多様な入力から (lon, lat) を取り出す。該当なしは None を返す。"""
@@ -9,6 +11,7 @@ def to_lon_lat(value: Any) -> Optional[Tuple[float, float]]:
     # GeoDjango / GEOS Point（x=lon, y=lat）
     try:
         from django.contrib.gis.geos import Point  # type: ignore
+
         if isinstance(value, Point):
             return float(value.x), float(value.y)
     except Exception:

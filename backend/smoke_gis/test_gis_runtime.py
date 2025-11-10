@@ -1,6 +1,7 @@
 # backend/smoke_gis/test_gis_runtime.py
 import importlib
 
+
 def test_geodjango_runtime_available():
     # GeoDjangoの最小モジュールがimportできること
     assert importlib.import_module("django.contrib.gis") is not None

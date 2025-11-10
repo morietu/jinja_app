@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.db import migrations, models
 
+
 class Migration(migrations.Migration):
     dependencies = [
         ("temples", "0017_remove_favorite_uq_favorite_user_shrine_and_more"),

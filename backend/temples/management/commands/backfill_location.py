@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from temples.models import Shrine
 
+
 class Command(BaseCommand):
     help = "lat/lng から location(JSON/Point) を再生成して保存"
 

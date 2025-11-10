@@ -2,8 +2,8 @@ from typing import Optional
 
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
-from temples.models import GoriyakuTag, Shrine, Visit
 from temples.geo_utils import to_lat_lng_dict
+from temples.models import GoriyakuTag, Shrine, Visit
 
 
 class GoriyakuTagSerializer(serializers.ModelSerializer):
@@ -110,7 +110,6 @@ class ShrineListSerializer(
         return to_lat_lng_dict(getattr(obj, "location", None))
 
 
-
 # === 詳細
 class ShrineDetailSerializer(
     _AddressValidationMixin, _DistanceFieldsMixin, _DeityMixin, serializers.ModelSerializer
@@ -157,6 +156,7 @@ class VisitSerializer(serializers.ModelSerializer):
         model = Visit
         fields = ["id", "shrine", "visited_at", "note", "status"]
 
+
 class LocationAsLatLngMixin(serializers.Serializer):
     location = serializers.SerializerMethodField()
 
@@ -166,6 +166,7 @@ class LocationAsLatLngMixin(serializers.Serializer):
             return None
         # Point/str に依存せず lat/lng を返す
         return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
+
 
 __all__ = [
     "ShrineSerializer",

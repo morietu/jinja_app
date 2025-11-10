@@ -2,8 +2,10 @@
 import json
 import responses
 from temples.services.google_places import GooglePlacesClient
+import pytest
 
 
+@pytest.mark.slow
 @responses.activate
 def test_nearby_retry_on_invalid_request():
     base = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"

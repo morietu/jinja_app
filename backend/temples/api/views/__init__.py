@@ -6,4 +6,11 @@ from .shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
 chat = ConciergeChatView.as_view()
 chat_legacy = chat
 
-__all__ = ["ConciergeChatView", "chat", "chat_legacy", "NearestShrinesAPIView", "RankingAPIView", "ShrineViewSet"]
+__all__ = [
+    "ConciergeChatView",
+    "chat",
+    "chat_legacy",
+    "NearestShrinesAPIView",
+    "RankingAPIView",
+    "ShrineViewSet",
+]
