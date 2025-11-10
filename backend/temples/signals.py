@@ -4,9 +4,23 @@ import logging
 
 from django.apps import apps
 from django.conf import settings
-from django.contrib.gis.geos import Point
+
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.conf import settings
+
+USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
+    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
+)
+
+# Point は使う直前で import する（NoGISでは使わない）
+Point = None
+if USE_REAL_GIS:
+    try:
+        from django.contrib.gis.geos import Point as _Point
+        Point = _Point
+    except Exception:
+        Point = None
 
 from .geocoding.client import GeocodingClient, GeocodingError
 
@@ -119,7 +133,9 @@ if Shrine is not None:
             else:
                 instance.latitude = float(res.lat)
                 instance.longitude = float(res.lon)
-                instance.location = Point(res.lon, res.lat, srid=4326)
+                # GISならPoint、NoGISなら後段の save() 正規化に任せる
+                if Point:
+                    instance.location = Point(res.lon, res.lat, srid=4326)
         except GeocodingError as e:
             logger.warning("auto_geocode_on_save: geocode failed: %s", e)
             return
@@ -149,7 +165,7 @@ if Shrine is not None:
             pass
 
         # ★テスト時だけダミー値を補完（NOT NULL制約を満たす）
-        if getattr(settings, "TESTING", False):
+        if getattr(settings, "IS_PYTEST", False):
             if getattr(instance, "latitude", None) is None:
                 instance.latitude = 35.0
             if getattr(instance, "longitude", None) is None:
