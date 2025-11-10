@@ -1,10 +1,9 @@
 # backend/users/tests/test_users_me_api.py
 import pytest
 from django.urls import reverse
-from users.models import UserProfile
-
 from tests.factories import UserFactory
 from tests.utils import api_client_as
+from users.models import UserProfile
 
 ME_URL_NAME = "users-me"
 

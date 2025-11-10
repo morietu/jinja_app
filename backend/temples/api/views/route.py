@@ -77,8 +77,7 @@ class RouteAPIView(APIView):
     @extend_schema(
         summary="Compute route (OSRM)",
         description=(
-            "OSRMで2点間のルートを返す。"
-            "distance(m) / duration(s) / geometry(GeoJSON LineString)。"
+            "OSRMで2点間のルートを返す。distance(m) / duration(s) / geometry(GeoJSON LineString)。"
         ),
         tags=["routes"],
         parameters=[

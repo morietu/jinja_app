@@ -26,7 +26,7 @@ def nearest_shrines(lon: float, lat: float, limit: int = 10):
 
     # --- NoGIS: latitude/longitude からハバースイン距離(m)を計算 ---
     haversine_sql = f"""
-        {2*EARTH_RADIUS_M} * ASIN(
+        {2 * EARTH_RADIUS_M} * ASIN(
             SQRT(
                 POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
                 COS(RADIANS(latitude)) * COS(RADIANS(%s)) *

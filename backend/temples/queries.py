@@ -44,7 +44,7 @@ def nearest_queryset(lon: float, lat: float):
 
     if connection.vendor == "postgresql":
         haversine_sql = f"""
-            {2*EARTH_RADIUS_M} * ASIN(
+            {2 * EARTH_RADIUS_M} * ASIN(
                 SQRT(
                     POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
                     COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
@@ -93,7 +93,7 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     # ---------- NoGIS: PostgreSQL ----------
     if connection.vendor == "postgresql":
         haversine_sql = f"""
-            {2*EARTH_RADIUS_M} * ASIN(
+            {2 * EARTH_RADIUS_M} * ASIN(
                 SQRT(
                     POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
                     COS(RADIANS(latitude)) * COS(RADIANS(%s)) *

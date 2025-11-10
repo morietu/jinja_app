@@ -16,9 +16,9 @@ from django.conf import settings
 
 # NoGISジョブ（CIのみ）で厳密チェック
 if os.getenv("CI") == "true" and os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
-    assert (
-        settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis"
-    ), f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
+    assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", (
+        f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
+    )
 
 
 def _has_postgis() -> bool:
