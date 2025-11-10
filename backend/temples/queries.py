@@ -60,7 +60,7 @@ def nearest_queryset(lon: float, lat: float):
 
     return Shrine.objects.none()
 
-def nearest_shrines(*, lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
+def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """
     近傍神社を距離順で返す。
 
