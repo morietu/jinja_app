@@ -113,3 +113,8 @@ jobs:
         run: black --check .
       - name: mypy (soft-fail)
         run: mypy . || true
+      - name: Show versions
+        run: |
+          python -V
+          pip show black | sed -n '1,5p' || true
+          black --version || true
