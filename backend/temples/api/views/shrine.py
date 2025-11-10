@@ -2,7 +2,7 @@
 import math
 from datetime import timedelta
 
-from django.conf import settings
+
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -26,6 +26,7 @@ from temples.api.serializers.shrine import (
 from temples.models import GoriyakuTag, Shrine
 from temples.queries import nearest_queryset  # ← NoGIS/GIS両対応の自前実装
 
+
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
 )
@@ -33,7 +34,7 @@ USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
 
 class NearestShrinesAPIView(APIView):
     permission_classes = [AllowAny]
-
+    
     def get(self, request, *args, **kwargs):
         q = request.query_params
 
@@ -42,13 +43,13 @@ class NearestShrinesAPIView(APIView):
         lng_raw = q.get("lng") or q.get("lon") or q.get("longitude")
         if lat_raw is None or lng_raw is None:
             return Response({"detail": "lat and lng(lon) are required."}, status=400)
-
+        
         try:
             lat = float(lat_raw)
             lng = float(lng_raw)
         except ValueError:
             return Response({"detail": "lat/lng must be float."}, status=400)
-
+        
         # 半径と件数（任意）
         radius_raw = q.get("radius")
         limit_raw = q.get("limit")
@@ -85,15 +86,17 @@ class NearestShrinesAPIView(APIView):
                     dist = int(dist)
                 except Exception:
                     pass
-            results.append(
-                {
-                    "id": s.id,
-                    "name_jp": getattr(s, "name_jp", None),
-                    "distance_m": dist,
-                }
-            )
+            results.append({
+                "id": s.id,
+                "name_jp": getattr(s, "name_jp", None),
+                "distance_m": dist,
+            })
 
         return Response({"results": results}, status=status.HTTP_200_OK)
+
+
+
+        
 
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
