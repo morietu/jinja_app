@@ -4,6 +4,8 @@
 import { useEffect, useRef } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 
+
+
 type LatLng = { lat: number; lng: number };
 type Marker = { id: string; position: LatLng; label?: string };
 
@@ -32,7 +34,7 @@ export default function GoogleMap({
         libraries: ["places"],
       });
 
-      await loader.load();
+      await loader.importLibrary("places");
 
       const { Map } = (await google.maps.importLibrary(
         "maps"
