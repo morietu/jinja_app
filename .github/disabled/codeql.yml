@@ -1,4 +1,8 @@
 name: codeql
+permissions:
+  actions: read
+  contents: read
+  security-events: write
 on:
   push:
     branches: ["main", "develop"]
