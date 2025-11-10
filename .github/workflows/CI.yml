@@ -1,6 +1,7 @@
 name: CI
 permissions:
   contents: read
+
 on:
   push:
   pull_request:
@@ -22,7 +23,6 @@ jobs:
             pgport: 5433
             use_gis: "1"
             disable_gis_for_tests: "0"
-
     name: python (${{ matrix.name }})
 
     services:
@@ -52,10 +52,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node/pnpm（Web契約テストやtypecheck等がある場合のため）
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Python
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: 'pip'
+          cache: pip
           cache-dependency-path: backend/requirements*.txt
 
       - name: Upgrade pip
@@ -68,7 +78,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
 
-      # ← ここに移動（GDAL導入直後）
+      # GDAL/GEOS のパスを環境にエクスポート（GISのみ）
       - name: Export GDAL path (GIS only)
         if: matrix.use_gis == '1'
         run: |
@@ -88,7 +98,7 @@ jobs:
             pip install pytest pytest-django pytest-cov
           fi
 
-            - name: Wait for DB
+      - name: Wait for DB
         run: |
           for i in {1..90}; do
             pg_isready -h localhost -p ${{ matrix.pgport }} -U postgres -d jinja_db && break
@@ -113,3 +123,16 @@ jobs:
         run: black --check .
       - name: mypy (soft-fail)
         run: mypy . || true
+
+  # 無条件で動く診断ジョブ
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show GitHub context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "head_ref=${{ github.head_ref }}"
+          echo "base_ref=${{ github.base_ref }}"
+          echo "actor=${{ github.actor }}"
