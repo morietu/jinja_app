@@ -21,6 +21,44 @@ def _use_real_gis() -> bool:
 
 __all__ = ["nearest_queryset", "nearest_shrines"]
 
+def nearest_queryset(lon: float, lat: float):
+    """
+    近傍の距離を注釈して距離昇順で返す QuerySet（スライスや半径フィルタはしない）
+    - PostGIS: KNN + ST_DistanceSphere
+    - NoGIS(PostgreSQL): ハバースイン式で注釈
+    - それ以外(SQLite等): 空
+    """
+    qs = Shrine.objects.all()
+
+    if _use_real_gis():
+        point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
+        point_params = [lon, lat]
+        return (
+            qs.filter(location__isnull=False)
+              .annotate(
+                  distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                  _knn=RawSQL(f"location <-> {point_sql}", point_params),
+              )
+              .order_by("_knn", "distance_m")
+        )
+
+    if connection.vendor == "postgresql":
+        haversine_sql = f"""
+            {2*EARTH_RADIUS_M} * ASIN(
+                SQRT(
+                    POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
+                    COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
+                    POWER(SIN(RADIANS((longitude - %s)/2)), 2)
+                )
+            )
+        """
+        return (
+            qs.filter(latitude__isnull=False, longitude__isnull=False)
+              .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
+              .order_by("distance_m")
+        )
+
+    return Shrine.objects.none()
 
 def nearest_shrines(*, lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """
