@@ -102,3 +102,7 @@ jobs:
           python --version || true
           pip --version || true
           pip freeze | sort || true
+
+      - name: Export GDAL path (GIS only)
+        if: matrix.use_gis == '1'
+        run: echo "GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so" >> $GITHUB_ENV

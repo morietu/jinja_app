@@ -4,7 +4,7 @@ import json
 import os
 import re
 from decimal import Decimal
-
+from pathlib import Path
 import pytest
 import responses as httpmock
 from django.db import connection
@@ -31,18 +31,16 @@ def pytest_runtest_setup(item):
     if "postgis" in item.keywords and not _has_postgis():
         pytest.skip("PostGIS is not available in this environment.")
 
-def pytest_collection_modifyitems(config, items):
+def pytest_ignore_collect(path, config):
     """
-    NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のとき、
-    GIS系テスト（ファイル名に 'test_gis_' を含む）を収集段階でskip。
-    将来的には @pytest.mark.gis での切り分けに移行予定。
+    NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときは、
+    test_gis_* ファイルをモジュール import 前に収集対象から外す。
     """
     if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
-        skip_gis = pytest.mark.skip(reason="GIS tests disabled on NoGIS CI job")
-        for item in items:
-            # ファイル名・nodeidで軽量判定（例：temples/tests/test_gis_*.py）
-            if "test_gis_" in item.nodeid:
-                item.add_marker(skip_gis)
+        name = Path(str(path)).name  # e.g. test_gis_smoke.py
+        if name.startswith("test_gis_") and name.endswith(".py"):
+            return True
+    return False
 
 # ---- ネットワーク遮断（CIのみ・localhostだけ通す）----
 @pytest.fixture(autouse=True, scope="session")
