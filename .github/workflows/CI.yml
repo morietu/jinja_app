@@ -57,7 +57,15 @@ jobs:
           python-version: "3.12"
           cache: 'pip'
           cache-dependency-path: backend/requirements*.txt
-
+      
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      
       - name: Upgrade pip
         run: python -m pip install -U pip
 
