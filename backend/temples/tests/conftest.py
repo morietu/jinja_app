@@ -31,13 +31,14 @@ def pytest_runtest_setup(item):
     if "postgis" in item.keywords and not _has_postgis():
         pytest.skip("PostGIS is not available in this environment.")
 
-def pytest_ignore_collect(path, config):
+from pathlib import Path
+def pytest_ignore_collect(collection_path: Path, config):
     """
     NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときは、
     test_gis_* ファイルをモジュール import 前に収集対象から外す。
     """
     if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
-        name = Path(str(path)).name  # e.g. test_gis_smoke.py
+        name = collection_path.name  # e.g. test_gis_smoke.py
         if name.startswith("test_gis_") and name.endswith(".py"):
             return True
     return False
