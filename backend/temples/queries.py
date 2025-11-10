@@ -76,7 +76,9 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
 
         qs = Shrine.objects.filter(location__isnull=False).annotate(
             _knn=RawSQL(f"location <-> {point_sql}", point_params),
+            # 主距離として d_m を付与（NoGIS と同名）
             d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+            # 互換用に distance_m も残す
             distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
         )
 
