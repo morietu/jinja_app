@@ -1,8 +1,8 @@
 # temples/tests/factories.py
 import factory
 from django.contrib.auth import get_user_model
-from factory.django import DjangoModelFactory
 from factory import post_generation
+from factory.django import DjangoModelFactory
 from temples.models import Shrine
 from users.models import UserProfile
 
@@ -15,8 +15,7 @@ class UserFactory(DjangoModelFactory):
         # Factory Boy 次メジャーでの変更に備え、自動saveを停止
         # 代わりに post_generation で明示 save する
         skip_postgeneration_save = True
-    
-    
+
     username = factory.Sequence(lambda n: f"user{n}")
     email = factory.LazyAttribute(lambda o: f"{o.username}@example.com")
 

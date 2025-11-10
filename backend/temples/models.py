@@ -1,9 +1,8 @@
 from django.conf import settings
-from django.db import models as dj_models
+from django.contrib.gis.db import models
 from django.contrib.postgres.indexes import GinIndex
-
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
@@ -16,6 +15,7 @@ USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
 if USE_REAL_GIS:
     from django.contrib.gis.db.models import PointField as _RealPointField
     from django.contrib.gis.geos import Point  # 実GIS時のみ import
+
     PointFieldBase = _RealPointField  # 本物
 else:
     # 非GIS環境では JSONField（または TextField）にフォールバック
@@ -25,12 +25,14 @@ else:
             # srid 等は無視。NULL/BLANK 指定はそのまま通す
             super().__init__(*args, **kwargs)
 
+
 # 以降、この PointFieldBase を PointField として使う
 class PointField(PointFieldBase):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         # ✅ 実行環境に合わせて正しい型パスを返す
         from django.conf import settings as _s
+
         use_real_gis = bool(getattr(_s, "USE_GIS", False)) and not bool(
             getattr(_s, "DISABLE_GIS_FOR_TESTS", False)
         )
@@ -46,6 +48,7 @@ class PointField(PointFieldBase):
         for k in ("geography", "spatial_index"):
             kwargs.pop(k, None)
         return name, path, args, kwargs
+
 
 def _loc_changed(old, new):
     # どちらかが None → 変化あり/なしを厳密に
@@ -71,6 +74,7 @@ def _loc_changed(old, new):
     if old_xy is None or new_xy is None:
         return True
     return old_xy != new_xy
+
 
 # --- 追加ここから ---
 KYUSEI_CHOICES = [
@@ -124,16 +128,16 @@ class GoriyakuTag(models.Model):
         ordering = ["category", "name"]
         indexes = [models.Index(fields=["category", "name"])]
 
+
 try:
     from django.contrib.gis.geos import Point
 except Exception:  # GIS無効でも安全にimport失敗を許容
     Point = None
 
+
 class Shrine(models.Model):
     KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
-    kind = models.CharField(
-        max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True
-    )
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True)
     # 基本情報
     name_jp = models.CharField(max_length=100)
     name_romaji = models.CharField(max_length=100, blank=True, null=True)
@@ -150,9 +154,7 @@ class Shrine(models.Model):
     location = PointField(srid=4326, null=True, blank=True)
 
     # ご利益・祭神など
-    goriyaku = models.TextField(
-        help_text="ご利益（自由メモ）", blank=True, null=True, default=""
-    )
+    goriyaku = models.TextField(help_text="ご利益（自由メモ）", blank=True, null=True, default="")
     sajin = models.TextField(help_text="祭神", blank=True, null=True, default="")
     description = models.TextField(blank=True, null=True)
 
@@ -228,10 +230,14 @@ class Shrine(models.Model):
 
     def save(self, *args, **kwargs):
         # NoGIS: Pointが来たら文字列に正規化（lon, lat）
-        if getattr(self, "location", None) is not None and "django.contrib.gis" not in settings.INSTALLED_APPS:
+        if (
+            getattr(self, "location", None) is not None
+            and "django.contrib.gis" not in settings.INSTALLED_APPS
+        ):
             if Point is not None and isinstance(self.location, Point):
                 # WKT風 or CSVいずれでもOK。下はWKT風で保存。
                 self.location = f"POINT({self.location.x} {self.location.y})"
+
         # lat/lng → location 同期
         def _norm(v):
             return None if v in ("", None) else v

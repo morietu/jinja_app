@@ -1,9 +1,11 @@
 # backend/temples/apps.py
 import logging
 import os
+
 from django.apps import AppConfig
 
 logger = logging.getLogger(__name__)
+
 
 class TemplesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"

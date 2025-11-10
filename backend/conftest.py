@@ -1,7 +1,31 @@
+import logging
 import os
 from pathlib import Path
 
-GIS_HINTS = ("django.contrib.gis", "GEOS", "gdal")
+import pytest
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _quiet_logs():
+    for name in ("urllib3", "django.request"):
+        logging.getLogger(name).setLevel(logging.WARN)
+
+
+# ★ 関数スコープにする（= decorator だけ。scope 指定しない）
+@pytest.fixture(autouse=True)
+def _fast_password_hashers(settings):
+    """テスト時のみパスワードハッシュをMD5に切り替えて高速化"""
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    settings.AUTH_PASSWORD_VALIDATORS = []
+
+
+GIS_HINTS = (
+    "from django.contrib.gis",
+    "import GEOS",
+    "from django.contrib.gis.gdal",
+    "from django.contrib.gis.geos",
+)
+
 
 def _looks_like_gis_test(p: Path) -> bool:
     if p.suffix != ".py":
@@ -11,6 +35,7 @@ def _looks_like_gis_test(p: Path) -> bool:
     except Exception:
         return False
     return any(h in head for h in GIS_HINTS)
+
 
 def pytest_ignore_collect(collection_path: Path, config):
     if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":

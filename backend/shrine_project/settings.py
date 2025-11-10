@@ -2,13 +2,14 @@
 import os
 import sys
 from pathlib import Path
-from django.conf import settings
+
 import dj_database_url
 import environ
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
+
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def env_bool(name: str, default: bool = False) -> bool:
@@ -155,6 +156,41 @@ else:
                 "TEST": {"NAME": f"test_{DB_NAME}"},
             }
         }
+engine = DATABASES["default"]["ENGINE"]
+
+
+# sqlite/spatialite を判定
+def _is_sqlite_engine(e: str) -> bool:
+    e = (e or "").lower()
+    return ("sqlite3" in e) or ("spatialite" in e)
+
+
+# (A) 早期の不要OPTIONS除去
+if _is_sqlite_engine(engine):
+    DATABASES["default"].pop("OPTIONS", None)
+
+# ---- NoGIS固定 …(略)…
+
+# (B) エンジン別の最終調整（再度 engine 取得）
+engine = DATABASES["default"]["ENGINE"]
+
+if _is_sqlite_engine(engine):
+    # SQLite/Spatialite のときは PG 系のキーは全部外す
+    for k in ("USER", "PASSWORD", "HOST", "PORT", "OPTIONS", "CONN_MAX_AGE"):
+        DATABASES["default"].pop(k, None)
+else:
+    # PostgreSQL/POSTGIS のときだけ connect_timeout 等を設定
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"].setdefault("connect_timeout", 5)
+    DATABASES["default"].setdefault("HOST", DB_HOST)
+    DATABASES["default"].setdefault("PORT", DB_PORT)
+    DATABASES["default"].setdefault("USER", DB_USER)
+    DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
+
+# SQLite の場合はOPTIONSごと落とす or 該当キーだけ除去
+if engine.endswith("sqlite3"):
+    # どちらか一方でOK
+    DATABASES["default"].pop("OPTIONS", None)
 # ---- NoGIS固定（テスト/CIで使う）: DB決定後に一度だけ適用 ----
 if DISABLE_GIS_FOR_TESTS:
     USE_GIS = False
@@ -169,19 +205,25 @@ if os.getenv("CI") == "true":
     DATABASES["default"]["CONN_MAX_AGE"] = 0
 
 # エンジン別の最終調整
-engine = DATABASES["default"]["ENGINE"]
-if engine.endswith("sqlite3"):
-    for k in ("USER", "PASSWORD", "HOST", "PORT", "OPTIONS", "CONN_MAX_AGE"):
+engine = (DATABASES["default"]["ENGINE"] or "").lower()
+
+
+def _is_sqlite_like(e: str) -> bool:
+    return ("sqlite" in e) or ("spatialite" in e)
+
+
+if _is_sqlite_like(engine):
+    # SQLite / Spatialite は PG系キーを全撤去し、OPTIONS も消す
+    for k in ("USER", "PASSWORD", "HOST", "PORT", "CONN_MAX_AGE", "OPTIONS"):
         DATABASES["default"].pop(k, None)
 else:
-    # PostgreSQL/POSTGIS のときだけ connect_timeout 等を整える
+    # PostgreSQL / PostGIS のみ OPTIONS.connect_timeout を設定
     DATABASES["default"].setdefault("OPTIONS", {})
     DATABASES["default"]["OPTIONS"].setdefault("connect_timeout", 5)
     DATABASES["default"].setdefault("HOST", DB_HOST)
     DATABASES["default"].setdefault("PORT", DB_PORT)
     DATABASES["default"].setdefault("USER", DB_USER)
     DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
-
 # --- 起動時サマリ（DEBUG または CI） ---
 if DEBUG or os.getenv("CI") == "true":
     try:
@@ -331,11 +373,13 @@ AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
 
+
 # --- Hosts / CORS ---
 def _split_csv(s, default=None):
     if s is None:
         return default or []
     return [x.strip() for x in s.split(",") if x.strip()]
+
 
 ALLOWED_HOSTS = _split_csv(os.environ.get("ALLOWED_HOSTS"), ["localhost", "127.0.0.1", "web"])
 CSRF_TRUSTED_ORIGINS = _split_csv(

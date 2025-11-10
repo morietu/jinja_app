@@ -13,8 +13,12 @@ def drop_favorite_constraints_pg(apps, schema_editor):
         return
     with schema_editor.connection.cursor() as cur:
         # どちらも「存在すれば」落とす（存在しなければ no-op）
-        cur.execute("ALTER TABLE temples_favorite DROP CONSTRAINT IF EXISTS uq_favorite_user_shrine;")
-        cur.execute("ALTER TABLE temples_favorite DROP CONSTRAINT IF EXISTS uq_favorite_user_place;")
+        cur.execute(
+            "ALTER TABLE temples_favorite DROP CONSTRAINT IF EXISTS uq_favorite_user_shrine;"
+        )
+        cur.execute(
+            "ALTER TABLE temples_favorite DROP CONSTRAINT IF EXISTS uq_favorite_user_place;"
+        )
 
 
 class Migration(migrations.Migration):
@@ -41,7 +45,6 @@ class Migration(migrations.Migration):
                 to="temples.shrine",
             ),
         ),
-
         # 旧 UniqueConstraint を「DB上に残っている場合のみ」安全に除去
         # ※ モデル状態には何も追加/削除しない（RemoveConstraint は状態に制約が無いと ValueError になるため使わない）
         migrations.RunPython(drop_favorite_constraints_pg, reverse_code=migrations.RunPython.noop),

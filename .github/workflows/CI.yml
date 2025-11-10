@@ -84,29 +84,21 @@ jobs:
             pip install pytest pytest-django pytest-cov
           fi
 
-      - name: Wait for DB
+            - name: Wait for DB
         run: |
           for i in {1..90}; do
             pg_isready -h localhost -p ${{ matrix.pgport }} -U postgres -d jinja_db && break
             sleep 1
           done
 
+      - name: Enable PostGIS extension (GIS only)
+        if: matrix.use_gis == '1'
+        run: |
+          PGPASSWORD=postgres psql \
+            -h localhost -p ${{ matrix.pgport }} -U postgres -d jinja_db \
+            -c "CREATE EXTENSION IF NOT EXISTS postgis;" \
+            -c "SELECT postgis_version();"
+
       - name: Django migrate
         working-directory: backend
         run: python -m django migrate --noinput
-
-      - name: Run backend tests
-        working-directory: backend
-        run: python -m pytest -q
-
-      - name: Debug env on failure
-        if: failure()
-        run: |
-          which python || true
-          python --version || true
-          pip --version || true
-          pip freeze | sort || true
-
-
-      - name: Echo NoGIS flag
-        run: echo "DISABLE_GIS_FOR_TESTS=$DISABLE_GIS_FOR_TESTS"

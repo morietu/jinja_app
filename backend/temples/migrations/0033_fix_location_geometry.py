@@ -3,6 +3,7 @@ from django.db import migrations
 
 INDEX_NAME = "shrine_location_gist"
 
+
 def fix_location_and_index(apps, schema_editor):
     # PostgreSQL 以外は何もしない（SQLite ではスキップ）
     if schema_editor.connection.vendor != "postgresql":
@@ -20,26 +21,25 @@ def fix_location_and_index(apps, schema_editor):
             """
         )
         row = cur.fetchone()
-        data_type = (row[0].lower() if row and row[0] else None)
-        udt_name  = (row[1].lower() if row and row[1] else None)
+        data_type = row[0].lower() if row and row[0] else None
+        udt_name = row[1].lower() if row and row[1] else None
         # bytea → geometry(Point,4326) に作り直し
         if data_type == "bytea":
             cur.execute('ALTER TABLE public.temples_shrine DROP COLUMN "location";')
             cur.execute(
-                'ALTER TABLE public.temples_shrine '
-                'ADD COLUMN "location" geometry(Point,4326);'
+                "ALTER TABLE public.temples_shrine " 'ADD COLUMN "location" geometry(Point,4326);'
             )
         # そもそも列が無ければ追加
         elif row is None:
             cur.execute(
-                'ALTER TABLE public.temples_shrine '
-                'ADD COLUMN "location" geometry(Point,4326);'
+                "ALTER TABLE public.temples_shrine " 'ADD COLUMN "location" geometry(Point,4326);'
             )
         # geometry(=udt_name='geometry') なら何もしない
 
     # GiST index を Django API で作成（USING GIST の生SQLは使わない）
     try:
         from django.contrib.postgres.indexes import GistIndex
+
         Shrine = apps.get_model("temples", "Shrine")
 
         # 既存確認
@@ -63,6 +63,7 @@ def drop_index_reverse(apps, schema_editor):
         return
     with schema_editor.connection.cursor() as cur:
         cur.execute("DROP INDEX IF EXISTS public.%s;" % INDEX_NAME)
+
 
 class Migration(migrations.Migration):
     dependencies = [("temples", "0032_shrine_location_alter_shrine_latitude_and_more")]

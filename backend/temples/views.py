@@ -4,14 +4,11 @@ from __future__ import annotations
 import math
 import os
 from math import cos, radians
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point, Polygon
-from django.contrib.gis.measure import D
 from django.db import models
 from django.db.models import Count, F, FloatField, Value
 from django.db.models.functions import Abs, Coalesce
@@ -32,13 +29,19 @@ from .route_service import Point as RoutePoint
 from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
 
-USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(getattr(settings, "DISABLE_GIS_FOR_TESTS", False))
-if USE_REAL_GIS:
-    from django.contrib.gis.db.models.functions import Distance
-    from django.contrib.gis.geos import Point, Polygon
-    from django.contrib.gis.measure import D
-else:
-    Distance = Point = Polygon = D = None
+# GeoDjangoシンボルは別名に一本化（mypy競合回避）
+try:
+    from django.contrib.gis.db.models.functions import Distance as GeoFuncDistance
+    from django.contrib.gis.geos import Point as GeoPoint
+    from django.contrib.gis.geos import Polygon as GeoPolygon
+    from django.contrib.gis.measure import D as GeoD
+except Exception:
+    GeoFuncDistance = cast(Any, None)
+    GeoPoint = cast(Any, None)
+    GeoPolygon = cast(Any, None)
+    GeoD = cast(Any, None)
+
+
 # -----------------------------
 # Popular（モバイルHome用・クラス版）
 # -----------------------------
@@ -197,9 +200,9 @@ class ShrineViewSet(ReadOnlyModelViewSet):
         r_km = qp.get("radius_km")
         if lat and lng and r_km:
             try:
-                p = Point(float(lng), float(lat), srid=4326)
-                qs = qs.filter(location__distance_lte=(p, D(km=float(r_km))))
-                qs = qs.annotate(d=Distance("location", p)).order_by("d")
+                p = GeoPoint(float(lng), float(lat), srid=4326)
+                qs = qs.filter(location__distance_lte=(p, GeoD(km=float(r_km))))
+                qs = qs.annotate(d=GeoFuncDistance("location", p)).order_by("d")
             except ValueError:
                 pass  # パラメータ不正は無視
 
@@ -210,7 +213,7 @@ class ShrineViewSet(ReadOnlyModelViewSet):
         max_lat = qp.get("max_lat")
         if all([min_lng, min_lat, max_lng, max_lat]):
             try:
-                bbox = Polygon.from_bbox(
+                bbox = GeoPolygon.from_bbox(
                     (float(min_lng), float(min_lat), float(max_lng), float(max_lat))
                 )
                 bbox.srid = 4326

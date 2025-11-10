@@ -3,6 +3,7 @@ import pytest
 from temples.models import Shrine
 from temples.queries import nearest_shrines
 
+
 @pytest.mark.django_db
 def test_nearest_with_radius_filters():
     # 基点(135.0000, 35.0000) から ≈2km 東にずらすと 1km 半径から外れる
