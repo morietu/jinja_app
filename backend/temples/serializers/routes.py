@@ -31,7 +31,9 @@ class ShrineListSerializer(serializers.ModelSerializer):
         loc = getattr(obj, "location", None)
         try:
             # GEOS Point なら x=lon, y=lat
-            from django.contrib.gis.geos import Point
+            from django.contrib.gis.geos import Point  # 実GISのみ
+        except Exception:
+            Point = None
             if isinstance(loc, Point):
                 return {"type": "Point", "coordinates": [loc.x, loc.y]}
         except Exception:

@@ -32,7 +32,13 @@ from .route_service import Point as RoutePoint
 from .route_service import build_route
 from .serializers import RouteRequestSerializer, ShrineSerializer
 
-
+USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(getattr(settings, "DISABLE_GIS_FOR_TESTS", False))
+if USE_REAL_GIS:
+    from django.contrib.gis.db.models.functions import Distance
+    from django.contrib.gis.geos import Point, Polygon
+    from django.contrib.gis.measure import D
+else:
+    Distance = Point = Polygon = D = None
 # -----------------------------
 # Popular（モバイルHome用・クラス版）
 # -----------------------------
