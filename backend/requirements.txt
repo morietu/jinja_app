@@ -22,3 +22,5 @@ django-stubs
 django-environ==0.12.0
 django-environ==0.12.0
 pyyaml>=6.0.2
+drf-spectacular
+drf-spectacular

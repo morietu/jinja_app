@@ -1,5 +1,8 @@
 name: web-tests
-
+permissions:
+  contents: read
+permissions:
+  contents: read
 on:
   push:
     paths: ["apps/web/**", ".github/workflows/web-tests.yml"]

@@ -112,3 +112,35 @@ lint:
 fmt:
 	ruff check --fix .
 	black .
+
+
+export PYTHONPATH=backend
+export DJANGO_SETTINGS_MODULE=shrine_project.settings
+
+migrate:
+	python -m django migrate
+
+
+DB_NAME ?= jinja_db
+DB_USER ?= admin
+DB_HOST ?= 127.0.0.1
+DB_PORT ?= 5432
+
+db-create:
+	psql -h $(DB_HOST) -U $(DB_USER) -tc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" | grep -q 1 || \
+	psql -h $(DB_HOST) -U $(DB_USER) -c "CREATE DATABASE $(DB_NAME)"
+
+migrate: db-create
+	python -m django migrate
+
+env-nogis:
+	@unset DATABASE_URL; \
+	export USE_GIS=0 DISABLE_GIS_FOR_TESTS=1 PYTHONPATH=backend DJANGO_SETTINGS_MODULE=shrine_project.settings; \
+	python -m django check
+
+db-drop-test:
+	psql -h 127.0.0.1 -U admin -d postgres -c "DROP DATABASE IF EXISTS test_jinja_db;"
+
+test-nogis: db-drop-test
+	USE_GIS=0 DISABLE_GIS_FOR_TESTS=1 PYTHONPATH=backend DJANGO_SETTINGS_MODULE=shrine_project.settings \
+	pytest -q

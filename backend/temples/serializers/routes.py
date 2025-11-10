@@ -3,13 +3,44 @@
 from typing import List
 
 from rest_framework import serializers
+from django.conf import settings
+
 from temples.api.serializers.shrine import ShrineSerializer
 from temples.models import Favorite, Goshuin, Shrine
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
 # ShrineSerializer は既存（temples.api.serializers.shrine）を利用
 
+class ShrineListSerializer(serializers.ModelSerializer):
+    location = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Shrine
+        fields = (
+            "id", "name_jp", "address",
+            "latitude", "longitude",
+            "location",  # ← JSON化安全な形式で返す
+            # ...他フィールド
+        )
+
+    def get_location(self, obj):
+        # 1) 明示的に lon/lat があれば、それを優先
+        if obj.longitude is not None and obj.latitude is not None:
+            return {"type": "Point", "coordinates": [obj.longitude, obj.latitude]}
+        # 2) 万一、obj.location に GEOS Point が入ってきても、ここで吸収
+        loc = getattr(obj, "location", None)
+        try:
+            # GEOS Point なら x=lon, y=lat
+            from django.contrib.gis.geos import Point  # 実GISのみ
+        except Exception:
+            Point = None
+            if isinstance(loc, Point):
+                return {"type": "Point", "coordinates": [loc.x, loc.y]}
+        except Exception:
+            pass
+        # 3) 文字列やNoneなどはそのまま/Noneにフォールバック
+        return None
+    
 class FavoriteSerializer(serializers.ModelSerializer):
     shrine = ShrineSerializer(read_only=True)
     shrine_id = serializers.PrimaryKeyRelatedField(
@@ -116,3 +147,12 @@ class GoshuinSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         url = img.image.url
         return request.build_absolute_uri(url) if request else url
+
+
+class LocationMixin(serializers.Serializer):
+    location = serializers.SerializerMethodField()
+
+    def get_location(self, obj):
+        if getattr(obj, "latitude", None) is None or getattr(obj, "longitude", None) is None:
+            return None
+        return {"lat": float(obj.latitude), "lng": float(obj.longitude)}

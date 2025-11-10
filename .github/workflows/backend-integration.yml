@@ -1,4 +1,8 @@
 name: backend-integration
+permissions:
+  contents: read
+permissions:
+  contents: read
 on:
   push:
     branches: [ develop ]

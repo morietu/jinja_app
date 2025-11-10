@@ -157,6 +157,15 @@ class VisitSerializer(serializers.ModelSerializer):
         model = Visit
         fields = ["id", "shrine", "visited_at", "note", "status"]
 
+class LocationAsLatLngMixin(serializers.Serializer):
+    location = serializers.SerializerMethodField()
+
+    def get_location(self, obj):
+        # 位置が無ければ None
+        if getattr(obj, "latitude", None) is None or getattr(obj, "longitude", None) is None:
+            return None
+        # Point/str に依存せず lat/lng を返す
+        return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
 
 __all__ = [
     "ShrineSerializer",

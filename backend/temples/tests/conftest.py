@@ -4,13 +4,18 @@ import json
 import os
 import re
 from decimal import Decimal
-
+from pathlib import Path
 import pytest
 import responses as httpmock
 from django.db import connection
 from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
+from django.conf import settings
 
+# NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときだけ、NoGIS用マイグレーションを厳密チェック
+if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
+    assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", \
+        f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
 
 def _has_postgis():
     try:
@@ -26,6 +31,17 @@ def pytest_runtest_setup(item):
     if "postgis" in item.keywords and not _has_postgis():
         pytest.skip("PostGIS is not available in this environment.")
 
+from pathlib import Path
+def pytest_ignore_collect(collection_path: Path, config):
+    """
+    NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときは、
+    test_gis_* ファイルをモジュール import 前に収集対象から外す。
+    """
+    if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
+        name = collection_path.name  # e.g. test_gis_smoke.py
+        if name.startswith("test_gis_") and name.endswith(".py"):
+            return True
+    return False
 
 # ---- ネットワーク遮断（CIのみ・localhostだけ通す）----
 @pytest.fixture(autouse=True, scope="session")

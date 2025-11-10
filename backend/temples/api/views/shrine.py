@@ -2,8 +2,8 @@
 import math
 from datetime import timedelta
 
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
+
+
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -24,6 +24,29 @@ from temples.api.serializers.shrine import (
     ShrineListSerializer,
 )
 from temples.models import GoriyakuTag, Shrine
+
+from django.conf import settings
+from rest_framework.views import APIView
+
+from temples.queries import nearest_queryset  # ← NoGIS/GIS両対応の自前実装
+from temples.api.serializers.shrine import ShrineListSerializer
+
+USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
+    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
+)
+
+class NearestShrinesAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            lon = float(request.query_params.get("lon"))
+            lat = float(request.query_params.get("lat"))
+        except (TypeError, ValueError):
+            return Response({"detail": "lon/lat を数値で指定してください。"}, status=400)
+
+        limit = int(request.query_params.get("limit", 20))
+        qs = nearest_queryset(lon, lat)[:limit]  # ← 距離計算は temples.queries に集約
+        data = ShrineListSerializer(qs, many=True).data
+        return Response(data)
 
 
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
@@ -152,11 +175,8 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             limit = 10
         limit = max(1, min(limit, 50))
 
-        origin = Point(lng, lat, srid=4326)
-
-        qs = Shrine.objects.exclude(location__isnull=True).annotate(
-            distance=Distance("location", origin)
-        )
+        # 近傍は queries に集約（内部で GIS/NoGIS を切替）
+        qs = nearest_queryset(lng, lat)
 
         # kind（既定 shrine）
         kind = (params.get("kind") or "shrine").lower()
@@ -211,7 +231,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                     qd |= term_q(dv)
                 qs = qs.filter(qd)
 
-        qs = annotate_is_favorite(qs, request).order_by("distance")[:limit]
+        qs = annotate_is_favorite(qs, request)[:limit]
         data = ShrineListSerializer(qs, many=True, context={"request": request}).data
         return Response(data)
 
