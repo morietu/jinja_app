@@ -67,8 +67,9 @@ def nearest_queryset(lon: float, lat: float):
     return Shrine.objects.none()
 
 
-def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
+def nearest_shrines(*, lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """
+<<<<<<< HEAD
     近傍神社を距離順で返す（位置引数API）。
     - PostGIS/NoGIS では DB 注釈（d_m 優先）でフィルタ/並び替え
     - SQLite 等では Python フォールバック
@@ -77,13 +78,54 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     base_qs = nearest_queryset(lon, lat)
     if base_qs.exists():
         qs = base_qs
+=======
+    近傍神社を距離順で返す。
+    - PostGIS: ST_DWithin + KNN(<->) + ST_DistanceSphere
+    - NoGIS(PostgreSQL): ハバースイン距離で annotate→filter→order
+    - SQLite 等: Python 側で距離計算
+    """
+    if _use_real_gis():
+        point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
+        point_params = (lon, lat)
+        qs = Shrine.objects.filter(location__isnull=False)
+
+        if radius_m is not None:
+            qs = qs.extra(
+                where=[f"ST_DWithin(location::geography, {point_sql}::geography, %s)"],
+                params=point_params + (float(radius_m),),
+            )
+
+        qs = qs.annotate(
+            _knn=RawSQL(f"location <-> {point_sql}", point_params),
+            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+        ).order_by("_knn", "distance_m")
+        return qs[:limit]
+
+    if connection.vendor == "postgresql":
+        haversine_sql = f"""
+            {2*EARTH_RADIUS_M} * ASIN(
+                SQRT(
+                    POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
+                    COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
+                    POWER(SIN(RADIANS((longitude - %s)/2)), 2)
+                )
+            )
+        """
+        qs = Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False).annotate(
+            d_m=RawSQL(haversine_sql, params=[lat, lat, lon])
+        )
+>>>>>>> ee211f18 (fix(queries): restore nearest_queryset; export via __all__)
         if radius_m is not None:
             qs = qs.filter(d_m__lte=float(radius_m))
         return qs.order_by(
             "_knn" if "_knn" in [f.name for f in qs.model._meta.get_fields()] else "d_m", "d_m"
         )[:limit]
 
+<<<<<<< HEAD
     # --- SQLite 等: Python フォールバック ---
+=======
+    # SQLite フォールバック（Python計算）
+>>>>>>> ee211f18 (fix(queries): restore nearest_queryset; export via __all__)
     base_qs = Shrine.objects.filter(location__isnull=False)
 
     def haversine_m(lon1, lat1, lon2, lat2):
