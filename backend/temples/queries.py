@@ -12,60 +12,23 @@ from .models import Shrine
 EARTH_RADIUS_M = 6371000.0
 
 
+
+
 def _use_real_gis() -> bool:
     return bool(getattr(settings, "USE_GIS", False)) and not bool(
         getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
     )
 
-
-def nearest_queryset(lon: float, lat: float):
-    """
-    PostGIS あり: KNN / ST_DistanceSphere
-    PostGIS なし: ハバースイン式で距離注釈して order_by(distance_m)
-    """
-    use_real_gis = _use_real_gis()
-    qs = Shrine.objects.all()
-
-    if use_real_gis:
-        point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
-        point_params = [lon, lat]
-        return (
-            qs.filter(location__isnull=False)
-            .annotate(
-                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-                d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-                _knn=RawSQL(f"location <-> {point_sql}", point_params),
-            )
-            .order_by("_knn", "distance_m")
-        )
-
-    # --- NoGIS: lat/lng から距離計算（DB側, PostgreSQL 前提） ---
-    haversine_sql = f"""
-        {2*EARTH_RADIUS_M} * ASIN(
-            SQRT(
-                POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
-                COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
-                POWER(SIN(RADIANS((longitude - %s)/2)), 2)
-            )
-        )
-    """
-    return (
-        qs.filter(latitude__isnull=False, longitude__isnull=False)
-        .annotate(
-            distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]),
-            d_m=RawSQL(haversine_sql, params=[lat, lat, lon]),
-        )
-        .order_by("distance_m")
-    )
+__all__ = ["nearest_queryset", "nearest_shrines"]
 
 
-def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
+def nearest_shrines(*, lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """
     近傍神社を距離順で返す。
 
-    - PostGIS あり: ST_DWithin + KNN/DistanceSphere
-    - PostGIS なし(=NoGIS PostgreSQL): ハバースイン式を RawSQL で annotate→filter→order
-    - SQLite など: 距離を Python 側で計算するフォールバック
+    - PostGIS あり: ST_DWithin + KNN(<->) + ST_DistanceSphere
+    - PostGIS なし(PostgreSQL): ハバースイン距離で annotate→filter→order
+    - SQLite 等: Python 側で距離計算
     """
     use_real_gis = _use_real_gis()
 
@@ -73,20 +36,22 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     if use_real_gis:
         point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
         point_params = (lon, lat)
+
         qs = Shrine.objects.filter(location__isnull=False)
 
         if radius_m is not None:
             qs = qs.extra(
                 where=[f"ST_DWithin(location::geography, {point_sql}::geography, %s)"],
-                params=point_params + (radius_m,),
+                params=point_params + (float(radius_m),),
             )
 
-        qs = qs.annotate(
-            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-            d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-            _knn=RawSQL(f"location <-> {point_sql}", point_params),
-        ).order_by("_knn", "d_m")
-
+        qs = (
+            qs.annotate(
+                _knn=RawSQL(f"location <-> {point_sql}", point_params),
+                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+            )
+            .order_by("_knn", "distance_m")
+        )
         return qs[:limit]
 
     # ---------- NoGIS: PostgreSQL ----------
@@ -100,15 +65,14 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
                 )
             )
         """
-        qs = (
-            Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False)
-            .annotate(d_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
+        qs = Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False).annotate(
+            d_m=RawSQL(haversine_sql, params=[lat, lat, lon])
         )
         if radius_m is not None:
             qs = qs.filter(d_m__lte=float(radius_m))
         return qs.order_by("d_m")[:limit]
 
-    # ---------- SQLite 等のフォールバック（Python 側計算） ----------
+    # ---------- SQLite 等: Python フォールバック ----------
     base_qs = Shrine.objects.filter(location__isnull=False)
 
     def haversine_m(lon1, lat1, lon2, lat2):
@@ -127,8 +91,6 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         if not lonlat:
             continue
         obj_lon, obj_lat = lonlat
-        if obj_lon is None or obj_lat is None:
-            continue
         d = haversine_m(lon, lat, obj_lon, obj_lat)
         if radius_m is not None and d > float(radius_m):
             continue
@@ -143,10 +105,9 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     when_order = [When(id=pk, then=Value(i)) for i, pk in enumerate(ids_ordered)]
     when_dist = [When(id=pk, then=Value(dist)) for pk, dist in distances]
 
-    qs = (
+    return (
         Shrine.objects.filter(id__in=ids_ordered)
         .annotate(ordering=Case(*when_order, output_field=IntegerField()))
-        .annotate(d_m=Case(*when_dist, output_field=FloatField()))
+        .annotate(distance_m=Case(*when_dist, output_field=FloatField()))
         .order_by("ordering")
     )
-    return qs
