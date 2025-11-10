@@ -1,4 +1,6 @@
 name: CI
+permissions:
+  contents: read
 on:
   push:
   pull_request:
@@ -10,13 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- NoGIS: Postgres（GDAL/GEOS不要） ---
           - name: nogis
             pgimage: postgres:16
             pgport: 5432
             use_gis: "0"
             disable_gis_for_tests: "1"
-          # --- GIS: PostGIS + GDAL/GEOS あり ---
           - name: postgis
             pgimage: postgis/postgis:16-3.4
             pgport: 5433
@@ -32,7 +32,6 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: jinja_db
-        # 外部（ホスト）: matrix.pgport → 内部（コンテナ）: 5432 固定
         ports:
           - "${{ matrix.pgport }}:5432"
         options: >-
@@ -66,6 +65,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
+
+      # ← ここに移動（GDAL導入直後）
+      - name: Export GDAL path (GIS only)
+        if: matrix.use_gis == '1'
+        run: echo "GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so" >> $GITHUB_ENV
 
       - name: Install Python deps (base)
         working-directory: backend
@@ -102,7 +106,3 @@ jobs:
           python --version || true
           pip --version || true
           pip freeze | sort || true
-
-      - name: Export GDAL path (GIS only)
-        if: matrix.use_gis == '1'
-        run: echo "GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so" >> $GITHUB_ENV
