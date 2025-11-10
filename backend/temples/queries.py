@@ -80,26 +80,25 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         qs = base_qs
 =======
     近傍神社を距離順で返す。
-    - PostGIS: ST_DWithin + KNN(<->) + ST_DistanceSphere
-    - NoGIS(PostgreSQL): ハバースイン距離で annotate→filter→order
+    - PostGIS: KNN(<->) + ST_DistanceSphere を d_m として注釈し、d_m で絞り込み/並び替え
+    - NoGIS(PostgreSQL): ハバースイン距離を d_m として注釈し、d_m で絞り込み/並び替え
     - SQLite 等: Python 側で距離計算
     """
+    # ---------- PostGIS あり ----------
     if _use_real_gis():
         point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
         point_params = (lon, lat)
-        qs = Shrine.objects.filter(location__isnull=False)
+
+        qs = Shrine.objects.filter(location__isnull=False).annotate(
+            _knn=RawSQL(f"location <-> {point_sql}", point_params),
+            d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+        )
 
         if radius_m is not None:
-            qs = qs.extra(
-                where=[f"ST_DWithin(location::geography, {point_sql}::geography, %s)"],
-                params=point_params + (float(radius_m),),
-            )
+            qs = qs.filter(d_m__lte=float(radius_m))
 
-        qs = qs.annotate(
-            _knn=RawSQL(f"location <-> {point_sql}", point_params),
-            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-        ).order_by("_knn", "distance_m")
-        return qs[:limit]
+        return qs.order_by("_knn", "d_m")[:limit]
 
     if connection.vendor == "postgresql":
         haversine_sql = f"""
