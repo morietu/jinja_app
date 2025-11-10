@@ -105,7 +105,7 @@ def _extract_markdown_list(text: str):
         m = re.match(r"^(?:[-*+]|\d+[\).])\s*\*\*(.+?)\*\*\s*(.+)?$", s)
         if m:
             name = (m.group(1) or "").strip()
-            reason = (m.group(2) or "").strip(" ・-—:　")
+            reason = (m.group(2) or "").strip(" ・-—:\u3000")
             if name:
                 items.append({"name": name, "reason": reason})
     # タイトル行→次行が理由 の簡易対応

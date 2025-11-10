@@ -89,7 +89,7 @@ jobs:
       except Exception as e:
           print("temples NG:", repr(e))
       PY
-      
+
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend

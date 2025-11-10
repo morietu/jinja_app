@@ -1,9 +1,8 @@
-# backend/temples/api/views/__init__.py
-from .concierge import ConciergeChatView
-from .shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
+from .concierge import ConciergeChatView, chat
+from .ranking import RankingAPIView
+from .shrine import NearestShrinesAPIView, ShrineViewSet
 
-# 既存URLの互換参照（関数ビューとして公開）
-chat = ConciergeChatView.as_view()
+# 旧名の互換（レガシー）
 chat_legacy = chat
 
 __all__ = [

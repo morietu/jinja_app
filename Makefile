@@ -62,7 +62,7 @@ spectacular:
 	GOOGLE_PLACES_API_KEY=$${GOOGLE_PLACES_API_KEY:-dummy} \
 	GOOGLE_MAPS_API_KEY=$${GOOGLE_MAPS_API_KEY:-dummy} \
 	PYTHONPATH=$(PYTHONPATH) $(PY) backend/manage.py spectacular --file api_schema.yaml
-	
+
 
 test-with-schema: spectacular test
 
