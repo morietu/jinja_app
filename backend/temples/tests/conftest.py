@@ -12,10 +12,10 @@ from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
 from django.conf import settings
 
-assert os.getenv("DISABLE_GIS_FOR_TESTS") == "1", "tests must run with DISABLE_GIS_FOR_TESTS=1"
-assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", \
-    f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
-
+# NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のときだけ、NoGIS用マイグレーションを厳密チェック
+if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
+    assert settings.MIGRATION_MODULES.get("temples") == "temples.migrations_nogis", \
+        f"wrong migration module: {settings.MIGRATION_MODULES.get('temples')}"
 
 def _has_postgis():
     try:
@@ -31,6 +31,18 @@ def pytest_runtest_setup(item):
     if "postgis" in item.keywords and not _has_postgis():
         pytest.skip("PostGIS is not available in this environment.")
 
+def pytest_collection_modifyitems(config, items):
+    """
+    NoGISジョブ（DISABLE_GIS_FOR_TESTS=1）のとき、
+    GIS系テスト（ファイル名に 'test_gis_' を含む）を収集段階でskip。
+    将来的には @pytest.mark.gis での切り分けに移行予定。
+    """
+    if os.getenv("DISABLE_GIS_FOR_TESTS") == "1":
+        skip_gis = pytest.mark.skip(reason="GIS tests disabled on NoGIS CI job")
+        for item in items:
+            # ファイル名・nodeidで軽量判定（例：temples/tests/test_gis_*.py）
+            if "test_gis_" in item.nodeid:
+                item.add_marker(skip_gis)
 
 # ---- ネットワーク遮断（CIのみ・localhostだけ通す）----
 @pytest.fixture(autouse=True, scope="session")
