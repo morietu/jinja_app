@@ -2,15 +2,15 @@
 from django.http import Http404, HttpResponsePermanentRedirect
 from django.urls import include, path
 
-from drf_spectacular.utils import extend_schema
+
 from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
 from temples.api.views.route import RouteAPIView, RouteView
 from temples.api.views.shrine import NearestShrinesAPIView, RankingAPIView
 
-from temples.api.views.shrine import NearestShrinesAPIView, RankingAPIView
 
+from drf_spectacular.utils import extend_schema
 
 
 
@@ -35,10 +35,7 @@ from temples.api.views.search import (
     text_search,
     text_search_legacy,
 )
-<<<<<<< HEAD
-=======
-from temples.api.views.shrine import RankingAPIView, NearestShrinesAPIView
->>>>>>> 7242cd21 (fix(api): nearby endpoint via temples.api.urls; add re-exports + legacy shim)
+
 
 from .views.concierge_history import ConciergeHistoryView
 from .views.shrine import ShrineViewSet
@@ -111,10 +108,7 @@ urlpatterns = [
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
-<<<<<<< HEAD
-=======
 
->>>>>>> 7242cd21 (fix(api): nearby endpoint via temples.api.urls; add re-exports + legacy shim)
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
