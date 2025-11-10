@@ -87,8 +87,10 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
             qs.annotate(
                 _knn=RawSQL(f"location <-> {point_sql}", point_params),
                 distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                # テスト互換のため d_m も付与（NoGIS分岐と同名）
+                d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
             )
-            .order_by("_knn", "distance_m")
+            .order_by("_knn", "d_m")
         )
         return qs[:limit]
 
