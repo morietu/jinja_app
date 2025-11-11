@@ -192,11 +192,10 @@ if engine.endswith("sqlite3"):
     # どちらか一方でOK
     DATABASES["default"].pop("OPTIONS", None)
 # ---- NoGIS固定（テスト/CIで使う）: DB決定後に一度だけ適用 ----
-if DISABLE_GIS_FOR_TESTS:
+if DISABLE_GIS_FOR_TESTS and not USE_SQLITE:
     USE_GIS = False
     # DBエンジンは通常のPostgreSQLへ（PostGISを外す）
     DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
-    # temples は NoGIS 用のマイグレーションツリーへ差し替え
     MIGRATION_MODULES = {**globals().get("MIGRATION_MODULES", {})}
     MIGRATION_MODULES["temples"] = "temples.migrations_nogis"
 
