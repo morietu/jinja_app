@@ -93,7 +93,7 @@ jobs:
         run: |
           python -V
           python -c "import django,sys;print('django', django.get_version());print(sys.version)"
-          python -m pytest -vv -ra --maxfail=1 --durations=10 -p pytest_django -p pytest_env
+          python -m pytest
 
   integration:
     if: ${{ inputs.mode == 'integration' }}
@@ -202,15 +202,16 @@ jobs:
       - name: GIS smoke (no Django, no project pytest.ini)
         run: |
           USE_GIS=1 USE_SQLITE=0 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
-          pytest -q -c /dev/null smoke_gis/test_gis_runtime.py
-
+          pytest -q --rootdir smoke_gis --confcutdir smoke_gis \
+                -c /dev/null -p no:django -p no:pytest_django \
+                smoke_gis/test_gis_runtime.py
       - name: Run pytest (integration, postgis)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           python -V
           python -c "import django,sys;print('django', django.get_version());print(sys.version)"
-          python -m pytest -vv -ra --maxfail=1 --durations=10 -p pytest_django -p pytest_env
+          python -m pytest --cache-clear
 
       - name: Show DB container logs (always)
         if: always()
