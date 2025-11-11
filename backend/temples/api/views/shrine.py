@@ -5,19 +5,10 @@ from datetime import timedelta
 from typing import List, Tuple
 
 from django.conf import settings
-from django.db import connection
 from django.db.models import (
-    Case,
-    Count,
-    ExpressionWrapper,
-    F,
-    FloatField,
-    IntegerField,
-    Q,
-    Value,
-    When,
+    Case, Count, ExpressionWrapper, F, FloatField, IntegerField,
+    Q, Value, When
 )
-from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -28,25 +19,22 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-# 既にあればスキップ
+# serializer / model
 from temples.api.serializers.shrine import ShrineDetailSerializer, ShrineListSerializer
-from temples.geo_utils import to_lon_lat
 from temples.models import Shrine
 
-try:
-    from temples.api.utils import annotate_is_favorite
-except Exception:
-
-    def annotate_is_favorite(qs, request):
-        return qs
-
+# 近傍クエリ（常に temples.queries を経由）
+from temples.queries import (
+    nearest_queryset as q_nearest_queryset,
+    nearest_shrines as q_nearest_shrines,
+)
 
 EARTH_RADIUS_M = 6371000.0
 
+# is_favorite 注釈はあれば使う
 try:
     from temples.api.utils import annotate_is_favorite
 except Exception:
-
     def annotate_is_favorite(qs, request):
         return qs
 
@@ -57,142 +45,13 @@ def _use_real_gis() -> bool:
     )
 
 
-__all__ = ["nearest_queryset", "nearest_shrines"]
-
-
-def nearest_queryset(lon: float, lat: float):
-    """
-    近傍の距離を注釈して距離昇順で返す QuerySet（スライスや半径フィルタはしない）
-    - PostGIS: KNN + ST_DistanceSphere
-    - NoGIS(PostgreSQL): ハバースイン式で注釈
-    - それ以外(SQLite等): 空
-    """
-    qs = Shrine.objects.all()
-
-    if _use_real_gis():
-        point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
-        point_params = [lon, lat]
-        return (
-            qs.filter(location__isnull=False)
-            .annotate(
-                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-                _knn=RawSQL(f"location <-> {point_sql}", point_params),
-            )
-            .order_by("_knn", "distance_m")
-        )
-
-    if connection.vendor == "postgresql":
-        haversine_sql = f"""
-            {2*EARTH_RADIUS_M} * ASIN(
-                SQRT(
-                    POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
-                    COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
-                    POWER(SIN(RADIANS((longitude - %s)/2)), 2)
-                )
-            )
-        """
-        return (
-            qs.filter(latitude__isnull=False, longitude__isnull=False)
-            .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
-            .order_by("distance_m")
-        )
-
-    return Shrine.objects.none()
-
-
-def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
-    """
-    近傍神社を距離順で返す。
-    - PostGIS: KNN(<->) + ST_DistanceSphere を d_m として注釈し、d_m で絞り込み/並び替え
-    - NoGIS(PostgreSQL): ハバースイン距離を d_m として注釈し、d_m で絞り込み/並び替え
-    - SQLite 等: Python 側で距離計算
-    """
-    # ---------- PostGIS あり ----------
-    if _use_real_gis():
-        point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
-        point_params = (lon, lat)
-
-        qs = Shrine.objects.filter(location__isnull=False).annotate(
-            _knn=RawSQL(f"location <-> {point_sql}", point_params),
-            # テスト互換：d_m を主要距離にし、distance_m も互換用に保持
-            d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-            distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
-        )
-
-        if radius_m is not None:
-            qs = qs.filter(d_m__lte=float(radius_m))
-
-        return qs.order_by("_knn", "d_m")[:limit]
-
-    # ---------- NoGIS: PostgreSQL ----------
-    if connection.vendor == "postgresql":
-        haversine_sql = f"""
-            {2*EARTH_RADIUS_M} * ASIN(
-                SQRT(
-                    POWER(SIN(RADIANS((latitude - %s)/2)), 2) +
-                    COS(RADIANS(latitude)) * COS(RADIANS(%s)) *
-                    POWER(SIN(RADIANS((longitude - %s)/2)), 2)
-                )
-            )
-        """
-        qs = Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False).annotate(
-            d_m=RawSQL(haversine_sql, params=[lat, lat, lon])
-        )
-        if radius_m is not None:
-            qs = qs.filter(d_m__lte=float(radius_m))
-        return qs.order_by("d_m")[:limit]
-
-    # ---------- SQLite 等: Python フォールバック ----------
-    base_qs = Shrine.objects.filter(location__isnull=False)
-
-    def haversine_m(lon1, lat1, lon2, lat2):
-        R = EARTH_RADIUS_M
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        dphi = math.radians(lat2 - lat1)
-        dlambda = math.radians(lon2 - lon1)
-        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return R * c
-
-    distances: List[Tuple[int, float]] = []
-    for obj in base_qs:
-        lonlat = to_lon_lat(obj.location)
-        if not lonlat:
-            continue
-        obj_lon, obj_lat = lonlat
-        d = haversine_m(lon, lat, obj_lon, obj_lat)
-        if radius_m is not None and d > float(radius_m):
-            continue
-        distances.append((obj.id, d))
-
-    distances.sort(key=lambda t: t[1])
-    distances = distances[:limit]
-    if not distances:
-        return base_qs.none()
-
-    ids_ordered = [pk for pk, _ in distances]
-    when_order = [When(id=pk, then=Value(i)) for i, pk in enumerate(ids_ordered)]
-    when_dist = [When(id=pk, then=Value(dist)) for pk, dist in distances]
-
-    return (
-        Shrine.objects.filter(id__in=ids_ordered)
-        .annotate(ordering=Case(*when_order, output_field=IntegerField()))
-        .annotate(distance_m=Case(*when_dist, output_field=FloatField()))
-        .order_by("ordering")
-    )
-
-
-# ---- Backward-compat: APIView shim for legacy route ----
-
-
+# ---- Legacy shim: /api/shrines/nearest/ を JSON 配列で返す ----
 class NearestShrinesAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         q = request.query_params
-
-        # lat / lng(lon) の取得と検証
+        # 1) 必須: lat/lng
         lat_raw = q.get("lat") or q.get("latitude")
         lng_raw = q.get("lng") or q.get("lon") or q.get("longitude")
         if lat_raw is None or lng_raw is None:
@@ -203,43 +62,36 @@ class NearestShrinesAPIView(APIView):
         except ValueError:
             return Response({"detail": "lat/lng must be float."}, status=400)
 
-        # 任意パラメータ
-        radius_raw = q.get("radius")
+        # 2) limit / radius
         limit_raw = q.get("limit")
-        try:
-            radius_m = int(radius_raw) if radius_raw is not None else None
-        except ValueError:
-            return Response({"detail": "radius must be int (meters)."}, status=400)
         try:
             limit = int(limit_raw) if limit_raw is not None else 20
         except ValueError:
             return Response({"detail": "limit must be int."}, status=400)
-        if limit <= 0:  # ガード
+        radius_raw = q.get("radius")
+        try:
+            radius_m = int(radius_raw) if radius_raw is not None else None
+        except ValueError:
+            return Response({"detail": "radius must be int (meters)."}, status=400)
+
+
+        if limit <= 0:
             limit = 1
         if limit > 100:
             limit = 100
         if radius_m is not None and radius_m <= 0:
             return Response({"detail": "radius must be > 0."}, status=400)
 
-        # クエリ実行（queries に集約）
-        from temples.queries import nearest_shrines
-
-        qs = nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
-
-        # 既存テスト互換：distance_m または d_m を数値で返す
-        results = []
-        for s in qs:
-            dist = getattr(s, "distance_m", getattr(s, "d_m", None))
-            if dist is not None:
-                try:
-                    dist = int(dist)
-                except Exception:
-                    pass
-            results.append({"id": s.id, "name_jp": getattr(s, "name_jp", None), "distance_m": dist})
-
-        return Response({"results": results}, status=status.HTTP_200_OK)
+        # 3) 取得（JSON配列で返す）
+        if radius_m is not None:
+            qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
+        else:
+            qs = q_nearest_queryset(lon=lng, lat=lat)[:limit]
+        data = ShrineListSerializer(qs, many=True, context={"request": request}).data
+        return Response(data, status=status.HTTP_200_OK) 
 
 
+# ---- ランキング API ----
 class RankingAPIView(ListAPIView):
     serializer_class = ShrineListSerializer
     permission_classes = [AllowAny]
@@ -259,7 +111,7 @@ class RankingAPIView(ListAPIView):
         elif kind != "all":
             qs = qs.filter(kind="shrine")
 
-        # BBOX（near=LAT,LNG & radius_km=R）— 軽量BBOX
+        # 簡易BBOX（near=LAT,LNG & radius_km=R）
         near = params.get("near")
         radius_km = params.get("radius_km")
         if near and radius_km:
@@ -307,6 +159,7 @@ class RankingAPIView(ListAPIView):
         return Response({"items": data})
 
 
+# ---- ShrineViewSet ----
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Shrine.objects.all().prefetch_related("goriyaku_tags", "deities")
     permission_classes = [permissions.AllowAny]
@@ -320,11 +173,15 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = self.queryset
         params = self.request.query_params
+
+        # kind
         kind = (params.get("kind") or "shrine").lower()
         if kind in ("shrine", "temple"):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
+
+        # フリーテキスト
         q = params.get("q")
         if q:
             qs = qs.filter(
@@ -334,16 +191,24 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(goriyaku__icontains=q)
                 | Q(goriyaku_tags__name__icontains=q)
             )
+
+        # name フィルタ
         name = params.get("name")
         if name:
             qs = qs.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
+
+        # タグ類
         for key in ("goriyaku", "shinkaku", "region"):
             vals = params.getlist(key)
             if vals:
                 qs = qs.filter(goriyaku_tags__name__in=vals)
+
+        # 九星
         ky_vals = [v for v in params.getlist("kyusei") if v]
         if ky_vals:
             qs = qs.filter(kyusei__in=ky_vals)
+
+        # deity（OR/AND）
         deity_vals = [v for v in params.getlist("deity") if v]
         if deity_vals:
             mode_and = params.get("deity_mode", "").lower() == "and" or params.get(
@@ -368,7 +233,9 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 for dv in deity_vals:
                     qd |= term_q(dv)
                 qs = qs.filter(qd)
+
         qs = annotate_is_favorite(qs, self.request)
+
         if getattr(self, "action", None) == "retrieve":
             return self.queryset
         return qs.distinct()
@@ -382,6 +249,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
         description="lat,lng と任意の q から距離順で神社を返す（配列）。",
         tags=["shrines"],
         parameters=[
+            OpenApiParameter(name="radius", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False),
             OpenApiParameter(
                 name="lat", type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, required=True
             ),
@@ -413,12 +281,25 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
         except ValueError:
             limit = 10
         limit = max(1, min(limit, 50))
-        qs = nearest_queryset(lng, lat)
+
+        radius_m = None
+        if params.get("radius") is not None:
+            try:
+                radius_m = int(params.get("radius"))
+            except ValueError:
+                return Response({"detail": "radius must be int (meters)."}, status=400)
+            if radius_m <= 0:
+                return Response({"detail": "radius must be > 0."}, status=400)
+        # queries 経由（Spatialite でも <-> を発行しない）
+        qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)        
+
+        # 同じフィルタ群
         kind = (params.get("kind") or "shrine").lower()
         if kind in ("shrine", "temple"):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
+
         q = params.get("q")
         if q:
             qs = qs.filter(
@@ -428,13 +309,16 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(goriyaku__icontains=q)
                 | Q(goriyaku_tags__name__icontains=q)
             )
+
         for key in ("goriyaku", "shinkaku", "region"):
             vals = params.getlist(key)
             if vals:
                 qs = qs.filter(goriyaku_tags__name__in=vals)
+
         ky_vals = [v for v in params.getlist("kyusei") if v]
         if ky_vals:
             qs = qs.filter(kyusei__in=ky_vals)
+
         deity_vals = [v for v in params.getlist("deity") if v]
         if deity_vals:
             mode_and = params.get("deity_mode", "").lower() == "and" or params.get(
@@ -459,6 +343,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                 for dv in deity_vals:
                     qd |= term_q(dv)
                 qs = qs.filter(qd)
+
         qs = annotate_is_favorite(qs, request)[:limit]
         data = ShrineListSerializer(qs, many=True, context={"request": request}).data
         return Response(data)

@@ -4,10 +4,11 @@ from typing import List, Tuple
 
 from django.conf import settings
 from django.db import connection
-from django.db.models import Case, FloatField, IntegerField, Value, When
+from django.contrib.gis.db.models.functions import Distance, Transform
+from django.contrib.gis.geos import Point
+from django.db.models import Case, FloatField, IntegerField, Value, When, F
 from django.db.models.expressions import RawSQL
 
-from .geo_utils import to_lon_lat
 from .models import Shrine
 
 EARTH_RADIUS_M = 6371000.0
@@ -31,17 +32,28 @@ def nearest_queryset(lon: float, lat: float):
     """
     qs = Shrine.objects.all()
 
-    if _use_real_gis():
+    # PostGIS(= PostgreSQL) だけ KNN/<-> を使う
+    if _use_real_gis() and connection.vendor == "postgresql":
         point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
         point_params = [lon, lat]
         return (
             qs.filter(location__isnull=False)
             .annotate(
                 distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
                 _knn=RawSQL(f"location <-> {point_sql}", point_params),
             )
-            .order_by("_knn", "distance_m")
+            .order_by("_knn", "d_m")
         )
+    # Spatialite (SQLite, GISあり) – <-> は使えない。Transform(4326→3857)して距離[m]で注釈
+    if _use_real_gis() and connection.vendor == "sqlite":
+        p = Point(lon, lat, srid=4326)
+        qs = Shrine.objects.filter(location__isnull=False).annotate(
+            distance_m=Distance(Transform("location", 3857), Transform(p, 3857))
+        ).annotate(
+            d_m=F("distance_m")
+        ).order_by("d_m")
+        return qs
 
     if connection.vendor == "postgresql":
         haversine_sql = f"""
@@ -55,8 +67,11 @@ def nearest_queryset(lon: float, lat: float):
         """
         return (
             qs.filter(latitude__isnull=False, longitude__isnull=False)
-            .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
-            .order_by("distance_m")
+            .annotate(
+                distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]),
+                d_m=RawSQL(haversine_sql, params=[lat, lat, lon]),
+            )
+            .order_by("d_m")
         )
 
     return Shrine.objects.none()
@@ -70,7 +85,8 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
     - SQLite 等: Python 側で距離計算
     """
     # ---------- PostGIS あり ----------
-    if _use_real_gis():
+    # PostGIS (PostgreSQL)
+    if _use_real_gis() and connection.vendor == "postgresql":
         point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
         point_params = (lon, lat)
 
@@ -87,6 +103,7 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
 
         return qs.order_by("_knn", "d_m")[:limit]
 
+    # NoGIS PostgreSQL
     if connection.vendor == "postgresql":
         haversine_sql = f"""
             {2*EARTH_RADIUS_M} * ASIN(
@@ -104,8 +121,19 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
             qs = qs.filter(d_m__lte=float(radius_m))
         return qs.order_by("d_m")[:limit]
 
-    # SQLite フォールバック（Python計算）
-    base_qs = Shrine.objects.filter(location__isnull=False)
+    # Spatialite (SQLite, GISあり) – GeoDjangoの距離で[m]算出
+    if _use_real_gis() and connection.vendor == "sqlite":
+        p = Point(lon, lat, srid=4326)
+        qs = Shrine.objects.filter(location__isnull=False).annotate(
+            d_m=Distance(Transform("location", 3857), Transform(p, 3857))
+        )
+        if radius_m is not None:
+            qs = qs.filter(d_m__lte=float(radius_m))
+        return qs.order_by("d_m")[:limit]
+
+    # SQLite（GISなし）のフォールバック（Python計算）
+    base_qs = Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False)
+
 
     def haversine_m(lon1, lat1, lon2, lat2):
         R = EARTH_RADIUS_M
@@ -118,12 +146,9 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         return R * c
 
     distances: List[Tuple[int, float]] = []
-    for obj in base_qs:
-        lonlat = to_lon_lat(obj.location)
-        if not lonlat:
-            continue
-        obj_lon, obj_lat = lonlat
-        d = haversine_m(lon, lat, obj_lon, obj_lat)
+    for obj in base_qs.only("id", "latitude", "longitude"):
+        obj_lon, obj_lat = obj.longitude, obj.latitude
+        d = haversine_m(lon, lat, obj.longitude, obj.latitude)
         if radius_m is not None and d > float(radius_m):
             continue
         distances.append((obj.id, d))
@@ -141,5 +166,6 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         Shrine.objects.filter(id__in=ids_ordered)
         .annotate(ordering=Case(*when_order, output_field=IntegerField()))
         .annotate(distance_m=Case(*when_dist, output_field=FloatField()))
+        .annotate(d_m=Case(*when_dist, output_field=FloatField()))
         .order_by("ordering")
     )
