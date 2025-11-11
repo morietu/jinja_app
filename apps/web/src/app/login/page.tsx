@@ -1,7 +1,7 @@
 // apps/web/src/app/login/page.tsx
-import ClientLoginPage from "./ClientLoginPage";
+import LoginForm from "./LoginForm";
 
-function sanitizeNext(next?: string) {
+function sanitizeNext(next?: string | null) {
   if (!next) return "/mypage";
   if (!next.startsWith("/") || next.startsWith("//") || next.includes("://")) {
     return "/mypage";
@@ -9,14 +9,16 @@ function sanitizeNext(next?: string) {
   return next;
 }
 
+// Next.js 15: searchParams は Promise の可能性があるため await 対応
 export default async function Page({
   searchParams,
 }: {
-  // Next.js 15: searchParams は Promise を await する
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 }) {
   const sp = (await searchParams) ?? {};
-  const raw = sp.next;
-  const next = sanitizeNext(Array.isArray(raw) ? raw[0] : raw);
-  return <ClientLoginPage next={next} />;
+  const raw = sp["next"];
+  const next = sanitizeNext(Array.isArray(raw) ? raw[0] : raw ?? null);
+  return <LoginForm next={next} />;
 }
