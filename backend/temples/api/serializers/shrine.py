@@ -1,7 +1,7 @@
 from typing import Optional
-
-from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
+
 from temples.geo_utils import to_lat_lng_dict
 from temples.models import GoriyakuTag, Shrine, Visit
 
@@ -22,13 +22,18 @@ class _AddressValidationMixin:
 
 class _DistanceFieldsMixin:
     def _distance_m(self, obj) -> Optional[float]:
-        d = getattr(obj, "distance", None)
+        # クエリ注釈(d_m or distance_m) → GeoDjango Distance(distance.m) の順に取得
+        d = getattr(obj, "d_m", None)
+        if d is None:
+            d = getattr(obj, "distance_m", None)
+        if d is None:
+            d = getattr(obj, "distance", None)
         if d is None:
             return None
         try:
-            return float(getattr(d, "m", d))
+            return float(getattr(d, "m", d))  # Distance型なら .m、数値ならそのまま
         except Exception:
-            return None
+            return None       
 
     def get_distance(self, obj) -> Optional[float]:
         m = self._distance_m(obj)
@@ -53,6 +58,7 @@ class _DeityMixin:
 
 
 # === 一覧
+
 class ShrineListSerializer(
     _AddressValidationMixin, _DistanceFieldsMixin, _DeityMixin, serializers.ModelSerializer
 ):
@@ -107,8 +113,14 @@ class ShrineListSerializer(
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_location(self, obj):
-        return to_lat_lng_dict(getattr(obj, "location", None))
-
+        # GEOS Point -> dict / None
+        d = to_lat_lng_dict(getattr(obj, "location", None))
+        if d is not None:
+            return d
+        # フォールバック: lat/lng カラムから生成
+        if getattr(obj, "latitude", None) is not None and getattr(obj, "longitude", None) is not None:
+            return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
+        return None
 
 # === 詳細
 class ShrineDetailSerializer(
