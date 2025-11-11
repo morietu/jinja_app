@@ -141,6 +141,7 @@ class GoriyakuTag(models.Model):
 # ここでの Point は上のブロックで既に import/None 設定済み
 
 
+
 class Shrine(models.Model):
     KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True)
