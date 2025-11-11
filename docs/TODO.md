@@ -137,3 +137,16 @@
   - `radius` 対応  
   - シリアライザ距離 / 位置  
   - CIグリーン  
+
+
+- [ ] requirements.txt に openai を追加
+- [ ] .env に OPENAI_*／LLM_* を追記（例を README に反映）
+- [ ] backend/temples/llm/ 配下を新設（config.py / client.py / orchestrator.py）
+- [ ] DRF: POST /api/concierge/chat（APIView, throttle_scope="concierge"）
+- [ ] settings.py: DEFAULT_THROTTLE_RATES に concierge=8/min を追加
+- [ ] タイムアウト／リトライ／トークン上限ガードを実装
+- [ ] urls.py に concierge/chat を配線
+- [ ] cURL スモーク：200/バリデーションエラー/タイムアウト系の確認
+- [ ] README/architecture に LLM 構成と .env 例を追記
+- [ ] PR①: api/llm-module-split（モジュール分割まで）
+- [ ] PR②: api/concierge-endpoint（API公開・テストまで）
