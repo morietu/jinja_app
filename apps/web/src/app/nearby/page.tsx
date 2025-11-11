@@ -18,7 +18,6 @@ export default function NearbyPage() {
 
     async function run() {
       try {
-        // 位置情報取得（失敗時は東京駅にフォールバック）
         const pos = await new Promise<GeolocationPosition>((res, rej) => {
           if (!navigator.geolocation)
             return rej(new Error("geolocation not supported"));
@@ -28,10 +27,9 @@ export default function NearbyPage() {
           });
         }).catch(() => null as GeolocationPosition | null);
 
-        const lat = pos?.coords?.latitude ?? 35.681236; // fallback: 東京駅
+        const lat = pos?.coords?.latitude ?? 35.681236; // 東京駅 fallback
         const lng = pos?.coords?.longitude ?? 139.767125;
 
-        // 同一オリジンの /api を使用（SSR/環境変数不要）
         const r = await fetch(
           `/api/shrines/nearest?lat=${lat}&lng=${lng}&limit=20`,
           {
@@ -41,8 +39,6 @@ export default function NearbyPage() {
         );
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
-
-        // 互換: 配列 or {results: []}
         const list: ShrineItem[] = Array.isArray(data)
           ? data
           : data.results ?? [];

@@ -1,4 +1,3 @@
-# temples/queries.py
 # -*- coding: utf-8 -*-
 import math
 from typing import List, Tuple
@@ -25,28 +24,25 @@ __all__ = ["nearest_queryset", "nearest_shrines"]
 
 def nearest_queryset(lon: float, lat: float):
     """
-    近傍の距離を注釈して距離昇順で返す QuerySet（スライス/半径フィルタはしない）
-    - PostGIS: KNN + ST_DistanceSphere（d_m / distance_m を注釈）
-    - NoGIS(PostgreSQL): ハバースイン距離を d_m 注釈
+    近傍の距離を注釈して距離昇順で返す QuerySet（スライスや半径フィルタはしない）
+    - PostGIS: KNN + ST_DistanceSphere
+    - NoGIS(PostgreSQL): ハバースイン式で注釈
     - それ以外(SQLite等): 空
     """
     qs = Shrine.objects.all()
 
-    # --- PostGIS ---
     if _use_real_gis():
         point_sql = "ST_SetSRID(ST_Point(%s,%s), 4326)"
-        params = [lon, lat]
+        point_params = [lon, lat]
         return (
             qs.filter(location__isnull=False)
             .annotate(
-                _knn=RawSQL(f"location <-> {point_sql}", params),
-                d_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", params),
-                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", params),
+                distance_m=RawSQL(f"ST_DistanceSphere(location, {point_sql})", point_params),
+                _knn=RawSQL(f"location <-> {point_sql}", point_params),
             )
-            .order_by("_knn", "d_m")
+            .order_by("_knn", "distance_m")
         )
 
-    # --- NoGIS: PostgreSQL ---
     if connection.vendor == "postgresql":
         haversine_sql = f"""
             {2*EARTH_RADIUS_M} * ASIN(
@@ -59,26 +55,15 @@ def nearest_queryset(lon: float, lat: float):
         """
         return (
             qs.filter(latitude__isnull=False, longitude__isnull=False)
-            .annotate(d_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
-            .order_by("d_m")
+            .annotate(distance_m=RawSQL(haversine_sql, params=[lat, lat, lon]))
+            .order_by("distance_m")
         )
 
-    # --- その他(SQLite等) ---
     return Shrine.objects.none()
 
 
 def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | None = None):
     """
-<<<<<<< HEAD
-    近傍神社を距離順で返す（位置引数API）。
-    - PostGIS/NoGIS では DB 注釈（d_m 優先）でフィルタ/並び替え
-    - SQLite 等では Python フォールバック
-    """
-    # --- PostGIS or NoGIS(PostgreSQL) 経由 ---
-    base_qs = nearest_queryset(lon, lat)
-    if base_qs.exists():
-        qs = base_qs
-=======
     近傍神社を距離順で返す。
     - PostGIS: KNN(<->) + ST_DistanceSphere を d_m として注釈し、d_m で絞り込み/並び替え
     - NoGIS(PostgreSQL): ハバースイン距離を d_m として注釈し、d_m で絞り込み/並び替え
@@ -115,18 +100,11 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         qs = Shrine.objects.filter(latitude__isnull=False, longitude__isnull=False).annotate(
             d_m=RawSQL(haversine_sql, params=[lat, lat, lon])
         )
->>>>>>> ee211f18 (fix(queries): restore nearest_queryset; export via __all__)
         if radius_m is not None:
             qs = qs.filter(d_m__lte=float(radius_m))
-        return qs.order_by(
-            "_knn" if "_knn" in [f.name for f in qs.model._meta.get_fields()] else "d_m", "d_m"
-        )[:limit]
+        return qs.order_by("d_m")[:limit]
 
-<<<<<<< HEAD
-    # --- SQLite 等: Python フォールバック ---
-=======
     # SQLite フォールバック（Python計算）
->>>>>>> ee211f18 (fix(queries): restore nearest_queryset; export via __all__)
     base_qs = Shrine.objects.filter(location__isnull=False)
 
     def haversine_m(lon1, lat1, lon2, lat2):
@@ -141,10 +119,10 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
 
     distances: List[Tuple[int, float]] = []
     for obj in base_qs:
-        ll = to_lon_lat(obj.location)
-        if not ll:
+        lonlat = to_lon_lat(obj.location)
+        if not lonlat:
             continue
-        obj_lon, obj_lat = ll
+        obj_lon, obj_lat = lonlat
         d = haversine_m(lon, lat, obj_lon, obj_lat)
         if radius_m is not None and d > float(radius_m):
             continue
@@ -165,6 +143,3 @@ def nearest_shrines(lon: float, lat: float, limit: int = 20, radius_m: int | Non
         .annotate(distance_m=Case(*when_dist, output_field=FloatField()))
         .order_by("ordering")
     )
-
-
-__all__ = ["nearest_queryset", "nearest_shrines"]
