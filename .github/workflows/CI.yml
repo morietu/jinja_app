@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -129,6 +130,7 @@ jobs:
 
   # 無条件で動く診断ジョブ
   debug:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Show GitHub context
