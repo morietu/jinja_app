@@ -269,7 +269,7 @@ export default function ConciergePage() {
     const ac = new AbortController();
     (async () => {
       try {
-        const r = await api.get("concierges/histories/", {
+        const r = await api.get("api/concierges/histories/", {
           signal: ac.signal,
           // 401 を「許容するステータス」にする → 例外にならない
           validateStatus: (s) =>
