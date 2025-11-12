@@ -9,7 +9,9 @@ def test_popular_ordering(api_client):
     b = Shrine.objects.create(name_jp="B", popular_score=30.0, latitude=35.0, longitude=135.0)
     res = api_client.get(reverse("temples:popular-shrines"), {"limit": 10})
     assert res.status_code == 200
-    names = [it["name_jp"] for it in res.json()["items"]]
+    payload = res.json()
+    items = payload.get("results") or payload.get("items") or payload
+    names = [it["name_jp"] for it in items]
     assert names[:2] == ["B", "A"]
 
 
@@ -25,5 +27,7 @@ def test_near_filter_bbox(api_client):
         {"near": f"{near_lat},{near_lng}", "radius_km": 5, "limit": 10},
     )
     assert res.status_code == 200
-    names = [it["name_jp"] for it in res.json()["items"]]
+    payload = res.json()
+    items = payload.get("results") or payload.get("items") or payload
+    names = [it["name_jp"] for it in items]
     assert "Near" in names and "Far" not in names

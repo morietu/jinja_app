@@ -30,9 +30,13 @@ def test_scoring_weights_order(api_client):
     a = Shrine.objects.create(name_jp="A", popular_score=0.0, latitude=35.0, longitude=135.0)
     Visit.objects.create(shrine=a, user=u, visited_at=timezone.now())
 
+    # populars エンドポイント呼び出し
     res = api_client.get(reverse("temples:popular-shrines"), {"limit": 10})
     assert res.status_code == 200
-    names = [it["name_jp"] for it in res.json()["items"]]
+    payload = res.json()
+    items = payload.get("results") or payload.get("items") or payload
+    names = [it["name_jp"] for it in items]
+    
     # 期待: popular_score 5.0 の B が1位、同点(0.0)は id 降順 → 後作成の A が先、次に C
     assert names[:3] == ["B", "A", "C"]
 
@@ -51,7 +55,9 @@ def test_popular_score_only_or_visits_ignored(api_client):
 
     res = api_client.get(reverse("temples:popular-shrines"), {"limit": 10})
     assert res.status_code == 200
-    names = [it["name_jp"] for it in res.json()["items"]]
+    payload = res.json()
+    items = payload.get("results") or payload.get("items") or payload
+    names = [it["name_jp"] for it in items]
     # popular_score の高い T が上位、VisitのあるSは上がらない
     assert names.index("T") < names.index("S")
 
@@ -75,5 +81,7 @@ def test_bbox_filter_keeps_only_near(api_client):
         {"near": f"{near_lat},{near_lng}", "radius_km": 5, "limit": 10},
     )
     assert res.status_code == 200
-    names = [it["name_jp"] for it in res.json()["items"]]
+    payload = res.json()
+    items = payload.get("results") or payload.get("items") or payload
+    names = [it["name_jp"] for it in items]
     assert "Near" in names and "Far" not in names
