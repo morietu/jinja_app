@@ -1,19 +1,34 @@
+# temples/tests/api/test_concierge_chat_message_passthrough.py
 import json
+import pytest
 
-URL = "/api/concierge/chat/"
+@pytest.mark.django_db
+def test_concierge_message_passthrough(client, settings, monkeypatch):
+    settings.GOOGLE_MAPS_API_KEY = "dummy"
 
-def test_accepts_message(client):
-    r = client.post(URL,
-        data=json.dumps({"message":"テスト"}),
-        content_type="application/json")
-    assert r.status_code == 200
+    # Orchestrator.suggest が candidates の formatted_address を使う前提のダミー
+    from temples.llm.orchestrator import ConciergeOrchestrator
+    def _fake_suggest(self, query, candidates):
+        assert candidates and candidates[0].get("formatted_address")  # パスされたことを検証
+        return {"recommendations": [{"name": candidates[0]["name"], "reason": "ok"}]}
 
-def test_message_payload_passthrough(client, requests_mock):
-    body = {
-        "message":"テスト",
-        "lat":35, "lng":139,
-        "candidates":[{"formatted_address":"東京都千代田区…"}]
+    monkeypatch.setattr(ConciergeOrchestrator, "suggest", _fake_suggest)
+
+    payload = {
+        "message": "テスト",
+        "lat": 35.0,
+        "lng": 139.0,
+        "candidates": [
+            {"name": "赤坂氷川神社", "formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12"}
+        ],
     }
-    r = client.post(URL, data=json.dumps(body), content_type="application/json")
+    r = client.post(
+        "/api/concierge/chat/",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
     assert r.status_code == 200
-    # 本体側はすでに透過済みのため、ここでは 200 を担保（詳細は下位テストに任せる）
+    body = r.json()
+    assert body.get("ok") is True
+    # smoke 互換 reply が付いている
+    assert body.get("reply", "").startswith("echo:")
