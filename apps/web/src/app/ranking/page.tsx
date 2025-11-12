@@ -5,12 +5,14 @@ import Link from "next/link";
 import { fetchRanking } from "@/lib/api/ranking";
 import type { RankingItem } from "@/lib/api/ranking";
 import { useFavorite } from "@/hooks/useFavorite";
-import {
-  usePopularShrines,
-  type PopularShrine,
-} from "../../hooks/usePopularShrines";
+import { usePopularShrines } from "../../hooks/usePopularShrines";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+
+// ページ内だけで使う簡易型（必要な最小限)
+type PopularShrine = {
+  id: number; name_jp: string; popular_score: number;
+};
 
 /* --- 小物: お気に入り --- */
 function FavButton({ shrineId }: { shrineId: number }) {
@@ -29,11 +31,13 @@ function FavButton({ shrineId }: { shrineId: number }) {
 
 /* --- 小物: ランキングカードリスト --- */
 function RankingList({ data }: { data: RankingItem[] }) {
-  if (!data || data.length === 0)
-    return <p className="p-4">ランキングデータがありません</p>;
+  const hasData = Array.isArray(data) && data.length > 0;
   return (
-    <ol className="space-y-4">
-      {data.map((shrine, idx) => (
+    <ol role="list" className="space-y-4">
+      {!hasData && (
+        <li className="p-4 text-gray-500">ランキングデータがありません</li>
+      )}
+      {hasData && data.map((shrine, idx) => (
         <li key={shrine.id ?? idx}>
           <Card
             className={`p-4 transition-colors duration-200 cursor-pointer ${
@@ -160,7 +164,7 @@ function PopularTab() {
       )}
 
       <ul className="divide-y rounded-2xl shadow">
-        {items.map((s: PopularShrine) => (
+        {(items as PopularShrine[]).map((s) => (
           <li key={s.id} className="p-3">
             <div className="font-medium">{s.name_jp}</div>
             <div className="text-sm opacity-70">score: {s.popular_score}</div>
