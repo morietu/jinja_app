@@ -29,7 +29,6 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from temples.llm.views import ConciergeChat
 from users.views import MeView
 
 from .views import favicon, index
@@ -109,10 +108,7 @@ urlpatterns = [
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-    # concierge
-    # path("api/concierge/chat", ConciergeChat.as_view(), name="concierge-chat"),
-    # path("api/concierge/chat/", ConciergeChat.as_view()),  # nameは付けない
-    # path("api/concierge/chat/", concierge.chat_legacy, name="concierge-chat-legacy")
+    
 
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
