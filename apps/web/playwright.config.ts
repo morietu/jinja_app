@@ -1,6 +1,6 @@
 // apps/web/playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
-import type { NextConfig } from "next";
+
 
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL,
     trace: "on-first-retry",
     video: "retain-on-failure",
     screenshot: "only-on-failure",

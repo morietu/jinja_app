@@ -17,14 +17,9 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      CI: "true"
-
     steps:
       - uses: actions/checkout@v4
 
-
-      # pnpm のセットアップ（standalone で OK / run_install は false）
       - uses: pnpm/action-setup@v4
         with:
           standalone: true
@@ -39,7 +34,12 @@ jobs:
       - name: Install deps (workspace root)
         run: pnpm -r install --frozen-lockfile
 
-      # ESLint キャッシュ復元（先に行う）
+      # ✅ Playwright のブラウザ + 必要なシステム依存を CLI でインストール
+      - name: Install Playwright (browsers + system deps)
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps
+
+      # （以降はそのまま）
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -48,17 +48,14 @@ jobs:
           restore-keys: |
             eslint-${{ runner.os }}-
 
-      # Lint（警告は通知のみ：MVP方針）
       - name: Lint (ESLint)
         working-directory: apps/web
         run: pnpm exec eslint . --cache --cache-location .eslintcache
 
-      # 型チェック（noEmit）
       - name: Type check (tsc)
         working-directory: apps/web
         run: pnpm exec tsc -p tsconfig.json --noEmit
 
-      # テスト + カバレッジ
       - name: Test with coverage
         working-directory: apps/web
         run: pnpm test:cov
@@ -70,3 +67,37 @@ jobs:
           name: web-coverage-lcov
           path: apps/web/coverage/lcov.info
           if-no-files-found: ignore
+
+      - name: Fail on untracked files (post-build)
+        if: always()
+        run: |
+          UNTRACKED="$(git ls-files --others --exclude-standard \
+            | grep -vE '^(apps/web/coverage/|apps/web/playwright-report/|apps/web/.next/)$' || true)"
+          if [ -n "$UNTRACKED" ]; then
+            echo "⚠️ Untracked files found:"
+            echo "$UNTRACKED"
+            exit 1
+          fi
+
+      - name: Upload Playwright HTML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+          compression-level: 6
+
+      - name: Upload Playwright traces/videos/screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: |
+            apps/web/test-results/**/*.zip
+            apps/web/test-results/**/*.webm
+            apps/web/test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+          compression-level: 6
