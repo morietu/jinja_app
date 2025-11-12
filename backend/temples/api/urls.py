@@ -9,6 +9,7 @@ from temples import api_views_concierge as concierge
 from temples.api.views.concierge import ConciergeChatView
 # geocode (レガシー互換も吸収)
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
+from temples.api.views.compat import concierge_chat_compat
 
 try:
     from temples.api.views.geocode import search as geocode_search
@@ -98,12 +99,15 @@ urlpatterns = [
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
-    path("concierges/chats/", concierge.chat, name="concierge-chat"),
-    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
-    path("concierges/plans/", concierge.plan, name="concierge-plan"),
-    path(
-        "concierges/histories/", concierge.ConciergeHistoryView.as_view(), name="concierge-history"
-    ),
+    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),        # 正式（互換ラッパ）
+    path("concierges/chats/", concierge.chat, name="concierge-chat-legacy"),      # 旧互換（別name）
+    path("concierge/plan/", concierge.plan, name="concierge-plan"),
+    path("concierges/plans/", concierge.plan, name="concierge-plan-legacy"),
+    path("concierges/histories/", concierge.ConciergeHistoryView.as_view(),
+         name="concierge-history"),
+    
+    
+    
     # ---- Places（kebab-case & {id} 統一） -----------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
