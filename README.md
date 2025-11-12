@@ -354,6 +354,46 @@ python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo()
   cd backend
   python -m pytest -q
 
+
+## 🧹 Branch / Git 運用ルール
+
+### 定期クリーンアップ（週1目安）
+リモート・ローカル両方の不要ブランチを削除する。
+
+```bash
+# 1. 追跡・削除されたブランチ情報を更新
+git fetch -p && git remote prune origin
+
+# 2. リモートで develop にマージ済みのブランチを削除
+git clean-remote-merged
+
+# 3. ローカルで develop にマージ済みのブランチを削除
+git clean-local-merged
+
+### ⚠️ main / develop は保護対象。これらは削除されません。
+CI通過後に develop へマージされたブランチはこの運用で自動的に整理されます。
+
+### コマンド概要
+コマンド
+内容
+git clean-local-merged
+develop にマージ済みのローカルブランチを削除
+git clean-remote-merged
+develop にマージ済みのリモートブランチを削除
+git fetch -p && git remote prune origin
+
+git config --global alias.clean-local-merged '!git branch --merged develop | sed "s/^[ *]*//" | grep -vE "^(main|develop)$" | xargs -r -n1 git branch -d'
+git config --global alias.clean-remote-merged '!git branch -r --merged origin/develop | sed "s#^[ *]*##" | grep -v -- "->" | grep -vE "^origin/(develop|main)$" | sed "s#^origin/##" | xargs -r -n1 -I{} git push origin :{}'
+
+🔒 Branch 保護設定（GitHub推奨）
+	•	main / develop は直接 push 禁止（PR 経由のみ）
+	•	web-tests CI 成功を必須チェックに
+	•	“Require linear history” 有効化を推奨
+
+  
+
+
+
 ![web-tests](https://github.com/morietu/jinja_app/actions/workflows/web-tests.yml/badge.svg?branch=develop)
 [![contract-ci](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml)
 ![Contract CI](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)
