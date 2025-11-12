@@ -19,41 +19,41 @@ def test_scoring_weights_order(api_client):
     User = get_user_model()
     u = User.objects.create_user(username="u1", password="p")
 
-    # C: visits=2 → 4pt
+    # 仕様: popular_score のみで並び、Visitの有無は影響しない
     c = Shrine.objects.create(name_jp="C", popular_score=0.0, latitude=35.0, longitude=135.0)
+    # Visitを入れても順位は変わらない
     for _ in range(2):
         Visit.objects.create(shrine=c, user=u, visited_at=timezone.now())
 
-    # B: popular_score=5 → 2.5pt
     b = Shrine.objects.create(name_jp="B", popular_score=5.0, latitude=35.0, longitude=135.0)
 
-    # A: visits=1 → 2pt
     a = Shrine.objects.create(name_jp="A", popular_score=0.0, latitude=35.0, longitude=135.0)
     Visit.objects.create(shrine=a, user=u, visited_at=timezone.now())
 
     res = api_client.get(reverse("temples:popular-shrines"), {"limit": 10})
     assert res.status_code == 200
     names = [it["name_jp"] for it in res.json()["items"]]
-    assert names[:3] == ["C", "B", "A"]
-
+    # 期待: popular_score 5.0 の B が1位、同点(0.0)は id 降順 → 後作成の A が先、次に C
+    assert names[:3] == ["B", "A", "C"]
 
 @pytest.mark.django_db
-def test_30day_window_on_visits(api_client):
+def test_popular_score_only_or_visits_ignored(api_client):
+    """
+    popularは popular_score のみで決まり、Visitの有無では順位が変わらない
+    """
     User = get_user_model()
     u = User.objects.create_user(username="u2", password="p")
 
     s = Shrine.objects.create(name_jp="S", popular_score=0.0, latitude=35.0, longitude=135.0)
-    # 31日前 → カウントされない
-    Visit.objects.create(shrine=s, user=u, visited_at=timezone.now() - timedelta(days=31))
-    # 今日 → カウントされる（2pt）
+    # Visit があっても順位に影響しない仕様
     Visit.objects.create(shrine=s, user=u, visited_at=timezone.now())
-
-    t = Shrine.objects.create(name_jp="T", popular_score=0.0, latitude=35.1, longitude=135.1)
+    t = Shrine.objects.create(name_jp="T", popular_score=1.0, latitude=35.1, longitude=135.1)
 
     res = api_client.get(reverse("temples:popular-shrines"), {"limit": 10})
     assert res.status_code == 200
     names = [it["name_jp"] for it in res.json()["items"]]
-    assert names[0] == "S"
+    # popular_score の高い T が上位、VisitのあるSは上がらない
+    assert names.index("T") < names.index("S")
 
 
 @pytest.mark.django_db

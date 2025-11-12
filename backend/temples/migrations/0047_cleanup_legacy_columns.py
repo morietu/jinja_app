@@ -1,49 +1,47 @@
-# backend/temples/migrations/0047_cleanup_legacy_columns.py
+# -*- coding: utf-8 -*-
 from django.db import migrations
 
-SQL_FORWARD = """
--- 0043/0044 以前の残骸を安全に除去（存在すればDROP）
+def forwards(apps, schema_editor):
+    vendor = schema_editor.connection.vendor  # 'postgresql' or 'sqlite'
+    with schema_editor.connection.cursor() as cur:
+        if vendor == "postgresql":
+            # ViewLike テーブル（存在すれば削除）
+            cur.execute("DROP TABLE IF EXISTS public.temples_viewlike CASCADE;")
+            # 残存列（存在すれば削除）
+            cur.execute("ALTER TABLE public.temples_conciergehistory DROP COLUMN IF EXISTS shrine_id;")
+            cur.execute("ALTER TABLE public.temples_goshuin DROP COLUMN IF EXISTS shrine_id;")
+            cur.execute("ALTER TABLE public.temples_goshuin DROP COLUMN IF EXISTS user_id;")
+            cur.execute("ALTER TABLE public.temples_visit DROP COLUMN IF EXISTS shrine_id;")
+            cur.execute("ALTER TABLE public.temples_visit DROP COLUMN IF EXISTS user_id;")
+        else:
+            # SQLite: CASCADE不可・スキーマ修飾不可
+            try:
+                cur.execute("DROP TABLE IF EXISTS temples_viewlike;")
+            except Exception:
+                pass
+            # SQLite 3.35+ は DROP COLUMN 対応。古い場合は実害なし（列が無い想定）。
+            for sql in (
+                "ALTER TABLE temples_conciergehistory DROP COLUMN IF EXISTS shrine_id;",
+                "ALTER TABLE temples_goshuin DROP COLUMN IF EXISTS shrine_id;",
+                "ALTER TABLE temples_goshuin DROP COLUMN IF EXISTS user_id;",
+                "ALTER TABLE temples_visit DROP COLUMN IF EXISTS shrine_id;",
+                "ALTER TABLE temples_visit DROP COLUMN IF EXISTS user_id;",
+            ):
+                try:
+                    cur.execute(sql)
+                except Exception:
+                    # 古いSQLite等でDROP COLUMN未対応ならノーオペで進む
+                    pass
 
--- 旧 ViewLike テーブル
-DROP TABLE IF EXISTS public.temples_viewlike CASCADE;
-
--- ConciergeHistory: shrine_id列（0043でDROPされるはずの残存）
-ALTER TABLE public.temples_conciergehistory
-  DROP COLUMN IF EXISTS shrine_id;
-
--- Goshuin: shrine_id/user_id列（0043でDROPされるはずの残存）
-ALTER TABLE public.temples_goshuin
-  DROP COLUMN IF EXISTS shrine_id,
-  DROP COLUMN IF EXISTS user_id;
-
--- Visit: shrine_id/user_id列（0043でDROPされるはずの残存）
-ALTER TABLE public.temples_visit
-  DROP COLUMN IF EXISTS shrine_id,
-  DROP COLUMN IF EXISTS user_id;
-
--- 一時的に付けた可能性のある一時FK/制約名の掃除（存在すれば）
-ALTER TABLE public.temples_rankinglog
-  DROP CONSTRAINT IF EXISTS temples_rankinglog_shrine_id_fk_tmp;
-
-ALTER TABLE public.temples_favorite
-  DROP CONSTRAINT IF EXISTS temples_favorite_user_id_fk,
-  DROP CONSTRAINT IF EXISTS temples_favorite_shrine_id_fk;
-
--- 念のため、期待ユニーク制約（shrine_id, date）は既に正規マイグレーションで作成済み。
--- ここでは追加作業はしない（差分があれば正規マイグレが失敗して検知できる）。
-"""
-
-SQL_BACKWARD = """
--- 逆遷移はNo-Op（安全弾のため復元しない）
-"""
+def noop(apps, schema_editor):
+    # 復元不要（クリーンアップのみ）
+    pass
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("temples", "0046_merge_20251109_1248"),
     ]
 
     operations = [
-        migrations.RunSQL(SQL_FORWARD, SQL_BACKWARD),
+        migrations.RunPython(forwards, noop),
     ]
-    
