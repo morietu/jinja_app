@@ -5,6 +5,8 @@ from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
+
+
 from drf_spectacular.renderers import OpenApiJsonRenderer
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from drf_spectacular.views import (
@@ -26,7 +28,8 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-from temples import api_views_concierge as concierge
+
+from temples.llm.views import ConciergeChat
 from users.views import MeView
 
 from .views import favicon, index
@@ -107,8 +110,10 @@ urlpatterns = [
     path("api/", include("favorites.urls")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
     # concierge
-    path("api/concierge/plan/", concierge.plan_legacy, name="concierge-plan"),
-    path("api/concierge/chat/", concierge.chat_legacy, name="concierge-chat"),  # ← 追加
+    # path("api/concierge/chat", ConciergeChat.as_view(), name="concierge-chat"),
+    # path("api/concierge/chat/", ConciergeChat.as_view()),  # nameは付けない
+    # path("api/concierge/chat/", concierge.chat_legacy, name="concierge-chat-legacy")
+
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),

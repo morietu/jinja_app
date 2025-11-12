@@ -38,24 +38,41 @@ def _haversine_m(lat1, lon1, lat2, lon2):
 
 
 class ConciergeChatView(APIView):
-    # drf-spectacular: このビューはスキーマ対象外にする
-    throttle_classes = [ConciergeThrottle]
-
     schema = None
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # CSRF回避のためセッション認証を外す
+    authentication_classes = []
     throttle_scope = "concierge"
-    throttle_classes = [ScopedRateThrottle]
+    # throttle_classes は settings に一元化（未指定のままでOK）
 
     def post(self, request):
-        q = (request.data.get("query") or "").strip()
-        lat = request.data.get("lat")
-        lng = request.data.get("lng")
-        transport = (request.data.get("transport") or "walking").lower()
-        if not q or lat is None or lng is None:
-            return Response({"detail": "query, lat, lng are required"}, status=400)
-        _ = chat_to_plan(q, float(lat), float(lng), transport)
-        return Response({...}, status=status.HTTP_200_OK)
+        data = request.data or {}
+
+        # ✅ message / query 両対応（前者優先でも後者優先でもOK。ここではどちらでも拾う）
+        text = (data.get("message") or data.get("query") or "").strip()
+
+        # 数値化（文字列でもOKにする）
+        def to_float(v):
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        lat = to_float(data.get("lat"))
+        lng = to_float(data.get("lng"))
+        transport = (data.get("transport") or "walking").lower()
+
+        missing = []
+        if not text:
+            missing.append("message|query")
+        if lat is None:
+            missing.append("lat(float)")
+        if lng is None:
+            missing.append("lng(float)")
+        if missing:
+            return Response({"detail": f"required: {', '.join(missing)}"}, status=400)
+
+        # ここで本来は chat_to_plan(text, lat, lng, transport) を呼ぶ
+        return Response({"reply": f"echo: {text}"}, status=status.HTTP_200_OK)
 
 
 class ConciergeRecommendationsView(APIView):
