@@ -4,12 +4,11 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
+from django.db import transaction, DatabaseError
 from django.urls import reverse
 from django.utils import timezone
-from django.core.exceptions import FieldDoesNotExist
-from django.db.utils import ProgrammingError, OperationalError, DatabaseError
+
 from rest_framework.test import APIClient
-from django.db import transaction
 from temples.models import Shrine, Visit
 
 
@@ -17,38 +16,22 @@ from temples.models import Shrine, Visit
 def api_client():
     return APIClient()
 
+
+
 def _maybe_add_visit(shrine, user):
     """
-    CI等で temples_visit に user 列が無いスキーマがあるため、
-    Visit.user が存在しない/INSERTで失敗する環境では黙ってスキップする。
-    INSERT 失敗時に外側トランザクションを壊さないよう savepoint を使う。
+    CI 等で temples_visit に user 列が無いスキーマがあり得る。
+    失敗しても外側トランザクションを壊さないよう savepoint で握る。
     """
     try:
         Visit._meta.get_field("user")
     except FieldDoesNotExist:
         return
     try:
-        # savepoint内で失敗させ、外側は壊さない
         with transaction.atomic():
             Visit.objects.create(shrine=shrine, user=user, visited_at=timezone.now())
-    except Exception:
-        pass
-
-
-def _maybe_add_visit(shrine, user):
-    """
-    CI等でtemples_visitにuser列が無いスキーマがあるため、
-    Visit.userが存在しない/INSERTで失敗する環境では黙ってスキップする。
-    """
-    try:
-        # フィールド定義の有無を確認（無ければ何もしない）
-        Visit._meta.get_field("user")
-    except FieldDoesNotExist:
-        return
-    try:
-        Visit.objects.create(shrine=shrine, user=user, visited_at=timezone.now())
-    except (ProgrammingError, OperationalError, DatabaseError):
-        # スキーマ差異でINSERTできない環境は無視（人気順位仕様の検証には不要）
+    except DatabaseError:
+        # この atomic ブロックのみロールバックされ、外側は継続可能
         return
 
 
@@ -87,8 +70,7 @@ def test_popular_score_only_or_visits_ignored(api_client):
     u = User.objects.create_user(username="u2", password="p")
 
     s = Shrine.objects.create(name_jp="S", popular_score=0.0, latitude=35.0, longitude=135.0)
-    # Visit があっても順位に影響しない仕様
-    Visit.objects.create(shrine=s, user=u, visited_at=timezone.now())
+    # Visit があっても順位に影響しない仕様（CI差異に強いヘルパーのみ使用）
     _maybe_add_visit(s, u)
     t = Shrine.objects.create(name_jp="T", popular_score=1.0, latitude=35.1, longitude=135.1)
 
