@@ -107,3 +107,6 @@ apps/web/coverage/
 .eslintcache
 
 apps/web/storybook-static/
+
+# ESLint cache
+apps/web/.eslintcache
