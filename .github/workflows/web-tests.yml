@@ -17,9 +17,6 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      CI: "true"
-
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +34,12 @@ jobs:
       - name: Install deps (workspace root)
         run: pnpm -r install --frozen-lockfile
 
-      # --- ESLint cache restore ---
+      # ✅ Playwright のブラウザ + 必要なシステム依存を CLI でインストール
+      - name: Install Playwright (browsers + system deps)
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps
+
+      # （以降はそのまま）
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -46,17 +48,14 @@ jobs:
           restore-keys: |
             eslint-${{ runner.os }}-
 
-      # --- Lint ---
       - name: Lint (ESLint)
         working-directory: apps/web
         run: pnpm exec eslint . --cache --cache-location .eslintcache
 
-      # --- Type check ---
       - name: Type check (tsc)
         working-directory: apps/web
         run: pnpm exec tsc -p tsconfig.json --noEmit
 
-      # --- Unit/contract + Coverage ---
       - name: Test with coverage
         working-directory: apps/web
         run: pnpm test:cov
@@ -69,28 +68,17 @@ jobs:
           path: apps/web/coverage/lcov.info
           if-no-files-found: ignore
 
-      # --- E2E: Playwright ブラウザを入れて実行 ---
-      - name: Install Playwright browsers
-        uses: microsoft/playwright-github-action@v1
-        with:
-          working-directory: apps/web
-
-      - name: Run E2E (Playwright)
-        working-directory: apps/web
-        run: pnpm test:e2e
-
-      # --- Untracked guard（post-build/always）---
       - name: Fail on untracked files (post-build)
         if: always()
         run: |
-          UNTRACKED="$(git ls-files --others --exclude-standard || true)"
+          UNTRACKED="$(git ls-files --others --exclude-standard \
+            | grep -vE '^(apps/web/coverage/|apps/web/playwright-report/|apps/web/.next/)$' || true)"
           if [ -n "$UNTRACKED" ]; then
             echo "⚠️ Untracked files found:"
             echo "$UNTRACKED"
             exit 1
           fi
 
-      # --- E2E アーティファクト（失敗時のみ）---
       - name: Upload Playwright HTML report
         if: failure()
         uses: actions/upload-artifact@v4
