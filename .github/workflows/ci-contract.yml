@@ -1,41 +1,3 @@
-name: Contract CI
-permissions:
-  contents: read
-
-
-on:
-  push:
-    branches: [develop, main]
-  pull_request:
-    branches: [develop, main]
-  workflow_dispatch:
-
-# 余計な権限を絞る（トップレベル）
-
-
-# ラン競合の防止（トップレベル）
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  openapi-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          standalone: true
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          # lintジョブは依存をインストールしないためキャッシュ不要
-      - run: pnpm -v
-      # npx / pnpm dlx で十分。install は不要
-      - name: Lint OpenAPI (non-strict)
-        run: pnpm dlx @stoplight/spectral-cli@6.15.0 lint docs/openapi.yaml
-
   web-contract-test:
     needs: openapi-lint
     runs-on: ubuntu-latest
@@ -52,16 +14,25 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm -v
 
-      # ここが肝：ワークスペース全体の依存を解決
       - name: Install all workspace deps
         run: pnpm -r install --frozen-lockfile
-
-      # 任意のデバッグ（必要になったら残すと便利）
-      # - name: Debug vitest resolution
-      #   run: pnpm why -r vitest || true
 
       - name: Run web contract test
         working-directory: apps/web
         env:
           OPENAPI: ../../docs/openapi.yaml
         run: pnpm test:contract
+
+      # ここを追加：テスト後に未追跡ファイルを検出してFail
+      - name: Fail on untracked files
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          UNTRACKED="$(git ls-files --others --exclude-standard)"
+          if [ -n "$UNTRACKED" ]; then
+            echo "⚠️ Untracked files found:"
+            echo "$UNTRACKED"
+            echo
+            echo "git status --porcelain:"
+            git status --porcelain
+            exit 1
+          fi
