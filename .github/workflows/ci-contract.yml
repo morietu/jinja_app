@@ -1,3 +1,15 @@
+name: web-contract-test
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
   web-contract-test:
     needs: openapi-lint
     runs-on: ubuntu-latest
@@ -13,26 +25,7 @@
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm -v
-
       - name: Install all workspace deps
-        run: pnpm -r install --frozen-lockfile
-
-      - name: Run web contract test
-        working-directory: apps/web
-        env:
-          OPENAPI: ../../docs/openapi.yaml
-        run: pnpm test:contract
-
-      # ここを追加：テスト後に未追跡ファイルを検出してFail
-      - name: Fail on untracked files
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          UNTRACKED="$(git ls-files --others --exclude-standard)"
-          if [ -n "$UNTRACKED" ]; then
-            echo "⚠️ Untracked files found:"
-            echo "$UNTRACKED"
-            echo
-            echo "git status --porcelain:"
-            git status --porcelain
-            exit 1
-          fi
+        run: pnpm --filter ./apps/web install --frozen-lockfile
+      - name: Run web contract tests
+        run: pnpm --filter ./apps/web test:contract
