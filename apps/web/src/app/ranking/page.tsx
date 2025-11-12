@@ -206,12 +206,13 @@ export default function RankingPage() {
     })();
   }, []);
 
-  if (loading) return <main className="p-4">読み込み中…</main>;
-  if (error) return <main className="p-4 text-red-500">{error}</main>;
-
   return (
     <main className="p-4 mx-auto max-w-3xl">
       <h1 className="text-xl font-bold mb-4">人気神社ランキング</h1>
+
+      {/* 状態メッセージは見出しの下で表示するが、タブ本体は常時描画 */}
+      {loading && <p className="mb-2 opacity-70">読み込み中…</p>}
+      {error && <p className="mb-2 text-red-600">{error}</p>}
 
       <Tabs defaultValue="monthly">
         <TabsList className="mb-6">
@@ -221,11 +222,11 @@ export default function RankingPage() {
         </TabsList>
 
         <TabsContent value="monthly">
-          <RankingList data={monthly} />
+          <RankingList data={monthly ?? []} />
         </TabsContent>
 
         <TabsContent value="yearly">
-          <RankingList data={yearly} />
+          <RankingList data={yearly ?? []} />
         </TabsContent>
 
         <TabsContent value="popular">
