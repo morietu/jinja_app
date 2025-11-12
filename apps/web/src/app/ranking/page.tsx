@@ -5,7 +5,10 @@ import Link from "next/link";
 import { fetchRanking } from "@/lib/api/ranking";
 import type { RankingItem } from "@/lib/api/ranking";
 import { useFavorite } from "@/hooks/useFavorite";
-import { usePopularShrines } from "@/hooks/usePopularShrines";
+import {
+  usePopularShrines,
+  type PopularShrine,
+} from "../../hooks/usePopularShrines";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
@@ -157,7 +160,7 @@ function PopularTab() {
       )}
 
       <ul className="divide-y rounded-2xl shadow">
-        {items.map((s) => (
+        {items.map((s: PopularShrine) => (
           <li key={s.id} className="p-3">
             <div className="font-medium">{s.name_jp}</div>
             <div className="text-sm opacity-70">score: {s.popular_score}</div>
