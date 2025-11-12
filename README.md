@@ -2,9 +2,11 @@
 
 ## 概要
 
-**AI参拝ナビ** は、ユーザーの現在地・希望するご利益・移動手段をもとに、AIコンシェルジュが最適な神社ルートを提案するアプリです。
+**AI参拝ナビ**
+は、ユーザーの現在地・希望するご利益・移動手段をもとに、AIコンシェルジュが最適な神社ルートを提案するアプリです。
 
 ### 主な機能
+
 - 徒歩/車のルート表示
 - 周辺の人気神社推薦
 - 「干支・九星気学」などのスピ要素対応
@@ -15,14 +17,17 @@
 ## 技術スタック
 
 ### バックエンド
+
 - Django 5 + DRF + PostgreSQL (PostGIS)
 
 ### フロントエンド
+
 - Next.js (App Router) / React
 - Expo + React Native（モバイル）
 - shadcn/ui + Tailwind CSS
 
 ### AIレイヤー
+
 - OpenAI Responses API（Structured Outputs）
 - 干支・四柱推命の簡易診断ロジック
 - 失敗時は「距離順トップ3」のフォールバック
@@ -32,6 +37,7 @@
 ## アーキテクチャと認証の方針
 
 ### Cookie ベース認証
+
 - HttpOnly クッキー：`access_token` / `refresh_token`
 - Next の `/api` キャッチオール・プロキシで DRF に転送
 - パス: `apps/web/src/app/api/[[...path]]/route.ts`
@@ -39,14 +45,17 @@
 - `access_token` が Cookie にあれば `Authorization: Bearer` を自動付与
 
 ### 認証フロー
+
 - `POST /api/auth/jwt/(create|refresh)/` のレスポンスから HttpOnly Cookie を設定
 - axios 統一：クライアント/サーバ共通で **必ず /api（Next 経由）** を叩く
 
 ### 重要なファイル
+
 - `apps/web/src/lib/api/client.ts` - axios設定
 - `apps/web/src/lib/api/http.ts` - apiGet/apiPost/apiPatch/apiDelete など薄いラッパ
 
 ### 重要ルール ⚠️
+
 - API は **相対パスのみ**：`api.get("/users/me/")`（直 URL 禁止）
 - `withCredentials: true`（axios）
 - DRF はトレーリングスラッシュ必須（例：`/users/me/`）
@@ -57,24 +66,25 @@
 ## 主な API エンドポイント
 
 ### AI参拝ナビ
-```
+
+````text
 POST /api/concierge/chat/    # 会話入力 → LLM が最終プラン(JSON)を返す
 POST /api/concierge/plan/    # フォーム入力（構造化）→ 参拝プラン(JSON)
-```
+```text
 
 ### 神社データ取り込み
-```
+```text
 POST /api/shrines/import_from_place/    # { place_id, favorite?: true }
 POST /api/shrines/bulk_import/          # { place_ids: string[] }
-```
+```text
 - `place_id` ユニークで重複登録を防止
 - 成功時は（ログイン中なら）自動お気に入り追加
 
 ### デバッグ（Next プロキシ内）
-```
+```text
 GET /api/probe              # Next 側の死活＋ ORIGIN 表示
 GET /api/debug/cookies      # Cookie/Authorization の確認
-```
+```text
 
 ---
 
@@ -95,7 +105,7 @@ LLM_RETRIES=2
 LLM_BACKOFF_S=0.5
 LLM_PROMPT_VERSION=v1
 # LLM_ENABLE_PLACES=true  # Places補完を使う場合
-```
+```text
 
 ### 設定説明
 - **モデル**: `OPENAI_MODEL`（例: gpt-4.1-mini）
@@ -108,7 +118,7 @@ LLM_PROMPT_VERSION=v1
 
 ## ディレクトリ構成
 
-```
+```text
 jinja_app/
 ├── backend/                            # Django + DRF
 │   ├── shrine_project/                 # 設定
@@ -127,7 +137,7 @@ jinja_app/
 │   └── mobile/                         # Expo (モバイル)
 │
 └── ...
-```
+```text
 
 ---
 
@@ -150,7 +160,7 @@ python manage.py migrate
 
 # サーバー起動 (127.0.0.1:8000)
 python manage.py runserver 127.0.0.1:8000
-```
+```text
 
 ### フロントエンド（Next.js）
 
@@ -158,7 +168,7 @@ python manage.py runserver 127.0.0.1:8000
 cd apps/web
 npm install
 npm run dev   # http://localhost:3000
-```
+```text
 
 ### Next.js 用の環境変数（.env.local）
 
@@ -166,7 +176,7 @@ npm run dev   # http://localhost:3000
 APP_ORIGIN=http://localhost:3000
 NEXT_PUBLIC_BACKEND_ORIGIN=http://127.0.0.1:8000
 API_BASE_SERVER=http://127.0.0.1:8000
-```
+```text
 
 ### モバイル（Expo）
 
@@ -174,7 +184,7 @@ API_BASE_SERVER=http://127.0.0.1:8000
 cd apps/mobile
 npm install
 npm start
-```
+```text
 
 ---
 
@@ -193,7 +203,7 @@ const api = axios.create({
 });
 
 export default api;
-```
+```text
 
 ### 薄いラッパの例
 
@@ -208,7 +218,7 @@ export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}): P
 }
 
 // apiPost / apiPatch / apiDelete / isAuthError も同様
-```
+```text
 
 ---
 
@@ -230,7 +240,7 @@ curl -s -b cookies.txt http://localhost:3000/api/debug/cookies | jq
 
 # 4) ユーザー情報取得
 curl -s -b cookies.txt http://localhost:3000/api/users/me/ | jq
-```
+```text
 
 ### ブラウザコンソールでの確認
 
@@ -248,7 +258,7 @@ await fetch('/api/debug/cookies', { credentials:'include' }).then(r=>r.json());
 
 // ユーザー情報取得
 await fetch('/api/users/me/', { credentials:'include' }).then(r=>r.json());
-```
+```text
 
 ---
 
@@ -305,7 +315,7 @@ docker compose exec -T web pytest -q
 # ローカルで最小実行
 docker compose up -d db web
 docker compose exec -T web sh -lc "pip install -q pytest pytest-django && pytest -q"
-```
+```text
 
 ---
 
@@ -329,7 +339,7 @@ conda create -n jinja_app_py311 -c conda-forge ^
   python=3.11 gdal pyproj shapely fiona geopandas rtree -y
 conda activate jinja_app_py311
 python -c "from osgeo import gdal; print('GDAL VersionInfo:', gdal.VersionInfo())"
-```
+```text
 
 ### OpenAPI Lint 方針（MVP）
 - ツール: Spectral v6
@@ -386,11 +396,11 @@ git config --global alias.clean-local-merged '!git branch --merged develop | sed
 git config --global alias.clean-remote-merged '!git branch -r --merged origin/develop | sed "s#^[ *]*##" | grep -v -- "->" | grep -vE "^origin/(develop|main)$" | sed "s#^origin/##" | xargs -r -n1 -I{} git push origin :{}'
 
 🔒 Branch 保護設定（GitHub推奨）
-	•	main / develop は直接 push 禁止（PR 経由のみ）
-	•	web-tests CI 成功を必須チェックに
-	•	“Require linear history” 有効化を推奨
+ • main / develop は直接 push 禁止（PR 経由のみ）
+ • web-tests CI 成功を必須チェックに
+ • “Require linear history” 有効化を推奨
 
-  
+
 
 
 
@@ -399,3 +409,4 @@ git config --global alias.clean-remote-merged '!git branch -r --merged origin/de
 ![Contract CI](https://github.com/morietu/jinja_app/actions/workflows/ci-contract.yml/badge.svg?branch=develop)
 [![backend-unit](https://github.com/morietu/jinja_app/actions/workflows/backend-unit.yml/badge.svg)](…)
 [![backend-integration](https://github.com/morietu/jinja_app/actions/workflows/backend-integration.yml/badge.svg)](…)
+````
