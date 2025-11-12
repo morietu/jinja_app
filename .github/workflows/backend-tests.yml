@@ -10,7 +10,7 @@ on:
       concierge_throttle:
         type: string
         required: false
-        default: 1000/min
+        default: "1000/min"
     secrets:
       GOOGLE_MAPS_API_KEY: { required: false }
       GOOGLE_PLACES_API_KEY: { required: false }
@@ -24,17 +24,18 @@ on:
       concierge_throttle:
         description: "DRF throttle for concierge"
         type: string
-        default: 1000/min
+        default: "1000/min"
 
 permissions: { contents: read }
 
-env:
-  CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
+# env:
+#   CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || github.event.inputs.concierge_throttle || '1000/min' }}
 
 jobs:
   unit:
     if: ${{ inputs.mode != 'integration' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     concurrency:
       group: backend-tests-unit-${{ github.ref }}
       cancel-in-progress: true
@@ -48,7 +49,7 @@ jobs:
       USE_GIS: "0"
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
-      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle }}
+      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || github.event.inputs.concierge_throttle || '1000/min' }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
@@ -87,6 +88,17 @@ jobs:
               print("temples NG:", repr(e))
           PY
 
+      - name: Check Django schema drift (no new migrations)
+        working-directory: backend
+        run: |
+          python -V
+          python manage.py makemigrations --check --dry-run
+
+      - name: Show migrate plan (for logs)
+        if: always()
+        working-directory: backend
+        run: python manage.py migrate --plan
+      
       - name: Run pytest (unit, sqlite)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -95,9 +107,17 @@ jobs:
           python -c "import django,sys;print('django', django.get_version());print(sys.version)"
           python -m pytest
 
+      - name: Echo throttle
+        run: echo "CONCIERGE_THROTTLE=${CONCIERGE_THROTTLE}"
+
+      
+      
+
+
   integration:
     if: ${{ inputs.mode == 'integration' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     concurrency:
       group: backend-tests-integration-${{ github.ref }}
       cancel-in-progress: true
@@ -125,7 +145,7 @@ jobs:
       USE_LLM_CONCIERGE: "0"
       AUTO_GEOCODE_ON_SAVE: "0"
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
-      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || '1000/min' }}
+      CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || github.event.inputs.concierge_throttle || '1000/min' }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
       GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY || 'dummy' }}
       PYTHONDONTWRITEBYTECODE: "1"
@@ -205,6 +225,19 @@ jobs:
           pytest -q --rootdir smoke_gis --confcutdir smoke_gis \
                 -c /dev/null -p no:django -p no:pytest_django \
                 smoke_gis/test_gis_runtime.py
+      
+      - name: Check Django schema drift (no new migrations)
+        working-directory: backend
+        run: |
+          python -V
+          python manage.py makemigrations --check --dry-run
+
+      - name: Show migrate plan (for logs)
+        if: always()
+        working-directory: backend
+        run: python manage.py migrate --plan
+      
+      
       - name: Run pytest (integration, postgis)
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
@@ -226,3 +259,6 @@ jobs:
           else
             echo "No postgis container found"
           fi
+
+      # 例: .github/workflows/backend-tests.yml の jobs.test.steps に追記
+      
