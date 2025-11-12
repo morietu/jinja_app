@@ -313,6 +313,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
+        
     ),
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.ScopedRateThrottle",
@@ -323,7 +324,7 @@ REST_FRAMEWORK = {
         "anon": "60/min",
         "user": "120/min",
         # フィーチャ別スコープ
-        "concierge": "5/day",  # ← 無料枠的にここは “日次” にするのがオススメ
+        "concierge": "8/min",
         "places": "30/min",
         "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
         "shrines": "60/min",
@@ -331,6 +332,7 @@ REST_FRAMEWORK = {
         "geocode": "30/min",
         "favorites": "30/min",
         "routes": "60/min",
+
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
