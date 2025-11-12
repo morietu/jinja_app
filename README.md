@@ -92,7 +92,7 @@ GET /api/debug/cookies      # Cookie/Authorization の確認
 
 ### LLM 設定（.env）
 
-```bash
+
 # OpenAI
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
@@ -105,7 +105,7 @@ LLM_RETRIES=2
 LLM_BACKOFF_S=0.5
 LLM_PROMPT_VERSION=v1
 # LLM_ENABLE_PLACES=true  # Places補完を使う場合
-```text
+
 
 ### 設定説明
 - **モデル**: `OPENAI_MODEL`（例: gpt-4.1-mini）
@@ -137,7 +137,7 @@ jinja_app/
 │   └── mobile/                         # Expo (モバイル)
 │
 └── ...
-```text
+
 
 ---
 
@@ -160,31 +160,30 @@ python manage.py migrate
 
 # サーバー起動 (127.0.0.1:8000)
 python manage.py runserver 127.0.0.1:8000
-```text
+
 
 ### フロントエンド（Next.js）
 
-```bash
+
 cd apps/web
 npm install
 npm run dev   # http://localhost:3000
-```text
+
 
 ### Next.js 用の環境変数（.env.local）
 
-```bash
+
 APP_ORIGIN=http://localhost:3000
 NEXT_PUBLIC_BACKEND_ORIGIN=http://127.0.0.1:8000
 API_BASE_SERVER=http://127.0.0.1:8000
-```text
+
 
 ### モバイル（Expo）
 
-```bash
 cd apps/mobile
 npm install
 npm start
-```text
+
 
 ---
 
@@ -203,7 +202,7 @@ const api = axios.create({
 });
 
 export default api;
-```text
+
 
 ### 薄いラッパの例
 
@@ -218,7 +217,6 @@ export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}): P
 }
 
 // apiPost / apiPatch / apiDelete / isAuthError も同様
-```text
 
 ---
 
@@ -226,7 +224,7 @@ export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}): P
 
 ### cURL を使った確認
 
-```bash
+
 # 1) プローブ確認
 curl -s http://localhost:3000/api/probe | jq
 
@@ -240,7 +238,7 @@ curl -s -b cookies.txt http://localhost:3000/api/debug/cookies | jq
 
 # 4) ユーザー情報取得
 curl -s -b cookies.txt http://localhost:3000/api/users/me/ | jq
-```text
+
 
 ### ブラウザコンソールでの確認
 
@@ -258,7 +256,7 @@ await fetch('/api/debug/cookies', { credentials:'include' }).then(r=>r.json());
 
 // ユーザー情報取得
 await fetch('/api/users/me/', { credentials:'include' }).then(r=>r.json());
-```text
+
 
 ---
 

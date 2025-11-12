@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
-
+from temples.api.views.concierge import ConciergeChatView
 # geocode (レガシー互換も吸収)
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
 
@@ -99,6 +99,7 @@ urlpatterns = [
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
     path("concierges/chats/", concierge.chat, name="concierge-chat"),
+    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
     path("concierges/plans/", concierge.plan, name="concierge-plan"),
     path(
         "concierges/histories/", concierge.ConciergeHistoryView.as_view(), name="concierge-history"
