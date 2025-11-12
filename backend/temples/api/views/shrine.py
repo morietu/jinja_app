@@ -5,10 +5,7 @@ from datetime import timedelta
 from typing import List, Tuple
 
 from django.conf import settings
-from django.db.models import (
-    Case, Count, ExpressionWrapper, F, FloatField, IntegerField,
-    Q, Value, When
-)
+from django.db.models import F, FloatField, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -89,6 +86,42 @@ class NearestShrinesAPIView(APIView):
             qs = q_nearest_queryset(lon=lng, lat=lat)[:limit]
         data = ShrineListSerializer(qs, many=True, context={"request": request}).data
         return Response(data, status=status.HTTP_200_OK) 
+
+# ---- Popular API（Visitへは依存しない）----
+class PopularShrineListView(ListAPIView):
+    serializer_class = ShrineListSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "shrines"
+
+    def get_queryset(self):
+        # Visit 参照は不可（0044でVisit.shrineを撤去）。popular_score のみで並べ替え。
+        qs = Shrine.objects.all()
+
+        # kind（既定 shrine / ?kind=temple / ?kind=all）
+        params = self.request.query_params
+        kind = (params.get("kind") or "shrine").lower()
+        if kind in ("shrine", "temple"):
+            qs = qs.filter(kind=kind)
+        elif kind != "all":
+            qs = qs.filter(kind="shrine")
+
+        return (
+            qs.annotate(
+                _score=Coalesce(F("popular_score"), Value(0.0), output_field=FloatField())
+            )
+            .order_by("-_score", "-id")
+        )
+
+    def list(self, request, *args, **kwargs):
+        try:
+            limit = int(request.GET.get("limit", 10))
+        except Exception:
+            limit = 10
+        limit = max(1, min(50, limit))
+        data = self.get_serializer(
+            self.get_queryset()[:limit], many=True, context={"request": request}
+        ).data
+        return Response({"items": data})
 
 
 # ---- ランキング API ----
