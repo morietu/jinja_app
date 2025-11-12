@@ -30,6 +30,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from users.views import MeView
+from temples import api_views_concierge as concierge
 
 from .views import favicon, index
 
@@ -107,8 +108,13 @@ urlpatterns = [
     path("api/users/me/", MeView.as_view(), name="users-me"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include("favorites.urls")),
+
+    path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
+
+    # ★ 追加：グローバル名付きの include
+    path("api/", include("temples.api.urls")),
+    # ★ 既存：namespaced include（temples:shrine_route など用）
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-    
 
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
