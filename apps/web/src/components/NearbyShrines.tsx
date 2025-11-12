@@ -32,8 +32,16 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     setState("loading");
     setErrorMessage(undefined);
     try {
-      const list = await fetchNearestShrines(coords.lat, coords.lng, limit);
-      const mapped = (list ?? []).map(toItem);
+      const page = 1;
+
+      const resp = await fetchNearestShrines({
+        lat: coords.lat,
+        lng: coords.lng,
+        page,
+        page_size: limit,   // ← 互換のため limit を送るなら page_size 優先
+        // limit,          // （残すならコメントアウトを外す）
+      });
+      const mapped = (resp?.results ?? []).map(toItem);
       if (mapped.length === 0) {
         setItems([]);
         setState("empty");

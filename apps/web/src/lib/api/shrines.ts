@@ -1,21 +1,7 @@
 // apps/web/src/lib/api/shrines.ts
 import api from "./client";
-
-export type GoriyakuTag = { id: number; name: string };
-
-// バックエンドに合わせて拡張（足りないプロパティは全部 optional）
-export type Shrine = {
-  id: number;
-  name_jp: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  distance_m?: number;
-  // 詳細ページが参照している項目をoptionalで追加
-  goriyaku?: string;
-  sajin?: string;
-  goriyaku_tags?: GoriyakuTag[];
-};
+import type { Paginated, Shrine } from "./types";
+export type { Shrine } from "./types";
 
 // 👉 検索パラメータは任意に（従来呼び出しを壊さない）
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
@@ -28,16 +14,22 @@ export async function getShrine(id: number): Promise<Shrine> {
   return res.data;
 }
 
-// 近くの神社
-export async function fetchNearestShrines(
-  lat: number,
-  lng: number,
-  radiusM = 2000
-): Promise<Shrine[]> {
-  const res = await api.get("/shrines/nearby/", {
-    params: { lat, lng, radius_m: radiusM },
-  });
-  return Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+// 近くの神社（DRFページネーション形式）
+export async function fetchNearestShrines(params: {
+  lat: number;
+  lng: number;
+  page?: number;
+  page_size?: number;
+  limit?: number; // 互換
+  q?: string;
+}): Promise<Paginated<Shrine>> {
+  const res = await api.get("/shrines/nearest/", { params });
+  const data = res.data;
+  if (Array.isArray(data)) {
+    // 一時互換: 配列→Paginatedへ
+    return { count: data.length, next: null, previous: null, results: data };
+  }
+  return res.data as Paginated<Shrine>;
 }
 
 // 新規作成（必要なら）
@@ -48,5 +40,5 @@ export async function createShrine(
   return res.data as Shrine;
 }
 
-// 他モジュールのre-export（必要なら残す）
+// 他モジュールの re-export
 export { importFromPlace, type ImportResult } from "./favorites";
