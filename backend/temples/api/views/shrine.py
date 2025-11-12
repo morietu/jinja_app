@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import math
-from datetime import timedelta
+
 from typing import List, Tuple
 
 from django.conf import settings
-from django.db.models import (
-    Case, Count, ExpressionWrapper, F, FloatField, IntegerField,
-    Q, Value, When
-)
+
+from django.db.models import F, Value, Q  # FloatField/Count/ExpressionWrapperは不要
 from django.db.models.functions import Coalesce
-from django.utils import timezone
+
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -88,7 +86,43 @@ class NearestShrinesAPIView(APIView):
         else:
             qs = q_nearest_queryset(lon=lng, lat=lat)[:limit]
         data = ShrineListSerializer(qs, many=True, context={"request": request}).data
-        return Response(data, status=status.HTTP_200_OK) 
+        return Response(data, status=status.HTTP_200_OK)
+
+# ---- Popular API（Visitへは依存しない）----
+class PopularShrineListView(ListAPIView):
+    serializer_class = ShrineListSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "shrines"
+
+    def get_queryset(self):
+        # Visit 参照は不可（0044でVisit.shrineを撤去）。popular_score のみで並べ替え。
+        qs = Shrine.objects.all()
+
+        # kind（既定 shrine / ?kind=temple / ?kind=all）
+        params = self.request.query_params
+        kind = (params.get("kind") or "shrine").lower()
+        if kind in ("shrine", "temple"):
+            qs = qs.filter(kind=kind)
+        elif kind != "all":
+            qs = qs.filter(kind="shrine")
+
+        return (
+            qs.annotate(
+                _score=Coalesce(F("popular_score"), Value(0.0), output_field=FloatField())
+            )
+            .order_by("-_score", "-id")
+        )
+
+    def list(self, request, *args, **kwargs):
+        try:
+            limit = int(request.GET.get("limit", 10))
+        except Exception:
+            limit = 10
+        limit = max(1, min(50, limit))
+        data = self.get_serializer(
+            self.get_queryset()[:limit], many=True, context={"request": request}
+        ).data
+        return Response({"items": data})
 
 
 # ---- ランキング API ----
@@ -98,9 +132,6 @@ class RankingAPIView(ListAPIView):
     throttle_scope = "shrines"
 
     def get_queryset(self):
-        now = timezone.now()
-        since = now - timedelta(days=30)
-
         qs = Shrine.objects.all()
 
         # kind（既定 shrine / ?kind=temple / ?kind=all）
@@ -112,7 +143,7 @@ class RankingAPIView(ListAPIView):
             qs = qs.filter(kind="shrine")
 
         # 簡易BBOX（near=LAT,LNG & radius_km=R）
-        near = params.get("near")
+        near = params.get("near")#
         radius_km = params.get("radius_km")
         if near and radius_km:
             try:
@@ -129,22 +160,9 @@ class RankingAPIView(ListAPIView):
             except Exception:
                 pass  # パラメータ不正は無視
 
-        # 合成スコア：直近30日の訪問(×2.0) + popular_score(×0.5)
-        qs = (
-            qs.annotate(
-                visit_count_30d=Coalesce(
-                    Count("visits", filter=Q(visits__visited_at__gte=since)), 0
-                ),
-                popular_val=Coalesce(F("popular_score"), Value(0.0)),
-            )
-            .annotate(
-                composite_score=ExpressionWrapper(
-                    F("visit_count_30d") * Value(2.0) + F("popular_val") * Value(0.5),
-                    output_field=FloatField(),
-                )
-            )
-            .order_by("-composite_score", "-id")
-        )
+        qs = qs.annotate(
+            popular_val=Coalesce(F("popular_score"), Value(0.0))
+        ).order_by("-popular_val", "-id")
         return qs
 
     def list(self, request, *args, **kwargs):
@@ -291,7 +309,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             if radius_m <= 0:
                 return Response({"detail": "radius must be > 0."}, status=400)
         # queries 経由（Spatialite でも <-> を発行しない）
-        qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)        
+        qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
 
         # 同じフィルタ群
         kind = (params.get("kind") or "shrine").lower()
