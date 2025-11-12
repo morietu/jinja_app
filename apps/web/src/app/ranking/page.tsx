@@ -5,7 +5,7 @@ import Link from "next/link";
 import { fetchRanking } from "@/lib/api/ranking";
 import type { RankingItem } from "@/lib/api/ranking";
 import { useFavorite } from "@/hooks/useFavorite";
-import { usePopularShrines } from "@/hooks/usePopularShrines";
+import { usePopularShrines } from "../../hooks/usePopularShrines";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
