@@ -30,18 +30,22 @@ export default function NearbyPage() {
         const lat = pos?.coords?.latitude ?? 35.681236; // 東京駅 fallback
         const lng = pos?.coords?.longitude ?? 139.767125;
 
-        const r = await fetch(
-          `/api/shrines/nearest?lat=${lat}&lng=${lng}&limit=20`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        const list: ShrineItem[] = Array.isArray(data)
-          ? data
-          : data.results ?? [];
+
+        async function fetchNearest(url: string) {
+          const r = await fetch(url, { credentials: "include", cache: "no-store" });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const data = await r.json();
+          return (Array.isArray(data) ? data : data?.results) ?? [];
+        }
+
+        let list: ShrineItem[] = [];
+        try {
+          list = await fetchNearest(`/api/shrines/nearest?lat=${lat}&lng=${lng}&page_size=20`);
+        } catch {
+          // 末尾スラにもフォールバック（環境差異対策）
+          list = await fetchNearest(`/api/shrines/nearest/?lat=${lat}&lng=${lng}&page_size=20`);
+        }       
+        
         if (!abort) setItems(list);
       } catch (e: any) {
         if (!abort) setErr(e?.message ?? "failed to load");

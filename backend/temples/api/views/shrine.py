@@ -95,7 +95,7 @@ class PopularShrineListView(ListAPIView):
     throttle_scope = "shrines"
 
     def get_queryset(self):
-        # Visit 参照は不可（0044でVisit.shrineを撤去）。popular_score のみで並べ替え。
+        # Visit 参照は不可（0044でVisit.shrine撤去）。popular_score のみで並べ替え。
         qs = Shrine.objects.all()
 
         # kind（既定 shrine / ?kind=temple / ?kind=all）
@@ -107,22 +107,11 @@ class PopularShrineListView(ListAPIView):
             qs = qs.filter(kind="shrine")
 
         return (
-            qs.annotate(
-                _score=Coalesce(F("popular_score"), Value(0.0), output_field=FloatField())
-            )
-            .order_by("-_score", "-id")
+            qs.annotate(popular_val=Coalesce(F("popular_score"), Value(0.0)))
+              .order_by(F("popular_val").desc(nulls_last=True), "-id")
         )
 
-    def list(self, request, *args, **kwargs):
-        try:
-            limit = int(request.GET.get("limit", 10))
-        except Exception:
-            limit = 10
-        limit = max(1, min(50, limit))
-        data = self.get_serializer(
-            self.get_queryset()[:limit], many=True, context={"request": request}
-        ).data
-        return Response({"items": data})
+    
 
 
 # ---- ランキング API ----
@@ -143,7 +132,7 @@ class RankingAPIView(ListAPIView):
             qs = qs.filter(kind="shrine")
 
         # 簡易BBOX（near=LAT,LNG & radius_km=R）
-        near = params.get("near")#
+        near = params.get("near")
         radius_km = params.get("radius_km")
         if near and radius_km:
             try:
@@ -160,21 +149,11 @@ class RankingAPIView(ListAPIView):
             except Exception:
                 pass  # パラメータ不正は無視
 
-        qs = qs.annotate(
-            popular_val=Coalesce(F("popular_score"), Value(0.0))
-        ).order_by("-popular_val", "-id")
+        qs = qs.annotate(popular_val=Coalesce(F("popular_score"), Value(0.0))) \
+               .order_by("-popular_val", "-id")
         return qs
 
-    def list(self, request, *args, **kwargs):
-        try:
-            limit = int(request.GET.get("limit", 10))
-        except Exception:
-            limit = 10
-        limit = max(1, min(50, limit))
-        data = self.get_serializer(
-            self.get_queryset()[:limit], many=True, context={"request": request}
-        ).data
-        return Response({"items": data})
+    
 
 
 # ---- ShrineViewSet ----
@@ -294,11 +273,7 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             )
         if not (-90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0):
             return Response({"detail": "lat/lng out of range."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            limit = int(params.get("limit", 10))
-        except ValueError:
-            limit = 10
-        limit = max(1, min(limit, 50))
+        
 
         radius_m = None
         if params.get("radius") is not None:
@@ -309,7 +284,8 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             if radius_m <= 0:
                 return Response({"detail": "radius must be > 0."}, status=400)
         # queries 経由（Spatialite でも <-> を発行しない）
-        qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
+        # ← ページネーションに任せるため limit は渡さない
+        qs = q_nearest_shrines(lon=lng, lat=lat, radius_m=radius_m)
 
         # 同じフィルタ群
         kind = (params.get("kind") or "shrine").lower()
@@ -362,6 +338,12 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
                     qd |= term_q(dv)
                 qs = qs.filter(qd)
 
-        qs = annotate_is_favorite(qs, request)[:limit]
-        data = ShrineListSerializer(qs, many=True, context={"request": request}).data
-        return Response(data)
+        qs = annotate_is_favorite(qs, request)
+
+        # --- DRFページネーションに委譲 ---
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ShrineListSerializer(page, many=True, context={"request": request})
+            return self.get_paginated_response(serializer.data)
+        serializer = ShrineListSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)

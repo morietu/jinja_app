@@ -24,3 +24,10 @@ export type RankingItem = ShrineBase & {
   visit_count: number;
   favorite_count: number;
 };
+
+export type Paginated<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
