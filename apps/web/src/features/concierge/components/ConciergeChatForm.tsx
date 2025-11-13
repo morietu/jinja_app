@@ -5,10 +5,13 @@ import { FormEvent, useState } from "react";
 import { useConciergeChat } from "../hooks/useConciergeChat";
 import type { ConciergeChatRequest } from "../types";
 import { useConciergePlan } from "../hooks/useConciergePlan";
+import type { ConciergePlanResponse } from "@/api/conciergePlan";
 // 既存の UI ライブラリに合わせて import
 // 例: import { Button } from "@/components/ui/button";
 //     import { Input } from "@/components/ui/input";
 //     import { useToast } from "@/components/ui/use-toast";
+
+type PlanSpot = ConciergePlanResponse["spots"][number];
 
 export function ConciergeChatForm() {
   const [message, setMessage] = useState("");
@@ -46,8 +49,6 @@ export function ConciergeChatForm() {
     //     description: error,
     //   });
     // }
-
-    // 成功時も UI の仕様に合わせてトーストするならここで
   }
 
   const replyText = response?.reply ?? response?.data?.messages?.find((m) => m.role === "assistant")?.content ?? "";
@@ -62,7 +63,7 @@ export function ConciergeChatForm() {
           placeholder="神社の相談を入力してください…"
           disabled={loading || planLoading}
         />
-        <button type="submit" disabled={loading || !message.trim()} className="px-3 py-1 border rounded">
+        <button type="submit" disabled={loading || planLoading || !message.trim()} className="px-3 py-1 border rounded">
           {loading ? "送信中…" : "送信"}
         </button>
       </form>
@@ -99,14 +100,14 @@ export function ConciergeChatForm() {
           <div className="font-semibold mb-1">参拝プラン</div>
           {plan.summary && <p className="mb-2">{plan.summary}</p>}
 
-          <div className="space-y-2">
-            {plan.spots.map((spot, idx) => (
-              <div key={idx} className="border rounded p-2">
+          <ul className="space-y-2">
+            {plan.spots.map((spot: PlanSpot, idx: number) => (
+              <li key={spot.place_id ?? idx} className="border rounded p-2">
                 <div className="font-semibold">{spot.name}</div>
                 {spot.reason && <div className="text-xs text-slate-700 mt-1">{spot.reason}</div>}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>
