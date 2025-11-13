@@ -4,23 +4,129 @@ from __future__ import annotations
 import json
 import re
 import time
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from .client import LLMClient, make_openai_client
+from django.conf import settings
+
+from .client import LLMClient, make_openai_client, PLACEHOLDER
 from .config import LLMConfig
 from .prompts import SYSTEM_PROMPT
 from .schemas import complete_recommendations, normalize_recs
 
 
-# 既存の chat_to_plan を置き換え
-def draft_plan(query: str, candidates: list[dict]) -> dict:
-    # まだ呼ばない。次ブランチで API 経由にするための置き場
-    return {"status": "stub", "query": query, "candidates": candidates}
+# ---- v1: /api/concierge/chat 向け（recommendations ベース） ----
+
+
+@dataclass
+class ConciergeInput:
+    """コンシェルジュ LLM に渡す入力まとめ."""
+
+    query: str
+    area: Optional[str] = None
+    language: str = "ja"
+    candidates: List[Dict[str, Any]] = field(default_factory=list)
+
+    def as_payload(self) -> Dict[str, Any]:
+        # LLM に渡す候補は軽くサマる（名前＋位置情報＋タグ程度）
+        summarized_candidates: List[Dict[str, Any]] = []
+        for c in self.candidates[:10]:  # 上限 10 件くらいに絞る
+            if not isinstance(c, dict):
+                continue
+            summarized_candidates.append(
+                {
+                    "name": c.get("name"),
+                    "location": c.get("location"),
+                    "tags": c.get("tags") or [],
+                    "deities": c.get("deities") or [],
+                    "popular_score": c.get("popular_score"),
+                }
+            )
+
+        return {
+            "query": self.query,
+            "area": self.area,
+            "language": self.language,
+            "candidates": summarized_candidates,
+        }
+
+
+class ConciergeOrchestrator:
+    """チャット→推薦JSON（recommendations）にまとめるオーケストレータ。"""
+
+    def __init__(self, client: Optional[LLMClient] = None):
+        self.client = client or LLMClient()
+        # 環境フラグで LLM を有効化するかどうか
+        self.enabled: bool = bool(getattr(settings, "USE_LLM_CONCIERGE", False))
+
+    def suggest(self, query: str, candidates: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+        candidates = candidates or []
+        query = (query or "").strip()
+        if not query:
+            return {"recommendations": []}
+
+        # LLM を使わない設定 or クライアント無効なら、候補ベースの暫定にフォールバック
+        if not self.enabled or self.client._client is None or self.client._mode is None:
+            recs: List[Dict[str, Any]] = []
+            for i, c in enumerate(candidates):
+                name = c.get("name") or c.get("place_id") or "unknown"
+                recs.append(
+                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
+                )
+            if not recs:
+                recs = [{"name": "近隣の神社", "reason": "暫定"}]
+            return {"recommendations": recs}
+
+        # 旧 SYSTEM_PROMPT スタイル（LLM 側で JSON or 箇条書き）
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Query: {query}\nCandidates: {candidates}"},
+        ]
+
+        try:
+            msg = self.client.chat(messages)
+        except Exception:
+            # PLACEHOLDER を残しつつ完全フォールバック
+            recs: List[Dict[str, Any]] = []
+            for i, c in enumerate(candidates):
+                name = c.get("name") or c.get("place_id") or "unknown"
+                recs.append(
+                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
+                )
+            if not recs:
+                recs = [{"name": "近隣の神社", "reason": "暫定"}]
+            return {"recommendations": recs, "raw": PLACEHOLDER["content"]}
+
+        if isinstance(msg, dict) and msg.get("content"):
+            text = msg["content"]
+            data = _extract_json(text)
+            tmp = (
+                normalize_recs(data, query=query)
+                if data is not None
+                else (_extract_markdown_list(text) or {"raw": text})
+            )
+            if isinstance(tmp, dict) and tmp.get("recommendations"):
+                return complete_recommendations(tmp, query=query, candidates=candidates)
+
+        # LLM が構造化に失敗 → 候補ベースの暫定
+        recs: List[Dict[str, Any]] = []
+        for i, c in enumerate(candidates):
+            name = c.get("name") or c.get("place_id") or "unknown"
+            recs.append(
+                {"name": name, "reason": "暫定（順序ベース）", "score": max(0.0, 1.0 - i * 0.1)}
+            )
+        if not recs:
+            recs = [{"name": "近隣の神社", "reason": "暫定"}]
+        return {"recommendations": recs}
+
+
+# --- Back-compat: 旧呼び出し向け shim ------------------------------------
 
 
 def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kwargs) -> dict:
     """
     Back-compat shim expected by older tests/imports.
+
     受け取り方がバラつく旧APIに対応するため、*args/**kwargs を柔軟に受ける。
     想定される追加キー:
       - candidates: List[Dict] （最優先）
@@ -33,6 +139,7 @@ def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kw
     if candidates is None:
         candidates = kwargs.get("candidates") or []
     area = kwargs.get("area") or ""
+
     # まずは LLM を使った通常ルートを試す
     try:
         out = ConciergeOrchestrator().suggest(query=message, candidates=candidates or [])
@@ -40,9 +147,10 @@ def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kw
         out = {}
 
     # recommendations を必ず埋める
-    recs = []
+    recs: List[Dict[str, Any]] = []
     if isinstance(out, dict):
         recs = out.get("recommendations") or []
+
     if not recs:
         # candidates から暫定生成
         for i, c in enumerate(candidates or []):
@@ -63,7 +171,7 @@ def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kw
             short = _S(area)
         except Exception:
             short = area
-        # 先頭アイテムだけでも location を埋める（テストの期待に合わせる）
+        # 先頭アイテムだけでも location を埋める（旧テストの期待に合わせる）
         for i in range(min(1, len(recs))):
             if isinstance(recs[i], dict):
                 recs[i] = {**recs[i], "location": short}
@@ -95,7 +203,7 @@ def _extract_markdown_list(text: str):
     """
     箇条書き表現から {name, reason} を抽出して recommendations に落とす。
     """
-    items = []
+    items: List[Dict[str, str]] = []
     lines = [line.rstrip() for line in text.splitlines()]
     for line in lines:
         s = line.strip()
@@ -121,58 +229,13 @@ def _extract_markdown_list(text: str):
         return None
     return {
         "recommendations": [
-            {"name": it["name"], "location": "", "reason": it.get("reason", "")} for it in items[:3]
+            {"name": it["name"], "location": "", "reason": it.get("reason", "")}
+            for it in items[:3]
         ]
     }
 
 
-class ConciergeOrchestrator:
-    """チャット→推薦JSON（recommendations）にまとめる最小オーケストレータ。"""
-
-    def __init__(self, client: Optional[LLMClient] = None):
-        self.client = client or LLMClient()
-
-    def suggest(self, query: str, candidates: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
-        candidates = candidates or []
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Query: {query}\nCandidates: {candidates}"},
-        ]
-        msg = self.client.chat(messages)
-        if isinstance(msg, dict) and msg.get("content"):
-            text = msg["content"]
-            data = _extract_json(text)
-            tmp = (
-                normalize_recs(data, query=query)
-                if data is not None
-                else (_extract_markdown_list(text) or {"raw": text})
-            )
-            # --- ここから追記: 最終フォールバックで recommendations を保証 ---
-            if isinstance(tmp, dict) and "recommendations" in tmp and tmp["recommendations"]:
-                return complete_recommendations(tmp, query=query, candidates=candidates)
-
-            # LLMが構造化に失敗した場合でも candidates から最低1件作る
-            recs = []
-            for i, c in enumerate(candidates):
-                name = c.get("name") or c.get("place_id") or "unknown"
-                recs.append(
-                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
-                )
-            if not recs:
-                recs = [{"name": "近隣の神社", "reason": "暫定"}]
-            return {"recommendations": recs}
-
-        # LLM不在のフォールバック：入力候補の順序をスコア化
-        recs = []
-        for i, c in enumerate(candidates):
-            name = c.get("name") or c.get("place_id") or "unknown"
-            recs.append(
-                {"name": name, "reason": "暫定（順序ベース）", "score": max(0.0, 1.0 - i * 0.1)}
-            )
-        return {"recommendations": recs}
-
-
-# ---- v2: 位置情報を含む Plan 形式（/api/concierge/chat と統一して使える） ----
+# ---- v2: 位置情報を含む Plan 形式（/api/concierge/plan 用） ----
 
 
 def _round_coord(v: Optional[float], ndigits: int) -> Optional[float]:
