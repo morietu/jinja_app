@@ -108,13 +108,18 @@ urlpatterns = [
     path("api/users/me/", MeView.as_view(), name="users-me"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     
+    # favorites エンドポイント（/api/favorites/）
+    path("api/", include("favorites.urls")),
 
+    # concierge-plan のグローバル alias
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
 
-    # ★ 追加：グローバル名付きの include
-
-    # ★ 既存：namespaced include（temples:shrine_route など用）
+    # temples 名前空間付き include（temples:shrine_route など用）
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
+    
+
+
+
 
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
