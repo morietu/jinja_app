@@ -5,10 +5,7 @@ import { FormEvent, useState } from "react";
 import { useConciergeChat } from "../hooks/useConciergeChat";
 import { useConciergePlan } from "../hooks/useConciergePlan";
 import type { ConciergeChatRequest } from "../types";
-import type { ConciergePlanResponse } from "@/api/conciergePlan";
-
-// spots の1件分の型
-type PlanSpot = ConciergePlanResponse["spots"][number];
+import { ConciergePlanResult } from "./ConciergePlanResult";
 
 export function ConciergeChatForm() {
   const [message, setMessage] = useState("");
@@ -64,8 +61,8 @@ export function ConciergeChatForm() {
         </button>
       </form>
 
-      {/* プラン作成ボタン */}
-      <div className="flex gap-2">
+      {/* プラン作成ボタン＋補足 */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleCreatePlan}
@@ -74,11 +71,11 @@ export function ConciergeChatForm() {
         >
           {planLoading ? "プラン作成中…" : "この内容で参拝プランを作る"}
         </button>
+        <span className="text-xs text-slate-500">上の相談内容から、参拝ルート案を自動生成します</span>
       </div>
 
       {/* エラー表示 */}
       {chatError && <p className="text-sm text-red-600">{chatError}</p>}
-      {planError && <p className="text-sm text-red-600">{planError}</p>}
 
       {/* チャットの返信 */}
       {replyText && !chatError && (
@@ -88,23 +85,8 @@ export function ConciergeChatForm() {
         </div>
       )}
 
-      {/* プランの結果 */}
-      {plan && (
-        <div className="rounded border p-3 text-sm bg-white space-y-2">
-          <div className="font-semibold mb-1">参拝プラン</div>
-
-          {plan.summary && <p className="mb-2">{plan.summary}</p>}
-
-          <ul className="space-y-2">
-            {plan.spots.map((spot: PlanSpot, idx: number) => (
-              <li key={spot.place_id ?? idx} className="border rounded p-2">
-                <div className="font-semibold">{spot.name}</div>
-                {spot.reason && <div className="text-xs text-slate-700 mt-1">{spot.reason}</div>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* プランの結果（専用コンポーネントに委譲） */}
+      <ConciergePlanResult plan={plan} loading={planLoading} error={planError} />
     </div>
   );
 }
