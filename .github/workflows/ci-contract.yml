@@ -11,7 +11,7 @@ on:
 
 jobs:
   web-contract-test:
-    needs: openapi-lint
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
