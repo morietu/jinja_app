@@ -3,7 +3,7 @@
 
 import api from "@/lib/api";
 
-import axios from "axios";
+
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -270,11 +270,12 @@ export default function ConciergePage() {
 
         (async () => {
           try {
-            const r = await api.get("/api/concierges/histories/", {
+            await api.get("api/concierges/histories/", {
               signal: ac.signal,
-              // 401 / 404 は「想定内」として扱う
-              validateStatus: (s) => (s >= 200 && s < 300) || s === 401 || s === 404,
+              validateStatus: (s) =>
+                (s >= 200 && s < 300) || s === 401 || s === 404,
             });
+            // TODO: 履歴UIタスクで r.data を state に保存する
 
             // TODO: r.data を履歴 state に保存する実装は、履歴UIタスクで
             // setHistories(r.data ?? []);
