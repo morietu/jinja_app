@@ -42,7 +42,10 @@ export function ConciergeChatForm() {
     });
   }
 
-  const replyText = response?.reply ?? response?.data?.messages?.find((m) => m.role === "assistant")?.content ?? "";
+  const replyText =
+    response?.reply ??
+    response?.data?.messages?.find((m) => m.role === "assistant")?.content ??
+    "";
 
   return (
     <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
@@ -57,7 +60,11 @@ export function ConciergeChatForm() {
             placeholder="神社の相談を入力してください…"
             disabled={isBusy}
           />
-          <button type="submit" disabled={isBusy || !hasMessage} className="px-3 py-1 border rounded">
+          <button
+            type="submit"
+            disabled={isBusy || !hasMessage}
+            className="px-3 py-1 border rounded"
+          >
             {chatLoading ? "送信中…" : "相談する"}
           </button>
         </form>
@@ -72,7 +79,9 @@ export function ConciergeChatForm() {
           >
             {planLoading ? "プラン作成中…" : "この内容で参拝プランを作る"}
           </button>
-          <span className="text-xs text-slate-500">上の相談内容から、参拝ルート案を自動生成します</span>
+          <span className="text-xs text-slate-500">
+            上の相談内容から、参拝ルート案を自動生成します
+          </span>
         </div>
 
         {/* エラー表示（チャット） */}
