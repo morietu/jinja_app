@@ -58,13 +58,10 @@ export function ConciergeChatForm() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="神社の相談を入力してください…"
+            aria-label="コンシェルジュへの相談内容"
             disabled={isBusy}
           />
-          <button
-            type="submit"
-            disabled={isBusy || !hasMessage}
-            className="px-3 py-1 border rounded"
-          >
+          <button type="submit" disabled={isBusy || !hasMessage} className="px-3 py-1 border rounded">
             {chatLoading ? "送信中…" : "相談する"}
           </button>
         </form>
@@ -79,9 +76,7 @@ export function ConciergeChatForm() {
           >
             {planLoading ? "プラン作成中…" : "この内容で参拝プランを作る"}
           </button>
-          <span className="text-xs text-slate-500">
-            上の相談内容から、参拝ルート案を自動生成します
-          </span>
+          <span className="text-xs text-slate-500">上の相談内容から、参拝ルート案を自動生成します</span>
         </div>
 
         {/* エラー表示（チャット） */}

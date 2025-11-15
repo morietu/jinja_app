@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFavorite } from "@/hooks/useFavorite";
 
+
 const RouteMap = dynamic(() => import("@/components/map/RouteMap"), {
   ssr: false,
 });
@@ -99,6 +100,8 @@ export default function ConciergePage() {
   // 中断用
   const listAbortRef = useRef<AbortController | null>(null);
   const geocodeAbortRef = useRef<AbortController | null>(null);
+
+  
 
   // 現在地取得（失敗してもUI継続）
   useEffect(() => {
@@ -265,30 +268,7 @@ export default function ConciergePage() {
     }
   };
 
-      useEffect(() => {
-        const ac = new AbortController();
 
-        (async () => {
-          try {
-            await api.get("api/concierges/histories/", {
-              signal: ac.signal,
-              validateStatus: (s) =>
-                (s >= 200 && s < 300) || s === 401 || s === 404,
-            });
-            // TODO: 履歴UIタスクで r.data を state に保存する
-
-            // TODO: r.data を履歴 state に保存する実装は、履歴UIタスクで
-            // setHistories(r.data ?? []);
-          } catch (err) {
-            // 履歴はオプショナル機能なので、今の段階では黙ってスルーでOK
-            if (process.env.NODE_ENV !== "production") {
-              console.debug("failed to fetch concierge histories", err);
-            }
-          }
-        })();
-
-        return () => ac.abort();
-      }, []);
 
   // 候補から起点選択
   const selectGeocode = (g: GeocodeResult) => {
@@ -300,6 +280,7 @@ export default function ConciergePage() {
     fetchCandidates(o);
   };
 
+    
   const selected = candidates[selectedIdx] || null;
   const destination = useMemo(
     () =>
@@ -310,114 +291,124 @@ export default function ConciergePage() {
   );
 
   return (
-    <main className="p-4 space-y-6">
-      <h1 className="text-xl font-bold">
-        AI神社コンシェルジュ（スポット×ルート）
-      </h1>
+    <main className="p-4 space-y-6 max-w-5xl mx-auto">
+      <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
 
-      {/* 並び替え + 半径 */}
-      <div className="flex gap-2 items-center">
-        <button
-          className={`px-2 py-1 rounded ${
-            mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"
-          }`}
-          onClick={() => setMode("popular")}
-        >
-          人気順
-        </button>
+      
 
-        <button
-          className={`px-2 py-1 rounded ${
-            mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"
-          }`}
-          onClick={() => setMode("nearby")}
-          disabled={!origin}
-          title={!origin ? "起点を設定してください" : ""}
-        >
-          近い順
-        </button>
+      {/* 検索条件エリア */}
+      <section className="space-y-3 rounded-lg border bg-white p-4">
+        <h2 className="text-lg font-semibold">検索条件</h2>
 
-        {/* 半径セレクト（近い順のときだけ表示） */}
-        {mode === "nearby" && (
-          <label className="ml-2 text-sm flex items-center gap-1">
-            半径
-            <select
-              value={radiusM}
-              onChange={(e) => setRadiusM(Number(e.target.value))}
-              disabled={!origin}
-              className="border rounded px-2 py-1"
-              aria-label="検索半径"
-            >
-              <option value={500}>500m</option>
-              <option value={1000}>1km</option>
-              <option value={2000}>2km</option>
-            </select>
-          </label>
-        )}
-      </div>
-
-      {/* 起点入力 */}
-      <section className="space-y-3">
-        <div className="text-sm text-gray-600">
-          起点：{origin ? originLabel : "未設定（現在地取得を許可 or 検索）"}
-        </div>
-        <form onSubmit={onSearch} className="flex gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="起点の場所（例：東京駅／渋谷駅／明治神宮外苑）"
-            className="border rounded p-2 flex-1"
-            aria-label="起点の場所を入力"
-          />
-          <button
-            type="submit"
-            disabled={searching || !q.trim()}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-            aria-busy={searching}
-          >
-            {searching ? "検索中..." : "検索"}
-          </button>
+        {/* 並び替え + 半径 */}
+        <div className="flex flex-wrap gap-2 items-center">
           <button
             type="button"
-            onClick={() => {
-              if (!navigator.geolocation) return;
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  const o = {
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                  };
-                  setOrigin(o);
-                  setOriginLabel("現在地");
-                  fetchCandidates(o);
-                },
-                () => setGeoMsg("現在地を取得できませんでした")
-              );
-            }}
-            className="bg-gray-200 px-3 py-2 rounded"
+            onClick={() => setMode("popular")}
+            aria-pressed={mode === "popular"}
+            className={`px-2 py-1 rounded text-sm ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
           >
-            現在地を使う
+            人気順
           </button>
-        </form>
 
-        {/* geocode 候補 */}
-        {geoMsg && <p className="text-sm text-gray-700">{geoMsg}</p>}
-        {geoCandidates.length > 0 && (
-          <ul className="border rounded divide-y">
-            {geoCandidates.map((g, i) => (
-              <li
-                key={`${g.lat}-${g.lon}-${i}`}
-                className="p-2 hover:bg-gray-50 cursor-pointer"
-                onClick={() => selectGeocode(g)}
+          <button
+            type="button"
+            onClick={() => setMode("nearby")}
+            disabled={!origin}
+            aria-pressed={mode === "nearby"}
+            title={!origin ? "起点を設定してください" : ""}
+            className={`px-2 py-1 rounded text-sm ${
+              mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"
+            } ${!origin ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            近い順
+          </button>
+
+          {/* 半径セレクト（近い順のときだけ表示） */}
+          {mode === "nearby" && (
+            <label className="ml-2 text-sm flex items-center gap-1">
+              半径
+              <select
+                value={radiusM}
+                onChange={(e) => setRadiusM(Number(e.target.value))}
+                disabled={!origin}
+                className="border rounded px-2 py-1"
+                aria-label="検索半径"
               >
-                {g.formatted}{" "}
-                <span className="text-xs text-gray-500">({g.precision})</span>
-              </li>
-            ))}
-          </ul>
-        )}
+                <option value={500}>500m</option>
+                <option value={1000}>1km</option>
+                <option value={2000}>2km</option>
+              </select>
+            </label>
+          )}
+        </div>
+
+        {/* 起点入力 */}
+        <div className="space-y-2">
+          <div className="text-sm text-gray-600">
+            起点：{origin ? originLabel : "未設定（現在地取得を許可 or 検索）"}
+          </div>
+
+          <form onSubmit={onSearch} className="flex gap-2">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="起点の場所（例：東京駅／渋谷駅／明治神宮外苑）"
+              className="border rounded p-2 flex-1"
+              aria-label="起点の場所を入力"
+            />
+
+            <button
+              type="submit"
+              disabled={searching || !q.trim()}
+              aria-busy={searching}
+              className="bg-blue-500 text-white px-4 py-2 rounded text-sm disabled:opacity-60"
+            >
+              {searching ? "起点を検索中..." : "起点を検索"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!navigator.geolocation) return;
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const o = {
+                      lat: pos.coords.latitude,
+                      lng: pos.coords.longitude,
+                    };
+                    setOrigin(o);
+                    setOriginLabel("現在地");
+                    fetchCandidates(o);
+                  },
+                  () => setGeoMsg("現在地を取得できませんでした"),
+                );
+              }}
+              className="bg-gray-200 px-3 py-2 rounded text-sm"
+            >
+              現在地を使う
+            </button>
+          </form>
+
+          {/* geocode 候補 */}
+          {geoMsg && <p className="text-sm text-gray-700">{geoMsg}</p>}
+          {geoCandidates.length > 0 && (
+            <ul className="border rounded divide-y">
+              {geoCandidates.map((g, i) => (
+                <li
+                  key={`${g.lat}-${g.lon}-${i}`}
+                  className="p-2 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => selectGeocode(g)}
+                >
+                  {g.formatted} <span className="text-xs text-gray-500">({g.precision})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
+      {/* ↓ ここから下は既存の「おすすめスポット」「ルート案内」をそのまま残す */}
       {/* 候補3件 */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">おすすめスポット</h2>
@@ -432,15 +423,12 @@ export default function ConciergePage() {
             {candidates.map((s, idx) => (
               <li
                 key={s.id}
-                className={`border rounded p-3 cursor-pointer ${
-                  idx === selectedIdx ? "ring-2 ring-blue-400" : ""
-                }`}
+                className={`border rounded p-3 cursor-pointer ${idx === selectedIdx ? "ring-2 ring-blue-400" : ""}`}
                 onClick={() => setSelectedIdx(idx)}
               >
                 <div className="font-semibold">{s.name_jp ?? s.name}</div>
                 <div className="text-sm text-gray-600">{s.address ?? ""}</div>
 
-                {/* 距離（nearby応答にあれば表示、単位はmに丸め） */}
                 {(typeof s.distance_m === "number" || s.distance_text) && (
                   <div className="text-xs text-gray-500 mt-1">
                     {fmtDistance({
@@ -449,25 +437,19 @@ export default function ConciergePage() {
                     })}
                   </div>
                 )}
-                {Array.isArray(s.goriyaku_tags) &&
-                  s.goriyaku_tags.length > 0 && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {(s as any).distance_text ?? { meters: s.distance_m }}
-                    </div>
-                  )}
+                {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(s as any).distance_text ?? { meters: s.distance_m }}
+                  </div>
+                )}
 
                 <div className="mt-2 flex gap-2 items-center">
-                  <Link
-                    href={`/shrines/${s.id}`}
-                    className="text-blue-600 underline text-sm"
-                  >
+                  <Link href={`/shrines/${s.id}`} className="text-blue-600 underline text-sm">
                     詳細へ
                   </Link>
                   <FavButton shrineId={s.id} />
                 </div>
 
-                {/* 外部マップ */}
-                {/* origin があるときだけ */}
                 {origin && (
                   <a
                     className="text-xs underline mt-2 inline-block"
@@ -475,9 +457,7 @@ export default function ConciergePage() {
                     rel="noopener noreferrer"
                     href={`https://www.google.com/maps/dir/?api=1&origin=${
                       origin.lat
-                    },${origin.lng}&destination=${Number(s.latitude)},${Number(
-                      s.longitude
-                    )}`}
+                    },${origin.lng}&destination=${Number(s.latitude)},${Number(s.longitude)}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     外部マップで経路
