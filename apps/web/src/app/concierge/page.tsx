@@ -265,36 +265,29 @@ export default function ConciergePage() {
     }
   };
 
-  useEffect(() => {
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const r = await api.get("api/concierges/histories/", {
-          signal: ac.signal,
-          // 401 を「許容するステータス」にする → 例外にならない
-          validateStatus: (s) =>
-            (s >= 200 && s < 300) || s === 401 || s === 404,
-        });
-        if (r.status === 401 || r.status === 404) {
-          // 未ログインなので履歴はスキップ
-          return;
-        }
-      } catch (e: any) {
-        if (
-          axios.isAxiosError(e) &&
-          (e.code === "ERR_CANCELED" ||
-            e.name === "CanceledError" ||
-            e.name === "AbortError" ||
-            e.response?.status === 404)
-        ) {
-          // 未ログインなので履歴はスキップ
-        } else if (e.name !== "CanceledError" && e.name !== "AbortError") {
-          console.error(e);
-        }
-      }
-    })();
-    return () => ac.abort();
-  }, []); // 依存は本当に必要なものだけ
+      useEffect(() => {
+        const ac = new AbortController();
+
+        (async () => {
+          try {
+            const r = await api.get("/api/concierges/histories/", {
+              signal: ac.signal,
+              // 401 / 404 は「想定内」として扱う
+              validateStatus: (s) => (s >= 200 && s < 300) || s === 401 || s === 404,
+            });
+
+            // TODO: r.data を履歴 state に保存する実装は、履歴UIタスクで
+            // setHistories(r.data ?? []);
+          } catch (err) {
+            // 履歴はオプショナル機能なので、今の段階では黙ってスルーでOK
+            if (process.env.NODE_ENV !== "production") {
+              console.debug("failed to fetch concierge histories", err);
+            }
+          }
+        })();
+
+        return () => ac.abort();
+      }, []);
 
   // 候補から起点選択
   const selectGeocode = (g: GeocodeResult) => {
