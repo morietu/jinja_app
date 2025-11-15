@@ -41,3 +41,14 @@ export type ConciergeErrorResponse = {
 };
 
 export type ConciergeChatResponse = ConciergeChatSuccessResponse | ConciergeErrorResponse;
+
+// src/features/concierge/types.ts に追記
+
+export type ConciergeHistoryItem = {
+  id: number;
+  created_at: string;
+  // 一覧で使う想定のフィールドは必要になったら増やす
+  title?: string;
+  summary?: string;
+  last_question?: string;
+};
