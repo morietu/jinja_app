@@ -8,7 +8,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFavorite } from "@/hooks/useFavorite";
-
+import { ConciergeChatForm } from "@/features/concierge/components/ConciergeChatForm";
+import { ConciergeHistoryList } from "@/features/concierge/components/ConciergeHistoryList";
+import { ConciergeChatLog } from "@/features/concierge/components/ConciergeChatLog";
+import type { ConciergeHistoryItem, ConciergeChatMessage } from "@/features/concierge/types";
 
 const RouteMap = dynamic(() => import("@/components/map/RouteMap"), {
   ssr: false,
@@ -101,7 +104,21 @@ export default function ConciergePage() {
   const listAbortRef = useRef<AbortController | null>(null);
   const geocodeAbortRef = useRef<AbortController | null>(null);
 
-  
+  const [histories] = useState<ConciergeHistoryItem[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null);
+
+  // このブランチでは「messages だけあればOK」の軽量な型にしておく
+  const [selectedHistoryDetail, setSelectedHistoryDetail] = useState<{
+    messages?: ConciergeChatMessage[];
+  } | null>(null);
+
+  const [historyDetailLoading] = useState(false);
+  const [historyDetailError, setHistoryDetailError] = useState<string | null>(null);
+  const handleSelectHistory = (id: number | null) => {
+    setSelectedHistoryId(id);
+    setSelectedHistoryDetail(null);
+    setHistoryDetailError(null);
+  };
 
   // 現在地取得（失敗してもUI継続）
   useEffect(() => {
@@ -294,7 +311,32 @@ export default function ConciergePage() {
     <main className="p-4 space-y-6 max-w-5xl mx-auto">
       <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
 
-      
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">コンシェルジュ相談</h2>
+
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
+          {/* 左：履歴 */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">履歴</div>
+            <ConciergeHistoryList histories={histories} selectedId={selectedHistoryId} onSelect={handleSelectHistory} />
+          </div>
+
+          {/* 右：チャットフォーム */}
+          <div>
+            <ConciergeChatForm />
+          </div>
+        </div>
+
+        {/* 選択した履歴の会話ログ */}
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold">選択した履歴の会話ログ</h3>
+          <ConciergeChatLog
+            messages={selectedHistoryDetail?.messages}
+            loading={historyDetailLoading}
+            error={historyDetailError}
+          />
+        </section>
+      </section>
 
       {/* 検索条件エリア */}
       <section className="space-y-3 rounded-lg border bg-white p-4">
