@@ -161,6 +161,13 @@ __all__ = [
     "PlaceLiteSerializer",
     "ConciergePlanRequestSerializer",
     "ConciergePlanResponseSerializer",
+    "ConciergeHistorySerializer",
+    "ConciergeRecommendationsQuery",
+    "ConciergeRecommendationsResponse",
+    "ShrineNearbySerializer",
+    "ConciergeThreadSerializer",
+    "ConciergeMessageSerializer",
+    "ConciergeThreadDetailSerializer",
 ]
 
 # ※ それ以外のシンボル（ConciergeHistorySerializer など）は
