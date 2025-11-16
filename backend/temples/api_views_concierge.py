@@ -1358,9 +1358,7 @@ class ConciergePlanViewLegacy(ConciergePlanView):
     schema = None
 
 
-class ConciergeHistoryView(APIView):
-    def get(self, request):
-        return Response({"items": []})
+
 
 
 # --- expose function-style views for URLConf / tests ---
