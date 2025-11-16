@@ -21,7 +21,7 @@ def test_openapi_conventions(client: APIClient):
 
     # ルール
     kebab = re.compile(r"^[a-z0-9\-{}\/]+$")  # 英数, -, /, {id}
-    pluralish = re.compile(r"/api/[a-z0-9\-]+s(/|$)")
+    pluralish = re.compile(r"/api/(?:[a-z0-9\-]+/)*[a-z0-9\-]+s(/|$)")
 
     violations = []
 
