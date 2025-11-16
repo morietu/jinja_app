@@ -328,7 +328,7 @@ class ConciergeAPIView(APIView):
 
 class ConciergeThreadListView(generics.ListAPIView):
     """
-    GET /api/concierge/threads/
+    GET /api/concierge-threads/
     """
     serializer_class = ConciergeThreadSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -343,7 +343,7 @@ class ConciergeThreadListView(generics.ListAPIView):
 
 class ConciergeThreadDetailView(generics.RetrieveAPIView):
     """
-    GET /api/concierge/threads/<id>/
+    GET /api/concierge-threads/<id>/
     """
     serializer_class = ConciergeThreadDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
