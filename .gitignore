@@ -110,3 +110,4 @@ apps/web/storybook-static/
 
 # ESLint cache
 apps/web/.eslintcache
+docs/openapi_generated.yaml
