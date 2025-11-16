@@ -20,6 +20,7 @@ export type ConciergeChatMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  created_at: string; // ISO文字列
 };
 
 export type ConciergeChatData = {
@@ -46,9 +47,13 @@ export type ConciergeChatResponse = ConciergeChatSuccessResponse | ConciergeErro
 
 export type ConciergeHistoryItem = {
   id: number;
+  title: string | null;
   created_at: string;
+  updated_at: string;
   // 一覧で使う想定のフィールドは必要になったら増やす
-  title?: string;
   summary?: string;
   last_question?: string;
+  last_message_at: string; // 一覧用に追加
+  last_message?: string | null; // 一覧用；なければ undefined でも OK
+  message_count: number;
 };
