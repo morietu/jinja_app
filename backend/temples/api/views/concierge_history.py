@@ -1,30 +1,50 @@
 # backend/temples/api/views/concierge_history.py
-from rest_framework.generics import ListCreateAPIView
+from django.db.models import Count, Max
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from temples.api.serializers.concierge_history import ConciergeHistorySerializer
-from temples.models import ConciergeHistory
+from rest_framework.pagination import LimitOffsetPagination
+
+from temples.api.serializers.concierge_history import (
+    ConciergeThreadListSerializer,
+    ConciergeThreadDetailSerializer,
+)
+from temples.models import ConciergeThread
 
 
-class ConciergeHistoryView(ListCreateAPIView):
+class ConciergeHistoryPagination(LimitOffsetPagination):
+    default_limit = 20
+    max_limit = 100
+
+
+class ConciergeHistoryListView(ListAPIView):
     """
-    GET /api/concierge/history/        -> {"items": [...]}  （自身の履歴のみ、降順）
-    POST /api/concierge/history/       -> 1件作成（userは強制的に現在ユーザー）
+    GET /api/concierges/histories/
+      -> LimitOffsetPagination 形式でスレッド一覧を返す
     """
 
     permission_classes = [IsAuthenticated]
-    serializer_class = ConciergeHistorySerializer
+    serializer_class = ConciergeThreadListSerializer
+    pagination_class = ConciergeHistoryPagination
 
     def get_queryset(self):
-        # 自分の履歴だけ、最新順
-        return ConciergeHistory.objects.filter(user=self.request.user).order_by("-created_at")
+        return (
+            ConciergeThread.objects.filter(user=self.request.user)
+            .annotate(
+                _message_count=Count("messages"),
+                _last_message_at=Max("messages__created_at"),
+            )
+            .order_by("-_last_message_at", "-id")
+        )
 
-    # レスポンスを {"items": [...]} に包む
-    def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()[:50]  # 必要なら件数制限
-        data = self.get_serializer(qs, many=True).data
-        return Response({"items": data})
 
-    # 作成時に user を強制セット
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+class ConciergeHistoryDetailView(RetrieveAPIView):
+    """
+    GET /api/concierges/histories/{id}/
+      -> 1スレッド + messages[]
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ConciergeThreadDetailSerializer
+
+    def get_queryset(self):
+        return ConciergeThread.objects.filter(user=self.request.user)

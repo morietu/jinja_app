@@ -5,11 +5,15 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
 
 # Concierge の互換シム
-from temples import api_views_concierge as concierge
+
+from temples import api_views_concierge as concierge_legacy
 from temples.api.views.concierge import ConciergeChatView
+from temples.api.views import concierge_history
 # geocode (レガシー互換も吸収)
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
 from temples.api.views.compat import concierge_chat_compat
+
+
 
 try:
     from temples.api.views.geocode import search as geocode_search
@@ -99,12 +103,23 @@ urlpatterns = [
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
-    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),        # 正式（互換ラッパ）
-    path("concierges/chats/", concierge.chat, name="concierge-chat-legacy"),      # 旧互換（別name）
-    path("concierge/plan/", concierge.plan, name="concierge-plan"),
-    path("concierges/plans/", concierge.plan, name="concierge-plan-legacy"),
-    path("concierges/histories/", concierge.ConciergeHistoryView.as_view(),
-         name="concierge-history"),
+    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
+    path("concierges/chats/", concierge_legacy.chat, name="concierge-chat-legacy"),
+    path("concierge/plan/", concierge_legacy.plan, name="concierge-plan"),
+    path("concierges/plans/", concierge_legacy.plan, name="concierge-plan-legacy"),
+
+    # ✅ 新履歴API（Threadベース）
+    path(
+        "concierges/histories/",
+        concierge_history.ConciergeHistoryListView.as_view(),
+        name="concierge-history-list",
+    ),
+    path(
+        "concierges/histories/<int:pk>/",
+        concierge_history.ConciergeHistoryDetailView.as_view(),
+        name="concierge-history-detail",
+    ),
+    
     
     
     

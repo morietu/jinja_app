@@ -59,16 +59,50 @@ paths:
 
   /api/concierges/histories/:
     get:
-      summary: コンシェルジュ履歴の最小一覧
-      description: これまでの質問と推薦結果の履歴を最小形で返します（最大3件の推薦）。
+      summary: コンシェルジュ履歴一覧
+      description: これまでの相談履歴（スレッド）を、最終メッセージ時刻の降順で返します。
       tags: [Concierge]
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConciergeHistoriesResponse"
+                $ref: "#/components/schemas/PaginatedConciergeHistoryList"
+
+  /api/concierges/histories/{id}/:
+    get:
+      summary: コンシェルジュ履歴の詳細（会話ログ）
+      description: 1件の履歴（スレッド）と、その中のメッセージ一覧を返します。
+      tags: [Concierge]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConciergeHistoryDetail"
+
 
   /api/directions/:
     get:
@@ -156,26 +190,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/NearestItem" }
 
-    ConciergeHistory:
-      type: object
-      required: [id, created_at, query, recommendations]
-      properties:
-        id: { type: integer, example: 555 }
-        created_at: { type: string, format: date-time }
-        query: { type: string, example: "恋愛運アップ・徒歩で30分以内" }
-        recommendations:
-          type: array
-          minItems: 1
-          maxItems: 3
-          items: { $ref: "#/components/schemas/ShrineLite" }
 
-    ConciergeHistoriesResponse:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items: { $ref: "#/components/schemas/ConciergeHistory" }
 
     DirectionsResponse:
       type: object
@@ -185,9 +200,102 @@ components:
           type: string
           enum: [walking, driving]
           example: walking
-        distance_m: { type: integer, example: 1850 }
-        duration_min: { type: number, example: 24.5 }
+        distance_m:
+          type: integer
+          example: 1850
+        duration_min:
+          type: number
+          example: 24.5
         polyline:
           type: string
           description: "Google/Mapbox 互換のエンコードポリライン"
           example: "}a~vF|y`uO??_seK`@"
+
+    ConciergeMessage:
+      type: object
+      required: [id, role, content, created_at]
+      properties:
+        id:
+          type: integer
+          example: 123
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ConciergeHistory:  # = Thread 1件分（一覧用）
+      type: object
+      required: [id, created_at, updated_at, last_message_at, message_count]
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          nullable: true
+        last_message:
+          type: string
+          description: "最後のメッセージ本文（先頭数百文字程度）"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_message_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+          example: 5
+
+    PaginatedConciergeHistoryList:
+      type: object
+      required: [count, results]
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConciergeHistory"
+
+    ConciergeHistoryDetail:
+      type: object
+      required: [id, created_at, updated_at, last_message_at, message_count, messages]
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_message_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+          example: 5
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConciergeMessage"

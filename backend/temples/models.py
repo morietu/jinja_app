@@ -318,6 +318,74 @@ class Favorite(models.Model):
             models.Index(fields=["user", "created_at"], name="idx_fav_user_created"),
         ]
 
+class ConciergeThread(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="concierge_threads",
+    )
+    title = models.CharField(max_length=255, blank=True, default="")
+    # メインで紐づける神社（あれば）
+    main_shrine = models.ForeignKey(
+        "Shrine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="concierge_threads",
+    )
+    tags = models.JSONField(default=list, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # 最後のメッセージ時間（ソート用）
+    last_message_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_message_at", "-id"]
+        indexes = [
+            models.Index(fields=["user", "last_message_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.title or f"Thread #{self.pk}"
+
+
+class ConciergeMessage(models.Model):
+    ROLE_USER = "user"
+    ROLE_ASSISTANT = "assistant"
+    ROLE_SYSTEM = "system"
+    ROLE_CHOICES = [
+        (ROLE_USER, "User"),
+        (ROLE_ASSISTANT, "Assistant"),
+        (ROLE_SYSTEM, "System"),
+    ]
+
+    thread = models.ForeignKey(
+        ConciergeThread,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    # 必要ならメタ情報
+    meta = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["thread", "created_at"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            # Thread 側の last_message_at を更新
+            ConciergeThread.objects.filter(pk=self.thread_id).update(
+                last_message_at=self.created_at
+            )
 
 class Visit(models.Model):
     STATUS_CHOICES = [("added", "Added"), ("removed", "Removed")]
