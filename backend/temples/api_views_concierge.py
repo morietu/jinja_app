@@ -20,6 +20,7 @@ from temples.llm.orchestrator import ConciergeOrchestrator
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
+from temples.services.concierge_history import append_chat
 
 llm = get_llm_adapter(
     provider=settings.LLM_PROVIDER,
@@ -764,7 +765,7 @@ class ConciergeChatView(APIView):
                 # LLM 失敗は黙ってスキップ（フォールバック維持）
                 pass
 
-            # --- 仕上げ: 表示名/推し文の最終正規化 ---
+                        # --- 仕上げ: 表示名/推し文の最終正規化 ---
             try:
                 for r in data.get("recommendations") or []:
                     if r.get("name"):
@@ -775,7 +776,55 @@ class ConciergeChatView(APIView):
             except Exception:
                 pass
 
-            return Response({"ok": True, "data": data}, status=status.HTTP_200_OK)
+            # --- Thread / Message 保存 --------------------------------------
+            thread_payload = None
+            if request.user.is_authenticated:
+                # 既存スレッドにぶら下げる場合の thread_id （オプション）
+                raw_thread_id = request.data.get("thread_id") or request.data.get("threadId")
+
+                try:
+                    thread_id = int(raw_thread_id) if raw_thread_id is not None else None
+                except Exception:
+                    thread_id = None
+
+                # アシスタント側に保存するテキストを簡易生成
+                recs_list = data.get("recommendations") or []
+                if recs_list:
+                    top_names = [
+                        str(r.get("name") or r.get("display_name") or r.get("id"))
+                        for r in recs_list[:3]
+                    ]
+                    reply_text = "候補: " + " / ".join(top_names)
+                else:
+                    reply_text = "候補が見つかりませんでした。"
+
+                try:
+                    result = append_chat(
+                        user=request.user,
+                        query=query,
+                        reply_text=reply_text,
+                        thread_id=thread_id,
+                    )
+                    t = result.thread
+                    thread_payload = {
+                        "id": t.id,
+                        "title": t.title,
+                        "last_message": t.last_message,
+                        "last_message_at": (
+                            t.last_message_at.isoformat() if t.last_message_at else None
+                        ),
+                        "message_count": t.message_count,
+                    }
+                except Exception:
+                    # 保存失敗してもチャット機能自体は落とさない
+                    thread_payload = None
+
+            # ここで最終レスポンスを組み立て
+            body: dict[str, Any] = {"ok": True, "data": data}
+            if thread_payload is not None:
+                body["thread"] = thread_payload
+
+            return Response(body, status=status.HTTP_200_OK)
 
         except Exception as e:
             log.exception("concierge chat failed: %s", e)

@@ -6,7 +6,14 @@ from rest_framework.routers import DefaultRouter
 
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
-from temples.api.views.concierge import ConciergeChatView
+from temples.api.views.concierge import (
+    ConciergeChatView,
+    ConciergePlanView,
+    ConciergeChatViewLegacy,
+    ConciergePlanViewLegacy,
+    ConciergeThreadListView,
+    ConciergeThreadDetailView,
+)
 from temples.api.views import concierge_history
 # geocode (レガシー互換も吸収)
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
@@ -100,13 +107,18 @@ urlpatterns = [
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
     # ---- Concierge（複数形: 正規） ---------------------------------------
-    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),  # 正式（互換ラッパ）
+    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),        # 正式（互換ラッパ）
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
+
+    # 新スレッド履歴API
+    path("concierge/threads/", ConciergeThreadListView.as_view(), name="concierge-thread-list"),
     path(
-        "concierges/histories/",
-        concierge_history.ConciergeHistoryView.as_view(),
-        name="concierge-history",
+        "concierge/threads/<int:pk>/",
+        ConciergeThreadDetailView.as_view(),
+        name="concierge-thread-detail",
     ),
+
+    # 旧履歴API（必要なら残す）
     
     
     
