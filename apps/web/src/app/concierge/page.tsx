@@ -307,221 +307,226 @@ export default function ConciergePage() {
     [selected]
   );
 
-  return (
-    <main className="p-4 space-y-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
+  // apps/web/src/app/concierge/page.tsx の return 部分イメージ
 
+return (
+  <main className="max-w-6xl mx-auto p-4 space-y-6">
+    <h1 className="text-xl font-bold">AI神社コンシェルジュ（スポット×ルート）</h1>
+
+    {/* 2カラムレイアウト：左＝相談＆履歴、右＝検索〜ルート */}
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+      {/* === 左カラム：相談フォーム + 履歴 + ログ === */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">コンシェルジュ相談</h2>
-
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
-          {/* 左：履歴 */}
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">履歴</div>
-            <ConciergeHistoryList histories={histories} selectedId={selectedHistoryId} onSelect={handleSelectHistory} />
-          </div>
-
-          {/* 右：チャットフォーム */}
-          <div>
-            <ConciergeChatForm />
-          </div>
+        <div className="space-y-4 rounded-lg border bg-white p-4">
+          <h2 className="text-lg font-semibold">コンシェルジュ相談</h2>
+          <ConciergeChatForm />
         </div>
 
-        {/* 選択した履歴の会話ログ */}
-        <section className="space-y-2">
+        <div className="space-y-3 rounded-lg border bg-white p-4">
+          <h3 className="text-sm font-semibold">履歴</h3>
+          <ConciergeHistoryList
+            histories={histories}
+            selectedId={selectedHistoryId}
+            onSelect={handleSelectHistory}
+          />
+        </div>
+
+        <div className="space-y-2 rounded-lg border bg-white p-4">
           <h3 className="text-sm font-semibold">選択した履歴の会話ログ</h3>
           <ConciergeChatLog
             messages={selectedHistoryDetail?.messages}
             loading={historyDetailLoading}
             error={historyDetailError}
           />
-        </section>
+        </div>
       </section>
 
-      {/* 検索条件エリア */}
-      <section className="space-y-3 rounded-lg border bg-white p-4">
-        <h2 className="text-lg font-semibold">検索条件</h2>
+      {/* === 右カラム：検索条件 + おすすめスポット + ルート案内 === */}
+      <section className="space-y-4">
+        {/* 検索条件エリア */}
+        <div className="space-y-3 rounded-lg border bg-white p-4">
+          <h2 className="text-lg font-semibold">検索条件</h2>
 
-        {/* 並び替え + 半径 */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <button
-            type="button"
-            onClick={() => setMode("popular")}
-            aria-pressed={mode === "popular"}
-            className={`px-2 py-1 rounded text-sm ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          >
-            人気順
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMode("nearby")}
-            disabled={!origin}
-            aria-pressed={mode === "nearby"}
-            title={!origin ? "起点を設定してください" : ""}
-            className={`px-2 py-1 rounded text-sm ${
-              mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"
-            } ${!origin ? "opacity-60 cursor-not-allowed" : ""}`}
-          >
-            近い順
-          </button>
-
-          {/* 半径セレクト（近い順のときだけ表示） */}
-          {mode === "nearby" && (
-            <label className="ml-2 text-sm flex items-center gap-1">
-              半径
-              <select
-                value={radiusM}
-                onChange={(e) => setRadiusM(Number(e.target.value))}
-                disabled={!origin}
-                className="border rounded px-2 py-1"
-                aria-label="検索半径"
-              >
-                <option value={500}>500m</option>
-                <option value={1000}>1km</option>
-                <option value={2000}>2km</option>
-              </select>
-            </label>
-          )}
-        </div>
-
-        {/* 起点入力 */}
-        <div className="space-y-2">
-          <div className="text-sm text-gray-600">
-            起点：{origin ? originLabel : "未設定（現在地取得を許可 or 検索）"}
-          </div>
-
-          <form onSubmit={onSearch} className="flex gap-2">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="起点の場所（例：東京駅／渋谷駅／明治神宮外苑）"
-              className="border rounded p-2 flex-1"
-              aria-label="起点の場所を入力"
-            />
-
+          {/* 並び替え + 半径 */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              type="submit"
-              disabled={searching || !q.trim()}
-              aria-busy={searching}
-              className="bg-blue-500 text-white px-4 py-2 rounded text-sm disabled:opacity-60"
+              type="button"
+              onClick={() => setMode("popular")}
+              aria-pressed={mode === "popular"}
+              className={`px-2 py-1 rounded text-sm ${
+                mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"
+              }`}
             >
-              {searching ? "起点を検索中..." : "起点を検索"}
+              人気順
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                if (!navigator.geolocation) return;
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    const o = {
-                      lat: pos.coords.latitude,
-                      lng: pos.coords.longitude,
-                    };
-                    setOrigin(o);
-                    setOriginLabel("現在地");
-                    fetchCandidates(o);
-                  },
-                  () => setGeoMsg("現在地を取得できませんでした"),
-                );
-              }}
-              className="bg-gray-200 px-3 py-2 rounded text-sm"
+              onClick={() => setMode("nearby")}
+              disabled={!origin}
+              aria-pressed={mode === "nearby"}
+              title={!origin ? "起点を設定してください" : ""}
+              className={`px-2 py-1 rounded text-sm ${
+                mode === "nearby" ? "bg-blue-600 text-white" : "bg-gray-100"
+              } ${!origin ? "opacity-60 cursor-not-allowed" : ""}`}
             >
-              現在地を使う
+              近い順
             </button>
-          </form>
 
-          {/* geocode 候補 */}
-          {geoMsg && <p className="text-sm text-gray-700">{geoMsg}</p>}
-          {geoCandidates.length > 0 && (
-            <ul className="border rounded divide-y">
-              {geoCandidates.map((g, i) => (
-                <li
-                  key={`${g.lat}-${g.lon}-${i}`}
-                  className="p-2 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => selectGeocode(g)}
+            {mode === "nearby" && (
+              <label className="ml-2 flex items-center gap-1 text-sm">
+                半径
+                <select
+                  value={radiusM}
+                  onChange={(e) => setRadiusM(Number(e.target.value))}
+                  disabled={!origin}
+                  className="rounded border px-2 py-1"
+                  aria-label="検索半径"
                 >
-                  {g.formatted} <span className="text-xs text-gray-500">({g.precision})</span>
+                  <option value={500}>500m</option>
+                  <option value={1000}>1km</option>
+                  <option value={2000}>2km</option>
+                </select>
+              </label>
+            )}
+          </div>
+
+          {/* 起点入力 */}
+          <div className="space-y-2">
+            <div className="text-sm text-gray-600">
+              起点：{origin ? originLabel : "未設定（現在地取得を許可 or 検索）"}
+            </div>
+
+            <form onSubmit={onSearch} className="flex gap-2">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="起点の場所（例：東京駅／渋谷駅／明治神宮外苑）"
+                className="flex-1 rounded border p-2"
+                aria-label="起点の場所を入力"
+              />
+
+              <button
+                type="submit"
+                disabled={searching || !q.trim()}
+                aria-busy={searching}
+                className="rounded bg-blue-500 px-4 py-2 text-sm text-white disabled:opacity-60"
+              >
+                {searching ? "起点を検索中..." : "起点を検索"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const o = {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                      };
+                      setOrigin(o);
+                      setOriginLabel("現在地");
+                      fetchCandidates(o);
+                    },
+                    () => setGeoMsg("現在地を取得できませんでした"),
+                  );
+                }}
+                className="rounded bg-gray-200 px-3 py-2 text-sm"
+              >
+                現在地を使う
+              </button>
+            </form>
+
+            {geoMsg && <p className="text-sm text-gray-700">{geoMsg}</p>}
+            {geoCandidates.length > 0 && (
+              <ul className="divide-y rounded border">
+                {geoCandidates.map((g, i) => (
+                  <li
+                    key={`${g.lat}-${g.lon}-${i}`}
+                    className="cursor-pointer p-2 hover:bg-gray-50"
+                    onClick={() => selectGeocode(g)}
+                  >
+                    {g.formatted}{" "}
+                    <span className="text-xs text-gray-500">({g.precision})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* おすすめスポット */}
+        <div className="space-y-3 rounded-lg border bg-white p-4">
+          <h2 className="text-lg font-semibold">おすすめスポット</h2>
+          {loadingList ? (
+            <p>候補を取得中…</p>
+          ) : error ? (
+            <p className="text-red-500">{error}</p>
+          ) : candidates.length === 0 ? (
+            <p>候補がありません</p>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {candidates.map((s, idx) => (
+                <li
+                  key={s.id}
+                  className={`cursor-pointer rounded border p-3 ${
+                    idx === selectedIdx ? "ring-2 ring-blue-400" : ""
+                  }`}
+                  onClick={() => setSelectedIdx(idx)}
+                >
+                  <div className="font-semibold">{s.name_jp ?? s.name}</div>
+                  <div className="text-sm text-gray-600">{s.address ?? ""}</div>
+
+                  {(typeof s.distance_m === "number" || s.distance_text) && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {fmtDistance({
+                        meters: s.distance_m,
+                        text: s.distance_text,
+                      })}
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <Link href={`/shrines/${s.id}`} className="text-sm text-blue-600 underline">
+                      詳細へ
+                    </Link>
+                    <FavButton shrineId={s.id} />
+                  </div>
+
+                  {origin && (
+                    <a
+                      className="mt-2 inline-block text-xs underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href={`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${
+                        origin.lng
+                      }&destination=${Number(s.latitude)},${Number(s.longitude)}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      外部マップで経路
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
           )}
         </div>
+
+        {/* ルート表示 */}
+        <div className="space-y-2 rounded-lg border bg-white p-4">
+          <h2 className="text-lg font-semibold">ルート案内</h2>
+          {!origin ? (
+            <p>現在地が未取得です。起点を検索して設定してください。</p>
+          ) : !destination ? (
+            <p>候補を選択してください。</p>
+          ) : (
+            <RouteMap origin={origin} destination={destination} />
+          )}
+        </div>
       </section>
-
-      {/* ↓ ここから下は既存の「おすすめスポット」「ルート案内」をそのまま残す */}
-      {/* 候補3件 */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">おすすめスポット</h2>
-        {loadingList ? (
-          <p>候補を取得中…</p>
-        ) : error ? (
-          <p className="text-red-500">{error}</p>
-        ) : candidates.length === 0 ? (
-          <p>候補がありません</p>
-        ) : (
-          <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {candidates.map((s, idx) => (
-              <li
-                key={s.id}
-                className={`border rounded p-3 cursor-pointer ${idx === selectedIdx ? "ring-2 ring-blue-400" : ""}`}
-                onClick={() => setSelectedIdx(idx)}
-              >
-                <div className="font-semibold">{s.name_jp ?? s.name}</div>
-                <div className="text-sm text-gray-600">{s.address ?? ""}</div>
-
-                {(typeof s.distance_m === "number" || s.distance_text) && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {fmtDistance({
-                      meters: s.distance_m,
-                      text: s.distance_text,
-                    })}
-                  </div>
-                )}
-                {Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length > 0 && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {(s as any).distance_text ?? { meters: s.distance_m }}
-                  </div>
-                )}
-
-                <div className="mt-2 flex gap-2 items-center">
-                  <Link href={`/shrines/${s.id}`} className="text-blue-600 underline text-sm">
-                    詳細へ
-                  </Link>
-                  <FavButton shrineId={s.id} />
-                </div>
-
-                {origin && (
-                  <a
-                    className="text-xs underline mt-2 inline-block"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${
-                      origin.lat
-                    },${origin.lng}&destination=${Number(s.latitude)},${Number(s.longitude)}`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    外部マップで経路
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ルート表示 */}
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">ルート案内</h2>
-        {!origin ? (
-          <p>現在地が未取得です。起点を検索して設定してください。</p>
-        ) : !destination ? (
-          <p>候補を選択してください。</p>
-        ) : (
-          <RouteMap origin={origin} destination={destination} />
-        )}
-      </section>
-    </main>
-  );
+    </div>
+  </main>
+);
 }
+
