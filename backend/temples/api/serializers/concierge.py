@@ -155,6 +155,7 @@ ConciergeRecommendationsResponse = (
 
 ShrineNearbySerializer = _NewShrineNearbySerializer or _FallbackShrineNearbySerializer
 
+# 互換レイヤとして「公式にエクスポートする」のは従来どおりこの4つだけ
 __all__ = [
     "LocationSerializer",
     "PlaceLiteSerializer",
@@ -168,3 +169,6 @@ __all__ = [
     "ConciergeMessageSerializer",
     "ConciergeThreadDetailSerializer",
 ]
+
+# ※ それ以外のシンボル（ConciergeHistorySerializer など）は
+#    直接 import では使えるが、__all__ には載せない（互換APIの契約を崩さないため）。

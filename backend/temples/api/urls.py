@@ -111,9 +111,13 @@ urlpatterns = [
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
 
     # 新スレッド履歴API
-    path("concierge/threads/", ConciergeThreadListView.as_view(), name="concierge-thread-list"),
     path(
-        "concierge/threads/<int:pk>/",
+        "concierge-threads/",
+        ConciergeThreadListView.as_view(),
+        name="concierge-thread-list",
+    ),
+    path(
+        "concierge-threads/<int:pk>/",
         ConciergeThreadDetailView.as_view(),
         name="concierge-thread-detail",
     ),
