@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useConciergeChatSession } from "../hooks/useConciergeChat";
 import type { ChatMessageItem, ConciergeRecommendation } from "../types";
+import { ConciergeSuggestionsPanel } from "./ConciergeSuggestionsPanel";
 
 type Props = {
   lat: number;
@@ -17,6 +18,12 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
     initialCandidates: candidates,
   });
 
+  function handleShowMap(rec: ConciergeRecommendation) {
+    // TODO: ここでマップ連携。まずは console.log にしておいて、
+    // 次のタスクで GoogleMap コンポーネント / ルート画面に繋げる
+    console.log("map for:", rec.name);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
@@ -27,6 +34,7 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* チャットログ */}
       <div className="border rounded-lg p-3 h-64 overflow-y-auto text-sm">
         {messages.map((m: ChatMessageItem) => (
           <div key={m.id} className={m.role === "user" ? "text-right mb-2" : "text-left mb-2"}>
@@ -41,21 +49,18 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
         )}
       </div>
 
+      {/* 候補神社カード */}
       {lastResponse?.suggestions && (
-        <div className="text-xs border rounded-lg p-2 bg-gray-50">
-          <p className="font-semibold mb-1">候補の神社</p>
-          <ul className="list-disc list-inside">
-            {lastResponse.suggestions.recommendations.map((r: ConciergeRecommendation) => (
-              <li key={r.name}>
-                <span className="font-medium">{r.name}</span>: {r.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ConciergeSuggestionsPanel
+          recommendations={lastResponse.suggestions.recommendations}
+          onShowMap={handleShowMap}
+        />
       )}
 
+      {/* エラー表示 */}
       {error && <p className="text-xs text-red-500">{error}</p>}
 
+      {/* 入力フォーム */}
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           className="flex-1 border rounded-md px-2 py-1 text-sm"
