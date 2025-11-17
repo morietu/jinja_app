@@ -20,7 +20,7 @@ export async function postConciergeChat(
   try {
     body = (await res.json()) as ConciergeChatResponse;
   } catch {
-    body = { detail: "サーバーからのレスポンスを解釈できませんでした。" };
+    body = { detail: "サーバーからのレスポンスを解釈できませんでした。" } as ConciergeChatResponse;
   }
 
   return { status: res.status, body };
