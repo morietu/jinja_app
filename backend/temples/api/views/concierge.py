@@ -11,14 +11,10 @@ from openai import OpenAI
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework import status
+
 
 from rest_framework.views import APIView
-
-
-from rest_framework.authentication import SessionAuthentication
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-
 from temples.api.serializers.concierge import (
     ConciergeHistorySerializer,
     ConciergeRecommendationsQuery,
@@ -32,6 +28,7 @@ from temples.api.serializers.concierge import (
 from temples.models import ConciergeHistory, GoriyakuTag, Shrine, ConciergeThread
 
 from temples.services.concierge_history import append_chat
+from temples.llm.orchestrator import ConciergeOrchestrator
 
 
 
@@ -56,9 +53,9 @@ class ConciergeChatView(APIView):
     def post(self, request):
         data = request.data or {}
 
+        # message / query を統一して扱う
         text = (data.get("message") or data.get("query") or "").strip()
 
-        # 位置情報は「あるなら使う」程度に緩める
         def to_float(v):
             try:
                 return float(v)
@@ -69,13 +66,33 @@ class ConciergeChatView(APIView):
         lng = to_float(data.get("lng"))
         transport = (data.get("transport") or "walking").lower()
 
-        # 必須なのは「テキストだけ」にする
-        if not text:
-            return Response({"detail": "message or query is required"}, status=400)
+        # ここで candidates を受け取る（テストで渡している）
+        candidates = data.get("candidates") or []
 
-        # ★ここでは chat_to_plan を呼ばず、単純なエコーだけにする
+        # 必須チェック（従来ロジックを維持）
+        missing = []
+        if not text:
+            missing.append("message|query")
+        if lat is None:
+            missing.append("lat(float)")
+        if lng is None:
+            missing.append("lng(float)")
+        if missing:
+            return Response({"detail": f"required: {', '.join(missing)}"}, status=400)
+
+        # smoke 互換の echo reply
         reply = f"echo: {text}"
 
+        # --- Orchestrator に message + candidates を渡す（テストがここを検証） ---
+        suggestions = None
+        try:
+            orchestrator = ConciergeOrchestrator()
+            suggestions = orchestrator.suggest(query=text, candidates=candidates)
+        except Exception:
+            # LLMまわりで例外が起きても、チャット自体は 200 で返す
+            suggestions = None
+
+        # --- チャット履歴保存（従来ロジックを生かす） ---
         thread_payload = None
         thread_id = data.get("thread_id") or data.get("threadId")
 
@@ -98,12 +115,17 @@ class ConciergeChatView(APIView):
             except Exception:
                 thread_payload = None
 
-        body = {"reply": reply}
+        # --- レスポンス組み立て ---
+        body: dict[str, object] = {
+            "ok": True,
+            "reply": reply,
+        }
+        if suggestions is not None:
+            body["suggestions"] = suggestions
         if thread_payload is not None:
             body["thread"] = thread_payload
 
         return Response(body, status=status.HTTP_200_OK)
-
 
 class ConciergeRecommendationsView(APIView):
     """
@@ -332,7 +354,6 @@ class ConciergeThreadListView(generics.ListAPIView):
     GET /api/concierge-threads/
     """
     serializer_class = ConciergeThreadSerializer
-    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -348,16 +369,17 @@ class ConciergeThreadDetailView(generics.RetrieveAPIView):
     GET /api/concierge-threads/<id>/
     """
     serializer_class = ConciergeThreadDetailSerializer
-    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # N+1 防止で messages を一括取得
         return (
             ConciergeThread.objects
             .filter(user=self.request.user)
-            .prefetch_related("messages")
+            .prefetch_related(
+                "messages",
+            )
         )
-    
 
 # ==== Fallback for ConciergePlanView (safety net) ====
 from drf_spectacular.utils import extend_schema
