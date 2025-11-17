@@ -110,7 +110,6 @@ urlpatterns = [
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),        # 正式（互換ラッパ）
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
 
-    # 新スレッド履歴API
     path(
         "concierge-threads/",
         ConciergeThreadListView.as_view(),

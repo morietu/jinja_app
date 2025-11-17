@@ -105,15 +105,44 @@ export type ConciergeChatResponse = {
 
 // api の baseURL が /api なので、ここでは /concierge/... にしておく
 export async function fetchThreads(): Promise<ConciergeThread[]> {
-  const res = await api.get<ConciergeThread[]>("/concierge/threads/");
-  return res.data;
+  try {
+    const res = await api.get<ConciergeThread[]>("/concierge-threads/");
+    return res.data ?? [];
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+
+      // 404: バックエンドに未実装（または URL 未配線）の環境
+      if (status === 404) {
+        console.warn("[concierge] threads endpoint not found; returning empty list");
+        return [];
+      }
+
+      // 401/403: ログインしていない環境 → 「スレッドなし」として扱う
+      if (status === 401 || status === 403) {
+        console.warn("[concierge] threads endpoint unauthorized; treat as empty");
+        return [];
+      }
+    }
+    // それ以外は素直に投げる（デバッグ用）
+    throw err;
+  }
 }
 
-export async function fetchThreadDetail(
-  id: string,
-): Promise<ConciergeThreadDetail> {
-  const res = await api.get<ConciergeThreadDetail>(`/concierge/threads/${id}/`);
-  return res.data;
+export async function fetchThreadDetail(id: string): Promise<ConciergeThreadDetail | null> {
+  try {
+    const res = await api.get<ConciergeThreadDetail>(`/concierge-threads/${id}/`);
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 401 || status === 403 || status === 404) {
+        // 未ログイン or 見えない/消えたスレッド → null で呼び出し側に返す
+        return null;
+      }
+    }
+    throw err;
+  }
 }
 
 export async function postConciergeChat(
@@ -122,5 +151,3 @@ export async function postConciergeChat(
   const res = await api.post<ConciergeChatResponse>("/concierge/chat/", body);
   return res.data;
 }
-
-
