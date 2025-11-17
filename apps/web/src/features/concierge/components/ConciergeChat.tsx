@@ -19,9 +19,20 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
   });
 
   function handleShowMap(rec: ConciergeRecommendation) {
-    // TODO: ここでマップ連携。まずは console.log にしておいて、
-    // 次のタスクで GoogleMap コンポーネント / ルート画面に繋げる
-    console.log("map for:", rec.name);
+    // Googleマップの検索クエリを生成
+    const params = new URLSearchParams();
+    params.set("api", "1");
+    // 神社名で検索（将来は住所や座標もここに足せる）
+    params.set("query", rec.name);
+
+    // 位置情報がある場合は center として渡す（任意）
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      params.set("center", `${lat},${lng}`);
+    }
+
+    // イベントハンドラ内なので window を安全に使える
+    const url = `https://www.google.com/maps/search/?${params.toString()}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function handleSubmit(e: React.FormEvent) {
