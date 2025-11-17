@@ -13,6 +13,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from rest_framework.views import APIView
+
+
+from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
 from temples.api.serializers.concierge import (
     ConciergeHistorySerializer,
     ConciergeRecommendationsQuery,
@@ -52,6 +58,7 @@ class ConciergeChatView(APIView):
 
         text = (data.get("message") or data.get("query") or "").strip()
 
+        # 位置情報は「あるなら使う」程度に緩める
         def to_float(v):
             try:
                 return float(v)
@@ -62,15 +69,9 @@ class ConciergeChatView(APIView):
         lng = to_float(data.get("lng"))
         transport = (data.get("transport") or "walking").lower()
 
-        missing = []
+        # 必須なのは「テキストだけ」にする
         if not text:
-            missing.append("message|query")
-        if lat is None:
-            missing.append("lat(float)")
-        if lng is None:
-            missing.append("lng(float)")
-        if missing:
-            return Response({"detail": f"required: {', '.join(missing)}"}, status=400)
+            return Response({"detail": "message or query is required"}, status=400)
 
         # ★ここでは chat_to_plan を呼ばず、単純なエコーだけにする
         reply = f"echo: {text}"
@@ -331,6 +332,7 @@ class ConciergeThreadListView(generics.ListAPIView):
     GET /api/concierge-threads/
     """
     serializer_class = ConciergeThreadSerializer
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -346,17 +348,16 @@ class ConciergeThreadDetailView(generics.RetrieveAPIView):
     GET /api/concierge-threads/<id>/
     """
     serializer_class = ConciergeThreadDetailSerializer
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # N+1 防止で messages を一括取得
         return (
             ConciergeThread.objects
             .filter(user=self.request.user)
-            .prefetch_related(
-                "messages",
-            )
+            .prefetch_related("messages")
         )
+    
 
 # ==== Fallback for ConciergePlanView (safety net) ====
 from drf_spectacular.utils import extend_schema
