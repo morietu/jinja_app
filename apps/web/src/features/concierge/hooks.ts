@@ -13,8 +13,7 @@ import {
   type ConciergeChatRequest,
 } from "@/lib/api/concierge";
 
-/** 座標（チャットに添える用） */
-type LatLng = { lat: number; lng: number };
+
 
 /* ====== スレッド一覧 ====== */
 
@@ -92,16 +91,17 @@ export function useConciergeThreadDetail(threadId: string | null) {
 
 /* ====== チャット送信（/concierge/chat/） ====== */
 
+// 先頭付近の import はそのままでOK
+
+// ✏️ ここを書き換え
 export type UseConciergeChatOptions = {
-  /** 現在地（あれば lat/lng を payload に載せる） */
-  origin?: LatLng;
-  /** 送信後にスレッド／メッセージを親コンポーネント側で更新したいとき */
   onUpdated?: (payload: { thread?: ConciergeThread; messages?: ConciergeMessage[] }) => void;
 };
 
-export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
-  const { origin, onUpdated } = options ?? {};
-
+export function useConciergeChat(
+  threadId: string | null,
+  options?: UseConciergeChatOptions,
+) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,39 +113,27 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setError(null);
 
       try {
-        // lat/lng 付き payload（バックエンドは余分なキーは無視する想定）
-        const payload: ConciergeChatRequest & {
-          lat?: number;
-          lng?: number;
-        } = {
-          message,
-          thread_id: threadId ?? undefined,
-        };
-
-        if (origin) {
-          payload.lat = origin.lat;
-          payload.lng = origin.lng;
-        }
+        const payload: ConciergeChatRequest = { message };
+        if (threadId) payload.thread_id = threadId;
 
         const res = await postConciergeChat(payload);
 
-        onUpdated?.({
+        options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
         });
-
-        // ChatPanel 的には戻り値不要なので何も return しない（＝Promise<void> 扱い）
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
         } else {
           setError("チャット送信に失敗しました");
         }
+        return;
       } finally {
         setSending(false);
       }
     },
-    [threadId, origin, onUpdated],
+    [threadId, options],
   );
 
   return { send, sending, error };

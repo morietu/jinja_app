@@ -311,8 +311,6 @@ return (
         <ConciergeLayout />
       </section>
 
-      
-
       {/* === 右カラム：検索条件 + おすすめスポット + ルート案内 === */}
       <section className="space-y-4">
         {/* 検索条件エリア */}

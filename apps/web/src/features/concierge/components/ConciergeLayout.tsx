@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
 import { useCallback, useState } from "react";
@@ -6,41 +5,23 @@ import { useConciergeThreads, useConciergeThreadDetail, useConciergeChat } from 
 import ThreadList from "./ThreadList";
 import ChatPanel from "./ChatPanel";
 
-type LatLng = { lat: number; lng: number };
-
-type Props = {
-  origin: LatLng | null;
-};
-
-export default function ConciergeLayout({ origin }: Props) {
+export default function ConciergeLayout() {
   const { threads, loading: loadingThreads, setThreads } = useConciergeThreads();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-
   const { detail, loading: loadingDetail, setDetail } = useConciergeThreadDetail(selectedThreadId);
 
   const { send, sending } = useConciergeChat(selectedThreadId, {
-    // origin があれば hooks 側で lat/lng を付けたいので渡しておく
-    origin: origin ?? undefined,
     onUpdated: ({ thread, messages }) => {
-      // thread が返ってこないケース（いまの compat バックエンド）を許容
       if (!thread) {
-        if (messages && messages.length > 0) {
-          setDetail((prev) =>
-            prev
-              ? { ...prev, messages }
-              : // thread 不明だが、とりあえずメッセージだけ持っておく
-                { thread: undefined as any, messages },
-          );
-        }
+        const safeMessages = messages ?? detail?.messages ?? [];
+        setDetail((prev) => (prev ? { ...prev, messages: safeMessages } : null));
         return;
       }
 
       const safeMessages = messages ?? detail?.messages ?? [];
 
-      // 詳細の更新
       setDetail({ thread, messages: safeMessages });
 
-      // スレッド一覧の更新（新規 or 更新）
       setThreads((prev) => {
         const others = prev.filter((t) => t.id !== thread.id);
         return [thread, ...others];
@@ -62,8 +43,6 @@ export default function ConciergeLayout({ origin }: Props) {
 
   const handleSend = useCallback(
     async (text: string) => {
-      // send は ConciergeChatResponse | undefined を返すが、
-      // ここでは結果を返さず「待つだけ」にして Promise<void> として扱う
       await send(text);
     },
     [send],
