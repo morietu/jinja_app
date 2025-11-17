@@ -44,18 +44,20 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 max-w-md w-full mx-auto px-3 py-2">
       {/* チャットログ */}
-      <div className="border rounded-lg p-3 h-64 overflow-y-auto text-sm">
+      <div className="border rounded-xl p-3 h-[45vh] sm:h-64 overflow-y-auto text-sm bg-white shadow-sm">
         {messages.map((m: ChatMessageItem) => (
           <div key={m.id} className={m.role === "user" ? "text-right mb-2" : "text-left mb-2"}>
-            <div className="inline-block px-2 py-1 rounded-md bg-gray-100">{m.text}</div>
+            <div className="inline-block px-3 py-2 rounded-2xl bg-gray-100 max-w-[80%] text-left">{m.text}</div>
           </div>
         ))}
 
         {!messages.length && (
-          <p className="text-xs text-gray-500">
-            いまの気持ちや相談ごとを入力して「送信」を押すと、コンシェルジュが神社を提案します。
+          <p className="text-xs text-gray-500 leading-relaxed">
+            いまの気持ちや相談ごとを入力して「送信」を押すと、
+            <br />
+            コンシェルジュがあなたに合った神社を提案します。
           </p>
         )}
       </div>
@@ -69,12 +71,15 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
       )}
 
       {/* エラー表示 */}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500 px-1">{error}</p>}
 
-      {/* 入力フォーム */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      {/* 入力フォーム：画面下寄せ気味 */}
+      <form
+        onSubmit={handleSubmit}
+        className="mt-auto flex gap-2 items-center border-t border-gray-100 pt-2 pt-safe pb-safe bg-white"
+      >
         <input
-          className="flex-1 border rounded-md px-2 py-1 text-sm"
+          className="flex-1 border rounded-full px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-1 focus:ring-gray-300"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="例：仕事運を上げたい、都内でおすすめの神社は？"
@@ -82,9 +87,9 @@ export function ConciergeChat({ lat, lng, candidates }: Props) {
         <button
           type="submit"
           disabled={isLoading}
-          className="px-3 py-1 text-sm rounded-md border bg-white disabled:opacity-60"
+          className="px-4 py-2 text-sm rounded-full border bg-black text-white disabled:opacity-60"
         >
-          {isLoading ? "送信中..." : "送信"}
+          {isLoading ? "送信中…" : "送信"}
         </button>
       </form>
     </div>
