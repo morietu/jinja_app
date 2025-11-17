@@ -2,17 +2,12 @@
 
 // クライアントから送る payload
 export type ConciergeChatRequest = {
-  message?: string; // 新UIは基本こっち
-  query?: string; // 既存互換
+  message: string;
+  thread_id?: string | null;
   lat?: number;
   lng?: number;
-  candidates?: Array<{
-    formatted_address?: string;
-    place_id?: string;
-    name?: string;
-    // バックエンド追加用の拡張フィールドはここに足していく
-    [key: string]: unknown;
-  }>;
+  // もともとあった他のフィールドがあればそのまま残してOK
+  // 例）transport?: string; theme?: string; とか
 };
 
 // 将来の本番LLMも見据えたレスポンス data

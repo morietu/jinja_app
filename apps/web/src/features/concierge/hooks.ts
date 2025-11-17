@@ -10,7 +10,11 @@ import {
   type ConciergeThread,
   type ConciergeThreadDetail,
   type ConciergeMessage,
+  type ConciergeChatRequest,
 } from "@/lib/api/concierge";
+
+/** 座標（チャットに添える用） */
+type LatLng = { lat: number; lng: number };
 
 /* ====== スレッド一覧 ====== */
 
@@ -24,7 +28,7 @@ export function useConciergeThreads() {
     setError(null);
     try {
       const data = await fetchThreads();
-      setThreads(data);
+      setThreads(data ?? []);
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -70,13 +74,9 @@ export function useConciergeThreadDetail(threadId: string | null) {
           setDetail(data);
         }
       } catch (err) {
-        if (!cancelled) {
-          setError(err as Error);
-        }
+        if (!cancelled) setError(err as Error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -93,10 +93,15 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
-  onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
+  /** 現在地（あれば lat/lng を payload に載せる） */
+  origin?: LatLng;
+  /** 送信後にスレッド／メッセージを親コンポーネント側で更新したいとき */
+  onUpdated?: (payload: { thread?: ConciergeThread; messages?: ConciergeMessage[] }) => void;
 };
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
+  const { origin, onUpdated } = options ?? {};
+
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,17 +113,28 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setError(null);
 
       try {
-        const res = await postConciergeChat({
+        // lat/lng 付き payload（バックエンドは余分なキーは無視する想定）
+        const payload: ConciergeChatRequest & {
+          lat?: number;
+          lng?: number;
+        } = {
           message,
           thread_id: threadId ?? undefined,
-        });
+        };
 
-        // 親（Layout）に「スレッド更新されたよ」と伝える
-        options?.onUpdated?.({
+        if (origin) {
+          payload.lat = origin.lat;
+          payload.lng = origin.lng;
+        }
+
+        const res = await postConciergeChat(payload);
+
+        onUpdated?.({
           thread: res.thread,
           messages: res.messages,
         });
-        // 何も return しない → Promise<void> になるので ChatPanel の onSend 型と整合
+
+        // ChatPanel 的には戻り値不要なので何も return しない（＝Promise<void> 扱い）
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
@@ -129,7 +145,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         setSending(false);
       }
     },
-    [threadId, options],
+    [threadId, origin, onUpdated],
   );
 
   return { send, sending, error };
