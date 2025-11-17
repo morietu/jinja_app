@@ -11,6 +11,8 @@ from openai import OpenAI
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework import status
+
 
 from rest_framework.views import APIView
 from temples.api.serializers.concierge import (
@@ -26,6 +28,7 @@ from temples.api.serializers.concierge import (
 from temples.models import ConciergeHistory, GoriyakuTag, Shrine, ConciergeThread
 
 from temples.services.concierge_history import append_chat
+from temples.llm.orchestrator import ConciergeOrchestrator
 
 
 
@@ -50,6 +53,7 @@ class ConciergeChatView(APIView):
     def post(self, request):
         data = request.data or {}
 
+        # message / query を統一して扱う
         text = (data.get("message") or data.get("query") or "").strip()
 
         def to_float(v):
@@ -62,6 +66,10 @@ class ConciergeChatView(APIView):
         lng = to_float(data.get("lng"))
         transport = (data.get("transport") or "walking").lower()
 
+        # ここで candidates を受け取る（テストで渡している）
+        candidates = data.get("candidates") or []
+
+        # 必須チェック（従来ロジックを維持）
         missing = []
         if not text:
             missing.append("message|query")
@@ -72,9 +80,19 @@ class ConciergeChatView(APIView):
         if missing:
             return Response({"detail": f"required: {', '.join(missing)}"}, status=400)
 
-        # ★ここでは chat_to_plan を呼ばず、単純なエコーだけにする
+        # smoke 互換の echo reply
         reply = f"echo: {text}"
 
+        # --- Orchestrator に message + candidates を渡す（テストがここを検証） ---
+        suggestions = None
+        try:
+            orchestrator = ConciergeOrchestrator()
+            suggestions = orchestrator.suggest(query=text, candidates=candidates)
+        except Exception:
+            # LLMまわりで例外が起きても、チャット自体は 200 で返す
+            suggestions = None
+
+        # --- チャット履歴保存（従来ロジックを生かす） ---
         thread_payload = None
         thread_id = data.get("thread_id") or data.get("threadId")
 
@@ -97,12 +115,17 @@ class ConciergeChatView(APIView):
             except Exception:
                 thread_payload = None
 
-        body = {"reply": reply}
+        # --- レスポンス組み立て ---
+        body: dict[str, object] = {
+            "ok": True,
+            "reply": reply,
+        }
+        if suggestions is not None:
+            body["suggestions"] = suggestions
         if thread_payload is not None:
             body["thread"] = thread_payload
 
         return Response(body, status=status.HTTP_200_OK)
-
 
 class ConciergeRecommendationsView(APIView):
     """
