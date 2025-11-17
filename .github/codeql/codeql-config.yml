@@ -1,0 +1,11 @@
+# .github/codeql/codeql-config.yml
+
+name: jinja_app codeql config
+paths:
+  - backend/**          # Django backend
+  - apps/web/**         # Next.js フロント
+paths-ignore:
+  - "**/migrations/**"
+  - "**/node_modules/**"
+  - "frontend/build/**" # いま実害はないが残してもOK
+  - "**/*.md"
