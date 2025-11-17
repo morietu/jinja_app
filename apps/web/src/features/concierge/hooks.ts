@@ -10,10 +10,7 @@ import {
   type ConciergeThread,
   type ConciergeThreadDetail,
   type ConciergeMessage,
-  type ConciergeChatRequest,
 } from "@/lib/api/concierge";
-
-
 
 /* ====== スレッド一覧 ====== */
 
@@ -27,7 +24,7 @@ export function useConciergeThreads() {
     setError(null);
     try {
       const data = await fetchThreads();
-      setThreads(data ?? []);
+      setThreads(data);
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -73,9 +70,13 @@ export function useConciergeThreadDetail(threadId: string | null) {
           setDetail(data);
         }
       } catch (err) {
-        if (!cancelled) setError(err as Error);
+        if (!cancelled) {
+          setError(err as Error);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -91,17 +92,11 @@ export function useConciergeThreadDetail(threadId: string | null) {
 
 /* ====== チャット送信（/concierge/chat/） ====== */
 
-// 先頭付近の import はそのままでOK
-
-// ✏️ ここを書き換え
 export type UseConciergeChatOptions = {
-  onUpdated?: (payload: { thread?: ConciergeThread; messages?: ConciergeMessage[] }) => void;
+  onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
 };
 
-export function useConciergeChat(
-  threadId: string | null,
-  options?: UseConciergeChatOptions,
-) {
+export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,22 +108,23 @@ export function useConciergeChat(
       setError(null);
 
       try {
-        const payload: ConciergeChatRequest = { message };
-        if (threadId) payload.thread_id = threadId;
+        const res = await postConciergeChat({
+          message,
+          thread_id: threadId ?? undefined,
+        });
 
-        const res = await postConciergeChat(payload);
-
+        // 親（Layout）に「スレッド更新されたよ」と伝える
         options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
         });
+        // 何も return しない → Promise<void> になるので ChatPanel の onSend 型と整合
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
         } else {
           setError("チャット送信に失敗しました");
         }
-        return;
       } finally {
         setSending(false);
       }

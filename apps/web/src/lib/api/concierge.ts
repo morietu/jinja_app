@@ -96,8 +96,6 @@ export type ConciergeThreadDetail = {
 export type ConciergeChatRequest = {
   message: string;
   thread_id?: string | null;
-  lat?: number;
-  lng?: number;
 };
 
 export type ConciergeChatResponse = {
@@ -105,44 +103,28 @@ export type ConciergeChatResponse = {
   messages: ConciergeMessage[]; // 直近の履歴 or 追加分、バックエンド仕様に合わせて
 };
 
-type Paginated<T> = {
-  results?: T[];
-  // 他のキーは無視してOK
-  // count?: number;
-  // next?: string | null;
-  // previous?: string | null;
-};
-
+// api の baseURL が /api なので、ここでは /concierge/... にしておく
 export async function fetchThreads(): Promise<ConciergeThread[]> {
   try {
-    const res = await api.get<ConciergeThread[] | Paginated<ConciergeThread>>("/concierge-threads/");
-    const data = res.data;
-
-    // ① 素の配列で返ってくるパターン
-    if (Array.isArray(data)) {
-      return data.filter(Boolean);
-    }
-
-    // ② DRF のページネーション形式
-    if (data && Array.isArray((data as Paginated<ConciergeThread>).results)) {
-      return (data as Paginated<ConciergeThread>).results!.filter(Boolean);
-    }
-
-    // ③ どちらでもない場合は安全側で空
-    return [];
+    const res = await api.get<ConciergeThread[]>("/concierge-threads/");
+    return res.data ?? [];
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
 
+      // 404: バックエンドに未実装（または URL 未配線）の環境
       if (status === 404) {
         console.warn("[concierge] threads endpoint not found; returning empty list");
         return [];
       }
+
+      // 401/403: ログインしていない環境 → 「スレッドなし」として扱う
       if (status === 401 || status === 403) {
         console.warn("[concierge] threads endpoint unauthorized; treat as empty");
         return [];
       }
     }
+    // それ以外は素直に投げる（デバッグ用）
     throw err;
   }
 }
