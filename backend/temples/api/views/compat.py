@@ -69,13 +69,20 @@ def concierge_chat_compat(request):
     # ---- 4) 本来の実装に委譲 ----
     resp = concierge.chat(dj_req)
 
-    # ---- 5) HttpResponse は素通し / DRF Response なら 'reply' を付与 ----
+    # ---- 5) HttpResponse は素通し / DRF Response なら 'reply' と 'ok' を付与 ----
     if not isinstance(resp, DRFResponse):
         return resp
 
     payload = dict(resp.data) if isinstance(resp.data, dict) else {}
+
+    # 200系なのに ok が無い場合は、下位互換のために自動で付ける
+    if "ok" not in payload and 200 <= resp.status_code < 300:
+        payload["ok"] = True
+
+    # message/query から作った echo を reply として補う（既にあれば上書きしない）
     if text:
         payload.setdefault("reply", f"echo: {text}")
+
     return DRFResponse(payload, status=resp.status_code)
 
 concierge_chat_compat.throttle_classes = [ScopedRateThrottle]
