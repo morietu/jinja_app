@@ -8,7 +8,8 @@ type Props = {
   messages: ConciergeMessage[];
   loading: boolean;
   sending: boolean;
-  onSend: (text: string) => Promise<void> | void;
+  // send() は ConciergeChatResponse を返すので、戻り値を unknown にする
+  onSend: (text: string) => Promise<unknown> | void;
 };
 
 export default function ChatPanel({ thread, messages, loading, sending, onSend }: Props) {

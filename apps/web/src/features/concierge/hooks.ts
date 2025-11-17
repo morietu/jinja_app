@@ -1,9 +1,18 @@
 // apps/web/src/features/concierge/hooks.ts
-import { useEffect, useState, useCallback } from "react";
-import { fetchThreads, fetchThreadDetail, postConciergeChat } from "@/lib/api/concierge";
+"use client";
 
-import type { ConciergeThread, ConciergeThreadDetail, ConciergeMessage } from "@/lib/api/concierge";
+import { useCallback, useEffect, useState } from "react";
+import axios from "axios";
+import {
+  fetchThreads,
+  fetchThreadDetail,
+  postConciergeChat,
+  type ConciergeThread,
+  type ConciergeThreadDetail,
+  type ConciergeMessage,
+} from "@/lib/api/concierge";
 
+/* ====== スレッド一覧 ====== */
 
 export function useConciergeThreads() {
   const [threads, setThreads] = useState<ConciergeThread[]>([]);
@@ -16,8 +25,8 @@ export function useConciergeThreads() {
     try {
       const data = await fetchThreads();
       setThreads(data);
-    } catch (e) {
-      setError(e as Error);
+    } catch (err) {
+      setError(err as Error);
     } finally {
       setLoading(false);
     }
@@ -27,8 +36,16 @@ export function useConciergeThreads() {
     void load();
   }, [load]);
 
-  return { threads, loading, error, reload: load, setThreads };
+  return {
+    threads,
+    loading,
+    error,
+    reload: load,
+    setThreads,
+  };
 }
+
+/* ====== スレッド詳細（メッセージ一覧） ====== */
 
 export function useConciergeThreadDetail(threadId: string | null) {
   const [detail, setDetail] = useState<ConciergeThreadDetail | null>(null);
@@ -38,25 +55,33 @@ export function useConciergeThreadDetail(threadId: string | null) {
   useEffect(() => {
     if (!threadId) {
       setDetail(null);
+      setError(null);
       return;
     }
+
     let cancelled = false;
 
-    async function run() {
+    const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        if (!threadId) return;
         const data = await fetchThreadDetail(threadId);
-        if (!cancelled) setDetail(data);
-      } catch (e) {
-        if (!cancelled) setError(e as Error);
+        if (!cancelled) {
+          setDetail(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err as Error);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    }
+    };
 
-    void run();
+    void load();
+
     return () => {
       cancelled = true;
     };
@@ -65,14 +90,15 @@ export function useConciergeThreadDetail(threadId: string | null) {
   return { detail, loading, error, setDetail };
 }
 
-export function useConciergeChat(
-  threadId: string | null,
-  opts?: {
-    onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
-  },
-) {
+/* ====== チャット送信（/concierge/chat/） ====== */
+
+export type UseConciergeChatOptions = {
+  onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
+};
+
+export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const send = useCallback(
     async (message: string) => {
@@ -80,24 +106,30 @@ export function useConciergeChat(
 
       setSending(true);
       setError(null);
+
       try {
         const res = await postConciergeChat({
           message,
           thread_id: threadId ?? undefined,
         });
-        opts?.onUpdated?.({
+
+        // 親（Layout）に「スレッド更新されたよ」と伝える
+        options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
         });
-        return res;
-      } catch (e) {
-        setError(e as Error);
-        throw e;
+        // 何も return しない → Promise<void> になるので ChatPanel の onSend 型と整合
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
+        } else {
+          setError("チャット送信に失敗しました");
+        }
       } finally {
         setSending(false);
       }
     },
-    [threadId, opts],
+    [threadId, options],
   );
 
   return { send, sending, error };
