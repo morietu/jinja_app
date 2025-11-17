@@ -2,6 +2,9 @@
 import axios from "axios";
 import api from "./client";
 
+
+/* ====== 既存: 履歴API ====== */
+
 export type ConciergeHistory = {
   id: number;
   shrine: number;
@@ -55,9 +58,69 @@ export async function getConciergeHistory(): Promise<ConciergeHistory[]> {
   }
   for (const path of HISTORY_CANDIDATES) {
     const r = await tryGet(path);
-    if (r.kind === "ok") { HISTORY_EP_CACHE = path; return r.data; }
-    if (r.kind === "exists") { HISTORY_EP_CACHE = path; return []; }
+    if (r.kind === "ok") {
+      HISTORY_EP_CACHE = path;
+      return r.data;
+    }
+    if (r.kind === "exists") {
+      HISTORY_EP_CACHE = path;
+      return [];
+    }
   }
   console.warn("[concierge] history endpoint not found; returning empty list");
   return [];
 }
+
+
+/* ====== 新規: スレッドAPI ====== */
+
+export type ConciergeThread = {
+  id: string;
+  title: string;
+  last_message_at: string;
+};
+
+export type ConciergeMessage = {
+  id: string;
+  thread_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+};
+
+export type ConciergeThreadDetail = {
+  thread: ConciergeThread;
+  messages: ConciergeMessage[];
+};
+
+export type ConciergeChatRequest = {
+  message: string;
+  thread_id?: string | null;
+};
+
+export type ConciergeChatResponse = {
+  thread: ConciergeThread;
+  messages: ConciergeMessage[]; // 直近の履歴 or 追加分、バックエンド仕様に合わせて
+};
+
+// api の baseURL が /api なので、ここでは /concierge/... にしておく
+export async function fetchThreads(): Promise<ConciergeThread[]> {
+  const res = await api.get<ConciergeThread[]>("/concierge/threads/");
+  return res.data;
+}
+
+export async function fetchThreadDetail(
+  id: string,
+): Promise<ConciergeThreadDetail> {
+  const res = await api.get<ConciergeThreadDetail>(`/concierge/threads/${id}/`);
+  return res.data;
+}
+
+export async function postConciergeChat(
+  body: ConciergeChatRequest,
+): Promise<ConciergeChatResponse> {
+  const res = await api.post<ConciergeChatResponse>("/concierge/chat/", body);
+  return res.data;
+}
+
+

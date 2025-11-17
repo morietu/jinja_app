@@ -8,10 +8,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFavorite } from "@/hooks/useFavorite";
-import { ConciergeChatForm } from "@/features/concierge/components/ConciergeChatForm";
-import { ConciergeHistoryList } from "@/features/concierge/components/ConciergeHistoryList";
-import { ConciergeChatLog } from "@/features/concierge/components/ConciergeChatLog";
-import type { ConciergeHistoryItem, ConciergeChatMessage } from "@/features/concierge/types";
+
+import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
+
 
 const RouteMap = dynamic(() => import("@/components/map/RouteMap"), {
   ssr: false,
@@ -104,21 +103,13 @@ export default function ConciergePage() {
   const listAbortRef = useRef<AbortController | null>(null);
   const geocodeAbortRef = useRef<AbortController | null>(null);
 
-  const [histories] = useState<ConciergeHistoryItem[]>([]);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null);
+  
 
-  // このブランチでは「messages だけあればOK」の軽量な型にしておく
-  const [selectedHistoryDetail, setSelectedHistoryDetail] = useState<{
-    messages?: ConciergeChatMessage[];
-  } | null>(null);
+  
 
-  const [historyDetailLoading] = useState(false);
-  const [historyDetailError, setHistoryDetailError] = useState<string | null>(null);
-  const handleSelectHistory = (id: number | null) => {
-    setSelectedHistoryId(id);
-    setSelectedHistoryDetail(null);
-    setHistoryDetailError(null);
-  };
+  
+  
+  
 
   // 現在地取得（失敗してもUI継続）
   useEffect(() => {
@@ -316,30 +307,11 @@ return (
     {/* 2カラムレイアウト：左＝相談＆履歴、右＝検索〜ルート */}
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
       {/* === 左カラム：相談フォーム + 履歴 + ログ === */}
-      <section className="space-y-4">
-        <div className="space-y-4 rounded-lg border bg-white p-4">
-          <h2 className="text-lg font-semibold">コンシェルジュ相談</h2>
-          <ConciergeChatForm />
-        </div>
-
-        <div className="space-y-3 rounded-lg border bg-white p-4">
-          <h3 className="text-sm font-semibold">履歴</h3>
-          <ConciergeHistoryList
-            histories={histories}
-            selectedId={selectedHistoryId}
-            onSelect={handleSelectHistory}
-          />
-        </div>
-
-        <div className="space-y-2 rounded-lg border bg-white p-4">
-          <h3 className="text-sm font-semibold">選択した履歴の会話ログ</h3>
-          <ConciergeChatLog
-            messages={selectedHistoryDetail?.messages}
-            loading={historyDetailLoading}
-            error={historyDetailError}
-          />
-        </div>
+      <section className="space-y-4 rounded-lg border bg-white p-4">
+        <ConciergeLayout />
       </section>
+
+      
 
       {/* === 右カラム：検索条件 + おすすめスポット + ルート案内 === */}
       <section className="space-y-4">
@@ -353,9 +325,7 @@ return (
               type="button"
               onClick={() => setMode("popular")}
               aria-pressed={mode === "popular"}
-              className={`px-2 py-1 rounded text-sm ${
-                mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"
-              }`}
+              className={`px-2 py-1 rounded text-sm ${mode === "popular" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
             >
               人気順
             </button>
@@ -447,8 +417,7 @@ return (
                     className="cursor-pointer p-2 hover:bg-gray-50"
                     onClick={() => selectGeocode(g)}
                   >
-                    {g.formatted}{" "}
-                    <span className="text-xs text-gray-500">({g.precision})</span>
+                    {g.formatted} <span className="text-xs text-gray-500">({g.precision})</span>
                   </li>
                 ))}
               </ul>
@@ -470,9 +439,7 @@ return (
               {candidates.map((s, idx) => (
                 <li
                   key={s.id}
-                  className={`cursor-pointer rounded border p-3 ${
-                    idx === selectedIdx ? "ring-2 ring-blue-400" : ""
-                  }`}
+                  className={`cursor-pointer rounded border p-3 ${idx === selectedIdx ? "ring-2 ring-blue-400" : ""}`}
                   onClick={() => setSelectedIdx(idx)}
                 >
                   <div className="font-semibold">{s.name_jp ?? s.name}</div>
@@ -529,4 +496,3 @@ return (
   </main>
 );
 }
-
