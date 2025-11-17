@@ -106,8 +106,14 @@ urlpatterns = [
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
+    
     # ---- Concierge（複数形: 正規） ---------------------------------------
-    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),        # 正式（互換ラッパ）
+    # 新実装: ChatView を直接ぶら下げる
+    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
+    # ★ dev で /api/concierge/chat （末尾スラなし）で来ても 500 にしないための受け口
+    path("concierge/chat", ConciergeChatView.as_view(), name="concierge-chat-noslash"),
+
+    # plan はこれまで通り
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
 
     path(
@@ -116,11 +122,20 @@ urlpatterns = [
         name="concierge-thread-list",
     ),
     path(
+        "concierge-threads",
+        ConciergeThreadListView.as_view(),
+        name="concierge-thread-list-noslash",
+    ),
+    path(
         "concierge-threads/<int:pk>/",
         ConciergeThreadDetailView.as_view(),
         name="concierge-thread-detail",
     ),
-
+    path(
+        "concierge-threads/<int:pk>",
+        ConciergeThreadDetailView.as_view(),
+        name="concierge-thread-detail-noslash",
+    ),
     # 旧履歴API（必要なら残す）
     
     
