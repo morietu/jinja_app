@@ -23,7 +23,7 @@ export function ConciergeSuggestionCard({ recommendation, index, onShowMap }: Pr
           onClick={() => onShowMap(recommendation)}
           className="mt-1 self-start px-2 py-1 rounded border text-[11px] hover:bg-gray-50"
         >
-          地図で見る
+          Googleマップで見る
         </button>
       )}
     </div>
