@@ -21,6 +21,10 @@ export function HomeHero() {
       >
         今の気持ちから神社を探す
       </Link>
+
+      <Link href="/concierge/history" className="text-[11px] text-gray-500 underline">
+        過去の相談を見る
+      </Link>
     </div>
   );
 }
