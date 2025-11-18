@@ -5,32 +5,46 @@ import type { ConciergeHistoryItem } from "../types";
 
 type Props = {
   histories: ConciergeHistoryItem[];
-  selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  selectedId?: number | null;
+  onSelect: (id: number) => void;
 };
 
 export function ConciergeHistoryList({ histories, selectedId, onSelect }: Props) {
-  if (!histories || histories.length === 0) {
-    return <p className="text-xs text-gray-500">まだ履歴がありません。</p>;
+  if (!histories.length) {
+    return <div className="text-xs text-gray-500">まだ相談履歴はありません。</div>;
   }
 
   return (
-    <div className="rounded border bg-white max-h-64 md:max-h-80 overflow-y-auto text-sm">
+    <div className="mt-1 rounded-lg border bg-white max-h-80 overflow-y-auto">
       <ul className="divide-y">
         {histories.map((h) => {
-          const isActive = h.id === selectedId;
-          const createdAtLabel = h.created_at ? new Date(h.created_at).toLocaleString("ja-JP") : "";
-
+          const selected = h.id === selectedId;
           return (
-            <li
-              key={h.id}
-              className={`px-3 py-2 cursor-pointer hover:bg-gray-50 ${
-                isActive ? "bg-blue-50 ring-1 ring-blue-300" : ""
-              }`}
-              onClick={() => onSelect(isActive ? null : h.id)}
-            >
-              <div className="truncate text-sm">{h.title?.trim() || "無題の履歴"}</div>
-              {createdAtLabel && <div className="mt-0.5 text-[11px] text-gray-500">{createdAtLabel}</div>}
+            <li key={h.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(h.id)}
+                className={[
+                  "w-full text-left px-3 py-2 text-sm flex flex-col gap-1",
+                  "hover:bg-gray-50 cursor-pointer",
+                  selected ? "bg-blue-50 border-l-4 border-l-blue-500" : "",
+                ].join(" ")}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium line-clamp-1">{h.title ?? "無題の相談"}</p>
+                  <span className="shrink-0 text-[11px] text-gray-400">
+                    {/* ここは既存のフォーマッタに差し替え */}
+                    {new Date(h.last_message_at).toLocaleString("ja-JP", {
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
+                {h.last_message && <p className="text-xs text-gray-600 line-clamp-2">{h.last_message}</p>}
+              </button>
             </li>
           );
         })}
