@@ -2,8 +2,6 @@
 import axios from "axios";
 import api from "./client";
 
-
-
 /* ====== スレッドAPI ====== */
 
 export type ConciergeThread = {
@@ -46,11 +44,16 @@ export type ConciergeChatRequest = {
   thread_id?: string | null;
 };
 
+// ★ 今のバックエンドの echo レスポンスに合わせる
 export type ConciergeChatResponse = {
-  thread: ConciergeThread;
-  messages: ConciergeMessage[];
-  recommendations?: ConciergeRecommendation[];
+  ok: boolean;
+  reply: string;
 };
+
+export async function postConciergeChat(body: ConciergeChatRequest): Promise<ConciergeChatResponse> {
+  const res = await api.post<ConciergeChatResponse>("/concierge/chat/", body);
+  return res.data;
+}
 
 export async function fetchThreads(): Promise<ConciergeThread[]> {
   const res = await api.get<ConciergeThread[] | { results: ConciergeThread[] }>("/concierge-threads/");
@@ -76,9 +79,4 @@ export async function fetchThreadDetail(id: string): Promise<ConciergeThreadDeta
     }
     throw err;
   }
-}
-
-export async function postConciergeChat(body: ConciergeChatRequest): Promise<ConciergeChatResponse> {
-  const res = await api.post<ConciergeChatResponse>("/concierge/chat/", body);
-  return res.data;
 }
