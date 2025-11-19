@@ -118,6 +118,9 @@ class ConciergeThreadSerializer(serializers.ModelSerializer):
 
 
 class ConciergeMessageSerializer(serializers.ModelSerializer):
+    thread_id = serializers.IntegerField(source="thread_id", read_only=True)
+    content = serializers.CharField(source="text")
+    
     class Meta:
         model = ConciergeMessage
         fields = [
@@ -141,6 +144,24 @@ class ConciergeThreadDetailSerializer(serializers.ModelSerializer):
             "message_count",
             "messages",
         ]
+
+class ConciergeRecommendationSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False, allow_null=True)
+    place_id = serializers.CharField(required=False, allow_null=True)
+    name = serializers.CharField()
+    address = serializers.CharField(required=False, allow_null=True)
+    lat = serializers.FloatField(required=False, allow_null=True)
+    lng = serializers.FloatField(required=False, allow_null=True)
+    distance_m = serializers.IntegerField()
+    duration_min = serializers.IntegerField()
+    reason = serializers.CharField()
+    photo_url = serializers.CharField(required=False, allow_null=True)
+
+
+class ConciergeChatRequestSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=4000)
+    thread_id = serializers.IntegerField(required=False, allow_null=True)
+
 
 # --- 公開シンボルの最終決定 ---
 ConciergeHistorySerializer = _NewConciergeHistorySerializer or _FallbackConciergeHistorySerializer
