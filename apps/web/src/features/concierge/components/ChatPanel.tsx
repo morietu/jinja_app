@@ -19,7 +19,13 @@ export default function ChatPanel({ thread, messages, loading, sending, onSend }
   };
 
   return (
-    <section className="flex h-full flex-col rounded-xl border bg-white px-3 py-1.5 shadow-sm min-h-[220px]">
+    <section
+      className="
+        mx-auto w-full
+        flex h-full flex-col
+        rounded-xl border bg-white px-3 py-2 shadow-sm min-h-[220px]
+      "
+    >
       {/* タイトル行 */}
       <header className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-semibold">{thread?.title ?? "今の気持ちから相談する"}</h2>
@@ -28,7 +34,7 @@ export default function ChatPanel({ thread, messages, loading, sending, onSend }
       </header>
 
       {/* メッセージログ */}
-      <div className="mb-2 flex-1 overflow-y-auto rounded-xl bg-gray-50 px-3 py-2 min-h-[140px]">
+      <div className="mb-2 flex-1 overflow-y-auto rounded-xl bg-gray-50 px-3 py-2 min-h-[120px]">
         {loading && <p className="text-xs text-gray-500">相談履歴を読み込んでいます…</p>}
         {!loading && messages.length === 0 && (
           <p className="text-xs text-gray-500">

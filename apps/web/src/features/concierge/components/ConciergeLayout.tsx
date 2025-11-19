@@ -68,7 +68,7 @@ export default function ConciergeLayout() {
   const messages = detail?.messages ?? [];
 
   return (
-    <div className="mx-auto flex h-full max-w-md flex-col gap-4 px-4 py-4 md:max-w-5xl md:flex-row">
+    <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
       {/* 上（スマホ） / 左（md+）：チャット */}
       <div className="flex-1 md:order-1">
         <ChatPanel thread={activeThread} messages={messages} loading={loadingDetail} sending={sending} onSend={send} />
