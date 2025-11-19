@@ -1,5 +1,7 @@
 // apps/web/src/features/concierge/hooks.ts
 "use client";
+// apps/web/src/features/concierge/hooks.ts
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
@@ -15,17 +17,28 @@ import {
 /* ====== スレッド一覧 ====== */
 
 export function useConciergeThreads() {
-  const [threads, setThreads] = useState<ConciergeThread[]>([]);
+  const [threads, setThreads] = useState<ConciergeThread[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [requiresLogin, setRequiresLogin] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setRequiresLogin(false);
+
     try {
-      const data = await fetchThreads();
-      setThreads(data);
-    } catch (err) {
+      const res = await fetchThreads({ raw: true }); // axios/Fetch どちらでもOK
+
+      // ここで status を見たいなら、lib 側で throw or value 返却を決めておく
+      setThreads(res.data);
+    } catch (err: any) {
+      // 401 専用ハンドリング
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setRequiresLogin(true);
+        setThreads(null);
+        return;
+      }
       setError(err as Error);
     } finally {
       setLoading(false);
@@ -36,58 +49,8 @@ export function useConciergeThreads() {
     void load();
   }, [load]);
 
-  return {
-    threads,
-    loading,
-    error,
-    reload: load,
-    setThreads,
-  };
-}
+  return { threads, loading, error, requiresLogin, reload: load, setThreads };
 
-/* ====== スレッド詳細（メッセージ一覧） ====== */
-
-export function useConciergeThreadDetail(threadId: string | null) {
-  const [detail, setDetail] = useState<ConciergeThreadDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (!threadId) {
-      setDetail(null);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchThreadDetail(threadId);
-        if (!cancelled) {
-          setDetail(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err as Error);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [threadId]);
-
-  return { detail, loading, error, setDetail };
 }
 
 /* ====== チャット送信（/concierge/chat/） ====== */
@@ -113,12 +76,10 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           thread_id: threadId ?? undefined,
         });
 
-        // 親（Layout）に「スレッド更新されたよ」と伝える
         options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
         });
-        // 何も return しない → Promise<void> になるので ChatPanel の onSend 型と整合
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
@@ -133,4 +94,47 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
   );
 
   return { send, sending, error };
+}
+
+export function useConciergeThreadDetail(threadId: string | null) {
+  const [detail, setDetail] = useState<ConciergeThreadDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!threadId) {
+      setDetail(null);
+      setError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchThreadDetail(threadId); // ← ここで fetchThreadDetail を使用
+        if (!cancelled) {
+          setDetail(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err as Error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId]);
+
+  return { detail, loading, error, setDetail };
 }

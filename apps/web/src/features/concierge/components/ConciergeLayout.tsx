@@ -3,11 +3,12 @@
 
 import { useState, useMemo } from "react";
 import { useConciergeThreads, useConciergeThreadDetail, useConciergeChat } from "../hooks";
-import ThreadList from "./ThreadList";
+import { ThreadList } from "./ThreadList";
 import ChatPanel from "./ChatPanel";
+import type { ConciergeThread } from "@/lib/api/concierge";
 
 export default function ConciergeLayout() {
-  const { threads, loading: loadingThreads, setThreads } = useConciergeThreads();
+  const { threads, loading: loadingThreads, setThreads, requiresLogin } = useConciergeThreads();
 
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
 
@@ -20,12 +21,13 @@ export default function ConciergeLayout() {
 
       // スレッド一覧の更新（新規作成 or last_message_at 更新）
       setThreads((prev) => {
-        const others = prev.filter((t) => t.id !== thread.id);
+        const prevSafe = Array.isArray(prev) ? prev : [];
+        const others = prevSafe.filter((t) => String((t as any).id) !== String((thread as any).id));
         return [thread, ...others];
       });
 
-      // 新規スレッドなら自動的に選択
-      setSelectedThreadId(thread.id);
+      // 新規スレッドなら自動的に選択（string に統一）
+      setSelectedThreadId(String((thread as any).id));
     },
   });
 
@@ -39,10 +41,10 @@ export default function ConciergeLayout() {
   };
 
   // 選択中スレッド（detail があればそれを、なければ一覧から探す）
-  const activeThread = useMemo(() => {
+  const activeThread: ConciergeThread | null = useMemo(() => {
     if (detail?.thread) return detail.thread;
     if (!selectedThreadId) return null;
-    return threads.find((t) => t.id === selectedThreadId) ?? null;
+    return (threads ?? []).find((t) => String((t as any).id) === selectedThreadId) ?? null;
   }, [detail, threads, selectedThreadId]);
 
   const messages = detail?.messages ?? [];
@@ -53,6 +55,7 @@ export default function ConciergeLayout() {
         <ThreadList
           threads={threads}
           loading={loadingThreads}
+          requiresLogin={requiresLogin}
           selectedId={selectedThreadId}
           onSelect={handleSelectThread}
           onCreateNew={handleStartNew}
