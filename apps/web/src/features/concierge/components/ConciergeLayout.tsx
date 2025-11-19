@@ -91,7 +91,9 @@ export default function ConciergeLayout() {
           {recommendations.length > 0 && (
             <>
               <h3 className="mb-2 text-xs font-semibold text-gray-600">今回のおすすめ神社</h3>
-              <div className="space-y-3">
+
+              {/* 候補カード（ConciergeCard 縦リスト） */}
+              <div className="mb-4 space-y-3">
                 {recommendations.map((r, idx) => (
                   <ConciergeCard
                     key={r.id ?? r.place_id ?? idx}
@@ -108,9 +110,21 @@ export default function ConciergeLayout() {
                       photo_url: r.photo_url ?? null,
                     }}
                     index={idx}
+                    showMapButton
                   />
                 ))}
               </div>
+
+              {/* ルート案内 UI */}
+              <section className="rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
+                <h4 className="mb-1 text-sm font-semibold">ルート案内</h4>
+                <p className="leading-relaxed">
+                  気になる神社の「地図で見る」をタップすると、 Googleマップで現在地からのルートを開きます。
+                </p>
+                <p className="mt-1 leading-relaxed">
+                  複数まわりたいときは、行きたい順に「地図で見る」を開いて ルートを調整してください。
+                </p>
+              </section>
             </>
           )}
         </div>

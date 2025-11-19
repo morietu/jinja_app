@@ -19,17 +19,18 @@ type Shrine = {
   photo_url?: string | null;
 };
 
-export default function ConciergeCard({
-  s,
-  index = 0,
-  onImported,
-  onFavorited,
-}: {
+
+
+type Props = {
   s: Shrine;
   index?: number;
   onImported?: (payload: { id: number; place_id?: string | null }) => void;
   onFavorited?: (place_id?: string | null) => void;
-}) {
+  /** コンシェルジュ候補用に「地図で見る」ボタンを出すかどうか */
+  showMapButton?: boolean;
+};
+
+export default function ConciergeCard({ s, index = 0, onImported, onFavorited, showMapButton = false }: Props) {
   // 取り込み済み表示（初期はDBにidがあればtrue）
   const [imported, setImported] = useState<boolean>(!!s.id);
   const [err, setErr] = useState<string | null>(null);
@@ -44,10 +45,8 @@ export default function ConciergeCard({
   const gmapsLink =
     s.lat && s.lng
       ? `https://www.google.com/maps/dir/?api=1&destination=${Number(
-          s.lat
-        )},${Number(s.lng)}&destination_place_id=${encodeURIComponent(
-          s.place_id ?? ""
-        )}`
+          s.lat,
+        )},${Number(s.lng)}&destination_place_id=${encodeURIComponent(s.place_id ?? "")}`
       : undefined;
 
   // place_id からShrine作成→お気に入り登録
@@ -59,19 +58,14 @@ export default function ConciergeCard({
     setErr(null);
     try {
       const { data } = await api.post("places/find/", { place_id: s.place_id });
-      const shrineId: number | undefined =
-        data?.shrine_id ?? data?.id ?? data?.shrine?.id;
-      if (!shrineId)
-        throw new Error("取り込みレスポンスに shrine_id がありません。");
+      const shrineId: number | undefined = data?.shrine_id ?? data?.id ?? data?.shrine?.id;
+      if (!shrineId) throw new Error("取り込みレスポンスに shrine_id がありません。");
 
       await add(); // お気に入り登録
       setImported(true);
       onImported?.({ id: shrineId, place_id: s.place_id });
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.detail ||
-        e?.message ||
-        "保存に失敗しました。もう一度お試しください。";
+      const msg = e?.response?.data?.detail ?? e?.message ?? "保存に失敗しました。もう一度お試しください。";
       setErr(msg);
     }
   }
@@ -81,7 +75,6 @@ export default function ConciergeCard({
     onFavorited?.(s.place_id);
   }
 
-  // ▼ ここが関数の中（余計な } が無いこと）
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm min-h-[200px] transition hover:-translate-y-0.5 hover:shadow-md">
       {!!s.photo_url && (
@@ -142,7 +135,7 @@ export default function ConciergeCard({
                 rel="noreferrer"
                 className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50 transition"
               >
-                ルートを見る
+                {showMapButton ? "地図で見る" : "ルートを見る"}
               </a>
             )}
           </div>
