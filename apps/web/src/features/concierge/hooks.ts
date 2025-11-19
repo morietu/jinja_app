@@ -109,7 +109,7 @@ export type UseConciergeChatOptions = {
   onUpdated?: (payload: {
     thread: ConciergeThread;
     messages: ConciergeMessage[];
-    recommendations?: ConciergeRecommendation[]; // ★ 追加
+    recommendations?: ConciergeRecommendation[] | null;
   }) => void;
 };
 
@@ -133,7 +133,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
-          recommendations: res.recommendations,
+          recommendations: res.recommendations ?? null,
         });
       } catch (err) {
         if (axios.isAxiosError(err)) {
