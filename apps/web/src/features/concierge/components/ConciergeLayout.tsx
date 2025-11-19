@@ -9,6 +9,17 @@ import ChatPanel from "./ChatPanel";
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 
+// ★ ルート案内用に選択中の神社情報
+type SelectedRoute = {
+  name: string;
+  lat?: number | null;
+  lng?: number | null;
+  place_id?: string | null;
+  distance_m: number;
+  duration_min: number;
+  gmapsLink?: string;
+};
+
 export default function ConciergeLayout() {
   const { threads, loading: loadingThreads, setThreads, requiresLogin } = useConciergeThreads();
 
@@ -19,6 +30,9 @@ export default function ConciergeLayout() {
 
   // チャット結果のおすすめ候補
   const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
+
+  // ★ ルート案内用：どの神社を選んだか
+  const [selectedRoute, setSelectedRoute] = useState<SelectedRoute | null>(null);
 
   // 候補＋ルートブロックの位置
   const candidatesRef = useRef<HTMLDivElement | null>(null);
@@ -40,6 +54,7 @@ export default function ConciergeLayout() {
 
       // おすすめ候補を state に反映
       setRecommendations(recommendations ?? []);
+      setSelectedRoute(null);
 
       // 候補セクションへスクロール（あれば）
       if ((recommendations?.length ?? 0) > 0 && candidatesRef.current) {
@@ -56,6 +71,7 @@ export default function ConciergeLayout() {
     setSelectedThreadId(null);
     setDetail(null);
     setRecommendations([]);
+    setSelectedRoute(null);
   };
 
   // 選択中スレッド（detail があればそれを、なければ一覧から探す）
@@ -111,6 +127,7 @@ export default function ConciergeLayout() {
                     }}
                     index={idx}
                     showMapButton
+                    onRouteSelect={(payload) => setSelectedRoute(payload)}
                   />
                 ))}
               </div>
@@ -118,12 +135,38 @@ export default function ConciergeLayout() {
               {/* ルート案内 UI */}
               <section className="rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
                 <h4 className="mb-1 text-sm font-semibold">ルート案内</h4>
-                <p className="leading-relaxed">
-                  気になる神社の「地図で見る」をタップすると、 Googleマップで現在地からのルートを開きます。
-                </p>
-                <p className="mt-1 leading-relaxed">
-                  複数まわりたいときは、行きたい順に「地図で見る」を開いて ルートを調整してください。
-                </p>
+
+                {!selectedRoute && (
+                  <p className="leading-relaxed">
+                    候補カードの「地図で見る」をタップすると、ここにルート案内が表示されます。
+                  </p>
+                )}
+
+                {selectedRoute && (
+                  <>
+                    <p className="text-sm font-semibold">{selectedRoute.name}</p>
+                    <p className="mt-1">
+                      距離 <span className="font-medium">{(selectedRoute.distance_m / 1000).toFixed(1)} km</span> ／
+                      目安 <span className="font-medium">{selectedRoute.duration_min} 分</span>
+                    </p>
+
+                    <p className="mt-2 leading-relaxed">
+                      すでに Googleマップでルートを開いている場合は、そのままナビを開始できます。
+                      別の候補に切り替えたいときは、他の神社の「地図で見る」をタップしてください。
+                    </p>
+
+                    {selectedRoute.gmapsLink && (
+                      <a
+                        href={selectedRoute.gmapsLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                      >
+                        Googleマップでルートを開く
+                      </a>
+                    )}
+                  </>
+                )}
               </section>
             </>
           )}
