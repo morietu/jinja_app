@@ -1,5 +1,5 @@
 // apps/web/src/features/concierge/components/ChatPanel.tsx
-import { useEffect, useRef } from "react";
+import React from "react";
 import type { ConciergeThread, ConciergeMessage } from "@/lib/api/concierge";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
@@ -14,38 +14,34 @@ type Props = {
 };
 
 export default function ChatPanel({ thread, messages, loading, sending, onSend }: Props) {
-  const endRef = useRef<HTMLDivElement | null>(null);
-
   const handleSubmit = async (text: string) => {
     await onSend(text);
   };
 
-  // メッセージ数が変わるたびに最下部へスクロール
-  useEffect(() => {
-    if (!endRef.current) return;
-    endRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length]);
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="mb-2 border-b pb-2">
-        <h2 className="text-lg font-semibold">{thread?.title ?? "新しい相談"}</h2>
-      </div>
+    <section className="flex h-full flex-col rounded-xl border bg-white px-3 py-1.5 shadow-sm min-h-[220px]">
+      {/* タイトル行 */}
+      <header className="mb-1 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">{thread?.title ?? "今の気持ちから相談する"}</h2>
+        {/* 右上に小さくステータス */}
+        {sending && <p className="text-[11px] text-gray-400">送信中…</p>}
+      </header>
 
-      <div className="flex-1 overflow-y-auto border-b pb-2">
-        {loading && <p className="text-sm text-gray-500">読み込み中...</p>}
+      {/* メッセージログ */}
+      <div className="mb-2 flex-1 overflow-y-auto rounded-xl bg-gray-50 px-3 py-2 min-h-[140px]">
+        {loading && <p className="text-xs text-gray-500">相談履歴を読み込んでいます…</p>}
         {!loading && messages.length === 0 && (
-          <p className="text-sm text-gray-500">ここにコンシェルジュとの会話が表示されます。</p>
+          <p className="text-xs text-gray-500">
+            悩みや状況をそのまま書いてください。コンシェルジュが神社を提案します。
+          </p>
         )}
         {!loading && messages.length > 0 && <MessageList messages={messages} />}
-
-        {/* スクロール終点 */}
-        <div ref={endRef} />
       </div>
 
-      <div className="pt-2">
+      {/* 入力欄：最低44px確保 */}
+      <div className="w-full rounded-xl border px-3 py-2 text-sm leading-relaxed min-h-[44px]">
         <ChatInput disabled={sending} onSend={handleSubmit} />
       </div>
-    </div>
+    </section>
   );
 }
