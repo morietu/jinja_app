@@ -2,6 +2,8 @@
 import axios from "axios";
 import api from "./client";
 
+
+
 /* ====== スレッドAPI ====== */
 
 export type ConciergeThread = {
@@ -20,9 +22,23 @@ export type ConciergeMessage = {
   created_at: string;
 };
 
+export type ConciergeRecommendation = {
+  id?: number | null;
+  place_id?: string | null;
+  name: string;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  distance_m: number;
+  duration_min: number;
+  reason: string;
+  photo_url?: string | null;
+};
+
 export type ConciergeThreadDetail = {
   thread: ConciergeThread;
   messages: ConciergeMessage[];
+  recommendations?: ConciergeRecommendation[];
 };
 
 export type ConciergeChatRequest = {
@@ -33,6 +49,7 @@ export type ConciergeChatRequest = {
 export type ConciergeChatResponse = {
   thread: ConciergeThread;
   messages: ConciergeMessage[];
+  recommendations?: ConciergeRecommendation[];
 };
 
 export async function fetchThreads(): Promise<ConciergeThread[]> {

@@ -10,6 +10,7 @@ import {
   type ConciergeThread,
   type ConciergeThreadDetail,
   type ConciergeMessage,
+  type ConciergeRecommendation,
 } from "@/lib/api/concierge";
 
 /* ====== スレッド一覧 ====== */
@@ -105,7 +106,11 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
-  onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
+  onUpdated?: (payload: {
+    thread: ConciergeThread;
+    messages: ConciergeMessage[];
+    recommendations?: ConciergeRecommendation[]; // ★ 追加
+  }) => void;
 };
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
@@ -128,6 +133,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
+          recommendations: res.recommendations,
         });
       } catch (err) {
         if (axios.isAxiosError(err)) {
