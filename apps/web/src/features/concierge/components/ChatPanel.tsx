@@ -1,4 +1,5 @@
 // apps/web/src/features/concierge/components/ChatPanel.tsx
+import { useEffect, useRef } from "react";
 import type { ConciergeThread, ConciergeMessage } from "@/lib/api/concierge";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
@@ -13,9 +14,17 @@ type Props = {
 };
 
 export default function ChatPanel({ thread, messages, loading, sending, onSend }: Props) {
+  const endRef = useRef<HTMLDivElement | null>(null);
+
   const handleSubmit = async (text: string) => {
     await onSend(text);
   };
+
+  // メッセージ数が変わるたびに最下部へスクロール
+  useEffect(() => {
+    if (!endRef.current) return;
+    endRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length]);
 
   return (
     <div className="flex h-full flex-col">
@@ -29,6 +38,9 @@ export default function ChatPanel({ thread, messages, loading, sending, onSend }
           <p className="text-sm text-gray-500">ここにコンシェルジュとの会話が表示されます。</p>
         )}
         {!loading && messages.length > 0 && <MessageList messages={messages} />}
+
+        {/* スクロール終点 */}
+        <div ref={endRef} />
       </div>
 
       <div className="pt-2">

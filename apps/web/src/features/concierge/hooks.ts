@@ -26,12 +26,12 @@ export function useConciergeThreads() {
     setRequiresLogin(false);
 
     try {
-      // fetchThreads は Promise<ConciergeThread[]> を返す前提
+      // ここで 401 が飛んでくる前提
       const data = await fetchThreads();
       setThreads(Array.isArray(data) ? data : []);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
-        // 未ログイン → 履歴は空・フラグON
+        // 未ログイン → 履歴は空
         setRequiresLogin(true);
         setThreads([]);
       } else {
@@ -78,6 +78,7 @@ export function useConciergeThreadDetail(threadId: string | null) {
       try {
         const data = await fetchThreadDetail(threadId);
         if (!cancelled) {
+          // 401/403/404 のときは fetchThreadDetail 側で null を返す実装にしてある
           setDetail(data);
         }
       } catch (err) {
