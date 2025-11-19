@@ -19,8 +19,6 @@ type Shrine = {
   photo_url?: string | null;
 };
 
-
-
 type Props = {
   s: Shrine;
   index?: number;
@@ -28,9 +26,26 @@ type Props = {
   onFavorited?: (place_id?: string | null) => void;
   /** コンシェルジュ候補用に「地図で見る」ボタンを出すかどうか */
   showMapButton?: boolean;
+  /** ルート案内用に、親へ「この神社を選んだよ」を伝える */
+  onRouteSelect?: (payload: {
+    name: string;
+    lat?: number | null;
+    lng?: number | null;
+    place_id?: string | null;
+    distance_m: number;
+    duration_min: number;
+    gmapsLink?: string;
+  }) => void;
 };
 
-export default function ConciergeCard({ s, index = 0, onImported, onFavorited, showMapButton = false }: Props) {
+export default function ConciergeCard({
+  s,
+  index = 0,
+  onImported,
+  onFavorited,
+  showMapButton = false,
+  onRouteSelect,
+}: Props) {
   // 取り込み済み表示（初期はDBにidがあればtrue）
   const [imported, setImported] = useState<boolean>(!!s.id);
   const [err, setErr] = useState<string | null>(null);
@@ -133,7 +148,18 @@ export default function ConciergeCard({ s, index = 0, onImported, onFavorited, s
                 href={gmapsLink}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50 transition"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-2 text-sm transition hover:bg-gray-50"
+                onClick={() => {
+                  onRouteSelect?.({
+                    name: s.name,
+                    lat: s.lat,
+                    lng: s.lng,
+                    place_id: s.place_id ?? null,
+                    distance_m: s.distance_m,
+                    duration_min: s.duration_min,
+                    gmapsLink,
+                  });
+                }}
               >
                 {showMapButton ? "地図で見る" : "ルートを見る"}
               </a>
