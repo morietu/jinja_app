@@ -1,54 +1,47 @@
 // apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
-import { useState, useMemo } from "react";
-import { useConciergeThreadDetail, useConciergeChat } from "../hooks";
+import { useState } from "react";
+import { useConciergeChat } from "../hooks";
 import ChatPanel from "./ChatPanel";
 import { useLandscape } from "@/hooks/useLandscape";
 import Link from "next/link";
 import ConciergeCard from "@/components/ConciergeCard";
-import type { ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
-
-
+import type { ConciergeRecommendation, ConciergeMessage } from "@/lib/api/concierge";
 
 export default function ConciergeLayout() {
-  // このページでは「現在のスレッド1つだけ」を扱う前提
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-
-  // メッセージ一覧（スレッド詳細）
-  const { detail, loading: loadingDetail, setDetail } = useConciergeThreadDetail(selectedThreadId);
-
-  // チャット結果のおすすめ候補
-  const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
-
-
+  // チャットのメッセージをローカルで管理
+  const [messages, setMessages] = useState<ConciergeMessage[]>([]);
+  // 将来 LLM が返すおすすめ用（今は空のままでもOK）
+  const [recommendations] = useState<ConciergeRecommendation[]>([]);
 
   // 画面の向き
   const isLandscape = useLandscape();
 
+  // 簡易的な message オブジェクト生成ヘルパー
+  const makeMessage = (role: "user" | "assistant", content: string): ConciergeMessage => ({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    thread_id: 1, // 仮
+    role,
+    content,
+    created_at: new Date().toISOString(),
+  });
 
-
-  const { send, sending } = useConciergeChat(selectedThreadId, {
-    onUpdated: ({ thread, messages, recommendations }) => {
-      // 詳細を更新（recommendations は別 state で持つ）
-      setDetail({ thread, messages });
-
-      // このページでは「スレッド一覧」は持たず、id だけ保存
-      setSelectedThreadId(String((thread as any).id));
-
-      // おすすめ候補を state に反映
-      setRecommendations(recommendations ?? []);
-
-
+  // チャット送信用フック（いまは threadId なしでOK）
+  const { send, sending } = useConciergeChat(null, {
+    onReply: (reply) => {
+      setMessages((prev) => [...prev, makeMessage("assistant", reply)]);
     },
   });
 
+  // 入力送信時：まず user メッセージを積んでから送信
+  const handleSend = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
 
-
-  // 選択中スレッド（detail があればそれだけ見る）
-  const activeThread: ConciergeThread | null = useMemo(() => detail?.thread ?? null, [detail]);
-
-  const messages = detail?.messages ?? [];
+    setMessages((prev) => [...prev, makeMessage("user", trimmed)]);
+    await send(trimmed);
+  };
 
   // === 横向き専用 UI ==========================================
   if (isLandscape) {
@@ -108,7 +101,7 @@ export default function ConciergeLayout() {
     <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
       {/* 上：チャット */}
       <div className="flex-1">
-        <ChatPanel thread={activeThread} messages={messages} loading={loadingDetail} sending={sending} onSend={send} />
+        <ChatPanel thread={null} messages={messages} loading={false} sending={sending} onSend={handleSend} />
       </div>
 
       {/* 下：クイックメニューカード 3つ */}

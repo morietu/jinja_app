@@ -106,11 +106,15 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
+  // 将来、本番APIが thread/messages を返すようになったら使う
   onUpdated?: (payload: {
     thread: ConciergeThread;
     messages: ConciergeMessage[];
     recommendations?: ConciergeRecommendation[] | null;
   }) => void;
+
+  // 今の echo API 用の最小コールバック
+  onReply?: (reply: string) => void;
 };
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
@@ -130,11 +134,17 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           thread_id: threadId ?? undefined,
         });
 
-        options?.onUpdated?.({
-          thread: res.thread,
-          messages: res.messages,
-          recommendations: res.recommendations ?? null,
-        });
+        // echo API 用
+        if (res.ok) {
+          // ★ echo: を取り除く
+          let replyText = res.reply ?? "";
+          replyText = replyText.replace(/^echo:\s*/i, "");
+
+          options?.onReply?.(replyText);
+        }
+
+        // 将来、本番レスポンスになったらここで onUpdated を呼ぶ
+        // options?.onUpdated?.({ thread: res.thread, messages: res.messages, ... });
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
