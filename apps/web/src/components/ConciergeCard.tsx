@@ -141,6 +141,7 @@ export default function ConciergeCard({
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50 transition"
+                aria-label={`${s.name}へのルートを地図で見る`}
               >
                 ルートを見る
               </a>
