@@ -117,7 +117,6 @@ class ConciergeChatSchemaSerializer(serializers.Serializer):
     
 class ConciergeChatView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
     throttle_scope = "concierge"
 
     @extend_schema(
@@ -291,6 +290,7 @@ class ConciergeChatView(APIView):
 
         # --- チャット履歴保存（ログイン時のみ） ---
         thread_payload = None
+        messages_payload: list[dict] | None = None
         thread_id = data.get("thread_id") or data.get("threadId")
 
         if request.user.is_authenticated:
@@ -302,6 +302,8 @@ class ConciergeChatView(APIView):
                     thread_id=int(thread_id) if thread_id else None,
                 )
                 t = save_result.thread
+                msgs = save_result.messages
+
                 thread_payload = {
                     "id": t.id,
                     "title": t.title,
@@ -309,6 +311,15 @@ class ConciergeChatView(APIView):
                     "last_message_at": t.last_message_at.isoformat() if t.last_message_at else None,
                     "message_count": t.message_count,
                 }
+                messages_payload = [
+                    {
+                        "id": m.id,
+                        "role": m.role,
+                        "text": m.text,
+                        "created_at": m.created_at.isoformat() if m.created_at else None,
+                    }
+                    for m in msgs
+                ]
             except Exception:
                 thread_payload = None
 
@@ -327,6 +338,8 @@ class ConciergeChatView(APIView):
 
         if thread_payload is not None:
             body["thread"] = thread_payload
+        if messages_payload is not None:
+            body["messages"] = messages_payload
 
         return Response(body, status=status.HTTP_200_OK)
 
@@ -453,6 +466,7 @@ class ConciergeAPIView(APIView):
     """
 
     permission_classes = [AllowAny]
+
 
     def post(self, request):
         ser = ConciergePreferenceSerializer(data=request.data)

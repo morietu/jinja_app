@@ -83,7 +83,7 @@ export default function ConciergeCard({
 
   // ▼ ここが関数の中（余計な } が無いこと）
   return (
-    <div className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="rounded-xl border bg-white px-3 py-3 shadow-sm min-h-[200px] transition hover:-translate-y-0.5 hover:shadow-md">
       {!!s.photo_url && (
         <div className="relative mb-3 h-36 w-full">
           <Image
@@ -99,23 +99,16 @@ export default function ConciergeCard({
 
       <div className="flex items-start gap-3">
         <div className="flex size-10 items-center justify-center rounded-full bg-gray-100">
-          <span className="text-sm text-gray-500">
-            {index === 0 ? "★" : "◎"}
-          </span>
+          <span className="text-sm text-gray-500">{index === 0 ? "★" : "◎"}</span>
         </div>
 
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">{s.name}</h3>
-          {s.address && (
-            <p className="mt-1 text-sm text-gray-600 truncate">{s.address}</p>
-          )}
+          {s.address && <p className="mt-1 text-sm text-gray-600 truncate">{s.address}</p>}
 
           <p className="mt-1 text-sm">
-            距離{" "}
-            <span className="font-medium">
-              {(s.distance_m / 1000).toFixed(1)} km
-            </span>{" "}
-            ／ 目安 <span className="font-medium">{s.duration_min} 分</span>
+            距離 <span className="font-medium">{(s.distance_m / 1000).toFixed(1)} km</span> ／ 目安{" "}
+            <span className="font-medium">{s.duration_min} 分</span>
           </p>
           <p className="mt-1 text-sm text-gray-700">{s.reason}</p>
 

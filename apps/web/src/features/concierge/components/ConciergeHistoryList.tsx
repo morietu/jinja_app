@@ -1,8 +1,7 @@
 // src/features/concierge/components/ConciergeHistoryList.tsx
 "use client";
 
-import type { ConciergeHistoryItem } from "../types";
-
+import type { ConciergeHistoryItem } from "../historyTypes";
 type Props = {
   histories: ConciergeHistoryItem[];
   selectedId?: number | null;

@@ -10,6 +10,7 @@ import {
   type ConciergeThread,
   type ConciergeThreadDetail,
   type ConciergeMessage,
+  type ConciergeRecommendation,
 } from "@/lib/api/concierge";
 
 /* ====== スレッド一覧 ====== */
@@ -18,15 +19,25 @@ export function useConciergeThreads() {
   const [threads, setThreads] = useState<ConciergeThread[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [requiresLogin, setRequiresLogin] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setRequiresLogin(false);
+
     try {
+      // ここで 401 が飛んでくる前提
       const data = await fetchThreads();
-      setThreads(data);
+      setThreads(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err as Error);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        // 未ログイン → 履歴は空
+        setRequiresLogin(true);
+        setThreads([]);
+      } else {
+        setError(err as Error);
+      }
     } finally {
       setLoading(false);
     }
@@ -40,6 +51,7 @@ export function useConciergeThreads() {
     threads,
     loading,
     error,
+    requiresLogin,
     reload: load,
     setThreads,
   };
@@ -67,6 +79,7 @@ export function useConciergeThreadDetail(threadId: string | null) {
       try {
         const data = await fetchThreadDetail(threadId);
         if (!cancelled) {
+          // 401/403/404 のときは fetchThreadDetail 側で null を返す実装にしてある
           setDetail(data);
         }
       } catch (err) {
@@ -93,7 +106,11 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
-  onUpdated?: (payload: { thread: ConciergeThread; messages: ConciergeMessage[] }) => void;
+  onUpdated?: (payload: {
+    thread: ConciergeThread;
+    messages: ConciergeMessage[];
+    recommendations?: ConciergeRecommendation[] | null;
+  }) => void;
 };
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
@@ -113,12 +130,11 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           thread_id: threadId ?? undefined,
         });
 
-        // 親（Layout）に「スレッド更新されたよ」と伝える
         options?.onUpdated?.({
           thread: res.thread,
           messages: res.messages,
+          recommendations: res.recommendations ?? null,
         });
-        // 何も return しない → Promise<void> になるので ChatPanel の onSend 型と整合
       } catch (err) {
         if (axios.isAxiosError(err)) {
           setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);

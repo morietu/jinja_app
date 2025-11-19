@@ -3,8 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ConciergeHistoryItem } from "@/features/concierge/types";
-
+import type { ConciergeHistoryItem } from "@/features/concierge/historyTypes";
 
 
 
