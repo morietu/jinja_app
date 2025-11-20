@@ -1,18 +1,23 @@
 // apps/web/src/app/shrines/[id]/page.tsx
-import Link from "next/link";
-
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getShrine } from "@/lib/api/shrines";
 
+// ★ これを追加
+type Params = { id: string };
 
-type Props = { params: { id: string } };
+export default async function ShrineDetailPage({ params }: { params: Promise<Params> }) {
+  const { id } = await params;
 
-export default async function ShrineDetailPage({ params }: Props) {
-  const id = Number(params.id);
-  if (Number.isNaN(id)) return notFound();
+  const numericId = Number(id);
+  if (Number.isNaN(numericId)) {
+    return notFound();
+  }
 
-  const shrine = await getShrine(id).catch(() => null);
-  if (!shrine) return notFound();
+  const shrine = await getShrine(numericId).catch(() => null);
+  if (!shrine) {
+    return notFound();
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
