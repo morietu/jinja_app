@@ -11,7 +11,8 @@ from openai import OpenAI
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
+from rest_framework import status
+from django.utils import timezone
 from django.conf import settings
 
 from drf_spectacular.utils import extend_schema
@@ -25,6 +26,8 @@ from temples.api.serializers.concierge import (
     ConciergeThreadSerializer,
     ConciergeThreadDetailSerializer,
     ConciergePlanRequestSerializer,
+    ConciergeMessageSerializer,
+    ConciergeRecommendationSerializer,
 )
 
 from temples.models import ConciergeHistory, GoriyakuTag, Shrine, ConciergeThread
@@ -304,30 +307,19 @@ class ConciergeChatView(APIView):
                 t = save_result.thread
                 msgs = save_result.messages
 
-                thread_payload = {
-                    "id": t.id,
-                    "title": t.title,
-                    "last_message": t.last_message,
-                    "last_message_at": t.last_message_at.isoformat() if t.last_message_at else None,
-                    "message_count": t.message_count,
-                }
-                messages_payload = [
-                    {
-                        "id": m.id,
-                        "role": m.role,
-                        "text": m.text,
-                        "created_at": m.created_at.isoformat() if m.created_at else None,
-                    }
-                    for m in msgs
-                ]
+                # ← ここを公式シリアライザで揃える
+                thread_payload = ConciergeThreadSerializer(t).data
+                messages_payload = ConciergeMessageSerializer(msgs, many=True).data
             except Exception:
                 thread_payload = None
+                messages_payload = None
 
-        # --- レスポンス組み立て ---
+                # --- レスポンス組み立て ---
         body: Dict[str, Any] = {
             "ok": True,
             "reply": reply,
         }
+        recommendations_payload: list[dict] | None = None
 
         if suggestions is not None:
             body["suggestions"] = suggestions
@@ -336,10 +328,49 @@ class ConciergeChatView(APIView):
             if isinstance(suggestions, dict) and "recommendations" in suggestions:
                 body["data"] = suggestions
 
+                # 本番用 recommendations payload を組み立てる
+                raw_recs = suggestions.get("recommendations") or []
+                norm_recs: list[dict] = []
+
+                for r in raw_recs:
+                    if not isinstance(r, dict):
+                        continue
+
+                    # id は「数値に変換できたときだけ」セットする
+                    raw_id = r.get("id")
+                    norm_id = None
+                    try:
+                        if raw_id is not None:
+                            norm_id = int(raw_id)
+                    except (TypeError, ValueError):
+                        norm_id = None
+
+                    norm_recs.append(
+                        {
+                            "id": norm_id,
+                            "place_id": r.get("place_id"),
+                            "name": r.get("name") or "",
+                            "address": r.get("address") or r.get("formatted_address"),
+                            "lat": r.get("lat"),
+                            "lng": r.get("lng"),
+                            "distance_m": r.get("distance_m") or 0,
+                            "duration_min": r.get("duration_min") or 0,
+                            "reason": r.get("reason") or "",
+                            "photo_url": r.get("photo_url"),
+                        }
+                    )
+
+                if norm_recs:
+                    recommendations_payload = ConciergeRecommendationSerializer(
+                        norm_recs, many=True
+                    ).data
+
         if thread_payload is not None:
             body["thread"] = thread_payload
         if messages_payload is not None:
             body["messages"] = messages_payload
+        if recommendations_payload is not None:
+            body["recommendations"] = recommendations_payload
 
         return Response(body, status=status.HTTP_200_OK)
 
