@@ -1,28 +1,43 @@
-// apps/web/src/hooks/useLandscape.ts
+"use client";
+
 import { useEffect, useState } from "react";
 
 /**
- * 画面が横向きかどうかを返すフック
- * true: 横向き（width > height）
+ * モバイル端末の「横向き」のときだけ true を返す。
+ * PC やタブレットなど、幅が大きい画面では常に false。
  */
-export function useLandscape(): boolean {
+function useMobileLandscape(maxWidth = 768) {
   const [isLandscape, setIsLandscape] = useState(false);
 
   useEffect(() => {
-    // SSR 回避
-    if (typeof window === "undefined") return;
+    function update() {
+      if (typeof window === "undefined") return;
 
-    const handleResize = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
-    };
+      const { innerWidth, innerHeight } = window;
+      const landscape = innerWidth > innerHeight;
+      const isMobileWidth = innerWidth <= maxWidth;
 
-    handleResize(); // 初期判定
-    window.addEventListener("resize", handleResize);
+      setIsLandscape(landscape && isMobileWidth);
+    }
+
+    update();
+
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
     };
-  }, []);
+  }, [maxWidth]);
 
   return isLandscape;
+}
+
+/**
+ * 既存の import を壊さないためのラッパー。
+ * これを使っている側（ConciergeLayout など）はそのままでOK。
+ */
+export function useLandscape() {
+  return useMobileLandscape();
 }
