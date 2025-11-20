@@ -1,14 +1,38 @@
 // apps/web/src/lib/api/shrines.ts
 import api from "./client";
 import type { Paginated, Shrine } from "./types";
+
 export type { Shrine } from "./types";
 
-// 👉 検索パラメータは任意に（従来呼び出しを壊さない）
+// すでに getShrine で使っているものがあればそれを再利用してOK
+const API_BASE =
+  process.env.PLAYWRIGHT_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://127.0.0.1:8000";
+
+
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
-  const res = await api.get("/shrines/", { params });
-  return Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+  const searchParams = new URLSearchParams();
+  if (params?.q) {
+    searchParams.set("q", params.q);
+  }
+
+  const query = searchParams.toString();
+  const url = query.length > 0 ? `${API_BASE}/api/shrines/?${query}` : `${API_BASE}/api/shrines/`;
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("failed to fetch shrines");
+  }
+
+  const data = await res.json();
+
+  // DRF の pagination / 非pagination 両対応
+  if (Array.isArray(data)) return data;
+  return data.results ?? [];
 }
 
+// 詳細取得
 export async function getShrine(id: number): Promise<Shrine> {
   const res = await api.get(`/shrines/${id}/`);
   return res.data;
@@ -20,22 +44,19 @@ export async function fetchNearestShrines(params: {
   lng: number;
   page?: number;
   page_size?: number;
-  limit?: number; // 互換
+  limit?: number;
   q?: string;
 }): Promise<Paginated<Shrine>> {
   const res = await api.get("/shrines/nearest/", { params });
   const data = res.data;
   if (Array.isArray(data)) {
-    // 一時互換: 配列→Paginatedへ
     return { count: data.length, next: null, previous: null, results: data };
   }
   return res.data as Paginated<Shrine>;
 }
 
 // 新規作成（必要なら）
-export async function createShrine(
-  payload: Partial<Shrine> & Record<string, any>
-) {
+export async function createShrine(payload: Partial<Shrine> & Record<string, any>) {
   const res = await api.post("/shrines/", payload);
   return res.data as Shrine;
 }
