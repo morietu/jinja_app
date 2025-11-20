@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { notFound } from "next/navigation";
 import { getShrine } from "@/lib/api/shrines";
-import ShrineCard from "@/components/ShrineCard";
+
 
 type Props = { params: { id: string } };
 
