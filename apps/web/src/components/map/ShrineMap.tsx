@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import type { Shrine } from "@/lib/api/shrines";
@@ -24,16 +24,51 @@ export default function ShrineMap({ shrines }: Props) {
   // lat/lng が入っている神社だけ使う
   const markers = useMemo(() => shrines.filter((s) => s.latitude != null && s.longitude != null), [shrines]);
 
-  // とりあえず先頭 or 東京駅あたりをセンターに
-  const center = useMemo(() => {
+  // 最初のセンター（神社があればその位置、なければ東京駅）
+  const initialCenter = useMemo(() => {
     if (markers.length > 0) {
       return {
         lat: Number(markers[0].latitude),
         lng: Number(markers[0].longitude),
       };
     }
-    return { lat: 35.681236, lng: 139.767125 }; // fallback
+    return { lat: 35.681236, lng: 139.767125 }; // fallback: 東京駅
   }, [markers]);
+
+  // 現在の center / zoom を state で持つ
+  const [center, setCenter] = useState(initialCenter);
+  const [zoom, setZoom] = useState(13);
+
+  // 現在地取得の状態＆エラー
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  const handleLocateMe = () => {
+    if (!("geolocation" in navigator)) {
+      setLocError("この端末では位置情報が利用できません");
+      return;
+    }
+
+    setLocLoading(true);
+    setLocError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCenter({ lat: latitude, lng: longitude });
+        setZoom(15); // ちょっと寄る
+        setLocLoading(false);
+      },
+      () => {
+        setLocError("位置情報を取得できませんでした");
+        setLocLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      },
+    );
+  };
 
   if (loadError) {
     return (
@@ -52,11 +87,11 @@ export default function ShrineMap({ shrines }: Props) {
   }
 
   return (
-    <div className="h-64 w-full rounded-lg overflow-hidden">
+    <div className="relative h-64 w-full rounded-lg overflow-hidden">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
-        zoom={13}
+        zoom={zoom}
         options={{
           disableDefaultUI: true,
           zoomControl: true,
@@ -76,6 +111,21 @@ export default function ShrineMap({ shrines }: Props) {
           />
         ))}
       </GoogleMap>
+
+      {/* 現在地ボタン（右下） */}
+      <button
+        type="button"
+        onClick={handleLocateMe}
+        disabled={locLoading}
+        className="absolute bottom-3 right-3 rounded-full bg-white shadow-md border text-xs px-3 py-2 disabled:opacity-60"
+      >
+        {locLoading ? "現在地取得中…" : "現在地"}
+      </button>
+
+      {/* エラーメッセージ（左下・小さく） */}
+      {locError && (
+        <div className="absolute bottom-3 left-3 text-[11px] px-2 py-1 rounded bg-black/70 text-white">{locError}</div>
+      )}
     </div>
   );
 }
