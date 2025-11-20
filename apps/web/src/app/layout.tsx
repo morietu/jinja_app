@@ -1,5 +1,6 @@
 import localFont from "next/font/local";
 import "./globals.css";
+
 import Link from "next/link";
 import Script from "next/script";
 import ClientBootstrap from "./providers/ClientBootstrap";
