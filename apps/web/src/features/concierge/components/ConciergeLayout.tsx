@@ -1,11 +1,9 @@
-// apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
 import { useState } from "react";
 import { useConciergeChat } from "../hooks";
 import ChatPanel from "./ChatPanel";
 import { useLandscape } from "@/hooks/useLandscape";
-import Link from "next/link";
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation, ConciergeMessage } from "@/lib/api/concierge";
 
@@ -99,40 +97,15 @@ export default function ConciergeLayout() {
   // === 縦向き用（通常） UI ====================================
   return (
     <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
-      {/* 上：チャット */}
       <div className="flex-1">
-        <ChatPanel thread={null} messages={messages} loading={false} sending={sending} onSend={handleSend} />
+        <ChatPanel
+          thread={null}
+          messages={messages}
+          loading={false}
+          sending={sending}
+          onSend={handleSend}
+        />
       </div>
-
-      {/* 下：クイックメニューカード 3つ */}
-      <nav className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-        {/* 1. 地図表示 */}
-        <Link
-          href="/"
-          className="flex flex-col items-center justify-center rounded-xl border bg-white px-2 py-3 shadow-sm"
-        >
-          <span className="mb-1 text-base">🗺</span>
-          <span className="font-medium">地図で見る</span>
-        </Link>
-
-        {/* 2. マイページ */}
-        <Link
-          href="/mypage" // TODO: 実際のマイページのパスに合わせて変える
-          className="flex flex-col items-center justify-center rounded-xl border bg-white px-2 py-3 shadow-sm"
-        >
-          <span className="mb-1 text-base">👤</span>
-          <span className="font-medium">マイページ</span>
-        </Link>
-
-        {/* 3. 設定 or 履歴 */}
-        <Link
-          href="/concierge/history" // 設定ページができたら /settings などに差し替え
-          className="flex flex-col items-center justify-center rounded-xl border bg-white px-2 py-3 shadow-sm"
-        >
-          <span className="mb-1 text-base">📂</span>
-          <span className="font-medium">履歴・設定</span>
-        </Link>
-      </nav>
     </div>
   );
 }

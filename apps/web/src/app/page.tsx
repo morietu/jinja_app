@@ -1,19 +1,43 @@
-// src/app/page.tsx
-import HomeCards from "@/components/HomeCards";
-import { HomeHero } from "@/features/home/components/HomeHero";
+// apps/web/src/app/page.tsx
+"use client";
+
+import { useRouter } from "next/navigation";
 import { HomeRankingSection } from "@/features/home/components/HomeRankingSection";
+import { ConciergeQuickActions } from "@/components/concierge/ConciergeQuickActions";
 
 export default function HomePage() {
+  const router = useRouter();
+
   return (
-    <section className="px-4 py-4 max-w-md mx-auto space-y-6">
-      <HomeHero />
+    <main className="mx-auto max-w-4xl px-4 py-8">
+      {/* ヒーロー：メイン導線はこれだけ */}
+      <section className="mb-10">
+        <h1 className="text-2xl font-semibold">神社ナビ</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          今の気持ちや悩みを伝えると、あなたに合った神社をコンシェルジュが提案します。
+        </p>
 
-      <HomeRankingSection />
+        <button
+          className="mt-6 w-full rounded-full bg-black py-3 text-center text-sm font-medium text-white"
+          onClick={() => router.push("/concierge")}
+        >
+          今の気持ちから神社を探す
+        </button>
+      </section>
 
-      {/* 既存コンテンツ（必要に応じて整理） */}
-      <div className="mt-4">
-        <HomeCards />
-      </div>
-    </section>
+      {/* ランキングなど既存コンテンツ（必要に応じてそのまま） */}
+      <section className="mb-8">
+        <HomeRankingSection />
+      </section>
+
+      {/* 一番下にカードをまとめる */}
+      <section className="mt-8">
+        <h2 className="mb-2 text-sm font-semibold text-gray-800">おすすめ</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          現在地や診断結果から神社を提案。チャット・地図・ランキングから選べます。
+        </p>
+        <ConciergeQuickActions variant="compact" />
+      </section>
+    </main>
   );
 }

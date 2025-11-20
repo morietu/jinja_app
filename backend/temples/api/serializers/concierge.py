@@ -118,13 +118,14 @@ class ConciergeThreadSerializer(serializers.ModelSerializer):
 
 
 class ConciergeMessageSerializer(serializers.ModelSerializer):
-    thread_id = serializers.IntegerField(source="thread_id", read_only=True)
-    content = serializers.CharField(source="text")
+    thread_id = serializers.IntegerField(read_only=True)
+
     
     class Meta:
         model = ConciergeMessage
         fields = [
             "id",
+            "thread_id",
             "role",
             "content",
             "created_at",
