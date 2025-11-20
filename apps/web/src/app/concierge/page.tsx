@@ -2,26 +2,28 @@
 "use client";
 
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
+import { ConciergeQuickActions } from "@/components/concierge/ConciergeQuickActions";
 
 export default function ConciergePage() {
   return (
     <main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-md flex-col p-4">
-      {/* ヘッダー：タイトル＋履歴 */}
+      {/* ヘッダー：タイトル＋説明 */}
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-xl font-bold">
           <span>AI神社コンシェルジュ</span>
-          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-            
-          </span>
         </h1>
-
-        {/* 説明は一文だけにする */}
         <p className="text-xs text-gray-500">いまの気持ちを送ると、合いそうな神社と回り方を提案します。</p>
       </header>
-      {/* 本体：ここから下を丸ごとチャット画面として扱う */}
-      <div className="flex-1">
+
+      {/* 本体：チャット */}
+      <div className="mt-4 flex-1">
         <ConciergeLayout />
       </div>
+
+      {/* フッター：共通のカードナビ（地図・マイページ・履歴など） */}
+      <section className="mt-4">
+        <ConciergeQuickActions variant="full" />
+      </section>
     </main>
   );
 }
