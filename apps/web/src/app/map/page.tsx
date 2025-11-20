@@ -13,7 +13,8 @@ export default async function MapPage() {
   return (
     <main className="p-4 max-w-5xl mx-auto space-y-4">
       <h1 className="text-xl font-bold mb-2">地図で見る</h1>
-      <div className="space-y-3">
+      {/* マップを縦に伸ばすエリア */}
+      <div className="flex-1">
         <ShrineMap shrines={shrines} />
 
         {/* 一覧（タップでも詳細行けるようにしておく） */}
