@@ -1,3 +1,4 @@
+// apps/web/src/components/map/ShrineMap.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -24,7 +25,7 @@ export default function ShrineMap({ shrines }: Props) {
   // lat/lng が入っている神社だけ使う
   const markers = useMemo(() => shrines.filter((s) => s.latitude != null && s.longitude != null), [shrines]);
 
-  // 最初のセンター（神社があればその位置、なければ東京駅）
+  // 初期センター（先頭 or 東京駅）
   const initialCenter = useMemo(() => {
     if (markers.length > 0) {
       return {
@@ -32,36 +33,31 @@ export default function ShrineMap({ shrines }: Props) {
         lng: Number(markers[0].longitude),
       };
     }
-    return { lat: 35.681236, lng: 139.767125 }; // fallback: 東京駅
+    // fallback: 東京駅
+    return { lat: 35.681236, lng: 139.767125 };
   }, [markers]);
 
-  // 現在の center / zoom を state で持つ
   const [center, setCenter] = useState(initialCenter);
-  const [zoom, setZoom] = useState(13);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 現在地取得の状態＆エラー
-  const [locLoading, setLocLoading] = useState(false);
-  const [locError, setLocError] = useState<string | null>(null);
+  const handleCurrentLocationClick = () => {
+    setErrorMessage(null);
 
-  const handleLocateMe = () => {
-    if (!("geolocation" in navigator)) {
-      setLocError("この端末では位置情報が利用できません");
+    if (!navigator.geolocation) {
+      setErrorMessage("現在地が取得できませんでした");
       return;
     }
-
-    setLocLoading(true);
-    setLocError(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        setCenter({ lat: latitude, lng: longitude });
-        setZoom(15); // ちょっと寄る
-        setLocLoading(false);
+        setCenter({
+          lat: latitude,
+          lng: longitude,
+        });
       },
       () => {
-        setLocError("位置情報を取得できませんでした");
-        setLocLoading(false);
+        setErrorMessage("現在地の取得に失敗しました");
       },
       {
         enableHighAccuracy: true,
@@ -72,7 +68,7 @@ export default function ShrineMap({ shrines }: Props) {
 
   if (loadError) {
     return (
-      <div className="h-64 w-full rounded-lg bg-red-50 flex items-center justify-center text-sm text-red-500">
+      <div className="h-full w-full rounded-lg bg-red-50 flex items-center justify-center text-sm text-red-500">
         地図の読み込みに失敗しました
       </div>
     );
@@ -80,18 +76,18 @@ export default function ShrineMap({ shrines }: Props) {
 
   if (!isLoaded) {
     return (
-      <div className="h-64 w-full rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-500">
+      <div className="h-full w-full rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-500">
         地図を読み込み中…
       </div>
     );
   }
 
   return (
-    <div className="relative h-64 w-full rounded-lg overflow-hidden">
+    <div className="h-full w-full rounded-lg overflow-hidden relative">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
-        zoom={zoom}
+        zoom={13}
         options={{
           disableDefaultUI: true,
           zoomControl: true,
@@ -112,19 +108,21 @@ export default function ShrineMap({ shrines }: Props) {
         ))}
       </GoogleMap>
 
-      {/* 現在地ボタン（右下） */}
+      {/* 現在地ボタン（右下の丸ボタン） */}
       <button
         type="button"
-        onClick={handleLocateMe}
-        disabled={locLoading}
-        className="absolute bottom-3 right-3 rounded-full bg-white shadow-md border text-xs px-3 py-2 disabled:opacity-60"
+        onClick={handleCurrentLocationClick}
+        className="absolute bottom-4 right-4 h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center text-lg border border-gray-200 active:scale-95"
+        aria-label="現在地に移動"
       >
-        {locLoading ? "現在地取得中…" : "現在地"}
+        📍
       </button>
 
-      {/* エラーメッセージ（左下・小さく） */}
-      {locError && (
-        <div className="absolute bottom-3 left-3 text-[11px] px-2 py-1 rounded bg-black/70 text-white">{locError}</div>
+      {/* エラーメッセージ（あれば下に小さく表示） */}
+      {errorMessage && (
+        <div className="absolute left-4 bottom-4 mr-16 px-2 py-1 rounded bg-black/70 text-[11px] text-white">
+          {errorMessage}
+        </div>
       )}
     </div>
   );
