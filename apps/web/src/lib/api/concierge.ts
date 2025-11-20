@@ -48,6 +48,9 @@ export type ConciergeChatRequest = {
 export type ConciergeChatResponse = {
   ok: boolean;
   reply: string;
+  thread?: ConciergeThread;
+  messages?: ConciergeMessage[];
+  recommendations?: ConciergeRecommendation[];
 };
 
 export async function postConciergeChat(body: ConciergeChatRequest): Promise<ConciergeChatResponse> {
