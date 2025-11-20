@@ -125,6 +125,7 @@ class ConciergeMessageSerializer(serializers.ModelSerializer):
         model = ConciergeMessage
         fields = [
             "id",
+            "thread_id",
             "role",
             "content",
             "created_at",
