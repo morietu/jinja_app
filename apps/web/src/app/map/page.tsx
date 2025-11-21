@@ -16,8 +16,10 @@ export default async function MapPage() {
       <h1 className="text-xl font-bold mb-2">地図で見る</h1>
 
       <div className="flex-1 space-y-3">
-        {/* Google Map */}
-        <ShrineMap shrines={shrines} />
+        {/* ★ ここで高さを決め打ち */}
+        <div className="w-full h-[60vh] rounded-xl overflow-hidden">
+          <ShrineMap shrines={shrines} />
+        </div>
 
         {/* 一覧（タップで詳細へ） */}
         <ul className="space-y-2 text-sm">

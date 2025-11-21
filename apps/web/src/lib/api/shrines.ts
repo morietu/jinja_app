@@ -4,11 +4,12 @@ import type { Paginated, Shrine } from "./types";
 
 export type { Shrine } from "./types";
 
+
 // すでに getShrine で使っているものがあればそれを再利用してOK
 const API_BASE =
   process.env.PLAYWRIGHT_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://127.0.0.1:8000";
+  "http://127.0.0.1:8000/api";
 
 
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
@@ -18,7 +19,7 @@ export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
   }
 
   const query = searchParams.toString();
-  const url = query.length > 0 ? `${API_BASE}/api/shrines/?${query}` : `${API_BASE}/api/shrines/`;
+  const url = query.length > 0 ? `${API_BASE}/shrines/?${query}` : `${API_BASE}/shrines/`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {

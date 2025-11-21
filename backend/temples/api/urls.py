@@ -19,6 +19,23 @@ from temples.api.views import concierge_history
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
 from temples.api.views.compat import concierge_chat_compat
 
+# shrine / search
+from temples.api.views.search import (
+    detail,
+    detail_query,
+    nearby_search,
+    nearby_search_legacy,
+    photo,
+    search,
+    text_search,
+    text_search_legacy,
+)
+from temples.api.views.shrine import (
+    NearestShrinesAPIView,
+    RankingAPIView,
+    ShrineViewSet,
+)
+
 try:
     from temples.api.views.geocode import search as geocode_search
 except ImportError:  # geocode_search 直名
@@ -39,18 +56,8 @@ except Exception:
         return JsonResponse({"status": "ok", "service": "route"})
 
 
-# shrine / search
-from temples.api.views.search import (
-    detail,
-    detail_query,
-    nearby_search,
-    nearby_search_legacy,
-    photo,
-    search,
-    text_search,
-    text_search_legacy,
-)
-from temples.api.views.shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
+
+
 
 # /api/places/<id>/ のショート版。search.py に detail_short が無い環境でも動作させる。
 try:
@@ -99,14 +106,23 @@ urlpatterns = [
     # ---- Routes（複数形: 正規） --------------------------------------------
     path("routes/", RouteAPIView.as_view(), name="routes"),
     path("shrines/<int:pk>/route/", RouteView.as_view(), name="shrine_route"),
-    # ---- Shrines（ViewSet の読み取り用に名前を固定） ------------------------
+    # ---- Shrines -----------------------------------------------------------
     path("shrines/", shrine_list_view, name="shrine_list"),
-    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
+    path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
+    
+
+    # ---- Shrines（ViewSet の読み取り用に名前を固定） ------------------------
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
+
+    path("route/", RouteAPIView.as_view(), name="route-legacy"),
+    path("routes/health/", route_health, name="route_health"),
+    path("", include(router.urls)),
+    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     
+
     # ---- Concierge（複数形: 正規） ---------------------------------------
     # 新実装: ChatView を直接ぶら下げる
     path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
