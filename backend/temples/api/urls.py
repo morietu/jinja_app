@@ -85,14 +85,15 @@ app_name = "temples"
 router = DefaultRouter()
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 
-# ViewSet の明示エイリアス（reverse 名称の安定化）
-shrine_list_view = ShrineViewSet.as_view({"get": "list"})
-shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 参照される可能性があるため維持
 
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
     # temples 側の詳細 API は別口（またはブロック）という仕様なので 404
     raise Http404()
+
+# ViewSet の明示エイリアス（reverse 名称の安定化）
+shrine_list_view = ShrineViewSet.as_view({"get": "list"})
+shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 参照される可能性があるため維持
 
 
 def _legacy_redirect(path):
@@ -108,7 +109,12 @@ urlpatterns = [
     path("shrines/<int:pk>/route/", RouteView.as_view(), name="shrine_route"),
     # ---- Shrines -----------------------------------------------------------
     path("shrines/", shrine_list_view, name="shrine_list"),
-    path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
+    # 既存 API 名 'shrine_detail' はブロック用のまま維持（テスト用）
+    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
+    
+    # Web 用の実データエンドポイント（新設）
+    path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
+    
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     
 
@@ -124,10 +130,8 @@ urlpatterns = [
     
 
     # ---- Concierge（複数形: 正規） ---------------------------------------
-    # 新実装: ChatView を直接ぶら下げる
-    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
-    # ★ dev で /api/concierge/chat （末尾スラなし）で来ても 500 にしないための受け口
-    path("concierge/chat", ConciergeChatView.as_view(), name="concierge-chat-noslash"),
+    path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
+    path("concierge/chat", concierge_chat_compat, name="concierge-chat-noslash"),
 
     # plan はこれまで通り
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
