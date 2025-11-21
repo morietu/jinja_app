@@ -66,19 +66,32 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
           </div>
         )}
 
-        {messages.map((m) => (
-          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap ${
-                m.role === "user"
-                  ? "bg-emerald-600 text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-900 rounded-bl-sm"
-              }`}
-            >
-              {m.content}
+        {messages.map((m) => {
+          const dt = new Date(m.created_at);
+          const timeLabel = `${dt.getHours().toString().padStart(2, "0")}:${dt
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`;
+
+          return (
+            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className="max-w-[80%]">
+                <div
+                  className={`rounded-2xl px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                    m.role === "user"
+                      ? "bg-emerald-600 text-white rounded-br-sm"
+                      : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                  }`}
+                >
+                  {m.content}
+                </div>
+                <p className={`mt-0.5 text-[10px] text-gray-400 ${m.role === "user" ? "text-right" : "text-left"}`}>
+                  {timeLabel}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {(loading || sending) && (
           <div className="mt-2 flex justify-start">
@@ -87,17 +100,24 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
         )}
       </div>
 
-      {/* エラー表示 */}
-      {error && (
-        <div className="mx-3 mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-          <p>{error}</p>
-          {onRetry && (
-            <button type="button" onClick={onRetry} className="mt-1 text-xs font-semibold text-red-700 underline">
-              もう一度試す
-            </button>
-          )}
-        </div>
-      )}
+      {/* ▼ エラーがあるときだけ表示するバナー */}
+        {error && (
+          <div className="mt-2 flex items-center justify-between rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <span className="mr-3 line-clamp-2">
+              {error}
+            </span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="shrink-0 rounded-full border border-red-400 bg-white px-3 py-1 text-xs font-medium text-red-700"
+              >
+                もう一度試す
+              </button>
+            )}
+          </div>
+        )}
+
 
       {/* 入力エリア */}
       <div className="border-t px-3 py-2">

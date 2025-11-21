@@ -117,6 +117,8 @@ export type UseConciergeChatOptions = {
   onReply?: (reply: string) => void;
 };
 
+// apps/web/src/features/concierge/hooks.ts
+
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +136,6 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           thread_id: threadId ?? undefined,
         });
 
-        // 1) thread + messages が返ってきている場合 → 本番用ハンドラ
         if (res.thread && res.messages && res.messages.length > 0) {
           options?.onUpdated?.({
             thread: res.thread,
@@ -144,18 +145,23 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           return;
         }
 
-        // 2) echo 専用レスポンスとして扱う場合
         if (res.reply) {
           let replyText = res.reply ?? "";
-          replyText = replyText.replace(/^echo:\s*/i, ""); // echo: を削る
+          replyText = replyText.replace(/^echo:\s*/i, "");
           options?.onReply?.(replyText);
         }
       } catch (err) {
+        let msg = "チャット送信に失敗しました";
+
         if (axios.isAxiosError(err)) {
-          setError(`チャット送信に失敗しました (${err.response?.status ?? "network error"})`);
-        } else {
-          setError("チャット送信に失敗しました");
+          msg = `チャット送信に失敗しました (${err.response?.status ?? "network error"})`;
         }
+
+        // フック内だけで完結させる
+        setError(msg);
+
+        // ★ ここでは throw しない
+        // throw new Error(msg);
       } finally {
         setSending(false);
       }

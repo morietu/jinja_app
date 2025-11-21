@@ -1,60 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { useConciergeChat } from "../hooks";
-import ChatPanel from "./ChatPanel";
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
-import type { ConciergeRecommendation, ConciergeMessage } from "@/lib/api/concierge";
+import ChatPanel from "./ChatPanel";
+import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 
-export default function ConciergeLayout() {
-  // チャットのメッセージ
-  const [messages, setMessages] = useState<ConciergeMessage[]>([]);
-  // 将来用おすすめ（今は空でOK）
-  const [recommendations] = useState<ConciergeRecommendation[]>([]);
-  // エラー表示用
-  const [error, setError] = useState<string | null>(null);
+type Props = {
+  // チャット関連は親から全部もらう
+  thread: ConciergeThread | null;
+  messages: ConciergeMessage[];
+  sending?: boolean;
+  error?: string | null;
+  onSend: (text: string) => void | Promise<void>;
+  onRetry: () => void;
 
-  // 画面の向き
+  // 将来おすすめを親で持つならここに足す
+  recommendations?: ConciergeRecommendation[];
+};
+
+export default function ConciergeLayout({
+  thread,
+  messages,
+  sending,
+  error,
+  onSend,
+  onRetry,
+  recommendations = [],
+}: Props) {
   const isLandscape = useLandscape();
-
-  // message オブジェクト生成ヘルパー
-  const makeMessage = (role: "user" | "assistant", content: string): ConciergeMessage => ({
-    id: Date.now() + Math.floor(Math.random() * 1000),
-    thread_id: 1, // TODO: 本実装時に差し替え
-    role,
-    content,
-    created_at: new Date().toISOString(),
-  });
-
-  // チャット送信
-  const { send, sending } = useConciergeChat(null, {
-    onReply: (reply) => {
-      setMessages((prev) => [...prev, makeMessage("assistant", reply)]);
-      setError(null);
-    },
-  });
-
-  // 入力送信時
-  const handleSend = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
-
-    // まず自分のメッセージを積む
-    setMessages((prev) => [...prev, makeMessage("user", trimmed)]);
-    setError(null);
-
-    try {
-      await send(trimmed);
-    } catch (e: any) {
-      console.error(e);
-      setError("回答の取得に失敗しました。ネットワーク状態を確認して、もう一度お試しください。");
-    }
-  };
-
-  const handleRetry = () => {
-    setError(null);
-  };
 
   // === 横向き専用 UI ==========================================
   if (isLandscape) {
@@ -97,10 +70,10 @@ export default function ConciergeLayout() {
             <section className="mt-4 rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
               <h4 className="mb-1 text-sm font-semibold">ルート案内</h4>
               <p className="leading-relaxed">
-                気になる神社の「地図で見る」をタップすると、Googleマップで現在地からのルートを開きます。
+                気になる神社の「地図で見る」をタップすると、 Googleマップで現在地からのルートを開きます。
               </p>
               <p className="mt-1 leading-relaxed">
-                複数まわりたいときは、行きたい順に「地図で見る」を開いてルートを調整してください。
+                複数まわりたいときは、行きたい順に「地図で見る」を開いて ルートを調整してください。
               </p>
             </section>
           </>
@@ -114,13 +87,13 @@ export default function ConciergeLayout() {
     <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
       <div className="flex-1">
         <ChatPanel
-          thread={null}
+          thread={thread}
           messages={messages}
           loading={sending}
           sending={sending}
           error={error}
-          onRetry={handleRetry}
-          onSend={handleSend}
+          onRetry={onRetry}
+          onSend={onSend}
         />
       </div>
     </div>
