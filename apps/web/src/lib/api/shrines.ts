@@ -21,6 +21,9 @@ export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
   const query = searchParams.toString();
   const url = query.length > 0 ? `${API_BASE}/shrines/?${query}` : `${API_BASE}/shrines/`;
 
+  console.log("getShrines API_BASE =", API_BASE);
+  console.log("getShrines URL      =", url);
+
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("failed to fetch shrines");
