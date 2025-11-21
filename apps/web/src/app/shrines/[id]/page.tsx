@@ -1,48 +1,43 @@
 // apps/web/src/app/shrines/[id]/page.tsx
-
 import Link from "next/link";
 import { ShortcutCard } from "@/components/ShortcutCard";
 import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
+import { getShrine, type Shrine } from "@/lib/api/shrines";
 
-type ShrineDetailPageParams = {
-  id: string;
+type ShrineDetailPageParams = { id: string };
+
+export const metadata = {
+  title: "神社詳細",
 };
 
-type ShrineDetail = {
-  id: number;
-  name_jp: string;
-  address: string;
-  kind?: "shrine" | "temple";
-  name_romaji?: string | null;
-};
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
-
-export default async function ShrineDetailPage({ params }: { params: Promise<ShrineDetailPageParams> }) {
-  // ★ ここで Promise を unwrap
-  const { id } = await params;
+export default async function ShrineDetailPage(props: { params: Promise<ShrineDetailPageParams> }) {
+  // Next.js 16 では params が Promise なのでここで await
+  const { id } = await props.params;
   const numericId = Number(id);
 
   if (Number.isNaN(numericId)) {
     return (
-      <main className="p-4 max-w-5xl mx-auto space-y-4">
-        <div className="text-sm text-red-600">不正なIDです。</div>
-        <Link href="/map" className="text-sm text-emerald-700 hover:underline">
-          地図に戻る
+      <main className="p-4 max-w-md mx-auto space-y-4">
+        <div className="rounded-xl border bg-white p-4 shadow-sm text-sm text-red-600">不正なIDです。</div>
+        <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
+          ← 地図に戻る
         </Link>
       </main>
     );
   }
 
-  const res = await fetch(`${API_BASE}/api/shrines/${numericId}/`, {
-    cache: "no-store",
-  });
+  let shrine: Shrine | null = null;
+  try {
+    shrine = await getShrine(numericId);
+  } catch {
+    shrine = null;
+  }
 
-  if (!res.ok) {
+  if (!shrine) {
     return (
       <main className="p-4 max-w-md mx-auto space-y-4">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-700">神社の詳細情報が見つかりませんでした。</p>
+        <div className="rounded-xl border bg-white p-4 shadow-sm text-center text-sm text-gray-700">
+          神社の詳細情報が見つかりませんでした。
         </div>
         <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
           ← 地図に戻る
@@ -51,12 +46,9 @@ export default async function ShrineDetailPage({ params }: { params: Promise<Shr
     );
   }
 
-  const shrine = (await res.json()) as ShrineDetail;
-
   return (
     <main className="p-4 max-w-md mx-auto space-y-4">
-      <h1 className="text-xl font-bold">{shrine.name_jp}</h1>
-
+      {/* 上部のショートカットカード */}
       <ShortcutCardGrid>
         <ShortcutCard
           href="/map"
@@ -71,6 +63,7 @@ export default async function ShrineDetailPage({ params }: { params: Promise<Shr
         <ShortcutCard href="/" title="トップに戻る" description="一覧やランキングからも神社を探せます。" />
       </ShortcutCardGrid>
 
+      {/* 詳細カード本体 */}
       <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="h-40 w-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
           写真（ダミー）
@@ -78,11 +71,8 @@ export default async function ShrineDetailPage({ params }: { params: Promise<Shr
 
         <div className="p-4 space-y-3">
           <header className="space-y-1">
-            <p className="text-xs text-emerald-700 font-semibold">{shrine.kind === "shrine" ? "神社" : "寺院"}</p>
+            <p className="text-xs text-emerald-700 font-semibold">{shrine.kind === "temple" ? "寺院" : "神社"}</p>
             <h1 className="text-lg font-bold">{shrine.name_jp}</h1>
-            {shrine.name_romaji && (
-              <p className="text-xs text-gray-500 uppercase tracking-wide">{shrine.name_romaji}</p>
-            )}
           </header>
 
           <section className="space-y-1 text-sm">
