@@ -4,21 +4,26 @@ import type { Paginated, Shrine } from "./types";
 
 export type { Shrine } from "./types";
 
+
 // すでに getShrine で使っているものがあればそれを再利用してOK
 const API_BASE =
   process.env.PLAYWRIGHT_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://127.0.0.1:8000";
+  "http://127.0.0.1:8000/api";
 
 
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
+  
   const searchParams = new URLSearchParams();
   if (params?.q) {
     searchParams.set("q", params.q);
   }
 
   const query = searchParams.toString();
-  const url = query.length > 0 ? `${API_BASE}/api/shrines/?${query}` : `${API_BASE}/api/shrines/`;
+  const url = query.length > 0 ? `${API_BASE}/shrines/?${query}` : `${API_BASE}/shrines/`;
+
+  console.log("getShrines API_BASE =", API_BASE);
+  console.log("getShrines URL      =", url);
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
@@ -26,16 +31,26 @@ export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
   }
 
   const data = await res.json();
-
   // DRF の pagination / 非pagination 両対応
   if (Array.isArray(data)) return data;
   return data.results ?? [];
 }
 
-// 詳細取得
+
+// 既存の API_BASE / getShrines はそのまま
+
 export async function getShrine(id: number): Promise<Shrine> {
-  const res = await api.get(`/shrines/${id}/`);
-  return res.data;
+  // ① まず一覧を取得
+  const shrines = await getShrines();
+
+  // ② id が一致するものを探す
+  const shrine = shrines.find((s) => s.id === id);
+
+  if (!shrine) {
+    throw new Error("shrine not found");
+  }
+
+  return shrine;
 }
 
 // 近くの神社（DRFページネーション形式）
