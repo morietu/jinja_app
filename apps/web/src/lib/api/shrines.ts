@@ -21,22 +21,35 @@ export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
   const query = searchParams.toString();
   const url = query.length > 0 ? `${API_BASE}/shrines/?${query}` : `${API_BASE}/shrines/`;
 
+  console.log("getShrines API_BASE =", API_BASE);
+  console.log("getShrines URL      =", url);
+
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("failed to fetch shrines");
   }
 
   const data = await res.json();
-
   // DRF の pagination / 非pagination 両対応
   if (Array.isArray(data)) return data;
   return data.results ?? [];
 }
 
-// 詳細取得
+
+// 既存の API_BASE / getShrines はそのまま
+
 export async function getShrine(id: number): Promise<Shrine> {
-  const res = await api.get(`/shrines/${id}/`);
-  return res.data;
+  // ① まず一覧を取得
+  const shrines = await getShrines();
+
+  // ② id が一致するものを探す
+  const shrine = shrines.find((s) => s.id === id);
+
+  if (!shrine) {
+    throw new Error("shrine not found");
+  }
+
+  return shrine;
 }
 
 // 近くの神社（DRFページネーション形式）
