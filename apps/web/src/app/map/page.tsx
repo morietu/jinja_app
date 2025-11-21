@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { getShrines } from "@/lib/api/shrines";
 import ShrineMap from "@/components/map/ShrineMap";
-import { ShortcutCard, ShortcutCardGrid } from "@/components/ShortcutCard";
+import { ShortcutCard } from "@/components/ShortcutCard";
+import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 
 
 export const metadata = {

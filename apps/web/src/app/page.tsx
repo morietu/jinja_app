@@ -4,7 +4,8 @@
 import { useRouter } from "next/navigation";
 import { HomeRankingSection } from "@/features/home/components/HomeRankingSection";
 import { ConciergeQuickActions } from "@/components/concierge/ConciergeQuickActions";
-import { ShortcutCard, ShortcutCardGrid } from "@/components/ShortcutCard";
+import { ShortcutCard } from "@/components/ShortcutCard";
+import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 
 export default function HomePage() {
   const router = useRouter();
