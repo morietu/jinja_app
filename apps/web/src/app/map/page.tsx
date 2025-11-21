@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { getShrines } from "@/lib/api/shrines";
 import ShrineMap from "@/components/map/ShrineMap";
+import { ShortcutCard, ShortcutCardGrid } from "@/components/ShortcutCard";
+
 
 export const metadata = {
   title: "Shrine Map",
@@ -14,6 +16,20 @@ export default async function MapPage() {
   return (
     <main className="p-4 max-w-5xl mx-auto space-y-4">
       <h1 className="text-xl font-bold mb-2">地図で見る</h1>
+
+      <ShortcutCardGrid>
+        <ShortcutCard href="/" title="トップに戻る" description="検索やランキングからも神社を探せます。" />
+        <ShortcutCard
+          href="/search"
+          title="条件を指定して探す"
+          description="エリアやご利益、キーワードで神社を絞り込み。"
+        />
+        <ShortcutCard
+          href="/ranking"
+          title="人気の神社を見る"
+          description="多くの人が訪れている人気の神社をチェック。"
+        />
+      </ShortcutCardGrid>
 
       <div className="flex-1 space-y-3">
         {/* ★ ここで高さを決め打ち */}

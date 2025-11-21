@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShortcutCard, ShortcutCardGrid } from "@/components/ShortcutCard";
 
 type Params = { id: string };
 
@@ -13,8 +14,10 @@ type ShrineDetail = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-export default async function ShrineDetailPage({ params }: { params: Promise<Params> }) {
-  const { id } = await params;
+type Params = { id: string };
+
+export default async function ShrineDetailPage({ params }: { params: Params }) {
+  const { id } = params;
   const numericId = Number(id);
 
   if (Number.isNaN(numericId)) {
@@ -50,12 +53,22 @@ export default async function ShrineDetailPage({ params }: { params: Promise<Par
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-4">
-      {/* 戻るリンク */}
-      <div>
-        <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
-          ← 地図に戻る
-        </Link>
-      </div>
+      <h1 className="text-xl font-bold">{shrine.name_jp}</h1>
+
+      <ShortcutCardGrid>
+        <ShortcutCard
+          href="/map"
+          title="地図で周辺を見る"
+          description="この神社の周辺や近くの神社を地図で確認できます。"
+        />
+        <ShortcutCard
+          href="/search"
+          title="別の神社を探す"
+          description="条件を変えて別の神社を探したいときはこちら。"
+        />
+        <ShortcutCard href="/" title="トップに戻る" description="一覧やランキングからも神社を探せます。" />
+      </ShortcutCardGrid>
+
 
       {/* カードUI本体 */}
       <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
