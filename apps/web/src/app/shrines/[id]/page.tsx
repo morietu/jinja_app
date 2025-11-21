@@ -71,7 +71,7 @@ export default async function ShrineDetailPage(props: { params: Promise<ShrineDe
 
         <div className="p-4 space-y-3">
           <header className="space-y-1">
-            <p className="text-xs text-emerald-700 font-semibold">{shrine.kind === "temple" ? "寺院" : "神社"}</p>
+            <p className="text-xs text-emerald-700 font-semibold">神社</p>
             <h1 className="text-lg font-bold">{shrine.name_jp}</h1>
           </header>
 
