@@ -1,7 +1,8 @@
 // apps/web/src/app/shrines/[id]/page.tsx
 
 import Link from "next/link";
-import { ShortcutCard, ShortcutCardGrid } from "@/components/ShortcutCard";
+import { ShortcutCard } from "@/components/ShortcutCard";
+import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 
 type ShrineDetailPageParams = {
   id: string;
