@@ -2,7 +2,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 
 import Link from "next/link";
-import Script from "next/script";
+
 import ClientBootstrap from "./providers/ClientBootstrap";
 import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
@@ -41,13 +41,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
 
   return (
-    <html
-      lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-    >
+    <html lang="ja" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body>
         {/* Auth をアプリ全体に適用 */}
         <AuthProvider>
@@ -79,13 +76,7 @@ export default function RootLayout({
           {/* ページ内容 */}
           <main>{children}</main>
 
-          {/* Google Maps API（キーがあるときだけ読み込む） */}
-          {key && (
-            <Script
-              src={`https://maps.googleapis.com/maps/api/js?key=${key}&libraries=maps,routes,marker,places`}
-              strategy="afterInteractive"
-            />
-          )}
+          
         </AuthProvider>
       </body>
     </html>

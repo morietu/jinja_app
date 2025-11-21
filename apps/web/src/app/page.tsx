@@ -4,6 +4,8 @@
 import { useRouter } from "next/navigation";
 import { HomeRankingSection } from "@/features/home/components/HomeRankingSection";
 import { ConciergeQuickActions } from "@/components/concierge/ConciergeQuickActions";
+import { ShortcutCard } from "@/components/ShortcutCard";
+import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 
 export default function HomePage() {
   const router = useRouter();
@@ -24,12 +26,10 @@ export default function HomePage() {
           今の気持ちから神社を探す
         </button>
       </section>
-
       {/* ランキングなど既存コンテンツ（必要に応じてそのまま） */}
       <section className="mb-8">
         <HomeRankingSection />
       </section>
-
       {/* 一番下にカードをまとめる */}
       <section className="mt-8">
         <h2 className="mb-2 text-sm font-semibold text-gray-800">おすすめ</h2>
@@ -38,6 +38,19 @@ export default function HomePage() {
         </p>
         <ConciergeQuickActions variant="compact" />
       </section>
+      <ShortcutCardGrid>
+        <ShortcutCard href="/map" title="地図で探す" description="地図上で神社の位置を確認しながら探せます。" />
+        <ShortcutCard
+          href="/map?mode=nearby" // 既存仕様に合わせて調整
+          title="近くの神社"
+          description="現在地の近くにある神社を一覧で表示します。"
+        />
+        <ShortcutCard
+          href="/concierge"
+          title="コンシェルジュに相談"
+          description="お参りの目的や悩みに合わせて神社を提案します。"
+        />
+      </ShortcutCardGrid>
     </main>
   );
 }
