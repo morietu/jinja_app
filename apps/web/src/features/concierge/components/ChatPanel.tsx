@@ -1,65 +1,133 @@
-// apps/web/src/features/concierge/components/ChatPanel.tsx
-import React from "react";
-import type { ConciergeThread, ConciergeMessage } from "@/lib/api/concierge";
-import MessageList from "./MessageList";
-import ChatInput from "./ChatInput";
+"use client";
+
+import { useEffect, useRef, useState, KeyboardEvent } from "react";
+import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 
 type Props = {
   thread: ConciergeThread | null;
   messages: ConciergeMessage[];
-  loading: boolean;
-  sending: boolean;
-  onSend: (text: string) => Promise<unknown> | void;
+  loading?: boolean;
+  sending?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  onSend: (text: string) => void | Promise<void>;
 };
 
-export default function ChatPanel({ thread, messages, loading, sending, onSend }: Props) {
-  const handleSubmit = async (text: string) => {
-    await onSend(text);
+export default function ChatPanel({ thread: _thread, messages, loading = false, sending = false, error, onRetry, onSend }: Props) {
+  const [input, setInput] = useState("");
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  // メッセージ追加時のスクロール制御
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !autoScroll) return;
+
+    el.scrollTop = el.scrollHeight;
+  }, [messages, autoScroll]);
+
+  // 「ほぼ最下部かどうか」で autoScroll を制御
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const threshold = 80; // px
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+    setAutoScroll(atBottom);
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || sending || loading) return;
+    await onSend(trimmed);
+    setInput("");
+    setAutoScroll(true);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
   };
 
   return (
-    <section
-      className="
-        mx-auto w-full
-        flex flex-col
-        rounded-2xl border bg-white px-3 py-3 shadow-sm
-        h-[70vh] max-h-[520px] min-h-[360px]
-      "
-    >
-      {/* ヘッダー：タイトル＋説明 */}
-      <header className="mb-1 flex items-center justify-between">
-        <div className="flex flex-col">
-          <h2 className="text-sm font-semibold">{thread?.title ?? "今の気持ちをそのまま送ってください"}</h2>
-          {/* ← この説明行は削る */}
-          {/* <p className="text-[11px] text-gray-500">
-      例：仕事・恋愛・健康・引っ越し・推し活・旅行の予定など。
-    </p> */}
-        </div>
-        {sending && <p className="ml-2 text-[11px] text-gray-400">送信中…</p>}
-      </header>
-
-      {/* メッセージログ */}
-      <div
-        className="
-    mb-2 flex-1 min-h-0
-    overflow-y-auto rounded-xl bg-gray-50 px-3 py-2
-  "
-      >
-        {loading && <p className="text-xs text-gray-500">相談履歴を読み込んでいます…</p>}
-
-        {!loading && messages.length === 0 && (
-          <p className="text-xs text-gray-500">
-            いまの気持ちや相談したいことを、ひとことでも大丈夫なので送ってください。
-          </p>
+    <div className="flex h-[calc(100vh-180px)] flex-col rounded-2xl border bg-white shadow-sm">
+      {/* メッセージ一覧 */}
+      <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3" onScroll={handleScroll}>
+        {messages.length === 0 && !loading && !sending && (
+          <div className="mt-6 rounded-xl bg-gray-50 px-3 py-3 text-xs text-gray-600">
+            いまの状況や相談したいことを、自由に送ってください。
+            <br />
+            例：
+            <br />
+            ・「今年の恋愛運を上げたい」
+            <br />
+            ・「転職活動の区切りでお参りしたい」 など
+          </div>
         )}
 
-        {!loading && messages.length > 0 && <MessageList messages={messages} />}
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                m.role === "user"
+                  ? "bg-emerald-600 text-white rounded-br-sm"
+                  : "bg-gray-100 text-gray-900 rounded-bl-sm"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+
+        {(loading || sending) && (
+          <div className="mt-2 flex justify-start">
+            <div className="rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-xs text-gray-600">考え中…</div>
+          </div>
+        )}
       </div>
 
-      {/* 入力欄：カードっぽく、下に固定される */}
-      <div className="mt-auto w-full rounded-2xl border px-3 py-2 text-sm leading-relaxed">
-        <ChatInput disabled={sending} onSend={handleSubmit} />
+      {/* エラー表示 */}
+      {error && (
+        <div className="mx-3 mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <p>{error}</p>
+          {onRetry && (
+            <button type="button" onClick={onRetry} className="mt-1 text-xs font-semibold text-red-700 underline">
+              もう一度試す
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 入力エリア */}
+      <div className="border-t px-3 py-2">
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSend();
+          }}
+        >
+          <textarea
+            className="min-h-[80px] max-h-40 w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50"
+            placeholder="例）今年の仕事運と相性の良い神社を教えてください"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={sending || loading}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] text-gray-400">Enterで送信／Shift+Enterで改行</p>
+            <button
+              type="submit"
+              disabled={sending || loading || !input.trim()}
+              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white shadow disabled:opacity-60"
+            >
+              {sending || loading ? "送信中…" : "送信"}
+            </button>
+          </div>
+        </form>
       </div>
-    </section>
+    </div>
   );
 }

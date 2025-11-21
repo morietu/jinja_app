@@ -8,37 +8,52 @@ import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation, ConciergeMessage } from "@/lib/api/concierge";
 
 export default function ConciergeLayout() {
-  // チャットのメッセージをローカルで管理
+  // チャットのメッセージ
   const [messages, setMessages] = useState<ConciergeMessage[]>([]);
-  // 将来 LLM が返すおすすめ用（今は空のままでもOK）
+  // 将来用おすすめ（今は空でOK）
   const [recommendations] = useState<ConciergeRecommendation[]>([]);
+  // エラー表示用
+  const [error, setError] = useState<string | null>(null);
 
   // 画面の向き
   const isLandscape = useLandscape();
 
-  // 簡易的な message オブジェクト生成ヘルパー
+  // message オブジェクト生成ヘルパー
   const makeMessage = (role: "user" | "assistant", content: string): ConciergeMessage => ({
     id: Date.now() + Math.floor(Math.random() * 1000),
-    thread_id: 1, // 仮
+    thread_id: 1, // TODO: 本実装時に差し替え
     role,
     content,
     created_at: new Date().toISOString(),
   });
 
-  // チャット送信用フック（いまは threadId なしでOK）
+  // チャット送信
   const { send, sending } = useConciergeChat(null, {
     onReply: (reply) => {
       setMessages((prev) => [...prev, makeMessage("assistant", reply)]);
+      setError(null);
     },
   });
 
-  // 入力送信時：まず user メッセージを積んでから送信
+  // 入力送信時
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || sending) return;
 
+    // まず自分のメッセージを積む
     setMessages((prev) => [...prev, makeMessage("user", trimmed)]);
-    await send(trimmed);
+    setError(null);
+
+    try {
+      await send(trimmed);
+    } catch (e: any) {
+      console.error(e);
+      setError("回答の取得に失敗しました。ネットワーク状態を確認して、もう一度お試しください。");
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
   };
 
   // === 横向き専用 UI ==========================================
@@ -94,15 +109,17 @@ export default function ConciergeLayout() {
     );
   }
 
-  // === 縦向き用（通常） UI ====================================
+  // === 縦向き（通常） UI ======================================
   return (
     <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
       <div className="flex-1">
         <ChatPanel
           thread={null}
           messages={messages}
-          loading={false}
+          loading={sending}
           sending={sending}
+          error={error}
+          onRetry={handleRetry}
           onSend={handleSend}
         />
       </div>
