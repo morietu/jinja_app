@@ -13,6 +13,7 @@ const API_BASE =
 
 
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
+  
   const searchParams = new URLSearchParams();
   if (params?.q) {
     searchParams.set("q", params.q);
