@@ -13,10 +13,19 @@ type Props = {
   onSend: (text: string) => void | Promise<void>;
 };
 
-export default function ChatPanel({ thread: _thread, messages, loading = false, sending = false, error, onRetry, onSend }: Props) {
+export default function ChatPanel({
+  thread: _thread,
+  messages,
+  loading = false,
+  sending = false,
+  error,
+  onRetry,
+  onSend,
+}: Props) {
   const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isComposing, setIsComposing] = useState(false); // ★ IME 中かどうか
 
   // メッセージ追加時のスクロール制御
   useEffect(() => {
@@ -43,11 +52,31 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
     setAutoScroll(true);
   };
 
+  // IME 変換開始・終了
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
+    if (e.key !== "Enter") return;
+
+    // IME 変換中は Enter を送信に使わない
+    if (isComposing) {
+      return;
     }
+
+    // Shift+Enter は改行だけ（デフォルト動作に任せる）
+    if (e.shiftKey) {
+      return;
+    }
+
+    // Enter 単体 → 送信
+    e.preventDefault();
+    void handleSend();
   };
 
   return (
@@ -77,10 +106,10 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
             <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className="max-w-[80%]">
                 <div
-                  className={`rounded-2xl px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                  className={`whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                     m.role === "user"
-                      ? "bg-emerald-600 text-white rounded-br-sm"
-                      : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                      ? "rounded-br-sm bg-emerald-600 text-white"
+                      : "rounded-bl-sm bg-gray-100 text-gray-900"
                   }`}
                 >
                   {m.content}
@@ -101,23 +130,20 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
       </div>
 
       {/* ▼ エラーがあるときだけ表示するバナー */}
-        {error && (
-          <div className="mt-2 flex items-center justify-between rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
-            <span className="mr-3 line-clamp-2">
-              {error}
-            </span>
-            {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className="shrink-0 rounded-full border border-red-400 bg-white px-3 py-1 text-xs font-medium text-red-700"
-              >
-                もう一度試す
-              </button>
-            )}
-          </div>
-        )}
-
+      {error && (
+        <div className="mt-2 flex items-center justify-between border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <span className="mr-3 line-clamp-2">{error}</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="shrink-0 rounded-full border border-red-400 bg-white px-3 py-1 text-xs font-medium text-red-700"
+            >
+              もう一度試す
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 入力エリア */}
       <div className="border-t px-3 py-2">
@@ -134,10 +160,11 @@ export default function ChatPanel({ thread: _thread, messages, loading = false, 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             disabled={sending || loading}
           />
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] text-gray-400">Enterで送信／Shift+Enterで改行</p>
             <button
               type="submit"
               disabled={sending || loading || !input.trim()}
