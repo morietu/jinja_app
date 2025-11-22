@@ -1,43 +1,134 @@
 // apps/web/src/features/mypage/components/ProfileSection.tsx
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import type { UserMe } from "@/lib/api/users";
 
 type ProfileLike = Partial<{
   nickname: string;
-  bio: string;
+  is_public: boolean;
+  website: string;
+  icon_url: string;
+  birthday: string;
+  location: string;
 }>;
 
-type Props = {
-  user: UserMe;
-};
+// ==== ヘルパー ====
+function calcAge(birth: Date) {
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
 
-export default function ProfileSection({ user }: Props) {
+function formatDateJp(d: Date) {
+  return d.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function isHttpUrl(url?: string | null) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// ==== 本体 ====
+export default function ProfileSection({ user }: { user: UserMe }) {
   if (!user) return null;
 
   const p = (user.profile ?? {}) as ProfileLike;
 
-  // 表示名と一言
-  const displayName = p.nickname || user.username || "ゲスト";
-  const bio = p.bio || "プロフィール未設定です。";
-
-  const initial = displayName.charAt(0).toUpperCase() || "G";
+  const nickname = p.nickname || user.username || "-";
+  const isPublic = !!p.is_public;
+  const email = user.email || "-";
+  const iconUrl = p.icon_url || "";
+  const birthdayDate = p.birthday && !Number.isNaN(new Date(p.birthday).getTime()) ? new Date(p.birthday) : null;
+  const age = birthdayDate ? calcAge(birthdayDate) : null;
 
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700">
-          {initial}
+    <section className="p-6 space-y-5">
+      {/* ヘッダー部（アイコン＋名前） */}
+      <div className="flex items-center gap-4">
+        {iconUrl ? (
+          <Image
+            src={iconUrl}
+            alt={nickname}
+            width={48}
+            height={48}
+            className="rounded-full object-cover ring-1 ring-gray-200"
+          />
+        ) : (
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700 select-none">
+            {nickname.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-semibold">{nickname}</h2>
+            <span
+              className={
+                "px-2 py-0.5 text-xs rounded-full border " +
+                (isPublic ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-600 border-gray-200")
+              }
+              title={isPublic ? "プロフィールは公開です" : "プロフィールは非公開です"}
+            >
+              {isPublic ? "公開" : "非公開"}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 truncate">{email}</p>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
-          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{bio}</p>
-        </div>
-        <Link href="/mypage/edit" className="rounded-full border px-3 py-1 text-xs text-gray-700">
-          編集
-        </Link>
       </div>
+
+      {/* 詳細情報（ここをテストが見ている） */}
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="text-gray-500 sm:col-span-1">ユーザー名</div>
+        <div className="break-words sm:col-span-2">{user.username ?? "-"}</div>
+
+        <div className="text-gray-500 sm:col-span-1">メール</div>
+        <div className="break-words sm:col-span-2">{email}</div>
+
+        <div className="text-gray-500 sm:col-span-1">生年月日</div>
+        <div className="sm:col-span-2">
+          {birthdayDate ? (
+            <>
+              {/* テストの /1990[/-]04[/-]10/ にマッチさせるため、日付そのものを素直に表示 */}
+              {formatDateJp(birthdayDate)}
+              {age !== null && <span className="ml-2 text-gray-500">（{age}歳）</span>}
+            </>
+          ) : (
+            "-"
+          )}
+        </div>
+
+        <div className="text-gray-500 sm:col-span-1">地域</div>
+        <div className="sm:col-span-2">{p.location || "-"}</div>
+
+        {p.website && isHttpUrl(p.website) && (
+          <>
+            <div className="text-gray-500 sm:col-span-1">Web</div>
+            <div className="sm:col-span-2">
+              {/* テキストを URL そのものにする → getByRole("link", { name: "https://example.com" }) に一致 */}
+              <a
+                className="break-all text-blue-600 hover:underline"
+                href={p.website}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {p.website}
+              </a>
+            </div>
+          </>
+        )}
+      </dl>
     </section>
   );
 }
