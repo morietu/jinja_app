@@ -11,6 +11,8 @@ from temples.api.serializers.shrine import ShrineListSerializer
 from temples.models import Shrine
 
 
+# backend/temples/api/views/shrine.py の中の RankingAPIView
+
 class RankingAPIView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "shrines"
@@ -45,8 +47,19 @@ class RankingAPIView(APIView):
             except Exception:
                 pass
 
-        # --- 動的30日窓の集計（既存フィールド名と衝突しないよう別名）---
-        since = timezone.now() - timedelta(days=30)
+        # ★ period クエリの追加: weekly / monthly / yearly
+        period = request.query_params.get("period", "monthly")
+        if period == "weekly":
+            days = 7
+        elif period == "yearly":
+            days = 365
+        else:
+            # 想定外値は monthly に丸める
+            period = "monthly"
+            days = 30
+
+        # --- 動的 N 日窓の集計（既存フィールド名と衝突しないよう別名）---
+        since = timezone.now() - timedelta(days=days)
         qs = qs.annotate(
             visits_30d_dyn=Count("visits", filter=Q(visits__visited_at__gte=since)),
             favorites_30d_dyn=Count("favorited_by", filter=Q(favorited_by__created_at__gte=since)),
