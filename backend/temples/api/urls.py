@@ -122,6 +122,7 @@ urlpatterns = [
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
+    
 
     path("route/", RouteAPIView.as_view(), name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
@@ -156,7 +157,7 @@ urlpatterns = [
         ConciergeThreadDetailView.as_view(),
         name="concierge-thread-detail-noslash",
     ),
-    # 旧履歴API（必要なら残す）
+    
     
     
     

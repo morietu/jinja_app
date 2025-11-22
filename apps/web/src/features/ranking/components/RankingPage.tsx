@@ -1,9 +1,11 @@
 // apps/web/src/features/ranking/components/RankingPage.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ShrineRankingItem } from "../types";
 import { RankingList } from "./RankingList";
+import type { Shrine } from "@/lib/api/shrines";
+import { getPopularShrines } from "@/lib/api/shrines";
 
 type Period = "weekly" | "monthly" | "yearly";
 
@@ -13,34 +15,46 @@ const PERIOD_LABEL: Record<Period, string> = {
   yearly: "年間",
 };
 
-// 仮のダミーデータ（API実装後に削除）
-const mockItems: ShrineRankingItem[] = [
-  {
-    id: 1,
-    name: "明治神宮",
-    address: "東京都渋谷区代々木神園町1-1",
-    rank: 1,
-    favorites: 120,
-    views: 340,
-  },
-  {
-    id: 2,
-    name: "伏見稲荷大社",
-    address: "京都府京都市伏見区深草藪之内町68",
-    rank: 2,
-    favorites: 95,
-    views: 280,
-  },
-];
-
 export default function RankingPage() {
   const [period, setPeriod] = useState<Period>("monthly");
+  const [items, setItems] = useState<ShrineRankingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: 後でAPIフックに差し替え
-  // const { data, loading, error } = useShrineRanking(period);
-  const loading = false;
-  const error = null as string | null;
-  const items = mockItems;
+  useEffect(() => {
+    let cancelled = false;
+    // 今は period ごとの差はつけず、どのタブでも同じAPIを叩く（将来差分実装）
+    setLoading(true);
+    setError(null);
+
+    getPopularShrines({ limit: 10 })
+      .then((shrines: Shrine[]) => {
+        if (cancelled) return;
+
+        const mapped: ShrineRankingItem[] = shrines.map((s: Shrine, index: number) => ({
+          id: s.id, // ★ String(...) をやめて number のまま
+          name: (s as any).name_jp ?? (s as any).name ?? "",
+          address: (s as any).address ?? "",
+          rank: index + 1,
+          favorites: (s as any).favorites_30d ?? (s as any).favorites ?? undefined,
+          views: (s as any).visits_30d ?? (s as any).views ?? undefined,
+        }));
+
+        setItems(mapped);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "unknown error");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // period でフィルタ変えるならここに period を入れる
 
   return (
     <div className="flex h-full flex-col rounded-2xl border bg-white shadow-sm">

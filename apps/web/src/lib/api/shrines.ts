@@ -53,6 +53,47 @@ export async function getShrine(id: number): Promise<Shrine> {
   return shrine;
 }
 
+// 人気神社ランキング（/api/populars/）
+export async function getPopularShrines(params?: {
+  limit?: number;
+  nearLat?: number;
+  nearLng?: number;
+  radiusKm?: number;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit != null) {
+    searchParams.set("limit", String(params.limit));
+  }
+  if (
+    params?.nearLat != null &&
+    params?.nearLng != null &&
+    params?.radiusKm != null
+  ) {
+    searchParams.set("near", `${params.nearLat},${params.nearLng}`);
+    searchParams.set("radius_km", String(params.radiusKm));
+  }
+
+  const query = searchParams.toString();
+  const url =
+    query.length > 0
+      ? `${API_BASE}/populars/?${query}`
+      : `${API_BASE}/populars/`;
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("failed to fetch popular shrines");
+  }
+
+  const data = await res.json();
+
+  // /api/populars/ は pagination 付き: {count, next, previous, results}
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.items)) return data.items; // 念のため
+  return [];
+}
+
 // 近くの神社（DRFページネーション形式）
 export async function fetchNearestShrines(params: {
   lat: number;
