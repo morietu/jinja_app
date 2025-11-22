@@ -1,31 +1,26 @@
 // apps/web/src/app/map/page.tsx
-import { getShrines } from "@/lib/api/shrines";
-import ShrineMap from "@/components/map/ShrineMap";
+import MapScreenLayout from "@/features/map/components/MapScreenLayout";
 
 export const metadata = {
-  title: "Shrine Map",
-  description: "Map preview",
+  title: "神社マップ",
+  description: "近くの神社を地図で確認",
 };
 
-export default async function MapPage() {
-  const shrines = await getShrines();
-
+export default function MapPage() {
   return (
-    <main className="p-4 max-w-5xl mx-auto space-y-4">
-      <h1 className="text-xl font-bold mb-2">地図で見る</h1>
-      <div className="space-y-3">
-        <ShrineMap shrines={shrines} />
+    <main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-md flex-col p-4">
+      {/* ヘッダー */}
+      <header className="space-y-1">
+        <h1 className="flex items-center gap-2 text-xl font-bold">
+          <span>神社マップ</span>
+        </h1>
+        <p className="text-xs text-gray-500">現在地の近くにある神社を、地図と一覧で確認できます。</p>
+      </header>
 
-        {/* 一覧（タップでも詳細行けるようにしておく） */}
-        <ul className="space-y-2 text-sm">
-          {shrines.map((s) => (
-            <li key={s.id} className="border rounded p-2 cursor-pointer hover:bg-gray-50">
-              <div className="font-semibold">{s.name_jp}</div>
-              <div className="text-gray-600 text-xs">{s.address}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* 本体：マップ＋近隣リスト */}
+      <section className="mt-4 flex-1">
+        <MapScreenLayout />
+      </section>
     </main>
   );
 }
