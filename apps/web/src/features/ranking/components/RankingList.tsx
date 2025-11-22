@@ -11,7 +11,7 @@ type Props = {
 export function RankingList({ items }: Props) {
   const router = useRouter();
 
-  const handleClick = (id: number | string) => {
+  const handleClick = (id: number) => {
     router.push(`/shrines/${id}`);
   };
 

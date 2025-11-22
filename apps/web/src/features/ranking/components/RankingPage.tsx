@@ -16,7 +16,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 // 仮のダミーデータ（API実装後に削除）
 const mockItems: ShrineRankingItem[] = [
   {
-    id: "1",
+    id: 1,
     name: "明治神宮",
     address: "東京都渋谷区代々木神園町1-1",
     rank: 1,
@@ -24,7 +24,7 @@ const mockItems: ShrineRankingItem[] = [
     views: 340,
   },
   {
-    id: "2",
+    id: 2,
     name: "伏見稲荷大社",
     address: "京都府京都市伏見区深草藪之内町68",
     rank: 2,
