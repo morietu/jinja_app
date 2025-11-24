@@ -8,7 +8,6 @@ import RankingCarousel from "../components/home/RankingCarousel";
 import { SHRINES } from "../data/shrines";
 import MyPageCard from "../components/home/MyPageCard";
 
-// 🆕 追加
 
 import NearbyShrines from "../components/home/NearbyShrines";
 

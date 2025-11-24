@@ -9,12 +9,8 @@ import { usePopularShrines } from "../../hooks/usePopularShrines";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-// ページ内だけで使う簡易型（必要な最小限)
-type PopularShrine = {
-  id: number;
-  name_jp: string;
-  popular_score?: number;   // ← optional に変更
-};
+
+
 
 
 /* --- 小物: お気に入り --- */
@@ -121,15 +117,16 @@ function RankingList({ data }: { data: RankingItem[] }) {
   );
 }
 
+
 /* --- タブ: 人気（近傍＋ページング）--- */
 function PopularTab() {
   const [useNear, setUseNear] = useState(false);
   const [near, setNear] = useState<string | undefined>(undefined);
 
-  const { items, loading, error, next, loadMore } = usePopularShrines({
+  const { items, loading, error, next, loadMore, isFallback } = usePopularShrines({
     limit: 20,
     near,
-    radiusKm: near ? 10 : undefined,
+    radiusKm: near ? 30 : undefined,
   });
 
   function enableNear() {
@@ -142,48 +139,64 @@ function PopularTab() {
       },
       () => {
         /* 許可されなかった場合はそのまま全体人気を表示 */
-      }
+      },
     );
   }
+
+  // /api/populars/ のレスポンスを RankingItem に寄せる
+  const normalized: RankingItem[] = (items as any[]).map((s) => ({
+    id: s.id,
+    name_jp: s.name_jp ?? s.name ?? "",
+    address: s.address ?? "",
+    latitude: s.latitude ?? 0,
+    longitude: s.longitude ?? 0,
+    score: s.popular_score ?? 0,
+    visit_count: s.visit_count ?? 0,
+    favorite_count: s.favorite_count ?? 0,
+    goriyaku_tags: s.goriyaku_tags ?? [],
+  }));
 
   return (
     <section className="space-y-4">
       <header className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">人気の神社</h2>
+        <h2 className="text-lg font-semibold">近くの人気神社</h2>
         {!useNear ? (
-          <button onClick={enableNear} className="px-3 py-1 rounded border">
-            近くを表示
+          <button onClick={enableNear} className="px-3 py-1 rounded border text-sm">
+            現在地から探す
           </button>
         ) : (
-          <span className="text-sm opacity-70">近傍表示中</span>
+          <span className="text-sm opacity-70">現在地付近を表示中</span>
         )}
       </header>
 
       {error && (
-        <div className="text-red-600">
-          読み込みに失敗しました。
-          <button onClick={() => location.reload()}>再試行</button>
+        <div className="text-red-600 text-sm">
+          読み込みに失敗しました。{" "}
+          <button onClick={() => location.reload()} className="underline">
+            再試行
+          </button>
         </div>
       )}
 
-      <ul className="divide-y rounded-2xl shadow">
-        {(items as PopularShrine[]).map((s) => (
-          <li key={s.id} className="p-3">
-            <div className="font-medium">{s.name_jp}</div>
-            <div className="text-sm opacity-70">score: {s.popular_score}</div>
-          </li>
-        ))}
-        {loading && <li className="p-3 opacity-70">読み込み中…</li>}
-      </ul>
+      {isFallback && (
+        <p className="text-xs text-muted-foreground">
+          近くにはまだデータがありません。全国の人気神社を表示しています。
+        </p>
+      )}
+
+      {/* ★ ここを RankingList に統一 */}
+      <RankingList data={normalized} />
 
       {next && !loading && (
-        <button onClick={loadMore} className="px-4 py-2 rounded border w-full">
+        <button onClick={loadMore} className="px-4 py-2 rounded border w-full text-sm">
           さらに表示
         </button>
       )}
     </section>
   );
 }
+
+
 
 /* --- ページ本体 --- */
 export default function RankingPage() {
@@ -212,17 +225,24 @@ export default function RankingPage() {
   return (
     <main className="p-4 mx-auto max-w-3xl">
       <h1 className="text-xl font-bold mb-4">人気神社ランキング</h1>
+      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+        月間TOP10は直近30日間の人気、年間TOP10は過去1年分のデータを元にしたランキングです。
+      </p>
 
       {/* 状態メッセージは見出しの下で表示するが、タブ本体は常時描画 */}
       {loading && <p className="mb-2 opacity-70">読み込み中…</p>}
       {error && <p className="mb-2 text-red-600">{error}</p>}
 
-      <Tabs defaultValue="monthly">
+      <Tabs defaultValue="popular">
         <TabsList className="mb-6">
+          <TabsTrigger value="popular">近くの人気神社</TabsTrigger>
           <TabsTrigger value="monthly">月間TOP10</TabsTrigger>
           <TabsTrigger value="yearly">年間TOP10</TabsTrigger>
-          <TabsTrigger value="popular">人気（近く／ページング）</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="popular">
+          <PopularTab />
+        </TabsContent>
 
         <TabsContent value="monthly">
           <RankingList data={monthly ?? []} />
@@ -230,10 +250,6 @@ export default function RankingPage() {
 
         <TabsContent value="yearly">
           <RankingList data={yearly ?? []} />
-        </TabsContent>
-
-        <TabsContent value="popular">
-          <PopularTab />
         </TabsContent>
       </Tabs>
     </main>
