@@ -5,6 +5,22 @@ import { getShrine, type Shrine } from "@/lib/api/shrines";
 import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
 import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
 
+// ✅ コンポーネントの外でOK
+function getBenefitLabels(shrine: Shrine): string[] {
+  if (Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0) {
+    return shrine.goriyaku_tags.map((t) => t?.name?.trim()).filter((name): name is string => Boolean(name));
+  }
+
+  if (typeof shrine.goriyaku === "string" && shrine.goriyaku.trim().length > 0) {
+    return shrine.goriyaku
+      .split(/[、,／/]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export default async function ShrineDetailPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const numericId = Number(id);
@@ -32,8 +48,10 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   const lng = shrine.lng ?? shrine.longitude ?? null;
 
   const hasLocation = lat != null && lng != null;
-
   const mapHref = hasLocation ? `/map?lat=${lat}&lng=${lng}` : "/map";
+
+  // ✅ ご利益ラベルも shrine 確定後に計算
+  const benefitLabels = getBenefitLabels(shrine);
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-6">
@@ -66,17 +84,24 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
             <p className="text-sm">{shrine.address}</p>
           </section>
 
-          {/* ご利益（B-2 で動的化予定） */}
+          {/* ご利益（B-2 動的表示） */}
           <section className="space-y-1 text-sm">
             <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
-            <div className="flex flex-wrap gap-1">
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                開運
-              </span>
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                恋愛・縁結び
-              </span>
-            </div>
+
+            {benefitLabels.length === 0 ? (
+              <p className="text-xs text-gray-400">ご利益情報は準備中です。</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {benefitLabels.map((label) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </article>
