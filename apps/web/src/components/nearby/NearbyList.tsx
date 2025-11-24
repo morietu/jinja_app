@@ -8,14 +8,14 @@ import { NearbyListError } from "./NearbyList.Error";
 export type NearbyListState = "loading" | "success" | "empty" | "error";
 
 export type NearbyListProps = {
-  lat: number;
-  lng: number;
+  lat?: number; // ← オプショナル化
+  lng?: number; // ← オプショナル化
   limit?: number;
   state: NearbyListState;
   items?: ShrineListItem[];
   errorMessage?: string;
-  onRefetch?: () => void; // 条件変更後の再検索
-  onRetry?: () => void; // 失敗からの再試行
+  onRefetch?: () => void;
+  onRetry?: () => void;
   onItemClick?: (id: string) => void;
   className?: string;
   "aria-label"?: string;
@@ -35,9 +35,11 @@ export function NearbyList({
   ...rest
 }: NearbyListProps) {
   // SR向け説明（座標・件数はSRのみ）
-  const srLabel = `現在地 緯度${lat.toFixed(4)} 経度${lng.toFixed(
-    4
-  )}、上限 ${limit} 件`;
+  const hasCoords = typeof lat === "number" && typeof lng === "number";
+
+  const srLabel = hasCoords
+    ? `現在地 緯度${lat!.toFixed(4)} 経度${lng!.toFixed(4)}、上限 ${limit} 件`
+    : `現在地の取得前です。上限 ${limit} 件`;
 
   return (
     <section className={className} {...rest}>
@@ -45,15 +47,10 @@ export function NearbyList({
 
       {state === "loading" && <NearbyListLoading rows={5} />}
 
-      {state === "error" && (
-        <NearbyListError message={errorMessage} onRetry={onRetry} />
-      )}
+      {state === "error" && <NearbyListError message={errorMessage} onRetry={onRetry} />}
 
       {state === "empty" && (
-        <NearbyListEmpty
-          onRefetch={onRefetch}
-          suggestion="検索半径を広げるか、キーワードを調整してください。"
-        />
+        <NearbyListEmpty onRefetch={onRefetch} suggestion="検索半径を広げるか、キーワードを調整してください。" />
       )}
 
       {state === "success" && (
