@@ -1,8 +1,8 @@
-// 未使用なら削除（将来使うなら export して利用箇所で参照）
+// apps/web/src/lib/api/noauth.ts
 
 const NOAUTH_PATTERNS: RegExp[] = [
   /^\/places\//, // /api/places/...
-  /^\/shrines\/popular\/?$/, // /api/shrines/popular/
+  /^\/populars\/?$/, // ✅ /api/populars/
   /^\/concierge\/plan\/?$/, // /api/concierge/plan/
   /^\/shrines\/search\/?$/, // （あるなら）検索API
   /^\/shrines\/\d+\/?$/, // 詳細（公開なら）
