@@ -9,6 +9,11 @@ export type ShrineBase = {
   id: number;
   name_jp: string;
   address: string;
+  lat?: number | null;
+  lng?: number | null;
+  main_photo?: string | null;
+  main_photo_url?: string | null;
+  photo_urls?: string[] | null;
   latitude: number;
   longitude: number;
   goriyaku?: string;

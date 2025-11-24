@@ -36,36 +36,36 @@ export const metadata = {
   description: "Map preview",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body>
-        {/* Auth をアプリ全体に適用 */}
         <AuthProvider>
           <ClientBootstrap />
 
           {/* 共通ヘッダー */}
           <header className="border-b bg-white">
-            <nav className="max-w-5xl mx-auto flex items-center gap-4 p-3">
-              <Link href="/" className="font-bold">
+            <nav className="mx-auto flex max-w-5xl items-center gap-4 p-3">
+              {/* 左：ホーム（Jinja） */}
+              <Link href="/" className="text-base font-bold">
                 Jinja
               </Link>
-              <Link href="/search" className="hover:underline">
-                検索
-              </Link>
-              <Link href="/ranking" className="hover:underline">
-                ランキング
-              </Link>
+
+              {/* 右側：検索アイコン＋御朱印帳 */}
               <div className="ml-auto flex items-center gap-3">
+                {/* 検索アイコンボタン */}
+                <Link
+                  href="/search"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm shadow-sm"
+                  aria-label="神社を検索"
+                >
+                  <span aria-hidden>🔍</span>
+                </Link>
+
+                {/* 御朱印帳 */}
                 <Link
                   href="/mypage?tab=goshuin"
-                  className="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="rounded bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
                 >
                   御朱印帳
                 </Link>
@@ -75,8 +75,6 @@ export default function RootLayout({
 
           {/* ページ内容 */}
           <main>{children}</main>
-
-          
         </AuthProvider>
       </body>
     </html>
