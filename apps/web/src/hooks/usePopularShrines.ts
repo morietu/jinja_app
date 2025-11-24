@@ -1,10 +1,12 @@
 // apps/web/src/hooks/usePopularShrines.ts
+"use client";
+
 import { useCallback, useEffect, useState } from "react";
 import { fetchPopular, type Shrine } from "@/lib/api/popular";
 
 export function usePopularShrines(opts: {
   limit?: number;
-  near?: string;
+  near?: string; // "lat,lng"
   radiusKm?: number;
 }) {
   const { limit = 20, near, radiusKm } = opts;
@@ -22,7 +24,7 @@ export function usePopularShrines(opts: {
           limit,
           near,
           radius_km: radiusKm,
-          urlOverride,
+          urlOverride: urlOverride ?? null,
         });
         setItems((prev) => (urlOverride ? [...prev, ...got] : got));
         setNext(next ?? null);
@@ -32,17 +34,14 @@ export function usePopularShrines(opts: {
         setLoading(false);
       }
     },
-    [limit, near, radiusKm]
+    [limit, near, radiusKm],
   );
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const loadMore = useCallback(
-    () => (next ? load(next) : undefined),
-    [next, load]
-  );
+  const loadMore = useCallback(() => (next ? load(next) : undefined), [next, load]);
 
   return { items, loading, error, next, loadMore };
 }

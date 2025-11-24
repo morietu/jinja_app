@@ -1,20 +1,22 @@
-// apps/web/src/components/NearbyShrines.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { fetchNearestShrines, type Shrine } from "@/lib/api/shrines";
+import { getPopularShrines, type Shrine } from "@/lib/api/shrines";
 import { NearbyList } from "@/components/nearby/NearbyList";
 import type { ShrineListItem } from "@/components/nearby/NearbyList.Item";
 import { useRouter } from "next/navigation";
 
 type UIState = "loading" | "success" | "empty" | "error";
 
+const NEARBY_RADIUS_KM = 30; // C: まず30km圏内で検索（必要なら調整）
+
 export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
   const [state, setState] = useState<UIState>("loading");
   const [items, setItems] = useState<ShrineListItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [usedFallback, setUsedFallback] = useState(false);
   const router = useRouter();
 
   const canFetch = useMemo(() => !!coords && !geoError, [coords, geoError]);
@@ -23,7 +25,7 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     id: String((s as any).id ?? (s as any).shrine_id ?? crypto.randomUUID()),
     name: (s as any).name_jp ?? (s as any).name ?? "名称未設定",
     address: (s as any).address ?? undefined,
-    distanceMeters: (s as any).distance_m ?? 0,
+    distanceMeters: (s as any).distance_m ?? (s as any).distance ?? 0,
     durationMinutes: (s as any).walking_minutes ?? undefined,
   });
 
@@ -31,17 +33,25 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     if (!coords) return;
     setState("loading");
     setErrorMessage(undefined);
-    try {
-      const page = 1;
+    setUsedFallback(false);
 
-      const resp = await fetchNearestShrines({
-        lat: coords.lat,
-        lng: coords.lng,
-        page,
-        page_size: limit,   // ← 互換のため limit を送るなら page_size 優先
-        // limit,          // （残すならコメントアウトを外す）
+    try {
+      // --- C: まず「近くの人気神社」を広めの半径で検索 ---
+      let results = await getPopularShrines({
+        limit,
+        nearLat: coords.lat,
+        nearLng: coords.lng,
+        radiusKm: NEARBY_RADIUS_KM,
       });
-      const mapped = (resp?.results ?? []).map(toItem);
+
+      // --- B: 0件なら全国人気TOPにフォールバック ---
+      if (!results || results.length === 0) {
+        results = await getPopularShrines({ limit });
+        setUsedFallback(true);
+      }
+
+      const mapped = (results ?? []).map(toItem);
+
       if (mapped.length === 0) {
         setItems([]);
         setState("empty");
@@ -62,7 +72,7 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canFetch, limit, coords?.lat, coords?.lng]);
 
-  // 位置情報段階のUIも NearbyList へ委譲（Error/Emptyを使い回せる）
+  // 位置情報段階のUIも NearbyList へ委譲
   if (geoLoading) {
     return (
       <NearbyList
@@ -91,6 +101,10 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     );
   }
 
+  // フォールバック時のメッセージを少しだけ足しておく（必要なければ削除）
+  const extraMessage =
+    usedFallback && !errorMessage ? "近くには見つからなかったため、人気の神社を表示しています。" : undefined;
+
   return (
     <NearbyList
       lat={coords?.lat ?? 0}
@@ -98,7 +112,7 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       limit={limit}
       state={state}
       items={items}
-      errorMessage={errorMessage}
+      errorMessage={errorMessage ?? extraMessage}
       onRefetch={() => load()}
       onRetry={() => load()}
       onItemClick={(id) => router.push(`/shrines/${id}`)}

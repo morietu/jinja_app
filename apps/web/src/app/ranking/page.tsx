@@ -11,8 +11,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 // ページ内だけで使う簡易型（必要な最小限)
 type PopularShrine = {
-  id: number; name_jp: string; popular_score: number;
+  id: number;
+  name_jp: string;
+  popular_score?: number;   // ← optional に変更
 };
+
 
 /* --- 小物: お気に入り --- */
 function FavButton({ shrineId }: { shrineId: number }) {

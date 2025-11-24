@@ -1,34 +1,64 @@
 // apps/web/src/lib/api/popular.ts
-export type Shrine = {
-  id: number;
-  name_jp: string;
-  latitude: number;
-  longitude: number;
-  popular_score: number;
-};
+import type { Shrine } from "./types";
 
-type PopularResponse = {
-  results?: Shrine[];
-  items?: Shrine[];
-  next?: string | null;
-};
+export type { Shrine } from "./types";
 
-export async function fetchPopular(params: {
+type FetchPopularOptions = {
   limit?: number;
   near?: string; // "lat,lng"
-  radius_km?: number;
-  urlOverride?: string; // next のURL（同一オリジン前提）
-}) {
-  const url =
-    params.urlOverride ??
-    `/api/shrines/popular?${new URLSearchParams({
-      ...(params.limit ? { limit: String(params.limit) } : {}),
-      ...(params.near ? { near: params.near } : {}),
-      ...(params.radius_km ? { radius_km: String(params.radius_km) } : {}),
-    })}`;
-  const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) throw new Error(`Popular fetch failed: ${res.status}`);
-  const data: PopularResponse = await res.json();
-  const list = data.results ?? data.items ?? [];
-  return { items: list, next: data.next ?? null };
+  radius_km?: number; // backend 側と同じ param 名にしておく
+  urlOverride?: string | null;
+};
+
+const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
+const POPULARS_API_BASE = `${BACKEND_ORIGIN}/api/populars/`;
+
+export async function fetchPopular(opts: FetchPopularOptions) {
+  const { limit, near, radius_km, urlOverride } = opts;
+
+  // next ページ用に、backend から返ってきた next のフル URL をそのまま叩くパス
+  if (urlOverride) {
+    const res = await fetch(urlOverride, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error("failed to fetch popular shrines");
+    }
+    const data = await res.json();
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(data.results)
+        ? data.results
+        : Array.isArray(data.items)
+          ? data.items
+          : [];
+    const next = typeof data.next === "string" ? data.next : null;
+    return { items: items as Shrine[], next };
+  }
+
+  // ✅ 通常パス: Django(8000) の /api/populars/ を直接叩く
+  const searchParams = new URLSearchParams();
+  if (limit != null) searchParams.set("limit", String(limit));
+  if (near) searchParams.set("near", near);
+  if (radius_km != null) searchParams.set("radius_km", String(radius_km));
+
+  const query = searchParams.toString();
+  const url = query.length > 0 ? `${POPULARS_API_BASE}?${query}` : POPULARS_API_BASE;
+
+  console.log("fetchPopular URL =", url);
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("failed to fetch popular shrines");
+  }
+
+  const data = await res.json();
+  const items = Array.isArray(data)
+    ? data
+    : Array.isArray(data.results)
+      ? data.results
+      : Array.isArray(data.items)
+        ? data.items
+        : [];
+  const next = typeof data.next === "string" ? data.next : null;
+
+  return { items: items as Shrine[], next };
 }
