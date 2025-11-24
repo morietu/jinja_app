@@ -35,10 +35,15 @@ export function HomeRankingSection() {
   const items = mockRanking; // TODO: 後でAPI連携に差し替え
 
   return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">今人気の神社ランキング</h2>
-        <span className="text-[10px] text-gray-400">お気に入り数・閲覧数ベース</span>
+    <section className="space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-50">今人気の神社ランキング（30日）</h2>
+          <p className="text-[11px] text-slate-300">最近30日間のスコア（お気に入り数＋閲覧数）で集計しています。</p>
+        </div>
+        <Link href="/ranking" className="text-xs font-medium text-amber-200 hover:underline underline-offset-2">
+          ランキング詳細へ
+        </Link>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -46,17 +51,17 @@ export function HomeRankingSection() {
           <Link
             key={item.id}
             href={`/shrines/${item.id}`}
-            className="flex items-start gap-3 rounded-xl border bg-white px-3 py-2 text-xs shadow-sm active:scale-[0.99] transition"
+            className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs shadow-sm transition active:scale-[0.99]"
           >
-            <div className="mt-1 h-6 w-6 flex items-center justify-center rounded-full bg-gray-900 text-[11px] font-bold text-white">
+            <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
               {index + 1}
             </div>
             <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-sm">{item.name}</p>
-                <span className="text-[10px] text-gray-500">{item.area}</span>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                <span className="text-[10px] text-slate-500">{item.area}</span>
               </div>
-              <p className="mt-1 text-[11px] text-gray-600 leading-snug">{item.reason}</p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-600">{item.reason}</p>
             </div>
           </Link>
         ))}
