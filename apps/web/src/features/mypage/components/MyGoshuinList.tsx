@@ -13,7 +13,12 @@ type Props = {
 export default function MyGoshuinList({ items, loading, error }: Props) {
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div
+        className="space-y-3"
+        role="status" // ★ 追加
+        aria-busy="true" // ★ おまけ：a11y 的に良い
+        aria-live="polite" // ★ 画面リーダー用
+      >
         <div className="h-4 w-32 rounded bg-gray-100" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (

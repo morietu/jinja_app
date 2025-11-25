@@ -6,7 +6,6 @@ import type { Goshuin } from "@/lib/api/goshuin";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
 
 type Props = {
-  // アップロード完了後に一覧を再読み込みしたい場合などに使う
   onUploaded?: (goshuin: Goshuin) => void;
 };
 
@@ -15,6 +14,8 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const inputId = "goshuin-image"; // ★ 追加
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,13 +27,11 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       return;
     }
 
-    // 画像かどうかチェック
     if (!file.type.startsWith("image/")) {
       setErrorMessage("画像ファイルのみアップロードできます。");
       return;
     }
 
-    // サイズチェック（5MB）
     const maxBytes = 5 * 1024 * 1024;
     if (file.size > maxBytes) {
       setErrorMessage("ファイルサイズは 5MB 以下を推奨しています。");
@@ -40,7 +39,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
     }
 
     const formData = new FormData();
-    // バックエンドのフィールド名に合わせる（例: "image"）
     formData.append("image", file);
 
     try {
@@ -48,10 +46,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       const created = await uploadMyGoshuin(formData);
       setSuccessMessage("御朱印をアップロードしました。");
       setFile(null);
-
-      if (onUploaded) {
-        onUploaded(created);
-      }
+      if (onUploaded) onUploaded(created);
     } catch {
       setErrorMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
     } finally {
@@ -62,9 +57,15 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
-        <label className="block text-sm font-medium">御朱印画像</label>
+        <label
+          htmlFor={inputId} // ★ 追加
+          className="block text-sm font-medium"
+        >
+          御朱印画像
+        </label>
         <p className="text-xs text-muted-foreground">推奨サイズ：5MB 以下の画像ファイル</p>
         <input
+          id={inputId} // ★ 追加
           type="file"
           accept="image/*"
           disabled={loading}
@@ -85,7 +86,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       </button>
 
       {successMessage && <p className="text-sm text-green-700">{successMessage}</p>}
-
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
     </form>
   );
