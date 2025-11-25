@@ -8,17 +8,13 @@ type Props = {
   items: Goshuin[] | null;
   loading: boolean;
   error: string | null;
+  onDelete?: (id: number) => void;
 };
 
-export default function MyGoshuinList({ items, loading, error }: Props) {
+export default function MyGoshuinList({ items, loading, error, onDelete }: Props) {
   if (loading) {
     return (
-      <div
-        className="space-y-3"
-        role="status" // ★ 追加
-        aria-busy="true" // ★ おまけ：a11y 的に良い
-        aria-live="polite" // ★ 画面リーダー用
-      >
+      <div className="space-y-3" role="status" aria-busy="true" aria-live="polite">
         <div className="h-4 w-32 rounded bg-gray-100" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -49,7 +45,22 @@ export default function MyGoshuinList({ items, loading, error }: Props) {
       <h3 className="text-sm font-medium text-gray-700">登録済みの御朱印</h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((g) => (
-          <div key={g.id} className="rounded-lg border bg-white p-2 text-xs">
+          <div key={g.id} className="relative rounded-lg border bg-white p-2 text-xs">
+            {/* 右上に削除ボタン */}
+            {onDelete && (
+              <button
+                type="button"
+                className="absolute right-1 top-1 rounded bg-white/80 px-1 text-[10px] text-red-600 shadow"
+                onClick={() => {
+                  if (window.confirm("この御朱印を削除しますか？")) {
+                    onDelete(g.id);
+                  }
+                }}
+              >
+                削除
+              </button>
+            )}
+
             {g.image_url ? (
               <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded">
                 <Image
@@ -65,7 +76,7 @@ export default function MyGoshuinList({ items, loading, error }: Props) {
             )}
 
             <div className="space-y-1">
-              <p className="font-medium truncate">{g.shrine_name ?? "神社名なし"}</p>
+              <p className="truncate font-medium">{g.shrine_name ?? "神社名なし"}</p>
               {g.created_at && (
                 <p className="text-[10px] text-gray-500">
                   登録日: {new Date(g.created_at).toLocaleDateString("ja-JP")}

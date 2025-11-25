@@ -1,8 +1,8 @@
-// apps/web/src/features/mypage/hooks/useMyGoshuin.ts
+// apps/web/src/features/mypage/components/hooks/useMyGoshuin.ts
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { fetchMyGoshuin, type Goshuin } from "@/lib/api/goshuin";
+import { fetchMyGoshuin, deleteMyGoshuin, type Goshuin } from "@/lib/api/goshuin";
 
 export function useMyGoshuin() {
   const [items, setItems] = useState<Goshuin[] | null>(null);
@@ -29,6 +29,29 @@ export function useMyGoshuin() {
     });
   }, []);
 
+  const removeItem = useCallback(
+    async (id: number) => {
+      setError(null);
+
+      // items が null のときは何もしない
+      if (!items) return;
+
+      // 楽観的に削除
+      const prev = items;
+      setItems(prev.filter((g) => g.id !== id));
+
+      try {
+        await deleteMyGoshuin(id);
+      } catch (e) {
+        console.error(e);
+        // ロールバック
+        setItems(prev);
+        setError("削除に失敗しました。時間をおいて再度お試しください。");
+      }
+    },
+    [items],
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -39,5 +62,6 @@ export function useMyGoshuin() {
     error,
     reload: load,
     addItem,
+    removeItem,
   };
 }
