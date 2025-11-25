@@ -89,3 +89,10 @@ export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
 export async function deleteMyGoshuin(id: number): Promise<void> {
   await api.delete(`/my/goshuin/${id}/`);
 }
+
+export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
+  const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, {
+    is_public: isPublic,
+  });
+  return r.data;
+}

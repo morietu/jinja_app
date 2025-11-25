@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { fetchMyGoshuin, deleteMyGoshuin, type Goshuin } from "@/lib/api/goshuin";
+import { fetchMyGoshuin, deleteMyGoshuin, updateMyGoshuinVisibility, type Goshuin } from "@/lib/api/goshuin";
 
 export function useMyGoshuin() {
   const [items, setItems] = useState<Goshuin[] | null>(null);
@@ -33,11 +33,10 @@ export function useMyGoshuin() {
     async (id: number) => {
       setError(null);
 
-      // items が null のときは何もしない
       if (!items) return;
 
-      // 楽観的に削除
       const prev = items;
+      // 楽観的削除
       setItems(prev.filter((g) => g.id !== id));
 
       try {
@@ -47,6 +46,31 @@ export function useMyGoshuin() {
         // ロールバック
         setItems(prev);
         setError("削除に失敗しました。時間をおいて再度お試しください。");
+      }
+    },
+    [items],
+  );
+
+  const toggleVisibility = useCallback(
+    async (id: number) => {
+      if (!items) return;
+
+      const prev = items;
+      const target = items.find((g) => g.id === id);
+      if (!target) return;
+
+      const nextFlag = !target.is_public;
+
+      // 楽観的更新
+      setItems(items.map((g) => (g.id === id ? { ...g, is_public: nextFlag } : g)));
+
+      try {
+        await updateMyGoshuinVisibility(id, nextFlag);
+      } catch (e) {
+        console.error(e);
+        // ロールバック
+        setItems(prev);
+        setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
       }
     },
     [items],
@@ -63,5 +87,6 @@ export function useMyGoshuin() {
     reload: load,
     addItem,
     removeItem,
+    toggleVisibility,
   };
 }
