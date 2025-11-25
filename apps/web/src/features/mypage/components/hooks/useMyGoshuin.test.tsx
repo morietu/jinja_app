@@ -1,32 +1,36 @@
 // apps/web/src/features/mypage/components/hooks/useMyGoshuin.test.tsx
 import React, { useEffect } from "react";
 import { render, waitFor, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { useMyGoshuin } from "./useMyGoshuin";
 import type { Goshuin } from "@/lib/api/goshuin";
 
 // goshuin API をモック
-vi.mock("@/lib/api/goshuin", () => {
-  return {
-    fetchMyGoshuin: vi.fn(),
-    deleteMyGoshuin: vi.fn(),
-  };
-});
+vi.mock("@/lib/api/goshuin", () => ({
+  fetchMyGoshuin: vi.fn(),
+  deleteMyGoshuin: vi.fn(),
+}));
 
 import { fetchMyGoshuin, deleteMyGoshuin } from "@/lib/api/goshuin";
 
-const mockFetchMyGoshuin = fetchMyGoshuin as unknown as vi.Mock;
-const mockDeleteMyGoshuin = deleteMyGoshuin as unknown as vi.Mock;
+const mockFetchMyGoshuin = fetchMyGoshuin as unknown as Mock;
+const mockDeleteMyGoshuin = deleteMyGoshuin as unknown as Mock;
 
-type HookValue = ReturnType<typeof useMyGoshuin>;
+type HookValue = {
+  items: Goshuin[] | null;
+  loading: boolean;
+  error: string | null;
+  reload: () => Promise<void> | void;
+  addItem: (g: Goshuin) => void;
+  removeItem: (id: number) => Promise<void> | void;
+};
 
 function HookTester({ onReady }: { onReady: (value: HookValue) => void }) {
-  const hook = useMyGoshuin();
+  const value = useMyGoshuin();
 
-  // 常に最新の hook state をテスト側に渡す
   useEffect(() => {
-    onReady(hook);
-  }, [hook, onReady]);
+    onReady(value);
+  }, [value, onReady]);
 
   return null;
 }
@@ -47,9 +51,8 @@ describe("useMyGoshuin", () => {
       },
     ];
 
+    let latest = {} as HookValue;
     mockFetchMyGoshuin.mockResolvedValue(sample);
-
-    let latest: HookValue | null = null;
 
     render(
       <HookTester
@@ -60,19 +63,17 @@ describe("useMyGoshuin", () => {
     );
 
     await waitFor(() => {
-      expect(latest).not.toBeNull();
-      expect(latest?.loading).toBe(false);
+      expect(latest.loading).toBe(false);
     });
 
     expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(1);
-    expect(latest?.items).toEqual(sample);
-    expect(latest?.error).toBeNull();
+    expect(latest.items).toEqual(sample);
+    expect(latest.error).toBeNull();
   });
 
   it("ロード失敗時には error メッセージがセットされ、loading が false になる", async () => {
+    let latest = {} as HookValue;
     mockFetchMyGoshuin.mockRejectedValue(new Error("network error"));
-
-    let latest: HookValue | null = null;
 
     render(
       <HookTester
@@ -83,20 +84,17 @@ describe("useMyGoshuin", () => {
     );
 
     await waitFor(() => {
-      expect(latest).not.toBeNull();
-      expect(latest?.loading).toBe(false);
+      expect(latest.loading).toBe(false);
     });
 
     expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(1);
-    expect(latest?.items).toBeNull();
-    expect(latest?.error).toBe("御朱印一覧の取得に失敗しました。");
+    expect(latest.items).toBeNull();
+    expect(latest.error).toBe("御朱印一覧の取得に失敗しました。");
   });
 
   it("addItem は items が null のとき新しい配列を作り、その後は先頭に追加する", async () => {
-    // 最初のロードは失敗させて items=null の状態からスタート
+    let latest = {} as HookValue;
     mockFetchMyGoshuin.mockRejectedValue(new Error("network error"));
-
-    let latest: HookValue | null = null;
 
     render(
       <HookTester
@@ -107,33 +105,21 @@ describe("useMyGoshuin", () => {
     );
 
     await waitFor(() => {
-      expect(latest).not.toBeNull();
-      expect(latest?.loading).toBe(false);
+      expect(latest.loading).toBe(false);
     });
 
-    const first: Goshuin = {
-      id: 1,
-      shrine: 1,
-      is_public: true,
-      shrine_name: "一枚目",
-    };
-
-    const second: Goshuin = {
-      id: 2,
-      shrine: 2,
-      is_public: true,
-      shrine_name: "二枚目",
-    };
+    const first: Goshuin = { id: 1, shrine: 1, is_public: true, shrine_name: "一枚目" };
+    const second: Goshuin = { id: 2, shrine: 2, is_public: true, shrine_name: "二枚目" };
 
     act(() => {
-      latest?.addItem(first);
+      latest.addItem(first);
     });
-    expect(latest?.items).toEqual([first]);
+    expect(latest.items).toEqual([first]);
 
     act(() => {
-      latest?.addItem(second);
+      latest.addItem(second);
     });
-    expect(latest?.items).toEqual([second, first]);
+    expect(latest.items).toEqual([second, first]);
   });
 
   it("removeItem 成功時は deleteMyGoshuin が呼ばれ、items から対象が消える", async () => {
@@ -142,10 +128,9 @@ describe("useMyGoshuin", () => {
       { id: 2, shrine: 2, is_public: true, shrine_name: "残る方" },
     ];
 
+    let latest = {} as HookValue;
     mockFetchMyGoshuin.mockResolvedValue(sample);
     mockDeleteMyGoshuin.mockResolvedValue(undefined);
-
-    let latest: HookValue | null = null;
 
     render(
       <HookTester
@@ -156,28 +141,26 @@ describe("useMyGoshuin", () => {
     );
 
     await waitFor(() => {
-      expect(latest).not.toBeNull();
-      expect(latest?.loading).toBe(false);
+      expect(latest.loading).toBe(false);
     });
 
-    expect(latest?.items).toHaveLength(2);
+    expect(latest.items).toHaveLength(2);
 
     await act(async () => {
-      await latest?.removeItem(1);
+      await latest.removeItem(1);
     });
 
     expect(mockDeleteMyGoshuin).toHaveBeenCalledWith(1);
-    expect(latest?.items).toEqual([sample[1]]);
-    expect(latest?.error).toBeNull();
+    expect(latest.items).toEqual([sample[1]]);
+    expect(latest.error).toBeNull();
   });
 
   it("removeItem 失敗時は items をロールバックし、エラーメッセージをセットする", async () => {
     const sample: Goshuin[] = [{ id: 1, shrine: 1, is_public: true, shrine_name: "削除対象" }];
 
+    let latest = {} as HookValue;
     mockFetchMyGoshuin.mockResolvedValue(sample);
     mockDeleteMyGoshuin.mockRejectedValue(new Error("delete failed"));
-
-    let latest: HookValue | null = null;
 
     render(
       <HookTester
@@ -188,17 +171,15 @@ describe("useMyGoshuin", () => {
     );
 
     await waitFor(() => {
-      expect(latest).not.toBeNull();
-      expect(latest?.loading).toBe(false);
+      expect(latest.loading).toBe(false);
     });
 
     await act(async () => {
-      await latest?.removeItem(1);
+      await latest.removeItem(1);
     });
 
     expect(mockDeleteMyGoshuin).toHaveBeenCalledWith(1);
-    // ロールバックされているはず
-    expect(latest?.items).toEqual(sample);
-    expect(latest?.error).toBe("削除に失敗しました。時間をおいて再度お試しください。");
+    expect(latest.items).toEqual(sample);
+    expect(latest.error).toBe("削除に失敗しました。時間をおいて再度お試しください。");
   });
 });
