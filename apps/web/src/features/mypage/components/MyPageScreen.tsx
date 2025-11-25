@@ -35,7 +35,7 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
   const [tab, setTab] = useTab();
-  const { items, loading: goshuinLoading, error: goshuinError, addItem } = useMyGoshuin();
+  const { items, loading: goshuinLoading, error: goshuinError, addItem, removeItem } = useMyGoshuin();
 
   const tabs = useMemo(
     () => [
@@ -129,7 +129,7 @@ export default function MyPageScreen() {
     );
   }
 
-  // --- ログイン時 ---
+
   // --- ログイン時 ---
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
@@ -199,7 +199,7 @@ export default function MyPageScreen() {
             </section>
 
             <section className="border-t pt-4">
-              <MyGoshuinList items={items} loading={goshuinLoading} error={goshuinError} />
+              <MyGoshuinList items={items} loading={goshuinLoading} error={goshuinError} onDelete={removeItem} />
             </section>
           </div>
         )}

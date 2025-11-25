@@ -1,33 +1,204 @@
 // apps/web/src/features/mypage/components/hooks/useMyGoshuin.test.tsx
-import { describe, it, expect, vi } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import React, { useEffect } from "react";
+import { render, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useMyGoshuin } from "./useMyGoshuin";
-import { fetchMyGoshuin } from "@/lib/api/goshuin";
+import type { Goshuin } from "@/lib/api/goshuin";
 
-vi.mock("@/lib/api/goshuin", () => ({
-  fetchMyGoshuin: vi.fn(),
-}));
+// goshuin API をモック
+vi.mock("@/lib/api/goshuin", () => {
+  return {
+    fetchMyGoshuin: vi.fn(),
+    deleteMyGoshuin: vi.fn(),
+  };
+});
+
+import { fetchMyGoshuin, deleteMyGoshuin } from "@/lib/api/goshuin";
+
+const mockFetchMyGoshuin = fetchMyGoshuin as unknown as vi.Mock;
+const mockDeleteMyGoshuin = deleteMyGoshuin as unknown as vi.Mock;
+
+type HookValue = ReturnType<typeof useMyGoshuin>;
+
+function HookTester({ onReady }: { onReady: (value: HookValue) => void }) {
+  const hook = useMyGoshuin();
+
+  // 常に最新の hook state をテスト側に渡す
+  useEffect(() => {
+    onReady(hook);
+  }, [hook, onReady]);
+
+  return null;
+}
 
 describe("useMyGoshuin", () => {
-  it("初回に fetchMyGoshuin を呼び出し、items に結果が入る", async () => {
-    (fetchMyGoshuin as any).mockResolvedValue([{ id: 1, shrine: 1, is_public: true }]);
-
-    const { result } = renderHook(() => useMyGoshuin());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-      expect(result.current.items).toHaveLength(1);
-    });
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  it("エラー時には error メッセージがセットされる", async () => {
-    (fetchMyGoshuin as any).mockRejectedValue(new Error("fail"));
+  it("初回ロードで fetchMyGoshuin の結果が items に入る", async () => {
+    const sample: Goshuin[] = [
+      {
+        id: 1,
+        shrine: 1,
+        is_public: true,
+        shrine_name: "テスト神社",
+        image_url: "https://example.com/goshuin1.png",
+      },
+    ];
 
-    const { result } = renderHook(() => useMyGoshuin());
+    mockFetchMyGoshuin.mockResolvedValue(sample);
+
+    let latest: HookValue | null = null;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe("御朱印一覧の取得に失敗しました。");
+      expect(latest).not.toBeNull();
+      expect(latest?.loading).toBe(false);
     });
+
+    expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(1);
+    expect(latest?.items).toEqual(sample);
+    expect(latest?.error).toBeNull();
+  });
+
+  it("ロード失敗時には error メッセージがセットされ、loading が false になる", async () => {
+    mockFetchMyGoshuin.mockRejectedValue(new Error("network error"));
+
+    let latest: HookValue | null = null;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+      expect(latest?.loading).toBe(false);
+    });
+
+    expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(1);
+    expect(latest?.items).toBeNull();
+    expect(latest?.error).toBe("御朱印一覧の取得に失敗しました。");
+  });
+
+  it("addItem は items が null のとき新しい配列を作り、その後は先頭に追加する", async () => {
+    // 最初のロードは失敗させて items=null の状態からスタート
+    mockFetchMyGoshuin.mockRejectedValue(new Error("network error"));
+
+    let latest: HookValue | null = null;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+      expect(latest?.loading).toBe(false);
+    });
+
+    const first: Goshuin = {
+      id: 1,
+      shrine: 1,
+      is_public: true,
+      shrine_name: "一枚目",
+    };
+
+    const second: Goshuin = {
+      id: 2,
+      shrine: 2,
+      is_public: true,
+      shrine_name: "二枚目",
+    };
+
+    act(() => {
+      latest?.addItem(first);
+    });
+    expect(latest?.items).toEqual([first]);
+
+    act(() => {
+      latest?.addItem(second);
+    });
+    expect(latest?.items).toEqual([second, first]);
+  });
+
+  it("removeItem 成功時は deleteMyGoshuin が呼ばれ、items から対象が消える", async () => {
+    const sample: Goshuin[] = [
+      { id: 1, shrine: 1, is_public: true, shrine_name: "削除対象" },
+      { id: 2, shrine: 2, is_public: true, shrine_name: "残る方" },
+    ];
+
+    mockFetchMyGoshuin.mockResolvedValue(sample);
+    mockDeleteMyGoshuin.mockResolvedValue(undefined);
+
+    let latest: HookValue | null = null;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+      expect(latest?.loading).toBe(false);
+    });
+
+    expect(latest?.items).toHaveLength(2);
+
+    await act(async () => {
+      await latest?.removeItem(1);
+    });
+
+    expect(mockDeleteMyGoshuin).toHaveBeenCalledWith(1);
+    expect(latest?.items).toEqual([sample[1]]);
+    expect(latest?.error).toBeNull();
+  });
+
+  it("removeItem 失敗時は items をロールバックし、エラーメッセージをセットする", async () => {
+    const sample: Goshuin[] = [{ id: 1, shrine: 1, is_public: true, shrine_name: "削除対象" }];
+
+    mockFetchMyGoshuin.mockResolvedValue(sample);
+    mockDeleteMyGoshuin.mockRejectedValue(new Error("delete failed"));
+
+    let latest: HookValue | null = null;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+      expect(latest?.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await latest?.removeItem(1);
+    });
+
+    expect(mockDeleteMyGoshuin).toHaveBeenCalledWith(1);
+    // ロールバックされているはず
+    expect(latest?.items).toEqual(sample);
+    expect(latest?.error).toBe("削除に失敗しました。時間をおいて再度お試しください。");
   });
 });
