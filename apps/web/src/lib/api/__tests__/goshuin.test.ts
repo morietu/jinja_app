@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import api from "../client";
-import axios from "axios";
+
 import { fetchPublicGoshuin, fetchMyGoshuin, getGoshuinPublicAuto, getMyGoshuinAuto } from "../goshuin";
 
 vi.mock("../client", () => ({
