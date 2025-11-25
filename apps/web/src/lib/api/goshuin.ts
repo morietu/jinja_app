@@ -85,3 +85,7 @@ export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
   });
   return r.data;
 }
+
+export async function deleteMyGoshuin(id: number): Promise<void> {
+  await api.delete(`/my/goshuin/${id}/`);
+}
