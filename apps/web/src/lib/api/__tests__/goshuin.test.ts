@@ -20,7 +20,6 @@ vi.mock("../client", () => ({
 }));
 
 const apiGetMock = api.get as unknown as ReturnType<typeof vi.fn>;
-const apiPostMock = api.post as unknown as ReturnType<typeof vi.fn>;
 
 describe("goshuin api client", () => {
   beforeEach(() => {

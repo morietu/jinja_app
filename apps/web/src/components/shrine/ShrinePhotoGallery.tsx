@@ -58,9 +58,13 @@ export default function ShrinePhotoGallery({ shrine, className }: Props) {
       {/* メイン画像 - スマホ優先の 4:3 / 16:9 */}
       <div className="w-full overflow-hidden rounded-2xl shadow-sm">
         <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] bg-slate-100">
-          {/* Next/Image を使っているなら <Image> に置き換え */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={active} alt={shrine.name_jp ?? "神社写真"} className="h-full w-full object-cover" loading="lazy" />
+          {/* Next/Image を使いたくなったら、ここを <Image> に差し替える */}
+          <img
+            src={active}
+            alt={shrine.name_jp ?? "神社写真"}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
         </div>
       </div>
 
@@ -80,7 +84,6 @@ export default function ShrinePhotoGallery({ shrine, className }: Props) {
                   isActive ? "border-emerald-500 ring-2 ring-emerald-300" : "border-slate-200",
                 )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`サムネイル ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
               </button>
             );
