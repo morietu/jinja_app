@@ -1,5 +1,5 @@
 // apps/web/src/lib/api/__tests__/goshuin.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import axios from "axios";
 import api from "../client";
 import {
@@ -9,17 +9,23 @@ import {
   getMyGoshuinAuto,
   getGoshuin,
   getGoshuinAuto,
+  updateMyGoshuinVisibility,
+  type Goshuin,
 } from "../goshuin";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
-// api クライアントだけモックする
 vi.mock("../client", () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
   },
 }));
 
-const apiGetMock = api.get as unknown as ReturnType<typeof vi.fn>;
+
+const apiGetMock = api.get as unknown as Mock;
+const apiPatch = api.patch as unknown as Mock;
 
 describe("goshuin api client", () => {
   beforeEach(() => {
@@ -139,5 +145,28 @@ describe("goshuin api client", () => {
 
     expect(res1).toEqual([{ id: 99 }]);
     expect(res2).toEqual([{ id: 99 }]);
+  });
+});
+
+
+describe("updateMyGoshuinVisibility", () => {
+  beforeEach(() => {
+    apiPatch.mockReset();
+  });
+
+  it("指定 ID の御朱印の is_public を更新して結果を返す", async () => {
+    const updated: Goshuin = {
+      id: 1,
+      shrine: 1,
+      is_public: true,
+      shrine_name: "テスト神社",
+    };
+
+    apiPatch.mockResolvedValue({ data: updated });
+
+    const result = await updateMyGoshuinVisibility(1, true);
+
+    expect(apiPatch).toHaveBeenCalledWith("/my/goshuin/1/", { is_public: true });
+    expect(result).toEqual(updated);
   });
 });
