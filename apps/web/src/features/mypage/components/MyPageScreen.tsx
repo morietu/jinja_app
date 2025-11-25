@@ -8,15 +8,15 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import type { TabKey } from "@/app/mypage/tabs";
 import { sanitizeTab } from "@/app/mypage/tabs";
 import ProfileSection from "./ProfileSection";
-// 他のセクションはあとで差し替えるので、いったんここでは使わない
-// import FavoritesSection from "./FavoritesSection";
-// import VisitsSection from "./VisitsSection";
-// import DiagnosisSection from "./DiagnosisSection";
+import GoshuinUploadForm from "./GoshuinUploadForm";
+import MyGoshuinList from "./MyGoshuinList";
+import { useMyGoshuin } from "./hooks/useMyGoshuin";
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
   const sp = useSearchParams();
   const current = sanitizeTab(sp.get("tab"));
+
   const setTab = (t: TabKey, opts?: { focus?: boolean }) => {
     const usp = new URLSearchParams(sp.toString());
     usp.set("tab", t);
@@ -28,18 +28,20 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
       });
     }
   };
+
   return [current, setTab];
 }
 
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
   const [tab, setTab] = useTab();
+  const { items, loading: goshuinLoading, error: goshuinError, addItem } = useMyGoshuin();
 
   const tabs = useMemo(
     () => [
       { key: "profile" as TabKey, label: "プロフィール" },
       { key: "favorites" as TabKey, label: "お気に入り（準備中）" },
-      { key: "goshuin" as TabKey, label: "御朱印（準備中）" },
+      { key: "goshuin" as TabKey, label: "御朱印" }, // ← もう準備中ではない
       { key: "settings" as TabKey, label: "設定" },
     ],
     [],
@@ -128,6 +130,7 @@ export default function MyPageScreen() {
   }
 
   // --- ログイン時 ---
+  // --- ログイン時 ---
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
@@ -189,9 +192,15 @@ export default function MyPageScreen() {
         )}
 
         {tab === "goshuin" && (
-          <div className="space-y-3 p-6 text-sm text-gray-600">
-            <h2 className="text-lg font-semibold">御朱印（準備中）</h2>
-            <p>御朱印画像の登録・編集機能は今後追加予定です。</p>
+          <div className="space-y-6 p-6 text-sm text-gray-600">
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold">御朱印アップロード</h2>
+              <GoshuinUploadForm onUploaded={addItem} />
+            </section>
+
+            <section className="border-t pt-4">
+              <MyGoshuinList items={items} loading={goshuinLoading} error={goshuinError} />
+            </section>
           </div>
         )}
 

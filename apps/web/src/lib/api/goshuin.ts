@@ -36,7 +36,9 @@ export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
           const abs = `${PUBLIC_BASE}/api${p}`; // 絶対URLへ
           const r2 = await axios.get<Goshuin[]>(abs);
           return r2.data ?? [];
-        } catch { /* ignore and try next */ }
+        } catch {
+          /* ignore and try next */
+        }
       }
       if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
         return [];
@@ -74,3 +76,12 @@ export async function fetchMyGoshuin(): Promise<Goshuin[]> {
 
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
+
+export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
+  const r = await api.post<Goshuin>("/my/goshuin/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return r.data;
+}
