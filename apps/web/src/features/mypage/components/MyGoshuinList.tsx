@@ -11,9 +11,10 @@ type Props = {
   loading: boolean;
   error: string | null;
   onDelete?: (id: number) => void;
+  onToggleVisibility?: (id: number) => void;
 };
 
-export default function MyGoshuinList({ items, loading, error, onDelete }: Props) {
+export default function MyGoshuinList({ items, loading, error, onDelete, onToggleVisibility }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
 
@@ -77,6 +78,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
                 </button>
               )}
 
+              {/* サムネイル */}
               {g.image_url ? (
                 <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded">
                   <Image
@@ -91,11 +93,10 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
                 <div className="mb-2 flex aspect-[3/4] items-center justify-center rounded bg-gray-50">画像なし</div>
               )}
 
-              {/* ✅ 情報ブロックはここだけに統一 */}
+              {/* 情報ブロック＋公開/非公開トグル */}
               <div className="space-y-1">
                 <p className="truncate font-medium">{g.title || g.shrine_name || "タイトル未設定"}</p>
 
-                {/* title が別にあるときだけ、サブとして神社名を表示 */}
                 {g.shrine_name && g.title && <p className="truncate text-[11px] text-gray-600">{g.shrine_name}</p>}
 
                 {g.created_at && (
@@ -105,6 +106,19 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
                 )}
 
                 <p className="text-[10px] text-gray-500">公開設定: {g.is_public ? "公開" : "非公開"}</p>
+
+                {onToggleVisibility && (
+                  <button
+                    type="button"
+                    className="mt-1 rounded border px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleVisibility(g.id);
+                    }}
+                  >
+                    {g.is_public ? "非公開にする" : "公開にする"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -114,11 +128,10 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
       <GoshuinDetailModal
         open={detailOpen}
         onOpenChange={(open) => {
+          setDetailOpen(open);
           if (!open) {
-            setDetailOpen(false);
-            // setSelected(null); // 必要ならここでクリア
-          } else {
-            setDetailOpen(true);
+            // 必要ならここで selected をクリア
+            // setSelected(null);
           }
         }}
         goshuin={selected}
