@@ -30,7 +30,6 @@ export function useMyGoshuin() {
         setState({ items, loading: false, error: null });
       } catch (_err) {
         if (cancelled) return;
-        // テスト想定：失敗時は items: null, error メッセージ
         console.warn("[useMyGoshuin] fetchMyGoshuin failed", _err);
         setState({
           items: null,
@@ -40,7 +39,7 @@ export function useMyGoshuin() {
       }
     }
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
@@ -80,11 +79,9 @@ export function useMyGoshuin() {
     }
   }, []);
 
-  // toggleVisibility: 楽観的に is_public を反転し、失敗時ロールバック
   // toggleVisibility: 楽観的に is_public を反転し、API 失敗時はロールバック
   const toggleVisibility = useCallback(
     async (id: number) => {
-      // いまのスナップショットを使って nextPublic を計算
       const currentItems = state.items;
       if (!currentItems) return;
 
@@ -116,7 +113,7 @@ export function useMyGoshuin() {
     [state.items],
   );
 
-  // ★ 再読み込み用の関数（テスト用に reload を返す）
+  // 再読み込み
   const reload = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
@@ -136,7 +133,7 @@ export function useMyGoshuin() {
     items: state.items,
     loading: state.loading,
     error: state.error,
-    reload, // ← ここを load から reload に
+    reload,
     addItem,
     removeItem,
     toggleVisibility,
