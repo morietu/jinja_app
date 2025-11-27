@@ -35,6 +35,11 @@ from temples.api.views.shrine import (
     RankingAPIView,
     ShrineViewSet,
 )
+from temples.api.views import (
+    concierge_history,
+    PublicGoshuinViewSet,   # ★ 追加
+    MyGoshuinViewSet,       # ★ 追加
+)
 
 try:
     from temples.api.views.geocode import search as geocode_search
@@ -83,6 +88,8 @@ except Exception:
 app_name = "temples"
 
 router = DefaultRouter()
+router.register(r"goshuin", PublicGoshuinViewSet, basename="goshuin")        # ★ 追加
+router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 

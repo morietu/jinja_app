@@ -1,90 +1,142 @@
 // apps/web/src/features/mypage/components/hooks/useMyGoshuin.ts
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { fetchMyGoshuin, deleteMyGoshuin, updateMyGoshuinVisibility, type Goshuin } from "@/lib/api/goshuin";
+import { useCallback, useEffect, useState } from "react";
+import type { Goshuin } from "@/lib/api/goshuin";
+import { fetchMyGoshuin, deleteMyGoshuin, updateMyGoshuinVisibility } from "@/lib/api/goshuin";
+
+type State = {
+  items: Goshuin[] | null;
+  loading: boolean;
+  error: string | null;
+};
 
 export function useMyGoshuin() {
-  const [items, setItems] = useState<Goshuin[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<State>({
+    items: null,
+    loading: true,
+    error: null,
+  });
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchMyGoshuin();
-      setItems(data);
-    } catch {
-      setError("御朱印一覧の取得に失敗しました。");
-    } finally {
-      setLoading(false);
+  // 初回ロード
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const items = await fetchMyGoshuin();
+        if (cancelled) return;
+        setState({ items, loading: false, error: null });
+      } catch (_err) {
+        if (cancelled) return;
+        // テスト想定：失敗時は items: null, error メッセージ
+        console.warn("[useMyGoshuin] fetchMyGoshuin failed", _err);
+        setState({
+          items: null,
+          loading: false,
+          error: "御朱印一覧の取得に失敗しました。",
+        });
+      }
     }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const addItem = useCallback((g: Goshuin) => {
-    setItems((prev) => {
-      if (!prev) return [g];
-      return [g, ...prev];
+  // addItem: items が null のとき新しく配列を作り、その後は「先頭に」追加
+  const addItem = useCallback((item: Goshuin) => {
+    setState((prev) => {
+      const current = prev.items ?? [];
+      return {
+        ...prev,
+        items: [item, ...current],
+      };
     });
   }, []);
 
-  const removeItem = useCallback(
-    async (id: number) => {
-      setError(null);
+  // removeItem: 楽観的削除 + 失敗時ロールバック
+  const removeItem = useCallback(async (id: number) => {
+    let previous: Goshuin[] | null = null;
 
-      if (!items) return;
+    setState((prev) => {
+      previous = prev.items ?? null;
+      if (!prev.items) return prev;
+      const nextItems = prev.items.filter((g) => g.id !== id);
+      return { ...prev, items: nextItems, error: null };
+    });
 
-      const prev = items;
-      // 楽観的削除
-      setItems(prev.filter((g) => g.id !== id));
+    try {
+      await deleteMyGoshuin(id);
+    } catch (_err) {
+      console.warn("[useMyGoshuin] deleteMyGoshuin failed", _err);
+      setState((prev) => ({
+        ...prev,
+        items: previous,
+        error: "削除に失敗しました。時間をおいて再度お試しください。",
+      }));
+    }
+  }, []);
 
-      try {
-        await deleteMyGoshuin(id);
-      } catch (e) {
-        console.error(e);
-        // ロールバック
-        setItems(prev);
-        setError("削除に失敗しました。時間をおいて再度お試しください。");
-      }
-    },
-    [items],
-  );
-
+  // toggleVisibility: 楽観的に is_public を反転し、失敗時ロールバック
+  // toggleVisibility: 楽観的に is_public を反転し、API 失敗時はロールバック
   const toggleVisibility = useCallback(
     async (id: number) => {
-      if (!items) return;
+      // いまのスナップショットを使って nextPublic を計算
+      const currentItems = state.items;
+      if (!currentItems) return;
 
-      const prev = items;
-      const target = items.find((g) => g.id === id);
+      const target = currentItems.find((g) => g.id === id);
       if (!target) return;
 
-      const nextFlag = !target.is_public;
+      const nextPublic = !target.is_public;
 
-      // 楽観的更新
-      setItems(items.map((g) => (g.id === id ? { ...g, is_public: nextFlag } : g)));
+      // 楽観更新
+      setState((prev) => ({
+        ...prev,
+        items: prev.items ? prev.items.map((g) => (g.id === id ? { ...g, is_public: nextPublic } : g)) : prev.items,
+        error: null,
+      }));
 
       try {
-        await updateMyGoshuinVisibility(id, nextFlag);
-      } catch (e) {
-        console.error(e);
-        // ロールバック
-        setItems(prev);
-        setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
+        await updateMyGoshuinVisibility(id, nextPublic);
+      } catch (err) {
+        console.warn("[useMyGoshuin] updateMyGoshuinVisibility failed", err);
+        setState((prev) => ({
+          ...prev,
+          items: prev.items
+            ? prev.items.map((g) => (g.id === id ? { ...g, is_public: target.is_public } : g))
+            : prev.items,
+          error: "公開設定の更新に失敗しました。時間をおいて再度お試しください。",
+        }));
       }
     },
-    [items],
+    [state.items],
   );
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // ★ 再読み込み用の関数（テスト用に reload を返す）
+  const reload = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const items = await fetchMyGoshuin();
+      setState({ items, loading: false, error: null });
+    } catch (_err) {
+      console.warn("[useMyGoshuin] fetchMyGoshuin failed", _err);
+      setState({
+        items: null,
+        loading: false,
+        error: "御朱印一覧の取得に失敗しました。",
+      });
+    }
+  }, []);
 
   return {
-    items,
-    loading,
-    error,
-    reload: load,
+    items: state.items,
+    loading: state.loading,
+    error: state.error,
+    reload, // ← ここを load から reload に
     addItem,
     removeItem,
     toggleVisibility,

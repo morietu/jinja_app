@@ -67,7 +67,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
                   type="button"
                   className="absolute right-1 top-1 rounded bg-white/80 px-1 text-[10px] text-red-600 shadow"
                   onClick={(e) => {
-                    e.stopPropagation(); // ← モーダルを開かないようにする
+                    e.stopPropagation();
                     if (window.confirm("この御朱印を削除しますか？")) {
                       onDelete(g.id);
                     }
@@ -91,13 +91,20 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
                 <div className="mb-2 flex aspect-[3/4] items-center justify-center rounded bg-gray-50">画像なし</div>
               )}
 
+              {/* ✅ 情報ブロックはここだけに統一 */}
               <div className="space-y-1">
-                <p className="truncate font-medium">{g.shrine_name ?? "神社名なし"}</p>
+                <p className="truncate font-medium">{g.title || g.shrine_name || "タイトル未設定"}</p>
+
+                {/* title が別にあるときだけ、サブとして神社名を表示 */}
+                {g.shrine_name && g.title && <p className="truncate text-[11px] text-gray-600">{g.shrine_name}</p>}
+
                 {g.created_at && (
                   <p className="text-[10px] text-gray-500">
                     登録日: {new Date(g.created_at).toLocaleDateString("ja-JP")}
                   </p>
                 )}
+
+                <p className="text-[10px] text-gray-500">公開設定: {g.is_public ? "公開" : "非公開"}</p>
               </div>
             </div>
           ))}
@@ -109,8 +116,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete }: Props
         onOpenChange={(open) => {
           if (!open) {
             setDetailOpen(false);
-            // 閉じるときに選択状態もクリア（任意）
-            // setSelected(null);
+            // setSelected(null); // 必要ならここでクリア
           } else {
             setDetailOpen(true);
           }
