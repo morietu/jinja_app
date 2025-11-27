@@ -28,6 +28,7 @@ type HookValue = {
   addItem: (g: Goshuin) => void;
   removeItem: (id: number) => Promise<void> | void;
   toggleVisibility: (id: number) => Promise<void> | void;
+  
 };
 
 function HookTester({ onReady }: { onReady: (value: HookValue) => void }) {

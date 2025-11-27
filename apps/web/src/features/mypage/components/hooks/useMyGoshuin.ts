@@ -93,7 +93,7 @@ export function useMyGoshuin() {
 
       const nextPublic = !target.is_public;
 
-      // 楽観更新（とりあえず UI 上は反転させる）
+      // 楽観更新
       setState((prev) => ({
         ...prev,
         items: prev.items ? prev.items.map((g) => (g.id === id ? { ...g, is_public: nextPublic } : g)) : prev.items,
@@ -101,12 +101,9 @@ export function useMyGoshuin() {
       }));
 
       try {
-        // テスト期待: (1, false) など、元の値から見た反転値で呼ぶ
         await updateMyGoshuinVisibility(id, nextPublic);
       } catch (err) {
         console.warn("[useMyGoshuin] updateMyGoshuinVisibility failed", err);
-
-        // 失敗したら元の公開状態に戻す（配列の中身も sample と同じになるはず）
         setState((prev) => ({
           ...prev,
           items: prev.items
@@ -119,10 +116,27 @@ export function useMyGoshuin() {
     [state.items],
   );
 
+  // ★ 再読み込み用の関数（テスト用に reload を返す）
+  const reload = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const items = await fetchMyGoshuin();
+      setState({ items, loading: false, error: null });
+    } catch (_err) {
+      console.warn("[useMyGoshuin] fetchMyGoshuin failed", _err);
+      setState({
+        items: null,
+        loading: false,
+        error: "御朱印一覧の取得に失敗しました。",
+      });
+    }
+  }, []);
+
   return {
     items: state.items,
     loading: state.loading,
     error: state.error,
+    reload, // ← ここを load から reload に
     addItem,
     removeItem,
     toggleVisibility,
