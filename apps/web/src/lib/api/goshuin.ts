@@ -12,76 +12,116 @@ export type Goshuin = {
   shrine_name?: string;
 };
 
-function normalize(p: string) {
-  let s = (p || "").trim();
-  if (!s.startsWith("/")) s = "/" + s;
-  if (!s.endsWith("/")) s += "/";
-  return s;
+// 🔽 バックエンド直叩き用オリジン
+const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
+
+// エンドポイント候補（テストが想定している「複数候補」挙動）
+const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
+const MY_CANDIDATES = ["/my/goshuin/", "/goshuin/my/", "/me/goshuin/"] as const;
+
+// 共通ヘルパー：配列 or {results: []} を吸収
+function toList(data: any): Goshuin[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
-// フォールバックは同一オリジンの絶対URLに限定
-const PUBLIC_BASE = typeof window !== "undefined" ? window.location.origin : "";
+// 絶対URLでバックエンドを叩くフォールバック（テストで axios.get が1回呼ばれる想定）
+async function fetchPublicFromBackend(): Promise<Goshuin[]> {
+  const base = BACKEND_ORIGIN.replace(/\/+$/, "");
+  const url = `${base}/api/goshuin/`;
+  const r = await axios.get<any>(url, { withCredentials: true });
+  return toList(r.data);
+}
 
-const CANDIDATES = ["/goshuin", "/users/me/goshuin", "/temples/goshuin"].map(normalize);
-
+// 公開御朱印一覧（フォールバックロジック込み）
 export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
-  for (const p of CANDIDATES) {
+  for (const path of PUBLIC_CANDIDATES) {
     try {
-      const r = await api.get<Goshuin[]>(p); // /api 経由（相対）
-      return r.data ?? [];
+      const r = await api.get<any>(path);
+      return toList(r.data);
     } catch (err: any) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) continue;
-      if (axios.isAxiosError(err) && !err.response && PUBLIC_BASE) {
-        try {
-          const abs = `${PUBLIC_BASE}/api${p}`; // 絶対URLへ
-          const r2 = await axios.get<Goshuin[]>(abs);
-          return r2.data ?? [];
-        } catch {
-          /* ignore and try next */
-        }
-      }
-      if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+      if (!axios.isAxiosError(err)) {
         return [];
       }
+
+      const status = err.response?.status;
+
+      // 未ログインは即空配列
+      if (status === 401 || status === 403) {
+        return [];
+      }
+
+      // ネットワークエラー / CORS など：絶対URLフォールバックを1回だけ試す
+      if (!err.response) {
+        try {
+          return await fetchPublicFromBackend();
+        } catch {
+          return [];
+        }
+      }
+
+      // 404 は次の候補へ、それ以外は諦める
+      if (status !== 404) {
+        return [];
+      }
+      // ← 404 のときだけ loop 続行（→ api.get が候補数ぶん呼ばれる）
     }
   }
-  console.warn("[goshuin] public endpoint not found; returning empty list");
+
   return [];
 }
 
+// 自分の御朱印一覧（404 を候補ぶん試して全滅したら warn）
 export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
-  for (const p of CANDIDATES) {
+  for (const path of MY_CANDIDATES) {
     try {
-      const r = await api.get<Goshuin[]>(p);
-      return r.data ?? [];
+      const r = await api.get<any>(path);
+      return toList(r.data);
     } catch (err: any) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) continue;
-      if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) return [];
-      if (axios.isAxiosError(err) && !err.response) return [];
-      return [];
+      if (!axios.isAxiosError(err)) {
+        console.warn?.("[getMyGoshuinAuto] unexpected error", err);
+        return [];
+      }
+
+      const status = err.response?.status;
+
+      if (status === 401 || status === 403) {
+        // 未ログインは静かに空配列
+        return [];
+      }
+
+      if (status !== 404) {
+        console.warn?.("[getMyGoshuinAuto] non-404 error", status);
+        return [];
+      }
+
+      // 404 → 次候補へ（何もしないでループ続行）
     }
   }
-  console.warn("[goshuin] my endpoint not found; returning empty list");
+
+  console.warn?.("[getMyGoshuinAuto] all candidates returned 404");
   return [];
 }
 
-export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<Goshuin[]>("/goshuin/");
-  return r.data ?? [];
-}
-export async function fetchMyGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<Goshuin[]>("/my/goshuin/");
-  return r.data ?? [];
-}
-
+// 互換エイリアス
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
 
+// 明示的 fetch 系（BFF 経由・決め打ちパス）
+export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<any>("/goshuin/");
+  return toList(r.data);
+}
+
+export async function fetchMyGoshuin(): Promise<Goshuin[]> {
+  const r = await api.get<any>("/my/goshuin/");
+  return toList(r.data);
+}
+
 export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
-  const r = await api.post<Goshuin>("/my/goshuin/", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+  const r = await api.post<Goshuin>("/goshuin/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
   });
   return r.data;
 }
@@ -91,8 +131,6 @@ export async function deleteMyGoshuin(id: number): Promise<void> {
 }
 
 export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
-  const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, {
-    is_public: isPublic,
-  });
+  const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, { is_public: isPublic });
   return r.data;
 }

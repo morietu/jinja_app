@@ -9,15 +9,14 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   async rewrites() {
-    if (isPlaywright) return []; // E2E時は Next の /app/api を使う
-    const origin =
-      process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-      process.env.BACKEND_ORIGIN ||
-      "http://localhost:8000";
+    if (isPlaywright) return [];
+    const origin = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || process.env.BACKEND_ORIGIN || "http://localhost:8000";
+
     return [
       {
         source: "/api/:path*",
-        destination: `${origin}/api/:path*`,
+        // ★ ここを変更：:path* のあとに `/` を付ける
+        destination: `${origin}/api/:path*/`,
       },
     ];
   },
