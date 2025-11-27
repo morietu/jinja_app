@@ -88,10 +88,13 @@ except Exception:
 app_name = "temples"
 
 router = DefaultRouter()
-router.register(r"goshuin", PublicGoshuinViewSet, basename="goshuin")        # ★ 追加
-router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
-router.register(r"shrines", ShrineViewSet, basename="shrine")
+# 公開御朱印: /api/goshuins/
+router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuin")
 
+# マイ御朱印: /api/goshuins/my/
+router.register(r"goshuins/my", MyGoshuinViewSet, basename="my-goshuin")
+
+router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):

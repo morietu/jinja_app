@@ -2,7 +2,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from rest_framework.viewsets import ModelViewSet
 from temples.models import Goshuin
 from temples.serializers.routes import GoshuinSerializer
 
@@ -15,6 +15,7 @@ class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Goshuin.objects.filter(is_public=True).select_related("shrine")
     serializer_class = GoshuinSerializer
+    http_method_names = ["get", "head", "options"]
     # 公開APIなので permission_classes はデフォルト(AllowAny)のままでOK
 
 
@@ -29,6 +30,7 @@ class MyGoshuinViewSet(viewsets.ModelViewSet):
     serializer_class = GoshuinSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return Goshuin.objects.filter(user=self.request.user).select_related("shrine")

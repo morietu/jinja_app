@@ -16,8 +16,9 @@ export type Goshuin = {
 const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
 
 // エンドポイント候補（テストが想定している「複数候補」挙動）
-const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
-const MY_CANDIDATES = ["/my/goshuin/", "/goshuin/my/", "/me/goshuin/"] as const;
+
+const PUBLIC_CANDIDATES = ["/goshuins/", "/goshuin/"] as const;
+const MY_CANDIDATES = ["/goshuins/my/", "/my/goshuin/", "/me/goshuin/"] as const;
 
 // 共通ヘルパー：配列 or {results: []} を吸収
 function toList(data: any): Goshuin[] {
@@ -29,7 +30,7 @@ function toList(data: any): Goshuin[] {
 // 絶対URLでバックエンドを叩くフォールバック（テストで axios.get が1回呼ばれる想定）
 async function fetchPublicFromBackend(): Promise<Goshuin[]> {
   const base = BACKEND_ORIGIN.replace(/\/+$/, "");
-  const url = `${base}/api/goshuin/`;
+  const url = `${base}/api/goshuins/`; // ← ここを goshuins に
   const r = await axios.get<any>(url, { withCredentials: true });
   return toList(r.data);
 }
@@ -108,28 +109,34 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
 
-// 明示的 fetch 系（BFF 経由・決め打ちパス）
+// 🔽 明示的 fetch 系（BFF 経由・決め打ちパス）
+
+// 公開御朱印一覧: BFF /api/goshuin/
 export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/goshuin/");
   return toList(r.data);
 }
 
+// 自分の御朱印一覧: BFF /api/my/goshuin/
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/my/goshuin/");
   return toList(r.data);
 }
 
+// 自分の御朱印登録: BFF /api/my/goshuin/
 export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
-  const r = await api.post<Goshuin>("/goshuin/", formData, {
+  const r = await api.post<Goshuin>("/my/goshuin/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return r.data;
 }
 
+// 自分の御朱印削除: BFF /api/my/goshuin/{id}/
 export async function deleteMyGoshuin(id: number): Promise<void> {
   await api.delete(`/my/goshuin/${id}/`);
 }
 
+// 公開設定更新: BFF /api/my/goshuin/{id}/
 export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
   const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, { is_public: isPublic });
   return r.data;
