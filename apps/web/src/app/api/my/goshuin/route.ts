@@ -1,50 +1,63 @@
 // apps/web/src/app/api/my/goshuin/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// GET /api/my/goshuin/
 export async function GET(req: NextRequest) {
-  // ① Cookie から access_token を取得
-  const access = req.cookies.get("access_token")?.value;
-
-  if (!access) {
-    return NextResponse.json({ detail: "認証が必要です" }, { status: 401 });
-  }
-
   try {
-    // ② Django の /api/my/goshuin/ に JWT を付けて投げ直す
-    const r = await djFetch("/api/my/goshuin/", {
+    const r = await djFetch(req, "/api/my/goshuin/", {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${access}`,
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
 
     const text = await r.text();
 
     if (!r.ok) {
-      // 401/403 などはそのまま返す
-      try {
-        const errJson = JSON.parse(text);
-        return NextResponse.json(errJson, { status: r.status });
-      } catch {
-        return new NextResponse(text || "Failed to fetch my goshuin", {
-          status: r.status,
-        });
-      }
+      return new NextResponse(text || r.statusText, { status: r.status });
     }
 
-    // ③ 正常系は JSON として返す
-    try {
-      const data = JSON.parse(text);
-      return NextResponse.json(data, { status: 200 });
-    } catch {
-      return NextResponse.json({ detail: "バックエンドから不正なレスポンス形式です" }, { status: 502 });
+    return new NextResponse(text || "", {
+      status: r.status,
+      headers: {
+        "content-type": r.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch (err) {
+    console.error("GET /api/my/goshuin/ proxy failed", err);
+    return NextResponse.json({ detail: "バックエンドに接続できません" }, { status: 503 });
+  }
+}
+
+// POST /api/my/goshuin/（アップロード）
+export async function POST(req: NextRequest) {
+  try {
+    const r = await djFetch(req, "/api/my/goshuin/", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "content-type": req.headers.get("content-type") ?? "",
+      },
+      body: await req.text(),
+    });
+
+    const text = await r.text();
+
+    if (!r.ok) {
+      return new NextResponse(text || r.statusText, { status: r.status });
     }
-  } catch {
+
+    return new NextResponse(text || "", {
+      status: r.status,
+      headers: {
+        "content-type": r.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch (err) {
+    console.error("POST /api/my/goshuin/ proxy failed", err);
     return NextResponse.json({ detail: "バックエンドに接続できません" }, { status: 503 });
   }
 }

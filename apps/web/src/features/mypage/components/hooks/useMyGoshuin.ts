@@ -27,6 +27,10 @@ export function useMyGoshuin() {
       try {
         const items = await fetchMyGoshuin();
         if (cancelled) return;
+        console.debug("useMyGoshuin: fetched items", {
+          count: Array.isArray(items) ? items.length : 0,
+          sample: items?.slice?.(0, 3),
+        });
         setState({ items, loading: false, error: null });
       } catch (_err) {
         if (cancelled) return;
@@ -118,6 +122,7 @@ export function useMyGoshuin() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const items = await fetchMyGoshuin();
+      console.debug("useMyGoshuin: reload fetched items", { count: Array.isArray(items) ? items.length : 0 });
       setState({ items, loading: false, error: null });
     } catch (_err) {
       console.warn("[useMyGoshuin] fetchMyGoshuin failed", _err);

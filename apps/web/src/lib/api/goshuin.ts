@@ -116,21 +116,30 @@ export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
 
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/my/goshuin/");
-  return toList(r.data);
+  const data = r.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
-  const r = await api.post<Goshuin>("/goshuin/", formData, {
+  const r = await api.post<Goshuin>("/my/goshuin/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return r.data;
 }
 
+// ★ 削除（BFF 経由）
 export async function deleteMyGoshuin(id: number): Promise<void> {
+  // baseURL = "/api" なので実リクエストは DELETE /api/my/goshuin/:id/
   await api.delete(`/my/goshuin/${id}/`);
 }
 
-export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
+// ★ 公開/非公開更新（BFF 経由）
+export async function updateMyGoshuinVisibility(
+  id: number,
+  isPublic: boolean,
+): Promise<Goshuin> {
   const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, { is_public: isPublic });
   return r.data;
 }

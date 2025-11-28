@@ -12,6 +12,7 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "./hooks/useMyGoshuin";
 
+
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
   const sp = useSearchParams();
@@ -35,7 +36,7 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
   const [tab, setTab] = useTab();
-  const { items, loading: goshuinLoading, error: goshuinError, addItem, removeItem } = useMyGoshuin();
+  const { items, loading: goshuinLoading, error: goshuinError, addItem, removeItem, toggleVisibility } = useMyGoshuin();
 
   const tabs = useMemo(
     () => [
@@ -129,7 +130,6 @@ export default function MyPageScreen() {
     );
   }
 
-
   // --- ログイン時 ---
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
@@ -199,7 +199,13 @@ export default function MyPageScreen() {
             </section>
 
             <section className="border-t pt-4">
-              <MyGoshuinList items={items} loading={goshuinLoading} error={goshuinError} onDelete={removeItem} />
+              <MyGoshuinList
+                items={items}
+                loading={goshuinLoading}
+                error={goshuinError}
+                onDelete={removeItem}
+                onToggleVisibility={toggleVisibility}
+              />
             </section>
           </div>
         )}
