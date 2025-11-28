@@ -1,60 +1,58 @@
 # backend/temples/api/views/goshuin.py
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-
-from rest_framework import viewsets, status
-from rest_framework.permissions import AllowAny  # ★ いったん誰でもOKにする
+from rest_framework import viewsets, permissions
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.response import Response
 
 from temples.models import Goshuin
 from temples.serializers.routes import GoshuinSerializer
 
 
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """
+    SessionAuthentication だけど CSRF チェックをスキップする（開発用）
+    """
+    def enforce_csrf(self, request):
+        return  # 何もしない → CSRF 無効
+
+
 class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    公開御朱印一覧用
-    GET /api/goshuin/
-    GET /api/goshuin/{id}/
+    公開御朱印一覧（誰でも閲覧可）
     """
-    queryset = Goshuin.objects.filter(is_public=True).select_related("shrine")
     serializer_class = GoshuinSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return (
+            Goshuin.objects
+            .filter(is_public=True)
+            .select_related("shrine")
+            .order_by("-created_at")
+        )
 
 
-@method_decorator(csrf_exempt, name="dispatch")  # ★ CSRF完全OFF（開発用）
 class MyGoshuinViewSet(viewsets.ModelViewSet):
     """
-    自分の御朱印一覧＋作成＋削除＋部分更新（開発用に権限をゆるゆるにする）
+    ログインユーザー自身の御朱印一覧＋作成＋削除＋公開設定更新
     """
     serializer_class = GoshuinSerializer
-    permission_classes = [AllowAny]  # ★ まずは認証／権限チェックを全部外す
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
-        # 一旦「全部」返す（本番では user 絞りに戻す）
-        return Goshuin.objects.all().select_related("shrine")
+        # 自分の御朱印だけ
+        return (
+            Goshuin.objects
+            .filter(user=self.request.user)
+            .select_related("shrine")
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
-        # 開発用なので user は null でもOKにしておく（必要なら後で調整）
-        serializer.save()
+        # 作成時は必ず自分の user をセット
+        serializer.save(user=self.request.user)
 
-    def destroy(self, request, *args, **kwargs):
-        pk = kwargs.get("pk")
-        print("=== DEBUG MyGoshuinViewSet.destroy ===")
-        print("method:", request.method)
-        print("pk:", pk)
-        print("user:", request.user)
-        print("is_authenticated:", getattr(request.user, "is_authenticated", None))
-        print("======================================")
-
-        qs = Goshuin.objects.filter(id=pk)
-        deleted, _ = qs.delete()
-
-        if deleted == 0:
-            return Response(
-                {"detail": "対象の御朱印がありません"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def perform_update(self, serializer):
+        # 更新時も user を自分に固定（念のため）
+        serializer.save(user=self.request.user)
