@@ -28,7 +28,6 @@ type HookValue = {
   addItem: (g: Goshuin) => void;
   removeItem: (id: number) => Promise<void> | void;
   toggleVisibility: (id: number) => Promise<void> | void;
-  
 };
 
 function HookTester({ onReady }: { onReady: (value: HookValue) => void }) {
@@ -203,6 +202,76 @@ describe("useMyGoshuin", () => {
     expect(mockDeleteMyGoshuin).toHaveBeenCalledWith(1);
     expect(latest.items).toEqual(sample);
     expect(latest.error).toBe("削除に失敗しました。時間をおいて再度お試しください。");
+  });
+
+  it("reload 成功時は最新の items で上書きされ、error は null のままになる", async () => {
+    const initial: Goshuin[] = [{ id: 1, shrine: 1, is_public: true, shrine_name: "初回" }];
+    const reloaded: Goshuin[] = [{ id: 2, shrine: 2, is_public: true, shrine_name: "リロード後" }];
+
+    // 初回ロード → initial
+    mockFetchMyGoshuin.mockResolvedValueOnce(initial);
+
+    let latest = {} as HookValue;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    // 初回ロード完了待ち
+    await waitFor(() => {
+      expect(latest.loading).toBe(false);
+    });
+    expect(latest.items).toEqual(initial);
+
+    // reload 用に mock を差し替え
+    mockFetchMyGoshuin.mockResolvedValueOnce(reloaded);
+
+    await act(async () => {
+      await latest.reload();
+    });
+
+    expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(2);
+    expect(latest.items).toEqual(reloaded);
+    expect(latest.loading).toBe(false);
+    expect(latest.error).toBeNull();
+  });
+
+  it("reload 失敗時は items を null にし、エラーメッセージをセットする", async () => {
+    const initial: Goshuin[] = [{ id: 1, shrine: 1, is_public: true, shrine_name: "初回" }];
+
+    // 初回ロードは成功
+    mockFetchMyGoshuin.mockResolvedValueOnce(initial);
+
+    let latest = {} as HookValue;
+
+    render(
+      <HookTester
+        onReady={(v) => {
+          latest = v;
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(latest.loading).toBe(false);
+    });
+    expect(latest.items).toEqual(initial);
+
+    // reload 用：今度は失敗させる
+    mockFetchMyGoshuin.mockRejectedValueOnce(new Error("reload failed"));
+
+    await act(async () => {
+      await latest.reload();
+    });
+
+    expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(2);
+    expect(latest.items).toBeNull();
+    expect(latest.loading).toBe(false);
+    expect(latest.error).toBe("御朱印一覧の取得に失敗しました。");
   });
 
   it("toggleVisibility 成功時は is_public が反転し、API も呼ばれる", async () => {

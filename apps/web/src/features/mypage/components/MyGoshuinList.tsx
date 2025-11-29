@@ -6,17 +6,39 @@ import Image from "next/image";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
 
+
 type Props = {
   items: Goshuin[] | null;
   loading: boolean;
   error: string | null;
-  onDelete?: (id: number) => void;
+  // 親が一覧から消すためのコールバック（任意・非同期も許容）
+  onDelete?: (id: number) => Promise<void> | void;
   onToggleVisibility?: (id: number) => void;
 };
 
 export default function MyGoshuinList({ items, loading, error, onDelete, onToggleVisibility }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const handleCardClick = (g: Goshuin) => {
+    setSelected(g);
+    setDetailOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!onDelete) return; // 念のためガード
+
+    if (!window.confirm("この御朱印を削除しますか？")) return;
+
+    try {
+      setDeletingId(id);
+      // 親（useMyGoshuin.removeItem）に一任
+      await Promise.resolve(onDelete(id));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -46,10 +68,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     );
   }
 
-  const handleCardClick = (g: Goshuin) => {
-    setSelected(g);
-    setDetailOpen(true);
-  };
+  const canDelete = deletingId === null;
 
   return (
     <>
@@ -62,23 +81,21 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
               className="relative cursor-pointer rounded-lg border bg-white p-2 text-xs hover:bg-gray-50"
               onClick={() => handleCardClick(g)}
             >
-              {/* 右上に削除ボタン */}
-              {onDelete && (
-                <button
-                  type="button"
-                  className="absolute right-1 top-1 rounded bg-white/80 px-1 text-[10px] text-red-600 shadow"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm("この御朱印を削除しますか？")) {
-                      onDelete(g.id);
-                    }
-                  }}
-                >
-                  削除
-                </button>
-              )}
+              {/* 削除ボタン */}
+              <button
+                type="button"
+                className="absolute right-1 top-1 rounded bg-white/80 px-1 text-[10px] text-red-600 shadow disabled:opacity-50"
+                disabled={!canDelete || deletingId === g.id || !onDelete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (deletingId === g.id || !onDelete) return;
+                  void handleDelete(g.id);
+                }}
+              >
+                {deletingId === g.id ? "削除中…" : "削除"}
+              </button>
 
-              {/* サムネイル */}
+              {/* 画像 */}
               {g.image_url ? (
                 <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded">
                   <Image
@@ -87,16 +104,16 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
                     fill
                     sizes="(max-width: 640px) 50vw, 33vw"
                     className="object-cover"
+                    unoptimized // ★ これを追加
                   />
                 </div>
               ) : (
                 <div className="mb-2 flex aspect-[3/4] items-center justify-center rounded bg-gray-50">画像なし</div>
               )}
 
-              {/* 情報ブロック＋公開/非公開トグル */}
+              {/* 情報＋公開トグル */}
               <div className="space-y-1">
                 <p className="truncate font-medium">{g.title || g.shrine_name || "タイトル未設定"}</p>
-
                 {g.shrine_name && g.title && <p className="truncate text-[11px] text-gray-600">{g.shrine_name}</p>}
 
                 {g.created_at && (
@@ -130,7 +147,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
         onOpenChange={(open) => {
           setDetailOpen(open);
           if (!open) {
-            // 必要ならここで selected をクリア
+            // 必要なら selected をクリア
             // setSelected(null);
           }
         }}

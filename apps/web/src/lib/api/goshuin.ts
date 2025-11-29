@@ -108,7 +108,6 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
 
-// 明示的 fetch 系（BFF 経由・決め打ちパス）
 export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/goshuin/");
   return toList(r.data);
@@ -116,21 +115,31 @@ export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
 
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/my/goshuin/");
-  return toList(r.data);
+  const data = r.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 export async function uploadMyGoshuin(formData: FormData): Promise<Goshuin> {
-  const r = await api.post<Goshuin>("/goshuin/", formData, {
+  const r = await api.post<Goshuin>("/my/goshuin/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return r.data;
 }
 
+
+// ★ 削除（バックエンド直叩き）
+// ★ 削除：BFF 経由
 export async function deleteMyGoshuin(id: number): Promise<void> {
+  // baseURL = "/api"（ブラウザ時）なので
+  // 実際のリクエストは DELETE /api/my/goshuin/:id/
   await api.delete(`/my/goshuin/${id}/`);
 }
 
-export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
+// ★ 公開/非公開更新：これも BFF 経由
+export async function updateMyGoshuinVisibility(id: number, isPublic: boolean) {
   const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, { is_public: isPublic });
   return r.data;
 }
+

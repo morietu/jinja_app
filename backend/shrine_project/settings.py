@@ -313,6 +313,7 @@ ROOT_URLCONF = "shrine_project.urls"
 # --- DRF / Throttle ---
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         
@@ -385,10 +386,14 @@ def _split_csv(s, default=None):
 
 
 ALLOWED_HOSTS = _split_csv(os.environ.get("ALLOWED_HOSTS"), ["localhost", "127.0.0.1", "web"])
-CSRF_TRUSTED_ORIGINS = _split_csv(
-    os.environ.get("CSRF_TRUSTED_ORIGINS"),
-    ["http://localhost:3001", "http://127.0.0.1:3001"],
-)
+
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = _split_csv(
     os.environ.get("CORS_ALLOWED_ORIGINS"),

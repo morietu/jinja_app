@@ -402,7 +402,9 @@ class Visit(models.Model):
 
 
 class Goshuin(models.Model):
-    shrine = models.ForeignKey(Shrine, on_delete=models.CASCADE, related_name="goshuins")
+    shrine = models.ForeignKey(
+        Shrine, on_delete=models.CASCADE, related_name="goshuins", null=False
+    )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     title = models.CharField(max_length=100, blank=True)
     is_public = models.BooleanField(default=True)

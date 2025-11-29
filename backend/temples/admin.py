@@ -1,7 +1,19 @@
 # backend/temples/admin.py
 from django.apps import apps
 from django.contrib import admin
+from .models import Goshuin, GoshuinImage
 
+@admin.register(Goshuin)
+class GoshuinAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "shrine", "title", "is_public", "created_at")
+    list_filter = ("is_public", "created_at")
+    search_fields = ("title", "user__username", "shrine__name_jp")
+
+@admin.register(GoshuinImage)
+class GoshuinImageAdmin(admin.ModelAdmin):
+    list_display = ("id", "goshuin", "order")
+    list_filter = ("order",)
+    
 
 def _maybe_register(model_name: str, admin_cls: type[admin.ModelAdmin]) -> None:
     """
