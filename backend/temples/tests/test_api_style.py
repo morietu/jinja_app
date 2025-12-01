@@ -45,6 +45,9 @@ def test_openapi_conventions(client: APIClient):
             "/api/concierge/chat",
             "/api/goshuin/",
             "/api/goshuin/{id}/",
+            # my goshuin endpoints (実態 + 歴史的な plural も含めて全部除外)
+            "/api/my/goshuin/",
+            "/api/my/goshuin/{id}/",
             "/api/my/goshuins/",
             "/api/my/goshuins/{id}/",
         }
