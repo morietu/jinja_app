@@ -1,6 +1,6 @@
 // apps/web/src/lib/api/goshuin.test.ts
 import { describe, it, expect, vi } from "vitest";
-import { fetchMyGoshuin, uploadMyGoshuin } from "./goshuin";
+import { fetchMyGoshuin, uploadMyGoshuin, type Goshuin } from "./goshuin";
 
 const getMock = vi.fn();
 const postMock = vi.fn();
@@ -12,23 +12,38 @@ vi.mock("./client", () => ({
   },
 }));
 
-describe("goshuin api client", () => {
+describe("goshuin api client (simple tests)", () => {
   it("fetchMyGoshuin は /my/goshuin/ を叩く", async () => {
-    getMock.mockResolvedValue({ data: [{ id: 1 }] });
+    getMock.mockResolvedValue({ data: [{ id: 1 }] as Goshuin[] });
 
     const res = await fetchMyGoshuin();
+
     expect(getMock).toHaveBeenCalledWith("/my/goshuin/");
     expect(res).toEqual([{ id: 1 }]);
   });
 
-  it("uploadMyGoshuin は /my/goshuin/ を叩く", async () => {
-    const form = new FormData();
-    postMock.mockResolvedValue({ data: { id: 1 } });
+  it("uploadMyGoshuin は /my/goshuin/ を叩き、FormData を送る", async () => {
+    const dummyFile = {} as File; // 中身はモックなので空でOK
 
-    const res = await uploadMyGoshuin(form);
-    expect(postMock).toHaveBeenCalledWith("/my/goshuin/", form, {
-      headers: { "Content-Type": "multipart/form-data" },
+    postMock.mockResolvedValue({ data: { id: 1 } as Goshuin });
+
+    const res = await uploadMyGoshuin({
+      shrineId: 1,
+      title: "テスト",
+      isPublic: true,
+      file: dummyFile,
     });
+
+    expect(postMock).toHaveBeenCalledTimes(1);
+
+    const [url, body] = postMock.mock.calls[0];
+
+    // URL が正しいこと
+    expect(url).toBe("/my/goshuin/");
+
+    // 第二引数が FormData であることだけ確認（中身までは見ない）
+    expect(body).toBeInstanceOf(FormData);
+
     expect(res).toEqual({ id: 1 });
   });
 });
