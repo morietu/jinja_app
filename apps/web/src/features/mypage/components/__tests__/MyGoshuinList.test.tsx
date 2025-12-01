@@ -34,8 +34,15 @@ describe("MyGoshuinList", () => {
       },
     ];
     render(<MyGoshuinList items={items} loading={false} error={null} />);
-    expect(screen.getByText("テスト神社")).toBeInTheDocument();
+
+    // タイトル行
+    const nodes = screen.getAllByText("テスト神社");
+    expect(nodes.length).toBeGreaterThanOrEqual(1);
+
+    // 神社名行
+    // 日付と公開設定の表示
     expect(screen.getByText(/登録日/)).toBeInTheDocument();
+    expect(screen.getByText(/公開設定/)).toBeInTheDocument();
   });
 });
 

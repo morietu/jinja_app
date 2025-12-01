@@ -165,7 +165,7 @@ export default function MyPageScreen() {
               onClick={() => setTab(t.key, { focus: true })}
               className={
                 "rounded border px-3 py-1 " +
-                (isActive ? "border-blue-600 bg-blue-600 text-white" : "bg-white hover:bg-gray-50")
+                (isActive ? "border-orange-500 bg-orange-500 text-white" : "bg-white hover:bg-orange-50 text-gray-700")
               }
               type="button"
             >
@@ -193,12 +193,20 @@ export default function MyPageScreen() {
 
         {tab === "goshuin" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold">御朱印アップロード</h2>
+            {/* アップロードカード */}
+            <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+                <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
+                御朱印アップロード
+              </h2>
+              <p className="mb-3 text-xs text-gray-500">
+                御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。
+              </p>
               <GoshuinUploadForm onUploaded={addItem} />
             </section>
 
-            <section className="border-t pt-4">
+            {/* 登録済みリスト */}
+            <section>
               <MyGoshuinList
                 items={items}
                 loading={goshuinLoading}

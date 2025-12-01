@@ -6,7 +6,6 @@ import Image from "next/image";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
 
-
 type Props = {
   items: Goshuin[] | null;
   loading: boolean;
@@ -73,18 +72,35 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
   return (
     <>
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-700">登録済みの御朱印</h3>
+        <h3 className="text-sm font-medium text-gray-800">登録済みの御朱印</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((g) => (
             <div
               key={g.id}
-              className="relative cursor-pointer rounded-lg border bg-white p-2 text-xs hover:bg-gray-50"
+              className="
+                relative cursor-pointer 
+                overflow-hidden 
+                rounded-2xl border border-orange-100 
+                bg-white 
+                p-3 text-xs 
+                shadow-sm 
+                hover:shadow-md 
+                transition
+              "
               onClick={() => handleCardClick(g)}
             >
-              {/* 削除ボタン */}
+              {/* 削除ボタン（丸み強め） */}
               <button
                 type="button"
-                className="absolute right-1 top-1 rounded bg-white/80 px-1 text-[10px] text-red-600 shadow disabled:opacity-50"
+                className="
+                  absolute right-2 top-2 
+                  rounded-full border border-orange-200 
+                  bg-white/90 px-2 py-0.5 
+                  text-[11px] font-medium text-orange-600 
+                  shadow-sm
+                  hover:bg-orange-50
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
                 disabled={!canDelete || deletingId === g.id || !onDelete}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -95,39 +111,70 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
                 {deletingId === g.id ? "削除中…" : "削除"}
               </button>
 
-              {/* 画像 */}
+              {/* 画像部分：和紙額縁 */}
               {g.image_url ? (
-                <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded">
-                  <Image
-                    src={g.image_url}
-                    alt={g.shrine_name ? `${g.shrine_name}の御朱印` : "御朱印"}
-                    fill
-                    sizes="(max-width: 640px) 50vw, 33vw"
-                    className="object-cover"
-                    unoptimized // ★ これを追加
-                  />
+                <div
+                  className="
+                    relative mb-3 aspect-[3/4] 
+                    rounded-2xl border border-orange-100 
+                    bg-orange-50/60
+                    p-2
+                  "
+                >
+                  <div className="relative h-full w-full overflow-hidden rounded-xl">
+                    <Image
+                      src={g.image_url}
+                      alt={g.shrine_name ? `${g.shrine_name}の御朱印` : "御朱印"}
+                      fill
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="mb-2 flex aspect-[3/4] items-center justify-center rounded bg-gray-50">画像なし</div>
+                <div
+                  className="
+                    mb-3 flex aspect-[3/4] 
+                    items-center justify-center 
+                    rounded-2xl border border-dashed border-orange-100 
+                    bg-orange-50/40 text-[11px] text-gray-400
+                  "
+                >
+                  画像なし
+                </div>
               )}
 
-              {/* 情報＋公開トグル */}
+              {/* テキスト部分 */}
               <div className="space-y-1">
-                <p className="truncate font-medium">{g.title || g.shrine_name || "タイトル未設定"}</p>
-                {g.shrine_name && g.title && <p className="truncate text-[11px] text-gray-600">{g.shrine_name}</p>}
+                <p className="truncate text-[13px] font-semibold text-gray-800">
+                  {g.title || g.shrine_name || "タイトル未設定"}
+                </p>
+
+                {g.shrine_name && <p className="truncate text-[11px] text-gray-500">{g.shrine_name}</p>}
 
                 {g.created_at && (
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-[10px] text-gray-400">
                     登録日: {new Date(g.created_at).toLocaleDateString("ja-JP")}
                   </p>
                 )}
 
-                <p className="text-[10px] text-gray-500">公開設定: {g.is_public ? "公開" : "非公開"}</p>
+                <p className="text-[10px] text-gray-500">
+                  公開設定:{" "}
+                  <span className={g.is_public ? "text-orange-600 font-medium" : ""}>
+                    {g.is_public ? "公開" : "非公開"}
+                  </span>
+                </p>
 
                 {onToggleVisibility && (
                   <button
                     type="button"
-                    className="mt-1 rounded border px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                    className="
+                      mt-1 inline-flex items-center justify-center
+                      rounded-full border border-orange-200 
+                      px-3 py-0.5 text-[11px] font-medium 
+                      text-gray-700 hover:bg-orange-50
+                    "
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleVisibility(g.id);
