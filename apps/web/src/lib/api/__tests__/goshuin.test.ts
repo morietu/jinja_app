@@ -146,6 +146,26 @@ describe("goshuin api client", () => {
     expect(res1).toEqual([{ id: 99 }]);
     expect(res2).toEqual([{ id: 99 }]);
   });
+
+  it("getGoshuinPublicAuto は AxiosError でない例外でも空配列を返す", async () => {
+    // AxiosError ではない Error を投げるケース
+    apiGetMock.mockRejectedValue(new Error("boom"));
+
+    const res = await getGoshuinPublicAuto();
+
+    expect(res).toEqual([]);
+  });
+
+  it("getGoshuinPublicAuto は 500 などの非 404/401/403 Axios エラーでも空配列を返す", async () => {
+    apiGetMock.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 500 },
+    });
+
+    const res = await getGoshuinPublicAuto();
+
+    expect(res).toEqual([]);
+  });
 });
 
 
