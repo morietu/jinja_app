@@ -88,8 +88,8 @@ except Exception:
 app_name = "temples"
 
 router = DefaultRouter()
-router.register(r"goshuin", PublicGoshuinViewSet, basename="goshuin")        # ★ 追加
-router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
+router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuins")
+router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 

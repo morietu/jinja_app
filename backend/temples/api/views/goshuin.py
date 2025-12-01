@@ -35,6 +35,9 @@ class MyGoshuinViewSet(viewsets.ModelViewSet):
     """
     ログインユーザー自身の御朱印一覧＋作成＋削除＋公開設定更新
     """
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    update = None
     serializer_class = GoshuinSerializer
     authentication_classes = [CsrfExemptSessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
