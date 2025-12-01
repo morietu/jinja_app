@@ -43,6 +43,10 @@ def test_openapi_conventions(client: APIClient):
             "/api/concierge/plan/",
             "/api/concierge/chat/",
             "/api/concierge/chat",
+            "/api/goshuin/",
+            "/api/goshuin/{id}/",
+            "/api/my/goshuins/",
+            "/api/my/goshuins/{id}/",
         }
         if p not in exceptions and not pluralish.search(p):
             violations.append(f"[plural] {p}")
