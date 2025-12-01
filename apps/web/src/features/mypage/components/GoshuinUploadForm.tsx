@@ -15,7 +15,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const inputId = "goshuin-image"; // ★ 追加
+  const inputId = "goshuin-image";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,17 +38,28 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("image", file);
-
     try {
       setLoading(true);
-      const created = await uploadMyGoshuin(formData);
+
+      // 当面は shrineId=1（テスト神社）に固定
+      const created = await uploadMyGoshuin({
+        shrineId: 1,
+        title: "",
+        isPublic: true,
+        file,
+      });
+
       setSuccessMessage("御朱印をアップロードしました。");
       setFile(null);
       if (onUploaded) onUploaded(created);
-    } catch {
-      setErrorMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
+    } catch (err: any) {
+      if (err?.response) {
+        console.error("uploadMyGoshuin error:", err.response.status, err.response.data);
+        setErrorMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
+      } else {
+        console.error("uploadMyGoshuin failed", err);
+        setErrorMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
+      }
     } finally {
       setLoading(false);
     }
@@ -57,15 +68,12 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
-        <label
-          htmlFor={inputId} // ★ 追加
-          className="block text-sm font-medium"
-        >
+        <label htmlFor={inputId} className="block text-sm font-medium">
           御朱印画像
         </label>
         <p className="text-xs text-muted-foreground">推奨サイズ：5MB 以下の画像ファイル</p>
         <input
-          id={inputId} // ★ 追加
+          id={inputId}
           type="file"
           accept="image/*"
           disabled={loading}

@@ -6,10 +6,10 @@ import { djFetch } from "@/lib/server/backend";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// GET /api/my/goshuin/
+// GET /api/my/goshuin/（ここは今のままでOK）
 export async function GET(req: NextRequest) {
   try {
-    const r = await djFetch(req, "/api/my/goshuin/", {
+    const r = await djFetch(req, "/api/my/goshuins/", {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -32,16 +32,25 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/my/goshuin/（アップロード）
+// ★ POST /api/my/goshuin/（アップロード）
 export async function POST(req: NextRequest) {
   try {
-    const r = await djFetch(req, "/api/my/goshuin/", {
+    // ① まずブラウザから送られてきた multipart/form-data をパース
+    const formData = await req.formData();
+
+    // ② 新しい FormData を作って、そのまま Django に投げ直す
+    const backendForm = new FormData();
+    for (const [key, value] of formData.entries()) {
+      backendForm.append(key, value as any);
+    }
+
+    const r = await djFetch(req, "/api/my/goshuins/", {
       method: "POST",
+      body: backendForm,
       headers: {
+        // Content-Type は FormData を渡せば自動で付くので指定しない
         Accept: "application/json",
-        "content-type": req.headers.get("content-type") ?? "",
       },
-      body: await req.text(),
     });
 
     const text = await r.text();
