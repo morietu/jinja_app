@@ -53,9 +53,18 @@ export async function djFetch(
     }
   }
 
-  return fetch(url, {
+  // ★ ここから下が変更ポイント
+  const finalInit: RequestInit & { duplex?: "half" } = {
     ...init,
     headers,
     credentials: "include",
-  });
+  };
+
+  // body 付きの非 GET/HEAD リクエストなら duplex を付与（Node18 必須）
+  const method = (init.method || (req ? req.method : "GET")).toUpperCase();
+  if (init.body && method !== "GET" && method !== "HEAD") {
+    (finalInit as any).duplex = "half";
+  }
+
+  return fetch(url, finalInit);
 }

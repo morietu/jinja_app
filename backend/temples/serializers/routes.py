@@ -4,7 +4,8 @@ from typing import List
 
 from rest_framework import serializers
 from temples.api.serializers.shrine import ShrineSerializer
-from temples.models import Favorite, Goshuin, Shrine
+from temples.models import Favorite, Goshuin, Shrine, GoshuinImage
+from rest_framework import serializers
 
 # ---- Shrine / Favorite（既存APIのI/Oを維持） ----
 # ShrineSerializer は既存（temples.api.serializers.shrine）を利用
@@ -162,3 +163,38 @@ class LocationMixin(serializers.Serializer):
         if getattr(obj, "latitude", None) is None or getattr(obj, "longitude", None) is None:
             return None
         return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
+
+
+class MyGoshuinCreateSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(write_only=True)
+
+    class Meta:
+        model = Goshuin
+        fields = [
+            "id",
+            "shrine",
+            "title",
+            "is_public",
+            "image",
+        ]
+        read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        user = request.user
+
+        # 画像だけ先に抜き出す
+        image_file = validated_data.pop("image", None)
+
+        # Goshuin 本体を作成
+        goshuin = Goshuin.objects.create(user=user, **validated_data)
+
+        # 画像があれば GoshuinImage を1枚作る
+        if image_file is not None:
+            GoshuinImage.objects.create(
+                goshuin=goshuin,
+                image=image_file,
+                order=0,
+            )
+
+        return goshuin

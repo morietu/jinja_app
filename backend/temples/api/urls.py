@@ -35,10 +35,9 @@ from temples.api.views.shrine import (
     RankingAPIView,
     ShrineViewSet,
 )
-from temples.api.views import (
-    concierge_history,
-    PublicGoshuinViewSet,   # ★ 追加
-    MyGoshuinViewSet,       # ★ 追加
+from temples.api.views.goshuin import (
+    PublicGoshuinViewSet,
+    MyGoshuinViewSet,       
 )
 
 try:
@@ -93,6 +92,18 @@ router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 
 
+# ★ MyGoshuinViewSet のエイリアス（単数形パス用）
+my_goshuin_list_view = MyGoshuinViewSet.as_view({
+    "get": "list",
+    "post": "create",
+})
+
+my_goshuin_detail_view = MyGoshuinViewSet.as_view({
+    "get": "retrieve",
+    "patch": "partial_update",
+    "delete": "destroy",
+})
+
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
     # temples 側の詳細 API は別口（またはブロック）という仕様なので 404
@@ -123,7 +134,9 @@ urlpatterns = [
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
-    
+    # --- My Goshuin（単数形 /api/my/goshuin/... 互換） ---
+    path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
+    path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),
 
     # ---- Shrines（ViewSet の読み取り用に名前を固定） ------------------------
     # ---- Popular（複数形に） ------------------------------------------------
