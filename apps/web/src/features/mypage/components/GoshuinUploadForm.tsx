@@ -1,10 +1,12 @@
+/* eslint-disable @next/next/no-img-element */
 // apps/web/src/features/mypage/components/GoshuinUploadForm.tsx
 "use client";
 
 import { FormEvent, useState, useEffect } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
-import { ImagePlus } from "lucide-react"; // ★ アイコン追加
+// import { ImagePlus } from "lucide-react"; // ★ アイコン追加
+// import { SomethingElse } from "lucide-react";
 
 type Props = {
   onUploaded?: (goshuin: Goshuin) => void;
@@ -119,7 +121,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
         <div className="mb-4">
           <p className="mb-1 text-xs font-medium text-muted-foreground">プレビュー</p>
           <div className="inline-flex rounded-xl border border-gray-100 bg-gray-50 p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewUrl} alt="選択中の御朱印プレビュー" className="h-32 w-auto rounded-lg object-contain" />
           </div>
         </div>
