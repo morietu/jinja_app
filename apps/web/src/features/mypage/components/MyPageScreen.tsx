@@ -12,7 +12,6 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "./hooks/useMyGoshuin";
 
-
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
   const sp = useSearchParams();
@@ -42,7 +41,7 @@ export default function MyPageScreen() {
     () => [
       { key: "profile" as TabKey, label: "プロフィール" },
       { key: "favorites" as TabKey, label: "お気に入り（準備中）" },
-      { key: "goshuin" as TabKey, label: "御朱印" }, // ← もう準備中ではない
+      { key: "goshuin" as TabKey, label: "御朱印" }, // ← 準備中ではない
       { key: "settings" as TabKey, label: "設定" },
     ],
     [],
@@ -61,6 +60,18 @@ export default function MyPageScreen() {
       else if (e.key === "ArrowRight") setTab(tabs[idx >= last ? 0 : idx + 1].key, { focus: true });
     },
     [tab, tabs, setTab],
+  );
+
+  const SectionCard: React.FC<{ title?: string; children: React.ReactNode }> = ({ title, children }) => (
+    <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm">
+      {title && (
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
+          {title}
+        </h2>
+      )}
+      {children}
+    </section>
   );
 
   // --- 読み込み中 ---
@@ -146,7 +157,7 @@ export default function MyPageScreen() {
       </header>
 
       <nav
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-2 rounded-full bg-orange-50/40 px-2 py-2"
         role="tablist"
         aria-label="マイページ内タブ"
         aria-orientation="horizontal"
@@ -164,8 +175,10 @@ export default function MyPageScreen() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setTab(t.key, { focus: true })}
               className={
-                "rounded border px-3 py-1 " +
-                (isActive ? "border-orange-500 bg-orange-500 text-white" : "bg-white hover:bg-orange-50 text-gray-700")
+                "rounded-full border px-3 py-1 text-sm " +
+                (isActive
+                  ? "border-orange-500 bg-orange-500 text-white shadow-sm"
+                  : "border-transparent bg-white text-gray-700 hover:bg-orange-50")
               }
               type="button"
             >
@@ -182,28 +195,31 @@ export default function MyPageScreen() {
         tabIndex={0}
         className="rounded-lg border bg-white"
       >
-        {tab === "profile" && <ProfileSection user={user} />}
+        {tab === "profile" && (
+          <div className="space-y-6 p-6 text-sm text-gray-600">
+            <SectionCard title="プロフィール">
+              <ProfileSection user={user} />
+            </SectionCard>
+          </div>
+        )}
 
         {tab === "favorites" && (
-          <div className="space-y-3 p-6 text-sm text-gray-600">
-            <h2 className="text-lg font-semibold">お気に入り（準備中）</h2>
-            <p>お気に入り一覧の閲覧・削除はバックエンド実装後に有効化します。</p>
+          <div className="space-y-6 p-6 text-sm text-gray-600">
+            <SectionCard title="お気に入り">
+              <p className="mb-1 text-xs text-orange-600">※ この機能は準備中です。</p>
+              <p className="text-sm text-gray-600">お気に入り一覧の閲覧・削除は、バックエンド実装後に有効化します。</p>
+            </SectionCard>
           </div>
         )}
 
         {tab === "goshuin" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
-            {/* アップロードカード */}
-            <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm">
-              <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
-                <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
-                御朱印アップロード
-              </h2>
+            <SectionCard title="御朱印アップロード">
               <p className="mb-3 text-xs text-gray-500">
                 御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。
               </p>
               <GoshuinUploadForm onUploaded={addItem} />
-            </section>
+            </SectionCard>
 
             {/* 登録済みリスト */}
             <section>
@@ -219,9 +235,11 @@ export default function MyPageScreen() {
         )}
 
         {tab === "settings" && (
-          <div className="space-y-3 p-6 text-sm text-gray-600">
-            <h2 className="text-lg font-semibold">設定</h2>
-            <p>テーマや通知などの設定は、ローカル state ベースで今後追加予定です。</p>
+          <div className="space-y-6 p-6 text-sm text-gray-600">
+            <SectionCard title="設定">
+              <p className="mb-1 text-xs text-gray-500">テーマや通知などの設定は、今後のアップデートで追加予定です。</p>
+              <p className="text-sm text-gray-600">現在はアカウント情報の編集と、ログアウトのみ利用できます。</p>
+            </SectionCard>
           </div>
         )}
       </section>
