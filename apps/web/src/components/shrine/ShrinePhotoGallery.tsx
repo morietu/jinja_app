@@ -4,6 +4,8 @@
 import { useState } from "react";
 import type { Shrine } from "@/lib/api/shrines";
 import clsx from "clsx";
+import Image from "next/image";
+
 
 type Props = {
   shrine: Shrine;
@@ -58,12 +60,13 @@ export default function ShrinePhotoGallery({ shrine, className }: Props) {
       {/* メイン画像 - スマホ優先の 4:3 / 16:9 */}
       <div className="w-full overflow-hidden rounded-2xl shadow-sm">
         <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] bg-slate-100">
-          {/* Next/Image を使いたくなったら、ここを <Image> に差し替える */}
-          <img
+          <Image
             src={active}
             alt={shrine.name_jp ?? "神社写真"}
-            className="h-full w-full object-cover"
-            loading="lazy"
+            fill
+            className="object-cover"
+            sizes="(min-width: 640px) 100vw, 100vw"
+            priority={false}
           />
         </div>
       </div>
@@ -84,7 +87,7 @@ export default function ShrinePhotoGallery({ shrine, className }: Props) {
                   isActive ? "border-emerald-500 ring-2 ring-emerald-300" : "border-slate-200",
                 )}
               >
-                <img src={url} alt={`サムネイル ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
+                <Image src={url} alt={`サムネイル ${index + 1}`} fill className="object-cover" sizes="80px" />
               </button>
             );
           })}
