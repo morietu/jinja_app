@@ -136,7 +136,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
       {/* メッセージ */}
       {successMessage && <p className="text-sm text-green-700">{successMessage}</p>}
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
     </form>
   );
 }
