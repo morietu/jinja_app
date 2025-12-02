@@ -3,6 +3,8 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.response import Response
+from django.db import transaction
+
 
 from temples.models import Goshuin, Shrine, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer
@@ -169,5 +171,9 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         except Goshuin.DoesNotExist:
             return Response({"detail": "見つかりません。"}, status=status.HTTP_404_NOT_FOUND)
 
-        goshuin.delete()
+        # 子画像を先に削除してから本体を消す
+        with transaction.atomic():
+            GoshuinImage.objects.filter(goshuin=goshuin).delete()
+            goshuin.delete()
+
         return Response(status=status.HTTP_204_NO_CONTENT)
