@@ -1,10 +1,8 @@
 // apps/web/src/features/mypage/components/MyGoshuinList.tsx
-"use client";
-
-import { MouseEvent, useState } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
+import { MyGoshuinCard } from "./MyGoshuinCard";
 
 type Props = {
   items: Goshuin[] | null;
@@ -20,16 +18,15 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  // -----------------
-  // 状態別レンダー
-  // -----------------
+  // --- 状態別レンダー（ここは今のままでOKなら省略） ---
+
   if (loading) {
     return (
       <section className="rounded-2xl border bg-white p-6 shadow-sm" role="status" aria-busy="true" aria-live="polite">
         <h3 className="mb-3 text-sm font-medium text-gray-800">登録済みの御朱印</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border border-orange-100 bg-orange-50/40" />
+        <div className="grid grid-cols-2 gap-5 sm:gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="aspect-[4/5] rounded-3xl bg-muted animate-pulse" />
           ))}
         </div>
       </section>
@@ -59,37 +56,33 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
   // -----------------
   // ハンドラ
   // -----------------
-  const handleCardClick = (g: Goshuin) => {
+  const handleOpenDetail = (g: Goshuin) => {
     setSelected(g);
     setDetailOpen(true);
   };
 
-  const handleDeleteClick = async (e: MouseEvent<HTMLButtonElement>, g: Goshuin) => {
-    e.stopPropagation();
+  const handleDelete = async (id: number) => {
     if (!onDelete) return;
-
     const ok = window.confirm("この御朱印を削除しますか？");
     if (!ok) return;
 
     try {
-      setDeletingId(g.id);
-      await onDelete(g.id);
+      setDeletingId(id);
+      await onDelete(id);
     } finally {
-      setDeletingId((current) => (current === g.id ? null : current));
+      setDeletingId((current) => (current === id ? null : current));
     }
   };
 
-  const handleToggleVisibilityClick = async (e: MouseEvent<HTMLButtonElement>, g: Goshuin) => {
-    e.stopPropagation();
+  // ★ ここを「id, next をそのまま使う」関数にする
+  const handleToggleVisibility = async (id: number, next: boolean) => {
     if (!onToggleVisibility) return;
 
-    const next = !g.is_public;
-
     try {
-      setTogglingId(g.id);
-      await onToggleVisibility(g.id, next);
+      setTogglingId(id);
+      await onToggleVisibility(id, next);
     } finally {
-      setTogglingId((current) => (current === g.id ? null : current));
+      setTogglingId((current) => (current === id ? null : current));
     }
   };
 
@@ -101,133 +94,21 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
       <section className="space-y-3 rounded-2xl border bg-white p-6 shadow-sm">
         <h3 className="text-sm font-medium text-gray-800">登録済みの御朱印</h3>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {items.map((g) => {
-            const isDeleting = deletingId === g.id;
-            const isToggling = togglingId === g.id;
-
-            return (
-              <article
-                key={g.id}
-                role="button"
-                tabIndex={0}
-                className="
-    relative 
-    overflow-hidden 
-    rounded-2xl border border-orange-100 
-    bg-white 
-    p-3 text-xs 
-    shadow-sm 
-    hover:shadow-md 
-    transition
-  "
-                onClick={() => handleCardClick(g)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleCardClick(g);
-                  }
-                }}
-              >
-                {/* 削除ボタン（カードとは別のボタン） */}
-                {onDelete && (
-                  <button
-                    type="button"
-                    className="
-        absolute right-2 top-2 
-        z-10
-        rounded-full border border-orange-200 
-        bg-white/90 px-2 py-0.5 
-        text-[11px] font-medium text-orange-600 
-        shadow-sm
-        hover:bg-orange-50
-        disabled:opacity-50 disabled:cursor-not-allowed
-      "
-                    onClick={(e) => {
-                      e.stopPropagation(); // カードクリックに食われない
-                      handleDeleteClick(e, g);
-                    }}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? "削除中…" : "削除"}
-                  </button>
-                )}
-
-                {/* カード本体：ただのレイアウト用 div にする */}
-                <div className="flex w-full flex-col text-left">
-                  {/* 画像 */}
-                  <div
-                    className="
-        relative mb-3 aspect-[3/4] 
-        rounded-2xl border border-orange-100 
-        bg-orange-50/60
-        p-2
-      "
-                  >
-                    <div className="relative h-full w-full overflow-hidden rounded-xl">
-                      {g.image_url ? (
-                        <Image
-                          src={g.image_url}
-                          alt={`${g.shrine_name ?? "不明な神社"}の御朱印`}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-[10px] text-gray-400">
-                          画像なし
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* テキスト情報 */}
-                  <div className="space-y-1">
-                    <p className="truncate text-[13px] font-semibold text-gray-800">
-                      {g.title || g.shrine_name || "タイトル未設定"}
-                    </p>
-                    <p className="truncate text-[11px] text-gray-500">{g.shrine_name ?? "-"}</p>
-                    {g.created_at && (
-                      <p className="text-[10px] text-gray-400">
-                        登録日:{" "}
-                        {new Date(g.created_at).toLocaleDateString("ja-JP", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                        })}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-gray-500">
-                      公開設定: <span className="font-medium text-orange-600">{g.is_public ? "公開" : "非公開"}</span>
-                    </p>
-
-                    {onToggleVisibility && (
-                      <button
-                        type="button"
-                        className="
-            mt-1 inline-flex items-center justify-center 
-            rounded-full border border-orange-200 
-            bg-white px-2 py-0.5 text-[10px]
-            text-orange-700 hover:bg-orange-50
-            disabled:opacity-50 disabled:cursor-not-allowed
-          "
-                        onClick={(e) => {
-                          e.stopPropagation(); // モーダル開かないように
-                          handleToggleVisibilityClick(e, g);
-                        }}
-                        disabled={isToggling}
-                      >
-                        {isToggling ? "切り替え中…" : g.is_public ? "非公開にする" : "公開にする"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="grid grid-cols-2 gap-5 sm:gap-6">
+          {items.map((g) => (
+            <MyGoshuinCard
+              key={g.id}
+              item={g}
+              isDeleting={deletingId === g.id}
+              isToggling={togglingId === g.id}
+              onOpenDetail={handleOpenDetail}
+              onDelete={onDelete ? handleDelete : undefined}
+              onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
+            />
+          ))}
         </div>
       </section>
 
-      {/* 詳細モーダル */}
       <GoshuinDetailModal
         open={detailOpen}
         goshuin={selected}
