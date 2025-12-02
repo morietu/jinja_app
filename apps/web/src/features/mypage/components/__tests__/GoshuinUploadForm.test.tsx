@@ -25,7 +25,7 @@ describe("GoshuinUploadForm", () => {
     const input = screen.getByLabelText("御朱印画像") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    const button = screen.getByRole("button", { name: "アップロード" });
+    const button = screen.getByRole("button", { name: /アップロード/ });
     fireEvent.click(button);
 
     await waitFor(() => {
@@ -42,7 +42,7 @@ describe("GoshuinUploadForm", () => {
     const input = screen.getByLabelText("御朱印画像") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    const button = screen.getByRole("button", { name: "アップロード" });
+    const button = screen.getByRole("button", { name: /アップロード/ });
     fireEvent.click(button);
 
     expect(screen.getByText("画像ファイルのみアップロードできます。")).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("GoshuinUploadForm", () => {
     const input = screen.getByLabelText("御朱印画像") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [bigFile] } });
 
-    const button = screen.getByRole("button", { name: "アップロード" });
+    const button = screen.getByRole("button", { name: /アップロード/ });
     fireEvent.click(button);
 
     expect(screen.getByText("ファイルサイズは 5MB 以下を推奨しています。")).toBeInTheDocument();
