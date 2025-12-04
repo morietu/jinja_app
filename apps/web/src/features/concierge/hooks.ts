@@ -2,6 +2,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+
+
 import axios from "axios";
 import {
   fetchThreads,
@@ -117,7 +119,7 @@ export type UseConciergeChatOptions = {
   onReply?: (reply: string) => void;
 };
 
-// apps/web/src/features/concierge/hooks.ts
+
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
@@ -132,23 +134,30 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
       try {
         const res = await postConciergeChat({
-          message,
+          query: message, // ★ “message” → “query” に変更
           thread_id: threadId ?? undefined,
         });
 
-        if (res.thread && res.messages && res.messages.length > 0) {
+        // まだ本番の thread/messages 返却は未実装なので、ここはスキップ想定
+        if ((res as any).thread && (res as any).messages && (res as any).messages.length > 0) {
+          const anyRes = res as any;
           options?.onUpdated?.({
-            thread: res.thread,
-            messages: res.messages,
-            recommendations: res.recommendations ?? null,
+            thread: anyRes.thread,
+            messages: anyRes.messages,
+            recommendations: anyRes.recommendations ?? null,
           });
           return;
         }
 
-        if (res.reply) {
-          let replyText = res.reply ?? "";
+        // いま有効なのは echo 返信
+        if (res.reply || res.data?.reply || res.data?.raw) {
+          let replyText =
+            res.reply ?? res.data?.reply ?? res.data?.raw ?? "候補が見つかりませんでした。";
+
+          // "echo: " を削る
           replyText = replyText.replace(/^echo:\s*/i, "");
-          options?.onReply?.(replyText);
+
+          options?.onReply?.(replyText);  // ★ 親に返事を渡す
         }
       } catch (err) {
         let msg = "チャット送信に失敗しました";
@@ -157,11 +166,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           msg = `チャット送信に失敗しました (${err.response?.status ?? "network error"})`;
         }
 
-        // フック内だけで完結させる
         setError(msg);
-
-        // ★ ここでは throw しない
-        // throw new Error(msg);
       } finally {
         setSending(false);
       }

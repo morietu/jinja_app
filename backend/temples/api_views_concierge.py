@@ -369,6 +369,8 @@ class ConciergeChatView(APIView):
 
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
 
         try:
             bias = _build_bias(request.data)
@@ -436,154 +438,111 @@ class ConciergeChatView(APIView):
             if recs_list and all(isinstance(r, dict) and _is_provisional(r) for r in recs_list):
                 data = {"recommendations": []}
 
-            # 5) LLMが空 → DBから近傍×重み
+            # 5) LLMが空 → DBフォールバックは一旦無効化（重複除去だけ行う）
             try:
-                data["recommendations"] = dedupe_recommendations(data.get("recommendations") or [])
+                data["recommendations"] = dedupe_recommendations(
+                    data.get("recommendations") or []
+                )
             except Exception:
-                pass
+                # dedupe に失敗したら、そのまま使う
+                data["recommendations"] = data.get("recommendations") or []
 
-            if not (data.get("recommendations") or []):
-                import math
-                from datetime import timedelta
+            if not data["recommendations"]:
+                data["recommendations"] = [
+                    {
+                        "id": 0,
+                        "name": "おすすめの神社（ダミー）",
+                        "location": None,
+                        "score": 0.0,
+                        "popular_score": 0.0,
+                        "tags": [],
+                        "deities": [],
+                        "reason": "",
+                        "__dummy": True,  # ★ ダミー判定用フラグ
+                    }
+                ]
 
-                from django.db import models
-                from django.db.models.functions import Abs, Coalesce
-                from django.utils import timezone
-                from temples.models import Shrine
-
-                limit = int(request.data.get("limit", 5))
-                since = timezone.now() - timedelta(days=30)
-                qs = Shrine.objects.all().annotate(
-                    visits_30d=models.Count(
-                        "visits", filter=models.Q(visits__visited_at__gte=since)
-                    ),
-                    favs_30d=models.Count(
-                        "favorited_by", filter=models.Q(favorited_by__created_at__gte=since)
-                    ),
-                    _popular=Coalesce(models.F("popular_score"), models.Value(0.0)),
-                )
-                lat0 = (bias or {}).get("lat")
-                lng0 = (bias or {}).get("lng")
-                r_m = (bias or {}).get("radius")
-                if lat0 is not None and lng0 is not None and r_m:
-                    try:
-                        dlat = (float(r_m) / 1000.0) / 111.0
-                        dlng = (float(r_m) / 1000.0) / (
-                            111.0 * max(0.1, math.cos(math.radians(float(lat0))))
-                        )
-                        qs = qs.filter(
-                            latitude__gte=float(lat0) - dlat,
-                            latitude__lte=float(lat0) + dlat,
-                            longitude__gte=float(lng0) - dlng,
-                            longitude__lte=float(lng0) + dlng,
-                        ).annotate(
-                            _approx_deg=Abs(models.F("latitude") - models.Value(float(lat0)))
-                            + Abs(models.F("longitude") - models.Value(float(lng0)))
-                        )
-                    except Exception:
-                        pass
-                qs = qs.annotate(
-                    _score=2.0 * models.F("visits_30d")
-                    + 1.0 * models.F("favs_30d")
-                    + 0.5 * models.F("_popular")
-                )
-                has_approx = "_approx_deg" in {a for a in qs.query.annotations}
-                order = (
-                    ["-_score", "_approx_deg", "-id"]
-                    if has_approx
-                    else ["-_score", "-_popular", "-id"]
-                )
-                qs = qs.order_by(*order)[: max(1, min(limit, 10))]
-
-                data = {
-                    "recommendations": [
-                        {
-                            "id": s.id,
-                            "name": s.name_jp,
-                            "location": {
-                                "lat": float(s.latitude) if s.latitude is not None else None,
-                                "lng": float(s.longitude) if s.longitude is not None else None,
-                            },
-                            "score": float(getattr(s, "_score", 0.0) or 0.0),
-                            "popular_score": float(getattr(s, "_popular", 0.0) or 0.0),
-                        }
-                        for s in qs
-                    ]
-                }
+            # ★ この時点で「今の候補が全部ダミーか？」を判定しておく
+            dummy_only = all(r.get("__dummy") for r in data.get("recommendations") or [])
 
             # 5.5) 🔑 DBタグ & 御祭神を常に後付け（id優先→名前で近傍解決）
-            try:
-                from math import cos, radians
+            # ★ ダミー候補だけの時は DB を触らない
+            if not dummy_only:
+                try:
+                    from math import cos, radians
+                    from temples.models import Shrine
 
-                from temples.models import Shrine
+                    recs_ = list(data.get("recommendations") or [])
+                    lat0 = (bias or {}).get("lat")
+                    lng0 = (bias or {}).get("lng")
 
-                recs_ = list(data.get("recommendations") or [])
-                lat0 = (bias or {}).get("lat")
-                lng0 = (bias or {}).get("lng")
+                    # ① id で一括取得
+                    by_id = {}
+                    ids = [r.get("id") for r in recs_ if r.get("id")]
+                    if ids:
+                        qs = Shrine.objects.filter(id__in=ids).prefetch_related(
+                            "goriyaku_tags", "deities"
+                        )
+                        by_id = {s.id: s for s in qs}
 
-                # ① id で一括取得
-                by_id = {}
-                ids = [r.get("id") for r in recs_ if r.get("id")]
-                if ids:
-                    qs = Shrine.objects.filter(id__in=ids).prefetch_related(
-                        "goriyaku_tags", "deities"
-                    )
-                    by_id = {s.id: s for s in qs}
+                    # ② name でのフォールバック（近傍優先）
+                    def _nearest_by_name(name: str) -> Optional[Shrine]:
+                        if not name:
+                            return None
+                        qs = (
+                            Shrine.objects.filter(name_jp__icontains=name)
+                            .only("id", "name_jp", "latitude", "longitude")
+                            .prefetch_related("goriyaku_tags", "deities")
+                        )
+                        found = list(qs[:20])
+                        if not found:
+                            return None
+                        if lat0 is None or lng0 is None:
+                            return found[0]
 
-                # ② name でのフォールバック（近傍優先）
-                def _nearest_by_name(name: str) -> Optional[Shrine]:
-                    if not name:
-                        return None
-                    qs = (
-                        Shrine.objects.filter(name_jp__icontains=name)
-                        .only("id", "name_jp", "latitude", "longitude")
-                        .prefetch_related("goriyaku_tags", "deities")
-                    )
-                    found = list(qs[:20])
-                    if not found:
-                        return None
-                    if lat0 is None or lng0 is None:
-                        return found[0]
+                        def approx_deg(s: Shrine):
+                            try:
+                                la = float(s.latitude)
+                                lo = float(s.longitude)
+                                # 経度は緯度に応じて縮尺補正
+                                return abs(la - lat0) + abs((lo - lng0) * cos(radians(lat0)))
+                            except Exception:
+                                return 1e9
 
-                    def approx_deg(s: Shrine):
-                        try:
-                            la = float(s.latitude)
-                            lo = float(s.longitude)
-                            # 経度は緯度に応じて縮尺補正
-                            return abs(la - lat0) + abs((lo - lng0) * cos(radians(lat0)))
-                        except Exception:
-                            return 1e9
+                        return min(found, key=approx_deg)
 
-                    return min(found, key=approx_deg)
+                    # ③ 各 recommendation にタグと御祭神を付与
+                    out = []
+                    for r in recs_:
+                        s = None
+                        rid = r.get("id")
+                        if rid and rid in by_id:
+                            s = by_id[rid]
+                        if s is None:
+                            s = _nearest_by_name(r.get("name") or "")
 
-                # ③ 各 recommendation にタグと御祭神を付与
-                out = []
-                for r in recs_:
-                    s = None
-                    rid = r.get("id")
-                    if rid and rid in by_id:
-                        s = by_id[rid]
-                    if s is None:
-                        s = _nearest_by_name(r.get("name") or "")
+                        if s:
+                            try:
+                                tag_names = [t.slug or t.name for t in s.goriyaku_tags.all()]
+                            except Exception:
+                                tag_names = []
+                            try:
+                                deity_names = [d.name for d in s.deities.all()]
+                            except Exception:
+                                deity_names = []
 
-                    if s:
-                        try:
-                            tag_names = [t.slug or t.name for t in s.goriyaku_tags.all()]
-                        except Exception:
-                            tag_names = []
-                        try:
-                            deity_names = [d.name for d in s.deities.all()]
-                        except Exception:
-                            deity_names = []
+                            r["deities"] = deity_names
+                            r["tags"] = sorted(
+                                set((r.get("tags") or []) + tag_names + deity_names)
+                            )
 
-                        r["deities"] = deity_names
-                        r["tags"] = sorted(set((r.get("tags") or []) + tag_names + deity_names))
+                        out.append(r)
 
-                    out.append(r)
+                    data = {"recommendations": out}
+                except Exception:
+                    pass
 
-                data = {"recommendations": out}
-            except Exception:
-                pass
+
             # 5.9) 重複除去（別表記の正規化ベース／DBフォールバック後も対象）
             try:
                 data["recommendations"] = dedupe_recommendations(data.get("recommendations") or [])
@@ -776,6 +735,16 @@ class ConciergeChatView(APIView):
             except Exception:
                 pass
 
+            recs_list = data.get("recommendations") or []
+            if recs_list:
+                top_names = [
+                    str(r.get("name") or r.get("display_name") or r.get("id"))
+                    for r in recs_list[:3]
+                ]
+                reply_text = "候補: " + " / ".join(top_names)
+            else:
+                reply_text = "候補が見つかりませんでした。"
+
             # --- Thread / Message 保存 --------------------------------------
             thread_payload = None
             if request.user.is_authenticated:
@@ -820,7 +789,7 @@ class ConciergeChatView(APIView):
                     thread_payload = None
 
             # ここで最終レスポンスを組み立て
-            body: dict[str, Any] = {"ok": True, "data": data}
+            body: dict[str, Any] = {"ok": True, "data": data, "reply": reply_text}  # ★ reply を追加
             if thread_payload is not None:
                 body["thread"] = thread_payload
 
@@ -830,8 +799,15 @@ class ConciergeChatView(APIView):
             log.exception("concierge chat failed: %s", e)
             from temples.llm.client import PLACEHOLDER
 
+            fallback = PLACEHOLDER["content"]
+
             return Response(
-                {"ok": True, "data": {"raw": PLACEHOLDER["content"]}, "note": "fallback-returned"},
+                {
+                    "ok": True,
+                    "data": {"raw": fallback},
+                    "reply": fallback,          # ★ ここも reply を追加
+                    "note": "fallback-returned",
+                },
                 status=status.HTTP_200_OK,
             )
 
