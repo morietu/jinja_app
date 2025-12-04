@@ -544,6 +544,22 @@ class Deity(models.Model):
     def __str__(self) -> str:
         return self.name
 
+class ConciergeUsage(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="concierge_usages",
+    )
+    date = models.DateField(db_index=True)
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("user", "date")
+        verbose_name = "コンシェルジュ利用状況"
+        verbose_name_plural = "コンシェルジュ利用状況"
+
+    def __str__(self) -> str:
+        return f"{self.user} @ {self.date}: {self.count}"
 
 # Shrine に ManyToMany を追加（既存 Shrine クラス内）
 # deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)

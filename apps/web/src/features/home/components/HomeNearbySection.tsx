@@ -13,7 +13,7 @@ import type { NearbyListState, ShrineListItem } from "@/components/nearby/Nearby
 const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((m) => m.NearbyList), {
   ssr: false,
   loading: () => (
-    <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+    <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <Skeleton className="h-16 w-full rounded-xl" />
       <Skeleton className="h-16 w-full rounded-xl" />
       <Skeleton className="h-16 w-full rounded-xl" />
@@ -36,45 +36,45 @@ export function HomeNearbySection() {
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   // 近くの神社API呼び出し
-    const fetchNearby = useCallback(async (lat: number, lng: number) => {
-      try {
-        setState("loading");
-        setErrorMessage(undefined);
+  const fetchNearby = useCallback(async (lat: number, lng: number) => {
+    try {
+      setState("loading");
+      setErrorMessage(undefined);
 
-        // TODO: 実際のAPIエンドポイントが決まったらここを更新
-        const data = await apiGet<NearbyApiResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
+      // TODO: 実際のAPIエンドポイントが決まったらここを更新
+      const data = await apiGet<NearbyApiResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
 
-        const results = data?.results ?? [];
+      const results = data?.results ?? [];
 
-        if (!results.length) {
-          setItems([]);
-          setState("empty");
-          return;
-        }
-
-        const mapped = results as unknown as ShrineListItem[];
-        setItems(mapped);
-        setState("success");
-      } catch (err) {
-        // 🔽 ここを追加
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          // まだ API 未実装 or パス違い → ひとまず「データなし」として扱う
-          setItems([]);
-          setErrorMessage(undefined);
-          setState("empty");
-          if (process.env.NODE_ENV === "development") {
-            console.info("[HomeNearbySection] nearby API not found (404). Treat as empty.");
-          }
-          return;
-        }
-
-        if (process.env.NODE_ENV === "development") {
-          console.error("Failed to fetch nearby shrines", err);
-        }
-        setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
-        setState("error");
+      if (!results.length) {
+        setItems([]);
+        setState("empty");
+        return;
       }
-    }, []);
+
+      const mapped = results as unknown as ShrineListItem[];
+      setItems(mapped);
+      setState("success");
+    } catch (err) {
+      // 🔽 ここを追加
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        // まだ API 未実装 or パス違い → ひとまず「データなし」として扱う
+        setItems([]);
+        setErrorMessage(undefined);
+        setState("empty");
+        if (process.env.NODE_ENV === "development") {
+          console.info("[HomeNearbySection] nearby API not found (404). Treat as empty.");
+        }
+        return;
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to fetch nearby shrines", err);
+      }
+      setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
+      setState("error");
+    }
+  }, []);
 
   // 位置情報の取得
   const requestLocation = useCallback(() => {
@@ -131,26 +131,27 @@ export function HomeNearbySection() {
   const handleRetry = () => {
     requestLocation();
   };
+  // 一覧に結果があるかどうか
+  const hasResults = state === "success" && items.length > 0;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-50">今いる場所の近くの神社</h2>
-          <p className="text-xs text-slate-300">位置情報をもとに、徒歩圏内の神社を優先して表示します。</p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleRefetch}
-          className="hidden rounded-full text-xs text-slate-300 hover:bg-slate-800 sm:inline-flex"
-        >
-          再検索
-        </Button>
+    <div className="space-y-3">
+      {/* ヘッダーの文言は SectionCard 側に移したので、ここは再検索ボタンだけ */}
+      <div className="flex justify-end">
+        {hasResults && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefetch}
+            className="hidden rounded-full text-xs text-slate-600 hover:bg-slate-100 sm:inline-flex"
+          >
+            再検索
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-2 sm:p-3">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:p-3">
         <NearbyList
           lat={lat}
           lng={lng}
@@ -162,6 +163,6 @@ export function HomeNearbySection() {
           onRetry={handleRetry}
         />
       </div>
-    </section>
+    </div>
   );
 }

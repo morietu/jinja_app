@@ -10,6 +10,8 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
 
+# 1日あたりの無料利用回数（必要に応じて調整）
+CONCIERGE_DAILY_FREE_LIMIT = 5
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def env_bool(name: str, default: bool = False) -> bool:
@@ -313,10 +315,8 @@ ROOT_URLCONF = "shrine_project.urls"
 # --- DRF / Throttle ---
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
-        
     ),
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.ScopedRateThrottle",
@@ -324,18 +324,17 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "60/min",
-        "user": "120/min",
-        # フィーチャ別スコープ
-        "concierge": "8/min",
+        "anon": "100/min",
+        "user": "100/min",
+        # フィーチャ別スコープ（デフォルト値）
+        "concierge": "5/day",
         "places": "30/min",
-        "places-nearby": os.getenv("PLACES_NEARBY_RATE", "30/min"),
+        "places-nearby": "30/min",
         "shrines": "60/min",
         "route": "20/min",
         "geocode": "30/min",
         "favorites": "30/min",
         "routes": "60/min",
-
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -343,22 +342,41 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# --- throttle overrides from env (CI等で concierge だけ緩めたい) ---
-_rates = REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
-# ローカルで全部OFFに近くする用途（CIでは使わない）
+# DEFAULT_THROTTLE_CLASSES が未設定な場合の保険（現状ほぼ意味ないが残しておくならこの程度）
+REST_FRAMEWORK.setdefault(
+    "DEFAULT_THROTTLE_CLASSES",
+    [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+)
+
+# ベースのレート辞書
+_rates = REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
+
+# 環境変数で上書きしたい場合（あれば使う、なければ上のデフォルトのまま）
+_rates["concierge"] = os.getenv("THROTTLE_CONCIERGE", _rates.get("concierge", "5/day"))
+_rates["places-nearby"] = os.getenv(
+    "THROTTLE_PLACES_NEARBY",
+    _rates.get("places-nearby", "30/min"),
+)
+
+# ローカルでスロットルをほぼ無効にしたいとき
 if os.getenv("DISABLE_THROTTLE", "0") == "1":
     for k in list(_rates.keys()):
         _rates[k] = "1000/min" if k != "user" else "2000/min"
 
-# CI等：concierge だけ個別に緩める
+# 旧 env 名があれば concierge だけ上書き（互換）
 _concierge_rate = os.getenv("CONCIERGE_THROTTLE")
 if _concierge_rate:
     _rates["concierge"] = _concierge_rate
 
+# pytest 中は concierge をさらに緩める（places-nearby はそのまま）
 if IS_PYTEST:
-    REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
-    # テストでは concierge だけ緩める。他のスロットル（places-nearby等）は有効のまま
-    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["concierge"] = "1000/min"
+    _rates["concierge"] = "1000/min"
+
+    # ★ Nearby search はテストで 429 を確実に出したいのでかなり厳しく
+    #   （30/min のままだと環境によっては 80 回叩いても閾値に届かないことがある）
+    _rates["places-nearby"] = "2/min"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Shrine API",

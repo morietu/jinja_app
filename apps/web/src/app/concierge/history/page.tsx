@@ -2,67 +2,61 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { ConciergeHistoryItem } from "@/features/concierge/historyTypes";
-
-
+import { useConciergeThreads } from "@/features/concierge/hooks";
 
 export default function ConciergeHistoryPage() {
-  const [items, setItems] = useState<ConciergeHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // TODO: 必要なら専用APIクライアントに切り出す
-    async function fetchHistory() {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api"}/concierge/history/`,
-          { credentials: "include" },
-        );
-        const data = await res.json();
-        setItems(data.results ?? data); // backendの形式に合わせて調整
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchHistory();
-  }, []);
+  const { threads, loading, error, requiresLogin, reload } = useConciergeThreads();
 
   return (
-    <section className="px-4 py-4 max-w-md mx-auto space-y-3">
-      <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">コンシェルジュ履歴</h1>
-        <Link href="/concierge" className="text-[11px] text-gray-500 underline">
-          新しく相談する
-        </Link>
-      </header>
+    <main className="mx-auto max-w-md px-4 py-4">
+      <h1 className="mb-2 text-base font-semibold text-gray-800">相談履歴</h1>
+      <p className="mb-4 text-xs text-gray-500">過去にAIコンシェルジュに相談した内容を一覧で確認できます。</p>
 
       {loading && <p className="text-xs text-gray-500">読み込み中です…</p>}
 
-      {!loading && !items.length && (
-        <p className="text-xs text-gray-500">
-          まだ相談履歴がありません。
-          <br />
-          まずは「今の気持ちから神社を探す」から相談してみてください。
+      {error && !loading && (
+        <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+          履歴の取得に失敗しました。
+          <button type="button" onClick={() => reload()} className="ml-2 underline">
+            もう一度試す
+          </button>
+        </div>
+      )}
+
+      {requiresLogin && (
+        <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-700">
+          ログインすると、過去の相談履歴を確認できます。
+        </div>
+      )}
+
+      {!loading && !requiresLogin && threads.length === 0 && (
+        <p className="mt-2 text-xs text-gray-500">
+          まだ相談履歴はありません。まずは
+          <Link href="/concierge" className="text-amber-600 underline">
+            AIコンシェルジュ
+          </Link>
+          から相談してみてください。
         </p>
       )}
 
-      <div className="space-y-2">
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            href={`/concierge/history/${item.id}`}
-            className="flex flex-col gap-1 rounded-xl border bg-white px-3 py-2 text-xs shadow-sm active:scale-[0.99] transition"
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-sm">{item.title || "タイトル未設定の相談"}</p>
-              {item.last_message_at && <span className="text-[10px] text-gray-500">{item.last_message_at}</span>}
-            </div>
-            {item.last_message && <p className="text-[11px] text-gray-600 truncate">{item.last_message}</p>}
-            <span className="text-[10px] text-gray-400">{item.message_count} 件のメッセージ</span>
-          </Link>
+      <ul className="mt-3 space-y-2">
+        {threads.map((t) => (
+          <li key={t.id}>
+            <Link
+              href={`/concierge/history/${t.id}`}
+              className="block rounded-lg border bg-white px-3 py-2 text-xs hover:bg-slate-50"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm font-semibold text-gray-800">{t.title || "相談スレッド"}</span>
+                <span className="shrink-0 text-[10px] text-gray-400">
+                  {new Date(t.last_message_at).toLocaleString("ja-JP")}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-[11px] text-gray-600">{t.last_message}</p>
+            </Link>
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </main>
   );
 }
