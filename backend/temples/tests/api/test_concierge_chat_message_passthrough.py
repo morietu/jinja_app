@@ -30,5 +30,8 @@ def test_concierge_message_passthrough(client, settings, monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body.get("ok") is True
-    # smoke 互換 reply が付いている
-    assert body.get("reply", "").startswith("echo:")
+
+    reply = body.get("reply", "")
+    # 新仕様: 上位候補の名前を含む「候補: ...」形式
+    assert reply.startswith("候補: ")
+    assert "赤坂氷川神社" in reply

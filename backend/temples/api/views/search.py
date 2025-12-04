@@ -1,7 +1,10 @@
 # backend/temples/api/views/search.py
 
 import logging
+import time
 
+from django.conf import settings
+from django.core.cache import cache
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -9,6 +12,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+
 from temples import services  # services.google_places を各所で利用
 from temples.api.serializers.places import (
     NearbySearchResponse,
@@ -16,17 +21,65 @@ from temples.api.serializers.places import (
     PlacesSearchResponse,
     TextSearchResponse,
 )
-from temples.api.throttles import PlacesNearbyThrottle
 from temples.services import google_places as GP
 
 logger = logging.getLogger(__name__)
 
 
 def _nearby_ident(request) -> str:
-    # 認証済みなら user:<pk>、匿名は REMOTE_ADDR（無ければ固定 'anon'）
+    """
+    Nearby 用の識別子：
+    - 認証済みユーザー: user:<pk>
+    - 匿名ユーザー: REMOTE_ADDR（無ければ 'anon'）
+    """
     if getattr(request, "user", None) and getattr(request.user, "is_authenticated", False):
         return f"user:{request.user.pk}"
     return request.META.get("REMOTE_ADDR") or "anon"
+
+
+def _apply_places_nearby_throttle(request):
+    """
+    /api/places/nearby_search/ 用の手動スロットル。
+
+    settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["places-nearby"]
+    から「N/min」の N を読み取り、1分あたり N 回まで許可する。
+    """
+    rates = getattr(settings, "REST_FRAMEWORK", {}).get("DEFAULT_THROTTLE_RATES", {})
+    rate = rates.get("places-nearby")
+    if not rate:
+        # レート設定が無い場合はスロットル無し
+        return None
+
+    try:
+        num_str, per = rate.split("/", 1)
+        limit = int(num_str)
+    except Exception:
+        # パースに失敗したら安全側にそこそこ小さい数にしておく
+        limit = 30
+        per = "min"
+
+    # 単位は /min 前提で 60 秒窓を使う（/day などは現状想定しない）
+    window = 60 if "min" in per else 60
+
+    ident = _nearby_ident(request)
+    cache_key = f"throttle:places-nearby:{ident}"
+    now = time.time()
+
+    history = cache.get(cache_key, [])
+    # 窓外の古いリクエストを捨てる
+    history = [ts for ts in history if ts > now - window]
+
+    if len(history) >= limit:
+        # DRF のメッセージに寄せた文言
+        return Response(
+            {"detail": "Request was throttled. Expected available in one minute."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    # 現在のリクエストを追加して保存
+    history.append(now)
+    cache.set(cache_key, history, window)
+    return None
 
 
 # --- /api/places/search/ ---
@@ -159,8 +212,13 @@ def text_search_legacy(request):
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@throttle_classes([PlacesNearbyThrottle])
+@throttle_classes([ScopedRateThrottle])
 def nearby_search(request):
+    # ★ 手動スロットル（settings の places-nearby レートを尊重）
+    throttled = _apply_places_nearby_throttle(request)
+    if throttled is not None:
+        return throttled
+
     try:
         lat = float(request.query_params.get("lat"))
         lng = float(request.query_params.get("lng"))
@@ -266,7 +324,29 @@ def nearby_search(request):
     return Response(data)
 
 
+# レガシー入口（/api/places/nearby_search/）
 nearby_search.throttle_scope = "places-nearby"
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
+def nearby_search_legacy(request, *args, **kwargs):
+    """/api/places/nearby_search/ のレガシー入口（DRF Request→Django HttpRequest）"""
+    try:
+        from rest_framework.request import Request as DRFRequest
+    except Exception:
+        DRFRequest = None
+    dj_req = (
+        getattr(request, "_request", None)
+        if (DRFRequest and isinstance(request, DRFRequest))
+        else request
+    )
+    return nearby_search(dj_req, *args, **kwargs)
+
+
+nearby_search_legacy.throttle_scope = "places-nearby"
 
 
 # --- /api/places/photo/ ---
@@ -290,8 +370,6 @@ def photo(request):
     services.google_places.photo は (bytes, content_type) を返す契約
     """
     ref = request.query_params.get("photo_reference")
-    if not ref:
-        return Response({"detail": "photo_reference is required"}, status=400)
     if not ref:
         return Response({"detail": "photo_reference is required"}, status=400)
     maxwidth = request.query_params.get("maxwidth")
@@ -367,23 +445,6 @@ def detail_query(request):
         return Response({"detail": "place_id is required"}, status=400)
     # path 版と同じロジックを使う
     return detail(request, id=pid)
-
-
-@extend_schema(exclude=True)
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def nearby_search_legacy(request, *args, **kwargs):
-    """/api/places/nearby_search/ のレガシー入口（DRF Request→Django HttpRequest）"""
-    try:
-        from rest_framework.request import Request as DRFRequest
-    except Exception:
-        DRFRequest = None
-    dj_req = (
-        getattr(request, "_request", None)
-        if (DRFRequest and isinstance(request, DRFRequest))
-        else request
-    )
-    return nearby_search(dj_req, *args, **kwargs)
 
 
 @extend_schema(exclude=True)
