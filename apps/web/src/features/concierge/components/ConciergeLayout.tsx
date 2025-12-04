@@ -1,6 +1,6 @@
 // apps/web/src/features/concierge/ConciergeLayout.tsx
 "use client";
-
+import { useState } from "react";
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
 import ChatPanel from "./ChatPanel";
@@ -27,10 +27,13 @@ export default function ConciergeLayout({
 }: Props) {
   const isLandscape = useLandscape();
 
-  const first = recommendations.length > 0 ? recommendations[0] : null;
-  const isDummy = !!first?.__dummy;
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // 横向き UI（今はおすすめ一覧だけ）
+  const current = recommendations.length > 0 ? (recommendations[selectedIndex] ?? recommendations[0]) : null;
+
+  const isDummy = !!current?.__dummy;
+
+  // 横向き UI
   if (isLandscape) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
@@ -104,7 +107,7 @@ export default function ConciergeLayout({
         />
       </div>
 
-      {first && (
+      {current && (
         <div className="mt-4 space-y-2">
           {isDummy && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -112,8 +115,41 @@ export default function ConciergeLayout({
             </div>
           )}
 
+          {recommendations.length > 1 && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {recommendations.map((_, idx) => {
+                const active = idx === selectedIndex;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedIndex(idx)}
+                    className={`rounded-full border px-3 py-1 ${
+                      active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    候補{idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-            {/* 「今回の候補」「神社名」「理由」「住所」「距離」 */}
+            <div className="mb-1 text-xs font-semibold text-gray-500">今回の候補</div>
+            <div className="text-base font-semibold">{current.display_name || current.name}</div>
+
+            {current.reason && <p className="mt-1 text-sm text-gray-700">{current.reason}</p>}
+
+            {(current.address || current.location) && (
+              <p className="mt-2 text-xs text-gray-500">{current.address || current.location}</p>
+            )}
+
+            {(current.distance_m ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                およそ {(current.distance_m! / 1000).toFixed(1)} km ／{(current.duration_min ?? 0).toFixed(0)} 分
+              </p>
+            )}
           </div>
         </div>
       )}
