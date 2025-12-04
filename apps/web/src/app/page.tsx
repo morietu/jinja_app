@@ -6,6 +6,10 @@ import { HomeRankingSection } from "@/features/home/components/HomeRankingSectio
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { SectionCard } from "@/components/layout/SectionCard";
 
+
+
+
+
 export default function HomePage() {
   const router = useRouter();
 

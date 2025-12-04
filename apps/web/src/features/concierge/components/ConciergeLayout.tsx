@@ -113,20 +113,7 @@ export default function ConciergeLayout({
           )}
 
           <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs font-semibold text-gray-500 mb-1">今回の候補</div>
-            <div className="text-base font-semibold">{first.display_name || first.name}</div>
-
-            {first.reason && <p className="mt-1 text-sm text-gray-700">{first.reason}</p>}
-
-            {(first.address || first.location) && (
-              <p className="mt-2 text-xs text-gray-500">{first.address || first.location}</p>
-            )}
-
-            {(first.distance_m ?? 0) > 0 && (
-              <p className="mt-1 text-xs text-gray-500">
-                およそ {(first.distance_m! / 1000).toFixed(1)} km ／{(first.duration_min ?? 0).toFixed(0)} 分
-              </p>
-            )}
+            {/* 「今回の候補」「神社名」「理由」「住所」「距離」 */}
           </div>
         </div>
       )}
