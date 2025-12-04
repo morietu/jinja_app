@@ -27,6 +27,9 @@ export default function ConciergeLayout({
 }: Props) {
   const isLandscape = useLandscape();
 
+  const first = recommendations.length > 0 ? recommendations[0] : null;
+  const isDummy = !!first?.__dummy;
+
   // 横向き UI（今はおすすめ一覧だけ）
   if (isLandscape) {
     return (
@@ -42,6 +45,12 @@ export default function ConciergeLayout({
 
         {recommendations.length > 0 && (
           <>
+            {isDummy && (
+              <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                ※ 現在テスト中の回答（ベータ版）です。実際のレコメンドロジックは今後アップデート予定です。
+              </div>
+            )}
+
             <h3 className="mb-2 mt-1 text-xs font-semibold text-gray-600">今回のおすすめ神社</h3>
             <div className="space-y-3">
               {recommendations.map((r, idx) => (
@@ -82,7 +91,7 @@ export default function ConciergeLayout({
 
   // 縦向き（通常） UI
   return (
-    <div className="mt-4 mx-auto w-full max-w-xs md:max-w-sm">
+    <div className="mt-4 mx-auto flex w-full max-w-xs flex-col md:max-w-sm">
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -94,6 +103,33 @@ export default function ConciergeLayout({
           onSend={onSend}
         />
       </div>
+
+      {first && (
+        <div className="mt-4 space-y-2">
+          {isDummy && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              ※ 現在テスト中の回答（ベータ版）です。実際のレコメンドロジックは今後アップデート予定です。
+            </div>
+          )}
+
+          <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs font-semibold text-gray-500 mb-1">今回の候補</div>
+            <div className="text-base font-semibold">{first.display_name || first.name}</div>
+
+            {first.reason && <p className="mt-1 text-sm text-gray-700">{first.reason}</p>}
+
+            {(first.address || first.location) && (
+              <p className="mt-2 text-xs text-gray-500">{first.address || first.location}</p>
+            )}
+
+            {(first.distance_m ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                およそ {(first.distance_m! / 1000).toFixed(1)} km ／{(first.duration_min ?? 0).toFixed(0)} 分
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

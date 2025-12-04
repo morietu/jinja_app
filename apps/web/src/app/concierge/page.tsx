@@ -4,18 +4,25 @@
 import { useState } from "react";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
-import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
+import type {
+  ConciergeMessage,
+  ConciergeThread,
+  ConciergeRecommendation, // ★ 追加
+} from "@/lib/api/concierge";
 
 export default function ConciergePage() {
   const [thread, setThread] = useState<ConciergeThread | null>(null);
   const [messages, setMessages] = useState<ConciergeMessage[]>([]);
+  const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]); // ★ 追加
 
   const { send, sending, error } = useConciergeChat(thread ? String(thread.id) : null, {
     // 将来 thread / messages / recommendations が backend から飛んでくる用
     onUpdated(payload) {
       setThread(payload.thread);
       setMessages(payload.messages);
-      // payload.recommendations は今は使わない
+      if (payload.recommendations) {
+        setRecommendations(payload.recommendations);
+      }
     },
 
     // 今の echo / fallback 用
@@ -36,9 +43,13 @@ export default function ConciergePage() {
         return [...prev, assistantMsg];
       });
     },
+
+    // ★ ここが今回のメイン
+    onRecommendations(recs) {
+      setRecommendations(recs);
+    },
   });
 
-  // ユーザーメッセージ送信
   const handleSend = async (text: string) => {
     const now = new Date().toISOString();
 
@@ -59,7 +70,6 @@ export default function ConciergePage() {
     await send(text);
   };
 
-  // エラー時に「もう一度試す」ボタンから呼ぶ
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
@@ -78,7 +88,7 @@ export default function ConciergePage() {
         error={error}
         onSend={handleSend}
         onRetry={handleRetry}
-        recommendations={[]}
+        recommendations={recommendations} // ★ ここを [] から変更
       />
     </div>
   );

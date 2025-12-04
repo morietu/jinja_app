@@ -117,6 +117,8 @@ export type UseConciergeChatOptions = {
 
   // echo だけ返ってきたとき用（未ログインなど）
   onReply?: (reply: string) => void;
+
+  onRecommendations?: (recs: ConciergeRecommendation[]) => void;
 };
 
 
@@ -137,6 +139,11 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           query: message, // ★ “message” → “query” に変更
           thread_id: threadId ?? undefined,
         });
+      
+        const recs = res.data?.recommendations ?? [];
+        if (recs.length > 0) {
+          options?.onRecommendations?.(recs);
+        }
 
         // まだ本番の thread/messages 返却は未実装なので、ここはスキップ想定
         if ((res as any).thread && (res as any).messages && (res as any).messages.length > 0) {
