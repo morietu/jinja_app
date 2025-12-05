@@ -1,16 +1,20 @@
+# temples/services/geocode.py
+
 import hashlib
 import json
 import time
 from urllib.parse import urlencode
+from typing import List
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
 
+
 TTL = int(getattr(settings, "GEOCODE_CACHE_TTL_S", 60 * 60 * 24 * 30))
 RATE = int(getattr(settings, "GEOCODE_RATE_PER_MIN", 60))
 WINDOW = 60
-_calls = []
+_calls: List[float] = []  # ★ 型を明示（time.time() の float）
 
 
 def _allow() -> bool:
@@ -99,3 +103,4 @@ def geocode_reverse(lat: float, lng: float, lang: str = "ja"):
     }
     cache.set(ckey, item, TTL)
     return {"item": item, "cached": False, "provider": "nominatim"}
+

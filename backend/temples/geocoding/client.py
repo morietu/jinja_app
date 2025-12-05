@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 import requests
 
+ParamValue = t.Union[str, int, float]
+
+
 
 @dataclass
 class GeocodeResult:
@@ -69,7 +72,12 @@ class GeocodingClient:
     # ===================== Google =====================
     def _geocode_google(self, address: str) -> GeocodeResult:
         url = "https://maps.googleapis.com/maps/api/geocode/json"
-        params = {"address": address, "key": self.api_key, "language": "ja", "region": "jp"}
+        params: dict[str, ParamValue] = {  # ★ 型を明示
+            "address": address,
+            "key": self.api_key,
+            "language": "ja",
+            "region": "jp",
+        }
         r = self.session.get(url, params=params, timeout=self.timeout)
         try:
             r.raise_for_status()
@@ -94,7 +102,12 @@ class GeocodingClient:
 
     def _geocode_google_multi(self, address: str, limit: int = 5) -> list[GeocodeResult]:
         url = "https://maps.googleapis.com/maps/api/geocode/json"
-        params = {"address": address, "key": self.api_key, "language": "ja", "region": "jp"}
+        params: dict[str, ParamValue] = {
+            "address": address,
+            "key": self.api_key,
+            "language": "ja",
+            "region": "jp",
+        }
         r = self.session.get(url, params=params, timeout=self.timeout)
         try:
             r.raise_for_status()
@@ -150,7 +163,7 @@ class GeocodingClient:
     # ===================== OpenCage =====================
     def _geocode_opencage(self, address: str) -> GeocodeResult:
         url = "https://api.opencagedata.com/geocode/v1/json"
-        params = {
+        params: dict[str, ParamValue] = {
             "q": address,
             "key": self.api_key,
             "language": "ja",
@@ -190,7 +203,7 @@ class GeocodingClient:
 
     def _geocode_opencage_multi(self, address: str, limit: int = 5) -> list[GeocodeResult]:
         url = "https://api.opencagedata.com/geocode/v1/json"
-        params = {
+        params: dict[str, ParamValue] = {
             "q": address,
             "key": self.api_key,
             "language": "ja",
