@@ -1,5 +1,11 @@
-"""Back-compat shim: temples.llm.tools.prompts -> temples.llm.prompts"""
+# temples/llm/tools/prompts.py
+from __future__ import annotations
 
-from .. import prompts as _p
+"""
+Back-compat shim:
+    temples.llm.tools.prompts -> temples.llm.prompts
+"""
 
-globals().update({k: getattr(_p, k) for k in dir(_p) if not k.startswith("_")})
+from temples.llm.prompts import SYSTEM_PROMPT
+
+__all__ = ["SYSTEM_PROMPT"]

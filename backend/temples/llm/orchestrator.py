@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 
-from .client import LLMClient, make_openai_client, PLACEHOLDER
+from .client import LLMClient, PLACEHOLDER, make_openai_client
 from .config import LLMConfig
 from .prompts import SYSTEM_PROMPT
 from .schemas import complete_recommendations, normalize_recs
@@ -28,11 +28,8 @@ class ConciergeInput:
     candidates: List[Dict[str, Any]] = field(default_factory=list)
 
     def as_payload(self) -> Dict[str, Any]:
-        # LLM に渡す候補は軽くサマる（名前＋位置情報＋タグ程度）
         summarized_candidates: List[Dict[str, Any]] = []
-        for c in self.candidates[:10]:  # 上限 10 件くらいに絞る
-            if not isinstance(c, dict):
-                continue
+        for c in self.candidates[:10]:
             summarized_candidates.append(
                 {
                     "name": c.get("name"),
@@ -54,30 +51,42 @@ class ConciergeInput:
 class ConciergeOrchestrator:
     """チャット→推薦JSON（recommendations）にまとめるオーケストレータ。"""
 
-    def __init__(self, client: Optional[LLMClient] = None):
-        self.client = client or LLMClient()
-        # 環境フラグで LLM を有効化するかどうか
+    def __init__(self, client: Optional[LLMClient] = None) -> None:
+        self.client: LLMClient = client or LLMClient()
         self.enabled: bool = bool(getattr(settings, "USE_LLM_CONCIERGE", False))
 
-    def suggest(self, query: str, candidates: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    def _fallback_from_candidates(
+        self, candidates: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        recs: List[Dict[str, Any]] = []
+        for i, c in enumerate(candidates):
+            name = c.get("name") or c.get("place_id") or "unknown"
+            recs.append(
+                {
+                    "name": name,
+                    "reason": "暫定（候補ベース）",
+                    "score": max(0.0, 1.0 - i * 0.1),
+                }
+            )
+        if not recs:
+            recs = [{"name": "近隣の神社", "reason": "暫定"}]
+        return {"recommendations": recs}
+
+    def suggest(
+        self, query: str, candidates: List[Dict[str, Any]] | None = None
+    ) -> Dict[str, Any]:
         candidates = candidates or []
         query = (query or "").strip()
         if not query:
             return {"recommendations": []}
 
-        # LLM を使わない設定 or クライアント無効なら、候補ベースの暫定にフォールバック
-        if not self.enabled or self.client._client is None or self.client._mode is None:
-            recs: List[Dict[str, Any]] = []
-            for i, c in enumerate(candidates):
-                name = c.get("name") or c.get("place_id") or "unknown"
-                recs.append(
-                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
-                )
-            if not recs:
-                recs = [{"name": "近隣の神社", "reason": "暫定"}]
-            return {"recommendations": recs}
+        if (
+            not self.enabled
+            or getattr(self.client, "_client", None) is None
+            or getattr(self.client, "_mode", None) is None
+        ):
+            return self._fallback_from_candidates(candidates)
 
-        # 旧 SYSTEM_PROMPT スタイル（LLM 側で JSON or 箇条書き）
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"Query: {query}\nCandidates: {candidates}"},
@@ -86,84 +95,70 @@ class ConciergeOrchestrator:
         try:
             msg = self.client.chat(messages)
         except Exception:
-            # PLACEHOLDER を残しつつ完全フォールバック
-            recs: List[Dict[str, Any]] = []
-            for i, c in enumerate(candidates):
-                name = c.get("name") or c.get("place_id") or "unknown"
-                recs.append(
-                    {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
-                )
-            if not recs:
-                recs = [{"name": "近隣の神社", "reason": "暫定"}]
-            return {"recommendations": recs, "raw": PLACEHOLDER["content"]}
+            out = self._fallback_from_candidates(candidates)
+            out["raw"] = PLACEHOLDER["content"]
+            return out
 
         if isinstance(msg, dict) and msg.get("content"):
             text = msg["content"]
             data = _extract_json(text)
-            tmp = (
-                normalize_recs(data, query=query)
-                if data is not None
-                else (_extract_markdown_list(text) or {"raw": text})
-            )
-            if isinstance(tmp, dict) and tmp.get("recommendations"):
-                return complete_recommendations(tmp, query=query, candidates=candidates)
+            if data is not None:
+                tmp: Any = normalize_recs(data, query=query)
+            else:
+                tmp = _extract_markdown_list(text) or {"raw": text}
 
-        # LLM が構造化に失敗 → 候補ベースの暫定
-        recs: List[Dict[str, Any]] = []
-        for i, c in enumerate(candidates):
-            name = c.get("name") or c.get("place_id") or "unknown"
-            recs.append(
-                {"name": name, "reason": "暫定（順序ベース）", "score": max(0.0, 1.0 - i * 0.1)}
-            )
-        if not recs:
-            recs = [{"name": "近隣の神社", "reason": "暫定"}]
-        return {"recommendations": recs}
+            if isinstance(tmp, dict) and tmp.get("recommendations"):
+                return complete_recommendations(
+                    tmp,
+                    query=query,
+                    candidates=candidates,
+                )
+
+        return self._fallback_from_candidates(candidates)
 
 
 # --- Back-compat: 旧呼び出し向け shim ------------------------------------
 
 
-def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kwargs) -> dict:
-    """
-    Back-compat shim expected by older tests/imports.
-
-    受け取り方がバラつく旧APIに対応するため、*args/**kwargs を柔軟に受ける。
-    想定される追加キー:
-      - candidates: List[Dict] （最優先）
-      - area: str （推定ロケーションの表示用）
-      - lat/lng/transport: 任意（無視しても良いが将来の拡張に備える）
-
-    返却は最低限 {"recommendations": [...]} を保証。
-    """
-    # kwargs/candidatesの正規化
+def chat_to_plan(
+    message: str,
+    candidates: List[Dict[str, Any]] | None = None,
+    *args: Any,
+    **kwargs: Any,
+) -> Dict[str, Any]:
     if candidates is None:
-        candidates = kwargs.get("candidates") or []
+        raw_cands = kwargs.get("candidates")
+        candidates = raw_cands if isinstance(raw_cands, list) else []
     area = kwargs.get("area") or ""
 
-    # まずは LLM を使った通常ルートを試す
     try:
-        out = ConciergeOrchestrator().suggest(query=message, candidates=candidates or [])
+        orch = ConciergeOrchestrator()
+        out = orch.suggest(query=message, candidates=candidates or [])
     except Exception:
         out = {}
 
-    # recommendations を必ず埋める
     recs: List[Dict[str, Any]] = []
     if isinstance(out, dict):
-        recs = out.get("recommendations") or []
+        raw_recs = out.get("recommendations") or []
+        if isinstance(raw_recs, list):
+            for r in raw_recs:
+                if isinstance(r, dict):
+                    recs.append(r)
 
     if not recs:
-        # candidates から暫定生成
         for i, c in enumerate(candidates or []):
             name = c.get("name") or c.get("place_id") or "unknown"
             recs.append(
-                {"name": name, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)}
+                {
+                    "name": name,
+                    "reason": "暫定（候補ベース）",
+                    "score": max(0.0, 1.0 - i * 0.1),
+                }
             )
 
     if not recs:
-        # candidates すら無い時の最終フォールバック
         recs = [{"name": "近隣の神社", "reason": "暫定"}]
 
-    # area があれば location に短縮して反映
     if area:
         try:
             from .backfill import _shorten_japanese_address as _S
@@ -171,52 +166,47 @@ def chat_to_plan(message: str, candidates: list[dict] | None = None, *args, **kw
             short = _S(area)
         except Exception:
             short = area
-        # 先頭アイテムだけでも location を埋める（旧テストの期待に合わせる）
-        for i in range(min(1, len(recs))):
-            if isinstance(recs[i], dict):
-                recs[i] = {**recs[i], "location": short}
+        if recs:
+            rec0 = dict(recs[0])
+            rec0["location"] = short
+            recs[0] = rec0
 
     return {"recommendations": recs}
 
 
-def _extract_json(text: str):
+
+
+def _extract_json(text: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(text, str):
         return None
-    # ```json ... ``` 優先
     m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
     if m:
         try:
             return json.loads(m.group(1))
         except Exception:
-            pass
-    # 最初の { ... } を緩く拾う
+            return None
     m = re.search(r"(\{[\s\S]*\})", text)
     if m:
         try:
             return json.loads(m.group(1))
         except Exception:
-            pass
+            return None
     return None
 
 
-def _extract_markdown_list(text: str):
-    """
-    箇条書き表現から {name, reason} を抽出して recommendations に落とす。
-    """
+def _extract_markdown_list(text: str) -> Optional[Dict[str, Any]]:
     items: List[Dict[str, str]] = []
     lines = [line.rstrip() for line in text.splitlines()]
     for line in lines:
         s = line.strip()
         if not s:
             continue
-        # 1. **神社名** 理由...
         m = re.match(r"^(?:[-*+]|\d+[\).])\s*\*\*(.+?)\*\*\s*(.+)?$", s)
         if m:
             name = (m.group(1) or "").strip()
             reason = (m.group(2) or "").strip(" ・-—:\u3000")
             if name:
                 items.append({"name": name, "reason": reason})
-    # タイトル行→次行が理由 の簡易対応
     if not items:
         for i, line in enumerate(lines[:-1]):
             m = re.match(r"^(?:[-*+]|\d+[\).])\s*\*\*(.+?)\*\*\s*$", line.strip())
@@ -248,7 +238,10 @@ def _round_coord(v: Optional[float], ndigits: int) -> Optional[float]:
 
 
 def _build_user_prompt_for_plan(
-    query: str, lat: Optional[float], lng: Optional[float], transport: Optional[str]
+    query: str,
+    lat: Optional[float],
+    lng: Optional[float],
+    transport: Optional[str],
 ) -> str:
     loc = f"{lat},{lng}" if lat is not None and lng is not None else "不明"
     t = transport or "不明"
@@ -264,18 +257,13 @@ def generate_plan(
     lng: Optional[float] = None,
     transport: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    OpenAI Responses API の json_schema を使って {summary, spots[]} を強制。
-    失敗時は recommendations 互換の簡易フォールバックを返す。
-    """
     cfg = LLMConfig.load()
     lat = _round_coord(lat, cfg.coord_round)
     lng = _round_coord(lng, cfg.coord_round)
 
     user_prompt = _build_user_prompt_for_plan(query, lat, lng, transport)
 
-    # JSON Schema（厳格）
-    schema = {
+    schema: Dict[str, Any] = {
         "name": "Plan",
         "strict": True,
         "schema": {
@@ -305,11 +293,10 @@ def generate_plan(
         },
     }
 
-    # 実行（簡易リトライ）
     last_err: Optional[Exception] = None
     try:
         oai = make_openai_client(cfg)
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         oai = None
         last_err = e
 
@@ -329,29 +316,37 @@ def generate_plan(
             )
             content = getattr(resp, "output_text", None) or json.dumps({})
             data = json.loads(content)
-            # Plan → recommendations 互換へも変換して返す（フロントの使い回しを想定）
-            spots = data.get("spots") or []
-            recs = [
+            spots_raw = data.get("spots") or []
+            spots: List[Dict[str, Any]] = [
                 {
                     "name": (s.get("name") or "").strip(),
+                    "place_id": s.get("place_id"),
+                    "lat": s.get("lat"),
+                    "lng": s.get("lng"),
+                    "reason": s.get("reason"),
+                }
+                for s in spots_raw
+                if isinstance(s, dict) and s.get("name")
+            ]
+            recs: List[Dict[str, Any]] = [
+                {
+                    "name": s["name"],
                     "reason": s.get("reason", ""),
                     "place_id": s.get("place_id"),
                     "lat": s.get("lat"),
                     "lng": s.get("lng"),
                 }
                 for s in spots
-                if isinstance(s, dict) and s.get("name")
             ]
             return {
                 "summary": data.get("summary", ""),
                 "spots": spots,
                 "recommendations": recs[:3],
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             last_err = e
             time.sleep(cfg.backoff_s)
 
-    # フォールバック（位置がわかるなら近傍3件のプレースホルダ、なければ簡易）
     if lat is not None and lng is not None:
         return {
             "summary": "LLMに失敗したため、現在地から近い候補のプレースホルダを提示します。",
@@ -367,6 +362,7 @@ def generate_plan(
             ],
             "_error": str(last_err) if last_err else "",
         }
+
     return {
         "summary": "LLMに失敗しました。仮の候補を返します。",
         "spots": [{"name": "近隣の神社"}],
