@@ -1,6 +1,59 @@
 # backend/temples/llm/tools/places_search.py
+from __future__ import annotations
+
+
 from math import asin, cos, radians, sin, sqrt
 from typing import Any, Dict, List, Optional
+
+JsonDict = Dict[str, Any]
+
+
+def _as_dict(value: Any) -> Optional[JsonDict]:
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def extract_first_candidate_location(payload: Any) -> Optional[JsonDict]:
+    """
+    Google Places のレスポンスから、最初の candidate の位置情報を抜き出す。
+    期待する形:
+        {
+            "candidates": [
+                {
+                    "geometry": {
+                        "location": {"lat": ..., "lng": ...}
+                    }
+                },
+                ...
+            ]
+        }
+    """
+    root = _as_dict(payload)
+    if root is None:
+        return None
+
+    candidates = root.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return None
+
+    first = candidates[0]
+    if not isinstance(first, dict):
+        return None
+
+    geometry = first.get("geometry")
+    if not isinstance(geometry, dict):
+        return None
+
+    location = geometry.get("location")
+    if not isinstance(location, dict):
+        return None
+
+    lat = location.get("lat")
+    lng = location.get("lng")
+
+    return {"lat": lat, "lng": lng}
+
 
 from temples.services import (
     places as places_service,
@@ -36,20 +89,57 @@ def _addr_from_details(
     - なければトップレベルを参照
     - formatted_address / vicinity / address_components の順で組み立て
     """
-    doc = det.get("result") if isinstance(det.get("result"), dict) else det
-    addr = doc.get("formatted_address") or doc.get("vicinity")
-    if not addr and isinstance(doc.get("address_components"), list):
-        try:
-            # ざっくり連結（区切りはスペース）
-            addr = " ".join(
-                c.get("long_name") for c in doc["address_components"] if c.get("long_name")
-            )
-        except Exception:
-            addr = None
-    loc = (doc.get("geometry") or {}).get("location") or {}
-    la, ln = loc.get("lat"), loc.get("lng")
-    return addr, la, ln
+    # result が dict ならそれを使い、そうでなければ det 自体を使う
+    result_dict = _as_dict(det.get("result"))
+    doc: Dict[str, Any] = result_dict or det
 
+    addr: Optional[str] = None
+
+    # formatted_address / vicinity 優先
+    fa = doc.get("formatted_address")
+    if isinstance(fa, str) and fa:
+        addr = fa
+    else:
+        vic = doc.get("vicinity")
+        if isinstance(vic, str) and vic:
+            addr = vic
+
+    # address_components からの組み立て
+    if not addr:
+        ac = doc.get("address_components")
+        if isinstance(ac, list):
+            try:
+                parts: list[str] = []
+                for c in ac:
+                    if isinstance(c, dict):
+                        name = c.get("long_name")
+                        if isinstance(name, str) and name:
+                            parts.append(name)
+                if parts:
+                    addr = " ".join(parts)
+            except Exception:
+                addr = None
+
+    # geometry.location から座標を安全に取り出す
+    geom = _as_dict(doc.get("geometry")) or {}
+    loc = _as_dict(geom.get("location")) or {}
+    la_raw = loc.get("lat")
+    ln_raw = loc.get("lng")
+
+    la: Optional[float]
+    ln: Optional[float]
+
+    try:
+        la = float(la_raw) if la_raw is not None else None
+    except (TypeError, ValueError):
+        la = None
+
+    try:
+        ln = float(ln_raw) if ln_raw is not None else None
+    except (TypeError, ValueError):
+        ln = None
+
+    return addr, la, ln
 
 def _enrich_address(
     rows: List[Dict[str, Any]], language: str = "ja", max_count: int = 5

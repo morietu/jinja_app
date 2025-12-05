@@ -1,4 +1,3 @@
-# backend/temples/llm/client.py
 from __future__ import annotations
 
 import os
@@ -9,7 +8,7 @@ from django.conf import settings
 from .config import OPENAI_API_KEY, LLMConfig
 
 # LLM呼べない環境（TESTINGなど）で返すプレースホルダー
-PLACEHOLDER = {
+PLACEHOLDER: Dict[str, str] = {
     "role": "assistant",
     "content": "(LLM disabled or error: returning placeholder)",
 }
@@ -18,12 +17,14 @@ PLACEHOLDER = {
 class DummyLLMClient:
     """テスト用のダミークライアント。呼ばれたら分かるように例外を出す。"""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         raise RuntimeError("LLM disabled in tests (DummyLLMClient accessed)")
 
 
 def make_openai_client(
-    cfg: Optional[LLMConfig] = None, base_url: Optional[str] = None, api_key: Optional[str] = None
+    cfg: Optional[LLMConfig] = None,
+    base_url: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> Any:
     """
     OpenAI v1 SDK クライアントを生成（lazy import）。
@@ -56,8 +57,11 @@ class LLMClient:
     - 失敗時は PLACEHOLDER を返す
     """
 
-    def __init__(self, cfg: Optional[LLMConfig] = None):
-        self.cfg = cfg or LLMConfig.load()
+    def __init__(self, cfg: Optional[LLMConfig] = None) -> None:
+        self.cfg: LLMConfig = cfg or LLMConfig.load()
+        self._client: Any | None
+        self._mode: str | None
+
         try:
             self._client = make_openai_client(self.cfg)
             # Responses API 優先
@@ -90,6 +94,7 @@ class LLMClient:
     def chat(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         if self._client is None or self._mode is None:
             return PLACEHOLDER
+
         try:
             if self._mode == "responses" and not self.cfg.force_chat:
                 # Responses API
@@ -101,14 +106,14 @@ class LLMClient:
                 }
                 if self.cfg.force_json:
                     kwargs["response_format"] = {"type": "json_object"}
-                resp = self._client.responses.create(**kwargs)  # type: ignore
+                resp: Any = self._client.responses.create(**kwargs)
                 content = getattr(resp, "output_text", None)
                 if not content:
                     try:
-                        content = resp.output[0].content[0].text  # type: ignore
+                        content = resp.output[0].content[0].text
                     except Exception:
                         content = str(resp)
-                return {"role": "assistant", "content": content}
+                return {"role": "assistant", "content": str(content)}
 
             # Chat Completions
             resp = self._client.chat.completions.create(
@@ -116,8 +121,8 @@ class LLMClient:
                 messages=messages,
                 temperature=self.cfg.temperature,
                 max_tokens=self.cfg.max_tokens,
-            )  # type: ignore
-            text = resp.choices[0].message.content  # type: ignore
-            return {"role": "assistant", "content": text}
+            )
+            text = resp.choices[0].message.content
+            return {"role": "assistant", "content": str(text)}
         except Exception:
             return PLACEHOLDER

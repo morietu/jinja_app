@@ -57,68 +57,8 @@ def _lb_from_bias(bias: Optional[Dict[str, float]]) -> Optional[str]:
     return f"circle:{r_int}@{float(lat)},{float(lng)}"
 
 
-def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[str]:
-    """
-    Google Place Details の result(dict) だけでなく、住所文字列も受け付ける。
-    なるべく「{区/市}{町名}」の短い表記（例: 港区赤坂）を返す。
-    """
-    # 文字列入力に対応
-    if isinstance(details, str):
-        s = details.strip()
-        # よくある前置きを除去
-        s = re.sub(r"^日本、?", "", s)
-        s = re.sub(r"〒\s*\d{3}-?\d{4}", "", s)  # 郵便番号
-        s = re.sub(r"^(?:東京都|北海道|京都府|大阪府|..県)\s*", "", s)  # 都道府県を先頭から落とす
 
-        # 「◯◯区/市/町/村 + （数字や丁目で始まらない語）」を抽出
-        m = re.search(r"([^\d,\s]+?(?:区|市|町|村))\s*([^\d,\s\-－丁目]+)", s)
-        if m:
-            return m.group(1) + m.group(2)
-        return None
 
-    # dict（Place Details の result）入力
-    comps = (details or {}).get("address_components") or []
-
-    def _get_first(*types: str) -> Optional[str]:
-        for c in comps:
-            ts = set(c.get("types", []))
-            if any(t in ts for t in types):
-                return c.get("short_name") or c.get("long_name")
-        return None
-
-    locality = _get_first("locality", "administrative_area_level_2")  # 例: 港区 / 横浜市
-
-    def _is_good(token: Optional[str]) -> bool:
-        if not token:
-            return False
-        # 数字と「丁目」だけは除外（港区１０ などを防ぐ）
-        if re.fullmatch(r"[0-9０-９\-－]+丁目?", token):
-            return False
-        # 日本語（漢字/かな/カナ）を含むものを優先
-        if not re.search(r"[\u3040-\u30FF\u4E00-\u9FFF]", token):
-            return False
-        return True
-
-    sub_candidates = [
-        _get_first("sublocality"),
-        _get_first("sublocality_level_1"),
-        _get_first("sublocality_level_2"),
-        _get_first("sublocality_level_3"),
-        _get_first("neighborhood"),
-        _get_first("premise"),
-    ]
-    sublocal = next((s for s in sub_candidates if _is_good(s)), None)
-
-    if locality and sublocal:
-        return f"{locality}{sublocal}"
-    if locality:
-        return locality
-
-    # だめなら formatted_address を文字列パスで処理
-    fmt = (details or {}).get("formatted_address")
-    if isinstance(fmt, str):
-        return _shorten_japanese_address(fmt)
-    return None
 
 
 # --- req_history へ確実に積むためのダミー・ロガー（テストがここを見る） ---
@@ -194,7 +134,8 @@ def _shorten_japanese_address(details: Union[str, Dict[str, Any]]) -> Optional[s
     locality = _get_first("locality", "administrative_area_level_2")  # 例: 港区 / 横浜市
 
     # 数字や「丁目」だけのトークンを弾く
-    def _is_good(token: str) -> bool:
+
+    def _is_good(token: str | None) -> bool:
         if not token:
             return False
         if re.fullmatch(r"[0-9０-９\-－]+丁目?", token):
