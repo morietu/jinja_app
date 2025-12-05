@@ -9,7 +9,7 @@ import re
 import unicodedata
 from hashlib import md5
 from math import atan2, cos, radians, sin
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Mapping
 from urllib.parse import urlencode
 
 import requests
@@ -80,10 +80,10 @@ class PlacesService:
         if not GOOGLE_MAPS_API_KEY:
             return []  # キー未設定なら空
         url = f"{self.BASE}/textsearch/json"
-        params = {
+        params: dict[str, str] = {
             "query": query,
             "location": f"{lat},{lng}",
-            "radius": radius,
+            "radius": str(radius),
             "language": "ja",
             "key": GOOGLE_MAPS_API_KEY,
         }
@@ -139,7 +139,14 @@ def _wrap_call(fn, *args, **kwargs):
 
 
 def _lang_or_default(language: Optional[str]) -> str:
-    return language or getattr(settings, "GOOGLE_DEFAULT_LANGUAGE", "ja")
+    if language is not None:
+        return language
+
+    default = getattr(settings, "GOOGLE_DEFAULT_LANGUAGE", "ja")
+    # 念のためガードして str を返す
+    if isinstance(default, str):
+        return default
+    return "ja"
 
 
 def _norm_params(d: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -493,7 +500,8 @@ def photo(photo_reference=None, maxwidth=800, **kwargs):
 def _places_key(*parts: str) -> str:
     raw = ":".join("" if p is None else str(p) for p in parts)
     digest = md5(raw.encode("utf-8")).hexdigest()
-    return f"{settings.CACHE_KEY_PREFIX}places:{digest}"
+    prefix = getattr(settings, "CACHE_KEY_PREFIX", "")
+    return f"{prefix}places:{digest}"
 
 
 def _build_photo_url_simple(
@@ -700,7 +708,7 @@ def _find_exact_from_text_nearby(
         _dbg("inject.findplace.error", err=str(e))
 
     # ---- 2) フォールバック: Text Search（半径+40%）
-    ts_params = {"q": keyword, "language": lang}
+    ts_params: Dict[str, Any] = {"q": keyword, "language": lang}
     if center is not None:
         ts_params.update(
             {
@@ -715,20 +723,21 @@ def _find_exact_from_text_nearby(
     candidates = ts.get("results") or []
     _dbg("inject.ts.candidates", n=len(candidates))
 
-    hits: list[Tuple[float, Dict[str, Any]]] = []
+    ts_hits: list[Tuple[float, Dict[str, Any]]] = []
     for r in candidates:
         d = _ok_and_dist(r, tgt)
         if d is not None:
-            hits.append((d, r))
+            ts_hits.append((d, r))
 
-    if not hits:
+    if not ts_hits:
         _dbg("inject.miss", keyword=keyword)
         return None
 
-    hits.sort(key=lambda x: x[0])
-    best = hits[0][1]
+    ts_hits.sort(key=lambda x: x[0])
+    best = ts_hits[0][1]
     _dbg("inject.hit", name=best.get("name"), place_id=best.get("place_id"))
     return best
+
 
 
 def findplacefromtext(*, input, language=None, locationbias=None, fields=None):
