@@ -1,13 +1,19 @@
 # backend/temples/api_views_concierge.py
+from typing import Any, Dict, List, Optional
+
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+
 
 import requests
 from django.conf import settings
-from drf_spectacular.utils import OpenApiTypes, extend_schema
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiTypes, extend_schema
+
+
+
+
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -31,19 +37,20 @@ from .models import ConciergeUsage
 
 
 llm = get_llm_adapter(
-    provider=settings.LLM_PROVIDER,
-    model=settings.LLM_MODEL,
-    timeout_ms=settings.LLM_TIMEOUT_MS,
-    prompts_dir=settings.LLM_PROMPTS_DIR,
-    enabled=settings.USE_LLM_CONCIERGE,
-    temperature=settings.LLM_TEMPERATURE,
-    max_tokens=settings.LLM_MAX_TOKENS,
-    base_url=settings.LLM_BASE_URL or None,
-    force_chat=settings.LLM_FORCE_CHAT,
-    force_json=settings.LLM_FORCE_JSON,
-    retries=settings.LLM_RETRIES,
-    backoff_s=settings.LLM_BACKOFF_S,
+    provider=getattr(settings, "LLM_PROVIDER", "openai"),
+    model=getattr(settings, "LLM_MODEL", "gpt-4.1-mini"),
+    timeout_ms=getattr(settings, "LLM_TIMEOUT_MS", 15_000),
+    prompts_dir=getattr(settings, "LLM_PROMPTS_DIR", "prompts"),
+    enabled=getattr(settings, "USE_LLM_CONCIERGE", False),
+    temperature=getattr(settings, "LLM_TEMPERATURE", 0.3),
+    max_tokens=getattr(settings, "LLM_MAX_TOKENS", 512),
+    base_url=getattr(settings, "LLM_BASE_URL", None),
+    force_chat=getattr(settings, "LLM_FORCE_CHAT", False),
+    force_json=getattr(settings, "LLM_FORCE_JSON", True),
+    retries=getattr(settings, "LLM_RETRIES", 2),
+    backoff_s=getattr(settings, "LLM_BACKOFF_S", 0.5),
 )
+
 
 log = logging.getLogger(__name__)
 
@@ -228,7 +235,7 @@ def _short_area(area: str | None) -> str | None:
         return area
 
 
-def _clean_display_name(name: str) -> str:
+def _clean_display_name(name: Any) -> str:
     """(ダミー)などの補助フラグを表示から外す"""
     if not isinstance(name, str):
         return str(name)
@@ -340,7 +347,7 @@ def normalize_name_key(name: str) -> str:
 
 
 def dedupe_recommendations(recs: list[dict]) -> list[dict]:
-    seen = {}
+    seen: dict[str, dict] = {}
     for r in recs:
         key = normalize_name_key(r.get("name") or "")
         if not key:
