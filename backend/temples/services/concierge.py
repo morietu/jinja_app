@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, Dict, List, Literal, Optional, TypedDict, cast
 
 from .places import places_client  # ← 統一して使う
+
+UiMode = Literal["walk", "car"]
+Mode = UiMode
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +51,7 @@ def _short_label_from_details(details: Dict[str, Any]) -> Optional[str]:
 
 
 # ---- Types -------------------------------------------------------------------
-Mode = Literal["walk", "car"]
+
 
 
 class ShrineCandidate(TypedDict):
@@ -117,6 +120,12 @@ class ConciergeService:
     def build_plan(
         self, *, query: str, language: str, locationbias: str, transportation: str
     ) -> Dict[str, Any]:
+        # 0) UI の移動手段を正規化 ("walk" / "car" 以外は "walk")
+        if transportation in ("walk", "car"):
+            ui_mode: UiMode = cast(UiMode, transportation)
+        else:
+            ui_mode = "walk"
+
         # 1) Find Place（tests が self.places.find_place をモックする想定）
         fp = self.places.find_place(
             input=query,
@@ -126,7 +135,6 @@ class ConciergeService:
         )
         fp_candidates = fp.get("candidates") or fp.get("results") or []
         if not fp_candidates:
-            ui_mode: Mode = transportation if transportation in ("walk", "car") else "walk"
             return {
                 "query": query,
                 "transportation": ui_mode,
@@ -222,7 +230,7 @@ class ConciergeService:
                 )
 
         # 3) ルートヒント
-        ui_mode: Mode = transportation if transportation in ("walk", "car") else "walk"
+
         return {
             "query": query,
             "transportation": ui_mode,
