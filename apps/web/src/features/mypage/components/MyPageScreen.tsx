@@ -35,7 +35,17 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
   const [tab, setTab] = useTab();
-  const { items, loading: goshuinLoading, error: goshuinError, addItem, removeItem, toggleVisibility } = useMyGoshuin();
+
+  const goshuinEnabled = !loading && isLoggedIn && !!user;
+
+  const {
+    items,
+    loading: goshuinLoading,
+    error: goshuinError,
+    addItem,
+    removeItem,
+    toggleVisibility,
+  } = useMyGoshuin({ enabled: goshuinEnabled });
 
   const tabs = useMemo(
     () => [
