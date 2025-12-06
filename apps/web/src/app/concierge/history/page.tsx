@@ -49,7 +49,7 @@ export default function ConciergeHistoryPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-gray-800">{t.title || "相談スレッド"}</span>
                 <span className="shrink-0 text-[10px] text-gray-400">
-                  {new Date(t.last_message_at).toLocaleString("ja-JP")}
+                  {t.last_message_at ? new Date(t.last_message_at).toLocaleString("ja-JP") : "日時なし"}
                 </span>
               </div>
               <p className="mt-1 line-clamp-2 text-[11px] text-gray-600">{t.last_message}</p>

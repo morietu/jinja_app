@@ -33,6 +33,8 @@ export default function ConciergeLayout({
 
   const isDummy = !!current?.__dummy;
 
+  const locationText = current?.display_address ?? "";
+
   // 横向き UI
   if (isLandscape) {
     return (
@@ -141,9 +143,7 @@ export default function ConciergeLayout({
 
             {current.reason && <p className="mt-1 text-sm text-gray-700">{current.reason}</p>}
 
-            {(current.address || current.location) && (
-              <p className="mt-2 text-xs text-gray-500">{current.address || current.location}</p>
-            )}
+            {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
 
             {(current.distance_m ?? 0) > 0 && (
               <p className="mt-1 text-xs text-gray-500">

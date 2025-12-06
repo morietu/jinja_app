@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-
 import axios from "axios";
 import {
   fetchThreads,
@@ -107,11 +106,13 @@ export function useConciergeThreadDetail(threadId: string | null) {
 
 /* ====== チャット送信（/concierge/chat/） ====== */
 
+// apps/web/src/features/concierge/hooks.ts の該当部分だけ差し替え
+
 export type UseConciergeChatOptions = {
   // 本番API: thread/messages/recommendations が返ってきたとき
   onUpdated?: (payload: {
     thread: ConciergeThread;
-    messages: ConciergeMessage[];
+    messages?: ConciergeMessage[]; // ← optional にする
     recommendations?: ConciergeRecommendation[] | null;
   }) => void;
 
@@ -120,8 +121,6 @@ export type UseConciergeChatOptions = {
 
   onRecommendations?: (recs: ConciergeRecommendation[]) => void;
 };
-
-
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
@@ -136,24 +135,21 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
       try {
         const res = await postConciergeChat({
-          query: message, // ★ “message” → “query” に変更
+          query: message,
           thread_id: threadId ?? undefined,
         });
-      
+
         const recs = res.data?.recommendations ?? [];
         if (recs.length > 0) {
           options?.onRecommendations?.(recs);
         }
 
-        // まだ本番の thread/messages 返却は未実装なので、ここはスキップ想定
-        if ((res as any).thread && (res as any).messages && (res as any).messages.length > 0) {
-          const anyRes = res as any;
+        // ★ thread が返ってきたら必ず onUpdated に流す
+        if (res.thread) {
           options?.onUpdated?.({
-            thread: anyRes.thread,
-            messages: anyRes.messages,
-            recommendations: anyRes.recommendations ?? null,
+            thread: res.thread,
+            recommendations: recs ?? null,
           });
-          return;
         }
 
         // いま有効なのは echo 返信
@@ -161,10 +157,8 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           let replyText =
             res.reply ?? res.data?.reply ?? res.data?.raw ?? "候補が見つかりませんでした。";
 
-          // "echo: " を削る
           replyText = replyText.replace(/^echo:\s*/i, "");
-
-          options?.onReply?.(replyText);  // ★ 親に返事を渡す
+          options?.onReply?.(replyText);
         }
       } catch (err) {
         let msg = "チャット送信に失敗しました";

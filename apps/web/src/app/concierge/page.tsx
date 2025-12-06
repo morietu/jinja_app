@@ -4,29 +4,23 @@
 import { useState } from "react";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
-import type {
-  ConciergeMessage,
-  ConciergeThread,
-  ConciergeRecommendation, // ★ 追加
-} from "@/lib/api/concierge";
+import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 
 export default function ConciergePage() {
   const [thread, setThread] = useState<ConciergeThread | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ConciergeMessage[]>([]);
-  const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]); // ★ 追加
+  const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
 
-  const { send, sending, error } = useConciergeChat(thread ? String(thread.id) : null, {
-    // 将来 thread / messages / recommendations が backend から飛んでくる用
-    onUpdated(payload) {
-      setThread(payload.thread);
-      setMessages(payload.messages);
-      if (payload.recommendations) {
-        setRecommendations(payload.recommendations);
-      }
+  const { send, sending, error } = useConciergeChat(threadId, {
+    // ★ バックエンドから thread が返ってきたらここで紐付け
+    onUpdated: ({ thread }) => {
+      setThread(thread);
+      setThreadId(String(thread.id));
     },
 
-    // 今の echo / fallback 用
-    onReply(replyText) {
+    // echo 返信を疑似メッセージに変換
+    onReply: (replyText) => {
       const now = new Date().toISOString();
 
       setMessages((prev) => {
@@ -44,15 +38,18 @@ export default function ConciergePage() {
       });
     },
 
-    // ★ ここが今回のメイン
-    onRecommendations(recs) {
+    // 推薦候補を右側パネルに渡す用
+    onRecommendations: (recs) => {
       setRecommendations(recs);
     },
   });
 
   const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+
     const now = new Date().toISOString();
 
+    // まずユーザーメッセージをローカルに追加
     setMessages((prev) => {
       const lastId = prev.length ? prev[prev.length - 1].id : 0;
 
@@ -67,6 +64,7 @@ export default function ConciergePage() {
       return [...prev, userMsg];
     });
 
+    // API 送信
     await send(text);
   };
 
@@ -88,7 +86,7 @@ export default function ConciergePage() {
         error={error}
         onSend={handleSend}
         onRetry={handleRetry}
-        recommendations={recommendations} // ★ ここを [] から変更
+        recommendations={recommendations}
       />
     </div>
   );
