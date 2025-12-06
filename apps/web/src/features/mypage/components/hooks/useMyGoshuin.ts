@@ -11,16 +11,30 @@ type State = {
   error: string | null;
 };
 
-export function useMyGoshuin() {
-  const [state, setState] = useState<State>({
+type Options = {
+  enabled?: boolean;
+};
+
+export function useMyGoshuin(options?: Options) {
+  const enabled = options?.enabled ?? true;
+
+  const [state, setState] = useState<State>(() => ({
     items: null,
-    loading: true,
+    loading: enabled,
     error: null,
-  });
+  }));
 
   // 初回ロード
   useEffect(() => {
     let cancelled = false;
+
+    // 無効化されているときはロードしない
+    if (!enabled) {
+      setState((prev) => ({ ...prev, loading: false }));
+      return () => {
+        cancelled = true;
+      };
+    }
 
     async function load() {
       setState((prev) => ({ ...prev, loading: true, error: null }));
@@ -47,7 +61,7 @@ export function useMyGoshuin() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled]);
 
   // addItem: items が null のとき新しく配列を作り、その後は「先頭に」追加
   const addItem = useCallback((item: Goshuin) => {
@@ -119,6 +133,8 @@ export function useMyGoshuin() {
 
   // 再読み込み
   const reload = useCallback(async () => {
+    if (!enabled) return;
+
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const items = await fetchMyGoshuin();
@@ -132,9 +148,7 @@ export function useMyGoshuin() {
         error: "御朱印一覧の取得に失敗しました。",
       });
     }
-  }, []);
-
-
+  }, [enabled]);
 
   return {
     items: state.items,
