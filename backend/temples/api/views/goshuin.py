@@ -8,7 +8,10 @@ from django.db import transaction
 
 from temples.models import Goshuin, Shrine, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer
-
+# temples/api/views/goshuin.py
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
@@ -39,7 +42,9 @@ class MyGoshuinViewSet(viewsets.ViewSet):
     /api/my/goshuins/ 用
     ログインユーザー自身の御朱印を CRUD する
     """
-    authentication_classes = [CsrfExemptSessionAuthentication]
+    
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
+
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
@@ -98,10 +103,19 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         - image: ファイル
         """
 
+        print("DEBUG request.method =", request.method)
+        print("DEBUG request.content_type =", request.content_type)
+        print("DEBUG request.data =", request.data)
+        print("DEBUG request.FILES =", request.FILES)
+
+        
         shrine_id = request.data.get("shrine")
         image = request.FILES.get("image")
         title = request.data.get("title", "") or ""
         is_public_raw = request.data.get("is_public", "false")
+
+        print("DEBUG request.data =", request.data)
+        print("DEBUG shrine_id =", shrine_id)
 
         errors = {}
 

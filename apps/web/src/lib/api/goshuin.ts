@@ -12,10 +12,10 @@ export type Goshuin = {
   shrine_name?: string;
 };
 
-// 🔽 バックエンド直叩き用オリジン（フォールバック用）
+// 🔽 バックエンド直叩き用オリジン（公開御朱印フォールバック用だけ）
 const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
 
-// エンドポイント候補（テストが想定している「複数候補」挙動）
+// エンドポイント候補（テスト用）
 const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
 const MY_CANDIDATES = ["/my/goshuin/", "/goshuin/my/", "/me/goshuin/"] as const;
 
@@ -26,7 +26,7 @@ function toList(data: any): Goshuin[] {
   return [];
 }
 
-// 絶対URLでバックエンドを叩くフォールバック（テストが想定している挙動）
+// 絶対URLでバックエンドを叩くフォールバック（公開御朱印用）
 async function fetchPublicFromBackend(): Promise<Goshuin[]> {
   const base = BACKEND_ORIGIN.replace(/\/+$/, "");
   const url = `${base}/api/goshuin/`;
@@ -45,10 +45,6 @@ export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
 
 /**
  * 公開御朱印一覧（フォールバックロジック込み）
- * - PUBLIC_CANDIDATES を順に試す
- * - 404 のときだけ次候補へ
- * - 401/403 は即空配列
- * - レスポンスなしの AxiosError のときだけ BACKEND_ORIGIN 直叩き
  */
 export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
   for (const path of PUBLIC_CANDIDATES) {
@@ -59,15 +55,12 @@ export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
       if (!axios.isAxiosError(err)) {
         return [];
       }
-
       const status = err.response?.status;
 
-      // 未ログインは即空配列
       if (status === 401 || status === 403) {
         return [];
       }
 
-      // ネットワークエラー / CORS など：絶対URLフォールバックを1回だけ試す
       if (!err.response) {
         try {
           return await fetchPublicFromBackend();
@@ -76,22 +69,16 @@ export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
         }
       }
 
-      // 404 は次の候補へ、それ以外は諦める
       if (status !== 404) {
         return [];
       }
-      // ← 404 のときだけ loop 続行（→ api.get が候補数ぶん呼ばれる）
     }
   }
-
   return [];
 }
 
 /**
  * 自分の御朱印一覧（互換用オート版）
- * - MY_CANDIDATES を順に試す
- * - 401/403 は空配列
- * - 404 は次候補へ
  */
 export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
   for (const path of MY_CANDIDATES) {
@@ -103,11 +90,9 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
         console.warn?.("[getMyGoshuinAuto] unexpected error", err);
         return [];
       }
-
       const status = err.response?.status;
 
       if (status === 401 || status === 403) {
-        // 未ログインは静かに空配列
         return [];
       }
 
@@ -115,8 +100,6 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
         console.warn?.("[getMyGoshuinAuto] non-404 error", status);
         return [];
       }
-
-      // 404 → 次候補へ（何もしないでループ続行）
     }
   }
 
@@ -124,7 +107,7 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
   return [];
 }
 
-// 互換エイリアス（テストで使われている）
+// 互換エイリアス
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
 
@@ -138,10 +121,7 @@ export async function fetchGoshuin(): Promise<Goshuin[]> {
 // 自分の御朱印一覧（BFF /api/my/goshuin/ 経由）
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/my/goshuin/");
-  const data = r.data;
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.results)) return data.results;
-  return [];
+  return toList(r.data);
 }
 
 // ---- BFF 経由の POST / PATCH / DELETE ----
@@ -161,26 +141,30 @@ export async function uploadMyGoshuin(input: {
   form.append("is_public", input.isPublic ? "true" : "false");
   form.append("image", input.file);
 
+  // ここでは BACKEND_ORIGIN も token も使わない
   const r = await api.post<Goshuin>("/my/goshuin/", form);
   return r.data;
 }
 
-// 互換エイリアス（古いコードが uploadGoshuin を呼んでも動くように）
+// 互換エイリアス（古いコード用）
 export const uploadGoshuin = uploadMyGoshuin;
-
-/**
- * 自分の御朱印削除（BFF: DELETE /api/my/goshuin/:id/）
- */
-export async function deleteMyGoshuin(id: number): Promise<void> {
-  await api.delete(`/my/goshuin/${id}/`);
-}
 
 /**
  * 公開 / 非公開変更（BFF: PATCH /api/my/goshuin/:id/）
  */
-export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
+export async function updateMyGoshuinVisibility(
+  id: number,
+  isPublic: boolean,
+): Promise<Goshuin> {
   const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, {
     is_public: isPublic,
   });
   return r.data;
+}
+
+/**
+ * 御朱印削除（BFF: DELETE /api/my/goshuin/:id/）
+ */
+export async function deleteMyGoshuin(id: number): Promise<void> {
+  await api.delete(`/my/goshuin/${id}/`);
 }
