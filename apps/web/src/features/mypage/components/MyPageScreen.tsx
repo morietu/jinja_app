@@ -10,7 +10,7 @@ import { sanitizeTab } from "@/app/mypage/tabs";
 import ProfileSection from "./ProfileSection";
 import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
-import { useMyGoshuin } from "./hooks/useMyGoshuin";
+import { useMyGoshuin } from "@/features/mypage/hooks";
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();

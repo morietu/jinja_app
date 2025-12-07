@@ -1,0 +1,38 @@
+// apps/web/src/lib/api/mypage.ts
+import { apiGet } from "./http";
+import type { AxiosRequestConfig } from "axios";
+import type { Goshuin as GoshuinFromGoshuinApi } from "./goshuin";
+import { fetchMyGoshuin as fetchMyGoshuinFromGoshuin } from "./goshuin";
+
+// 型は実際のレスポンスに合わせて
+export type MeResponse = {
+  user: {
+    id: number;
+    username: string;
+    email: string;
+    nickname: string;
+    is_public: boolean;
+    bio: string | null;
+    icon: string | null;
+    created_at: string;
+    profile: {
+      nickname: string;
+      is_public: boolean;
+      bio: string | null;
+      birthday: string | null;
+      location: string | null;
+    };
+  } | null;
+};
+
+
+export type Goshuin = GoshuinFromGoshuinApi;
+
+export async function fetchMe(config?: AxiosRequestConfig) {
+  return apiGet<MeResponse>("/users/me/", config);
+}
+
+export async function fetchMyGoshuin(_config?: AxiosRequestConfig) {
+  // config を使っていないなら、そのまま透過でOK
+  return fetchMyGoshuinFromGoshuin();
+}
