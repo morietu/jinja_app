@@ -6,6 +6,7 @@ import type { Goshuin } from "@/lib/api/goshuin";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
 // import { ImagePlus } from "lucide-react"; // ★ アイコン追加
 // import { SomethingElse } from "lucide-react";
+import Image from "next/image";
 
 type Props = {
   onUploaded?: (goshuin: Goshuin) => void;
@@ -117,10 +118,17 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
       {/* プレビュー */}
       {previewUrl && (
-        <div className="mb-4">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">プレビュー</p>
-          <div className="inline-flex rounded-xl border border-gray-100 bg-gray-50 p-2">
-            <img src={previewUrl} alt="選択中の御朱印プレビュー" className="h-32 w-auto rounded-lg object-contain" />
+        <div className="mt-3">
+          <p className="mb-1 text-xs text-gray-500">プレビュー</p>
+          <div className="relative inline-block max-h-48 w-full">
+            <Image
+              src={previewUrl}
+              alt="御朱印プレビュー"
+              width={400}
+              height={400}
+              unoptimized
+              className="max-h-48 w-auto rounded border object-contain"
+            />
           </div>
         </div>
       )}

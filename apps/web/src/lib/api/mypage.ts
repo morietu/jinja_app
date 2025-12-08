@@ -1,5 +1,5 @@
 // apps/web/src/lib/api/mypage.ts
-import { apiGet } from "./http";
+import { apiGet, apiPatch } from "./http";
 import type { AxiosRequestConfig } from "axios";
 import type { Goshuin as GoshuinFromGoshuinApi } from "./goshuin";
 import { fetchMyGoshuin as fetchMyGoshuinFromGoshuin } from "./goshuin";
@@ -25,7 +25,6 @@ export type MeResponse = {
   } | null;
 };
 
-
 export type Goshuin = GoshuinFromGoshuinApi;
 
 export async function fetchMe(config?: AxiosRequestConfig) {
@@ -35,4 +34,9 @@ export async function fetchMe(config?: AxiosRequestConfig) {
 export async function fetchMyGoshuin(_config?: AxiosRequestConfig) {
   // config を使っていないなら、そのまま透過でOK
   return fetchMyGoshuinFromGoshuin();
+}
+
+export async function updateProfileVisibility(isPublic: boolean): Promise<void> {
+  // 例: /api/my/profile/ で PATCH する想定
+  await apiPatch("/my/profile/", { is_public: isPublic });
 }
