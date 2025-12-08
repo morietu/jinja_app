@@ -12,6 +12,8 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import FavoritesSection from "./FavoritesSection";
+import SettingsSection from "./SettingsSection";
+
 
 
 
@@ -249,26 +251,7 @@ export default function MyPageScreen() {
         {tab === "settings" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="設定">
-              <p className="mb-2 text-xs text-gray-500">テーマや通知などの設定は、今後のアップデートで追加予定です。</p>
-
-              <div className="space-y-4 text-sm text-gray-600">
-                <div>
-                  <h3 className="mb-1 text-xs font-semibold text-gray-700">アカウント</h3>
-                  <ul className="list-disc space-y-1 pl-5 text-xs">
-                    <li>プロフィール編集（ニックネーム・自己紹介など）</li>
-                    <li className="text-gray-400">メールアドレス変更（準備中）</li>
-                    <li className="text-gray-400">パスワード変更（準備中）</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="mb-1 text-xs font-semibold text-gray-700">アプリ設定（準備中）</h3>
-                  <ul className="list-disc space-y-1 pl-5 text-xs text-gray-400">
-                    <li>通知オン／オフ</li>
-                    <li>テーマ切り替え（ライト／ダーク）</li>
-                  </ul>
-                </div>
-              </div>
+              <SettingsSection initialIsPublic={user.is_public} />
             </SectionCard>
           </div>
         )}
