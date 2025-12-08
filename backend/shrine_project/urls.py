@@ -29,7 +29,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from users.views import MeView
+from users.views import MeView, MeIconUploadView
 from temples import api_views_concierge as concierge
 
 from .views import favicon, index
@@ -106,6 +106,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # API ルート
     path("api/users/me/", MeView.as_view(), name="users-me"),
+    path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     
     # favorites エンドポイント（/api/favorites/）

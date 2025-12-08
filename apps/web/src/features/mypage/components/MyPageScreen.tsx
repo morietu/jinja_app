@@ -1,7 +1,7 @@
 // apps/web/src/features/mypage/components/MyPageScreen.tsx
 "use client";
 
-import React, { useMemo, useCallback, KeyboardEvent } from "react";
+import React, { useMemo, useCallback, KeyboardEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -13,9 +13,6 @@ import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import FavoritesSection from "./FavoritesSection";
 import SettingsSection from "./SettingsSection";
-
-
-
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boolean] {
   const router = useRouter();
@@ -39,8 +36,26 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boo
 }
 
 export default function MyPageScreen() {
-  const { user, isLoggedIn, loading, logout } = useAuth();
+  // ★ 認証・ユーザー情報は useAuth だけを使う
+  const { user, isLoggedIn, loading, logout, refresh } = useAuth();
   const [tab, setTab, saved] = useTab();
+
+  const [showSaved, setShowSaved] = useState(saved);
+
+  // プロフィール保存後だけ /users/me/ を取り直す
+  useEffect(() => {
+    if (!saved) return;
+    refresh().catch((err) => {
+      console.error("failed to refresh user profile", err);
+    });
+  }, [saved, refresh]);
+
+  useEffect(() => {
+    if (!saved) return;
+    setShowSaved(true);
+    const t = setTimeout(() => setShowSaved(false), 4000); // 4秒後に非表示
+    return () => clearTimeout(t);
+  }, [saved]);
 
   const goshuinEnabled = !loading && isLoggedIn && !!user;
 
@@ -57,7 +72,7 @@ export default function MyPageScreen() {
     () => [
       { key: "profile" as TabKey, label: "プロフィール" },
       { key: "favorites" as TabKey, label: "お気に入り（準備中）" },
-      { key: "goshuin" as TabKey, label: "御朱印" }, // ← 準備中ではない
+      { key: "goshuin" as TabKey, label: "御朱印" },
       { key: "settings" as TabKey, label: "設定" },
     ],
     [],
@@ -158,6 +173,8 @@ export default function MyPageScreen() {
   }
 
   // --- ログイン時 ---
+  const isPublic = user.profile?.is_public ?? user.is_public ?? false;
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
@@ -211,7 +228,7 @@ export default function MyPageScreen() {
         tabIndex={0}
         className="rounded-lg border bg-white"
       >
-        {saved && (
+        {showSaved && ( // ★ ここを変更
           <div className="mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
             プロフィールを保存しました。
           </div>
@@ -242,7 +259,6 @@ export default function MyPageScreen() {
               <GoshuinUploadForm onUploaded={addItem} />
             </SectionCard>
 
-            {/* 登録済みリスト */}
             <section>
               <MyGoshuinList
                 items={items}
@@ -258,7 +274,7 @@ export default function MyPageScreen() {
         {tab === "settings" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="設定">
-              <SettingsSection initialIsPublic={user.profile?.is_public ?? false} />
+              <SettingsSection initialIsPublic={isPublic} />
             </SectionCard>
           </div>
         )}
