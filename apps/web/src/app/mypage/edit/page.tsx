@@ -14,16 +14,17 @@ export default function ProfileEditPage() {
     nickname: string;
     is_public: boolean;
     website: string;
-    icon_url: string;
     birthday: string;
     location: string;
   }>;
 
   const [form, setForm] = useState({
     nickname: p.nickname ?? user?.username ?? "",
+    // UserMe 型には is_public がないので profile だけを見る
     is_public: !!p.is_public,
     website: p.website ?? "",
-    icon_url: p.icon_url ?? "",
+    // auth の user 型には icon が載っていないため any キャストで初期値を拾う
+    icon: (user as any)?.icon ?? "",
     birthday: p.birthday ?? "",
     location: p.location ?? "",
   });
@@ -54,7 +55,7 @@ export default function ProfileEditPage() {
       setErr("Webは http(s) のURLで入力してください");
       return;
     }
-    if (form.icon_url && !isHttpUrl(form.icon_url)) {
+    if (form.icon && !isHttpUrl(form.icon)) {
       setErr("アイコンURLは http(s) のURLで入力してください");
       return;
     }
@@ -68,7 +69,7 @@ export default function ProfileEditPage() {
         nickname: form.nickname?.trim(),
         is_public: !!form.is_public,
         website: form.website?.trim() || undefined,
-        icon_url: form.icon_url?.trim() || undefined,
+        icon_url: form.icon?.trim() || undefined,
         birthday: form.birthday?.trim() || undefined,
         location: form.location?.trim() || undefined,
       });
@@ -139,8 +140,8 @@ export default function ProfileEditPage() {
           <input
             className="mt-1 w-full rounded border p-2"
             placeholder="https://…/icon.png"
-            value={form.icon_url}
-            onChange={(e) => onChange("icon_url", e.target.value)}
+            value={form.icon}
+            onChange={(e) => onChange("icon", e.target.value)}
           />
         </div>
 

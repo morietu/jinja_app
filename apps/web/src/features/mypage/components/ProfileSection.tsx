@@ -1,5 +1,6 @@
 // apps/web/src/features/mypage/components/ProfileSection.tsx
 import React from "react";
+import Image from "next/image";
 import { UserIcon } from "@heroicons/react/24/solid";
 
 function initialsFrom(user: any) {
