@@ -56,6 +56,21 @@ export function isAuthError(e: unknown) {
   return typeof e === "object" && e !== null && (e as any)?.response?.status === 401;
 }
 
-export function __resolveUrlForTest(input: string): string {
-  return resolveUrl(input);
+export function __resolveUrlForTest(path: string): string {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "/api";
+
+  // 絶対 URL はそのまま返す
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+
+  // 先頭に / を付けて正規化
+  let p = path.startsWith("/") ? path : `/${path}`;
+
+  // "/my/goshuin/?a=1" → "/my/goshuin?a=1" に正規化
+  p = p.replace("/?", "?");
+
+  const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+
+  return `${trimmedBase}${p}`;
 }

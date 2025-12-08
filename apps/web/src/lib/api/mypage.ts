@@ -12,6 +12,7 @@ export type MeProfile = {
   // ここはバックエンドにまだ無いから「あとで追加予定」なら optional にしておく
   birthday?: string | null;
   location?: string | null;
+  website?: string | null;
 };
 
 export type MeResponse = {

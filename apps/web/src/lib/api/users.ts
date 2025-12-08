@@ -37,12 +37,16 @@ export type UserMe = {
   bio: string | null;
   icon: string | null;
   created_at: string;
+  // ★ ここを追加
+  website?: string | null;
   profile: {
     nickname: string | null;
     is_public: boolean;
     bio: string | null;
     birthday?: string | null;
     location?: string | null;
+    // ★ プロフィール側に website が入る可能性も見ておく
+    website?: string | null;
   } | null;
 };
 
