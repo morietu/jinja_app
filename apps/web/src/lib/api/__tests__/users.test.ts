@@ -76,7 +76,7 @@ describe("users api client", () => {
     } as any);
 
     const originalFetch = global.fetch;
-    // @ts-expect-error テスト用に上書き
+    
     global.fetch = mockFetch;
 
     const result = await usersApi.getCurrentUser();
@@ -93,7 +93,7 @@ describe("users api client", () => {
     );
     expect(result).toEqual(me);
 
-    // @ts-expect-error 元に戻す
+    
     global.fetch = originalFetch;
   });
 
@@ -105,7 +105,7 @@ describe("users api client", () => {
     } as any);
 
     const originalFetch = global.fetch;
-    // @ts-expect-error テスト用に上書き
+    
     global.fetch = mockFetch;
 
     const result = await usersApi.getCurrentUser();
@@ -113,7 +113,7 @@ describe("users api client", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(result).toBeNull();
 
-    // @ts-expect-error 元に戻す
+    
     global.fetch = originalFetch;
   });
 
@@ -128,7 +128,7 @@ describe("users api client", () => {
     } as any);
 
     const originalFetch = global.fetch;
-    // @ts-expect-error テスト用に上書き
+    
     global.fetch = mockFetch;
 
     const result = await usersApi.updateUser(patch);
@@ -145,7 +145,7 @@ describe("users api client", () => {
     );
     expect(result).toEqual(me);
 
-    // @ts-expect-error 元に戻す
+    
     global.fetch = originalFetch;
   });
 
@@ -159,13 +159,13 @@ describe("users api client", () => {
     } as any);
 
     const originalFetch = global.fetch;
-    // @ts-expect-error テスト用に上書き
+    
     global.fetch = mockFetch;
 
     await expect(usersApi.updateUser(patch)).rejects.toThrow("server error");
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
-    // @ts-expect-error 元に戻す
+
     global.fetch = originalFetch;
   });
 });
