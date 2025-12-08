@@ -251,7 +251,7 @@ export default function MyPageScreen() {
         {tab === "settings" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="設定">
-              <SettingsSection initialIsPublic={user.is_public} />
+              <SettingsSection initialIsPublic={user.profile?.is_public ?? false} />
             </SectionCard>
           </div>
         )}
