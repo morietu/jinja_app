@@ -15,18 +15,39 @@ export async function updateMe(payload: UpdateMePayload) {
   return data;
 }
 
+export async function uploadUserIcon(file: File): Promise<{ icon_url: string }> {
+  const formData = new FormData();
+  formData.append("icon", file);
+
+  const { data } = await api.post<{ icon_url: string }>("my/profile/icon/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return data;
+}
+
 export type UserMe = {
   id: number;
   username: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  profile?: { nickname?: string; is_public?: boolean; website?: string } | null;
+  email: string;
+  nickname: string;
+  is_public: boolean;
+  bio: string | null;
+  icon: string | null;
+  created_at: string;
+  profile: {
+    nickname: string | null;
+    is_public: boolean;
+    bio: string | null;
+    birthday?: string | null;
+    location?: string | null;
+  } | null;
 };
 
-export async function getCurrentUser(
-  signal?: AbortSignal
-): Promise<UserMe | null> {
+// ここ以下はそのままでOK
+export async function getCurrentUser(signal?: AbortSignal): Promise<UserMe | null> {
   const res = await fetch("/api/users/me/", {
     method: "GET",
     credentials: "same-origin",
@@ -38,10 +59,12 @@ export async function getCurrentUser(
     const msg = await res.text().catch(() => "");
     throw new Error(msg || `getCurrentUser failed: ${res.status}`);
   }
-  return (await res.json()) as UserMe;
+
+  const json = await res.json();
+  const data = (json as any).user ?? json;
+  return data as UserMe;
 }
 
-/** 必要なら PATCH も用意（MyPage が import しているため） */
 export async function updateUser(patch: Partial<UserMe>): Promise<UserMe> {
   const res = await fetch("/api/users/me/", {
     method: "PATCH",
@@ -53,5 +76,7 @@ export async function updateUser(patch: Partial<UserMe>): Promise<UserMe> {
     const msg = await res.text().catch(() => "");
     throw new Error(msg || `updateUser failed: ${res.status}`);
   }
-  return (await res.json()) as UserMe;
+  const json = await res.json();
+  const data = (json as any).user ?? json;
+  return data as UserMe;
 }

@@ -7,10 +7,10 @@ import type { Goshuin } from "@/lib/api/goshuin";
 import { fetchMyGoshuin as fetchMyGoshuinApi, deleteMyGoshuin, updateMyGoshuinVisibility } from "@/lib/api/goshuin";
 
 /**
- * /api/users/me/ を叩くシンプルなフック
+ * /api/my/profile/（= Django /api/users/me/）を叩くフック
  */
 export function useMe() {
-  const [data, setData] = useState<MeResponse["user"] | null>(null);
+  const [data, setData] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,9 +19,9 @@ export function useMe() {
 
     (async () => {
       try {
-        const res = await fetchMe();
+        const res = await fetchMe(); // res は MeResponse
         if (!cancelled) {
-          setData(res.user);
+          setData(res); // ★ res.user ではなく res そのもの
         }
       } catch (e) {
         if (!cancelled) {

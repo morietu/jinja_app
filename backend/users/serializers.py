@@ -58,8 +58,10 @@ class MeSerializer(serializers.ModelSerializer):
         return p.bio if p else None
 
     def get_icon(self, obj):
-        p = self._profile_of(obj)
-        return p.icon.url if (p and getattr(p, "icon", None)) else None
+        p = UserProfile.objects.filter(user=obj).first()
+        if p and p.icon:
+            return self.context["request"].build_absolute_uri(p.icon.url)
+        return None
 
     def get_profile(self, obj):
         p = self._profile_of(obj)
@@ -67,19 +69,17 @@ class MeSerializer(serializers.ModelSerializer):
 
     # ---- update (write) ----
     def update(self, instance, validated_data):
-        """
-        flat（nickname/bio/is_public/email）と
-        nested（profile: {nickname, bio, is_public}）の両方を受け付ける。
-        SerializerMethodField は write 不可なので initial_data を参照。
-        """
         data = dict(getattr(self, "initial_data", {}) or {})
+        print("[MeSerializer.update] initial_data:", data)
 
-        # nested -> flat 吸収
         profile_in = data.get("profile") or {}
         if isinstance(profile_in, dict):
             for k in ("nickname", "bio", "is_public"):
                 if k in profile_in and k not in data:
                     data[k] = profile_in[k]
+
+        print("[MeSerializer.update] merged data:", data)
+
 
         # User 側
         if "email" in data:
@@ -96,9 +96,12 @@ class MeSerializer(serializers.ModelSerializer):
             prof.bio = data["bio"]
             changed = True
         if "is_public" in data:
+            print("[MeSerializer.update] set prof.is_public =", data["is_public"])
             prof.is_public = bool(data["is_public"])
             changed = True
         if changed:
             prof.save()
+            print("[MeSerializer.update] saved profile id=", prof.id)
+
 
         return instance
