@@ -117,11 +117,10 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
       {/* プレビュー */}
       {previewUrl && (
-        <div className="mb-4">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">プレビュー</p>
-          <div className="inline-flex rounded-xl border border-gray-100 bg-gray-50 p-2">
-            <img src={previewUrl} alt="選択中の御朱印プレビュー" className="h-32 w-auto rounded-lg object-contain" />
-          </div>
+        <div className="mt-3">
+          <p className="mb-1 text-xs text-gray-500">プレビュー</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewUrl} alt="御朱印プレビュー" className="max-h-48 rounded border object-contain" />
         </div>
       )}
 
