@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 // apps/web/src/features/mypage/components/GoshuinUploadForm.tsx
 "use client";
 
