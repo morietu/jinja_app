@@ -4,6 +4,8 @@ from django.urls import include, path
 from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
 
+from temples.api.views.public_profile import public_profile
+
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
 from temples.api.views.concierge import (
@@ -177,6 +179,8 @@ urlpatterns = [
         ConciergeThreadDetailView.as_view(),
         name="concierge-thread-detail-noslash",
     ),
+
+    path("public/profile/<str:username>/", public_profile, name="public-profile"),
     
     
     
