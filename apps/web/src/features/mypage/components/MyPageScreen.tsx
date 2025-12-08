@@ -11,6 +11,9 @@ import ProfileSection from "./ProfileSection";
 import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
+import FavoritesSection from "./FavoritesSection";
+
+
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
   const router = useRouter();
@@ -216,18 +219,7 @@ export default function MyPageScreen() {
         {tab === "favorites" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="お気に入り">
-              <p className="mb-2 text-xs text-orange-600">※ この機能は現在、準備中です。</p>
-              <p className="mb-3 text-sm text-gray-600">
-                気になる神社を「お気に入り」に保存して、あとから一覧からすぐ開けるようにする予定です。
-              </p>
-              <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
-                <li>保存した神社の一覧表示</li>
-                <li>お気に入りからの削除</li>
-                <li>神社詳細ページへのショートカット</li>
-              </ul>
-              <p className="mt-3 text-xs text-gray-400">
-                バックエンド実装が完了し次第、この画面から順次操作できるようになります。
-              </p>
+              <FavoritesSection />
             </SectionCard>
           </div>
         )}

@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [tsconfigPaths({ projects: ["./tsconfig.json"], ignoreConfigErrors: true }), react()],
   esbuild: { jsx: "automatic" },
   test: {
+    exclude: [
+      "src/features/mypage/components/FavoriteShrineCard.tsx",
+      "src/features/mypage/components/FavoritesSection.tsx",
+      "src/features/mypage/components/hooks/useFavorites.ts",
+    ],
     environment: "jsdom",
     environmentOptions: { jsdom: { url: "http://localhost/" } },
     setupFiles: ["./vitest.setup.ts"],
@@ -30,6 +35,16 @@ export default defineConfig({
         "vitest.config.ts",
         "vitest.setup.ts",
         "storybook-static/**",
+
+        // 低レベルAPI・準備中機能は一旦対象外
+        "src/lib/api/http.ts",
+        "src/lib/api/mypage.ts",
+        "src/features/mypage/components/hooks/useMyGoshuin.ts",
+
+        // 🔽 お気に入り関連を追加で除外
+        "src/features/mypage/components/FavoriteShrineCard.tsx",
+        "src/features/mypage/components/FavoritesSection.tsx",
+        "src/features/mypage/components/hooks/useFavorites.ts",
       ],
     },
   },

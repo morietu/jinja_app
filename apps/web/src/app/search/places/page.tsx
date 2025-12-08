@@ -13,8 +13,8 @@ async function fetchPlaces(params: SearchParams) {
       "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon",
   });
   if (params.locationbias) usp.set("locationbias", params.locationbias);
-  // axios 統一: /api 経由
-  return apiGet<{ results: any[] }>(`/api/places/find?${usp.toString()}`);
+  
+  return apiGet<{ results: any[] }>(`/places/find?${usp.toString()}`);
 }
 
 export default async function Page({
