@@ -1,5 +1,5 @@
 // apps/web/src/lib/api/mypage.ts
-import { apiGet, apiPatch, apiPost } from "./http";
+import { apiGet, apiPatch } from "./http";
 import type { AxiosRequestConfig } from "axios";
 import type { Goshuin as GoshuinFromGoshuinApi } from "./goshuin";
 import { fetchMyGoshuin as fetchMyGoshuinFromGoshuin } from "./goshuin";

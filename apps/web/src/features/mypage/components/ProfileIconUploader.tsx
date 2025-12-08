@@ -1,3 +1,4 @@
+// apps/web/src/features/mypage/components/ProfileIconUploader.tsx
 "use client";
 
 import { useState } from "react";
@@ -14,14 +15,23 @@ export default function ProfileIconUploader({ user }: Props) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const iconSrc = user.icon ?? "/images/default-avatar.png"; // デフォルトアイコンは好きなパスに
+  const iconSrc = user.icon ?? "/images/default-avatar.png";
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    await uploadUserIcon(file); // ★ ここで /api/users/me/icon/ を叩く
-    await refresh(); // ★ me を再取得（useAuth 内で /api/users/me/）
+    setError(null);
+    setUploading(true);
+    try {
+      await uploadUserIcon(file);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      setError("アイコンのアップロードに失敗しました。時間をおいてもう一度お試しください。");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
