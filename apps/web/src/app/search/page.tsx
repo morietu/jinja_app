@@ -21,7 +21,7 @@ async function fetchPlaces(params: FetchParams) {
   );
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  return apiGet<{ results: any[] }>(`/api/places/search?${usp.toString()}`);
+  return apiGet<{ results: any[] }>(`/places/search?${usp.toString()}`);
 
 }
 
@@ -51,9 +51,7 @@ export default async function SearchPage({
       <h1 className="text-xl font-bold">検索結果</h1>
       <SearchBar initialKeyword={keyword} />
 
-      {!keyword && (
-        <p className="text-gray-500">キーワードを入力して検索してください。</p>
-      )}
+      {!keyword && <p className="text-gray-500">キーワードを入力して検索してください。</p>}
 
       {keyword && results.length === 0 && (
         <p className="text-gray-500">
@@ -76,7 +74,7 @@ export default async function SearchPage({
           };
 
           const mapsUrl =
-            place.lat && place.lng
+            typeof place.lat === "number" && typeof place.lng === "number"
               ? gmapsDirUrl({
                   dest: { lat: place.lat, lng: place.lng },
                   mode: "walk",
@@ -85,37 +83,33 @@ export default async function SearchPage({
 
           const planHref =
             `/plan?query=${encodeURIComponent(place.name)}` +
-            (locationbias
-              ? `&locationbias=${encodeURIComponent(locationbias)}`
-              : "");
+            (locationbias ? `&locationbias=${encodeURIComponent(locationbias)}` : "");
 
           return (
             <div key={place.place_id ?? place.name} className="space-y-2">
-              {/* 検索結果から詳細へ遷移できるようにリンクで包む */}
+              {/* 結果全体を shrine/places 詳細にリンク（ルーティング仕様に合わせて変えてOK） */}
               {place.place_id ? (
-                <a
-                  href={`/shrines/${place.place_id}`}
-                  data-testid="search-result-item"
-                  className="block"
-                >
+                <a href={`/shrines/${place.place_id}`} data-testid="search-result-item" className="block">
                   <PlaceCard p={place} />
                 </a>
               ) : (
                 <PlaceCard p={place} />
               )}
+
               <div className="flex gap-2">
                 {mapsUrl && (
-              <Link
-                href={`/shrines/${place.place_id}`}
-                data-testid="search-result-item"
-                className="block"
-              >
-
-              </Link>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                  >
+                    マップで見る（徒歩）
+                  </a>
                 )}
                 <a
                   href={planHref}
-                  className="inline-block text-sm px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="inline-block rounded bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
                 >
                   ＋近隣も回る
                 </a>
