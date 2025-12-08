@@ -216,8 +216,18 @@ export default function MyPageScreen() {
         {tab === "favorites" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="お気に入り">
-              <p className="mb-1 text-xs text-orange-600">※ この機能は準備中です。</p>
-              <p className="text-sm text-gray-600">お気に入り一覧の閲覧・削除は、バックエンド実装後に有効化します。</p>
+              <p className="mb-2 text-xs text-orange-600">※ この機能は現在、準備中です。</p>
+              <p className="mb-3 text-sm text-gray-600">
+                気になる神社を「お気に入り」に保存して、あとから一覧からすぐ開けるようにする予定です。
+              </p>
+              <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+                <li>保存した神社の一覧表示</li>
+                <li>お気に入りからの削除</li>
+                <li>神社詳細ページへのショートカット</li>
+              </ul>
+              <p className="mt-3 text-xs text-gray-400">
+                バックエンド実装が完了し次第、この画面から順次操作できるようになります。
+              </p>
             </SectionCard>
           </div>
         )}
@@ -247,8 +257,26 @@ export default function MyPageScreen() {
         {tab === "settings" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="設定">
-              <p className="mb-1 text-xs text-gray-500">テーマや通知などの設定は、今後のアップデートで追加予定です。</p>
-              <p className="text-sm text-gray-600">現在はアカウント情報の編集と、ログアウトのみ利用できます。</p>
+              <p className="mb-2 text-xs text-gray-500">テーマや通知などの設定は、今後のアップデートで追加予定です。</p>
+
+              <div className="space-y-4 text-sm text-gray-600">
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-gray-700">アカウント</h3>
+                  <ul className="list-disc space-y-1 pl-5 text-xs">
+                    <li>プロフィール編集（ニックネーム・自己紹介など）</li>
+                    <li className="text-gray-400">メールアドレス変更（準備中）</li>
+                    <li className="text-gray-400">パスワード変更（準備中）</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-gray-700">アプリ設定（準備中）</h3>
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-gray-400">
+                    <li>通知オン／オフ</li>
+                    <li>テーマ切り替え（ライト／ダーク）</li>
+                  </ul>
+                </div>
+              </div>
             </SectionCard>
           </div>
         )}
