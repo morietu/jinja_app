@@ -17,9 +17,10 @@ import SettingsSection from "./SettingsSection";
 
 
 
-function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
+function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boolean] {
   const router = useRouter();
   const sp = useSearchParams();
+  const saved = sp.get("saved") === "1";
   const current = sanitizeTab(sp.get("tab"));
 
   const setTab = (t: TabKey, opts?: { focus?: boolean }) => {
@@ -34,12 +35,12 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void] {
     }
   };
 
-  return [current, setTab];
+  return [current, setTab, saved];
 }
 
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
-  const [tab, setTab] = useTab();
+  const [tab, setTab, saved] = useTab();
 
   const goshuinEnabled = !loading && isLoggedIn && !!user;
 
@@ -210,6 +211,12 @@ export default function MyPageScreen() {
         tabIndex={0}
         className="rounded-lg border bg-white"
       >
+        {saved && (
+          <div className="mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+            プロフィールを保存しました。
+          </div>
+        )}
+
         {tab === "profile" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
             <SectionCard title="プロフィール">

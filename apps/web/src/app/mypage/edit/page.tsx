@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { updateMe } from "@/lib/api/users";
+import { updateProfile } from "@/lib/api/mypage";
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -31,6 +31,7 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  
 
   function onChange<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((s) => ({ ...s, [k]: v }));
@@ -47,45 +48,41 @@ export default function ProfileEditPage() {
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); // ★ A案：まず送信抑止
-    if (saving) return;
+  e.preventDefault();
+  if (saving) return;
 
-    // 入力チェック
-    if (!isHttpUrl(form.website)) {
-      setErr("Webは http(s) のURLで入力してください");
-      return;
-    }
-    if (form.icon && !isHttpUrl(form.icon)) {
-      setErr("アイコンURLは http(s) のURLで入力してください");
-      return;
-    }
-
-    setSaving(true);
-    setErr(null);
-    setMsg(null);
-
-    try {
-      await updateMe({
-        nickname: form.nickname?.trim(),
-        is_public: !!form.is_public,
-        website: form.website?.trim() || undefined,
-        icon_url: form.icon?.trim() || undefined,
-        birthday: form.birthday?.trim() || undefined,
-        location: form.location?.trim() || undefined,
-      });
-
-      // TODO: refresh?.() が用意できたら有効化
-      // await refresh?.();
-
-      setMsg("保存しました。");
-      // 表示を戻す（即時でOKならこのまま）
-      router.replace("/mypage?tab=profile");
-    } catch (e: any) {
-      setErr(e?.response?.data?.detail || "保存に失敗しました");
-    } finally {
-      setSaving(false);
-    }
+  // 入力チェック
+  if (!isHttpUrl(form.website)) {
+    setErr("Webは http(s) のURLで入力してください");
+    return;
   }
+  if (form.icon && !isHttpUrl(form.icon)) {
+    setErr("アイコンURLは http(s) のURLで入力してください");
+    return;
+  }
+
+  setSaving(true);
+  setErr(null);
+  setMsg(null);
+
+  try {
+    await updateProfile({
+      nickname: form.nickname?.trim() || undefined,
+      website: form.website?.trim() || null,
+      icon_url: form.icon?.trim() || null,
+      birthday: form.birthday?.trim() || null,
+      location: form.location?.trim() || null,
+      is_public: !!form.is_public,
+    });
+
+    setMsg("保存しました。");
+    router.replace("/mypage?tab=profile&saved=1");
+  } catch (e: any) {
+    setErr(e?.response?.data?.detail || "保存に失敗しました");
+  } finally {
+    setSaving(false);
+  }
+}
 
   return (
     <main className="max-w-xl mx-auto p-6 space-y-4">

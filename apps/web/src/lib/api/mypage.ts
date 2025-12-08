@@ -25,6 +25,15 @@ export type MeResponse = {
   } | null;
 };
 
+export type UpdateProfilePayload = {
+  nickname?: string;
+  website?: string | null;
+  icon_url?: string | null;
+  birthday?: string | null; // "YYYY-MM-DD"
+  location?: string | null;
+  is_public?: boolean;
+};
+
 export type Goshuin = GoshuinFromGoshuinApi;
 
 export async function fetchMe(config?: AxiosRequestConfig) {
@@ -39,4 +48,10 @@ export async function fetchMyGoshuin(_config?: AxiosRequestConfig) {
 export async function updateProfileVisibility(isPublic: boolean): Promise<void> {
   // 例: /api/my/profile/ で PATCH する想定
   await apiPatch("/my/profile/", { is_public: isPublic });
+}
+
+
+
+export async function updateProfile(data: UpdateProfilePayload) {
+  return apiPatch("/my/profile/", data);
 }
