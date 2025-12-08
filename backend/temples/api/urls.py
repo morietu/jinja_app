@@ -180,7 +180,7 @@ urlpatterns = [
         name="concierge-thread-detail-noslash",
     ),
 
-    path("public/profile/<str:username>/", public_profile, name="public-profile"),
+    path("profiles/<str:username>/", public_profile, name="public_profile"),
     
     
     
