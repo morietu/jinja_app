@@ -74,3 +74,7 @@ export function isAuthError(e: unknown) {
     typeof e === "object" && e !== null && (e as any)?.response?.status === 401
   );
 }
+
+export function __resolveUrlForTest(input: string): string {
+  return resolveUrl(input);
+}
