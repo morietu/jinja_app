@@ -1,31 +1,30 @@
 // apps/web/src/lib/api/http.ts
 import axios, { AxiosRequestConfig } from "axios";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
+
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
 });
 
-function resolveUrl(url: string) {
+function resolveUrl(path: string) {
   // 余計なスラッシュを除去: /api/foo/?a=1 → /api/foo?a=1
-  if (url.includes("/?")) url = url.replace("/?", "?");
+  if (path.includes("/?")) path = path.replace("/?", "?");
 
-  // すでに絶対URLならそのまま
-  try {
-    new URL(url);
-    return url;
-  } catch {
-    // 相対URL → ベースを補完
+  // すでに絶対URLならそのまま返す
+  if (/^https?:\/\//.test(path)) {
+    return path;
   }
 
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.PLAYWRIGHT_BASE_URL ||
-    (typeof window === "undefined"
-      ? "http://localhost:3000"
-      : window.location.origin);
+  const base = (API_BASE || "/api").replace(/\/+$/, ""); // 末尾の / を削る
+  const rel = path.startsWith("/") ? path : `/${path}`;
 
-  return new URL(url, base).toString();
+  // ここでは new URL を使わず文字列結合にすることで、
+  // base が "/api" のような相対パスでも安全に動く
+  return `${base}${rel}`;
 }
+
 
 export async function apiGet<T>(url: string, config: AxiosRequestConfig = {}) {
   const r = await api.get<T>(resolveUrl(url), config);
