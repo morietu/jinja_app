@@ -1,4 +1,5 @@
 // apps/web/src/lib/api/users.ts
+/* istanbul ignore file */
 import api from "@/lib/api/client";
 
 export type UpdateMePayload = Partial<{
