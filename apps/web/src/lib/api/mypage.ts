@@ -40,7 +40,7 @@ export type Goshuin = GoshuinFromGoshuinApi;
 
 export async function fetchMe(config?: AxiosRequestConfig) {
   // ✅ Next の /api/my/profile/ 経由で Django /api/users/me/ に届く
-  return apiGet<MeResponse>("/my/profile/", config);
+  return apiGet<MeResponse>("/users/me/", config);
 }
 
 export async function fetchMyGoshuin(_config?: AxiosRequestConfig) {
@@ -49,7 +49,7 @@ export async function fetchMyGoshuin(_config?: AxiosRequestConfig) {
 
 export async function updateProfileVisibility(isPublic: boolean): Promise<void> {
   // ✅ フロントから見ると /api/my/profile/ を叩くだけ
-  await apiPatch("/my/profile/", { is_public: isPublic });
+  await apiPatch("/users/me/", { is_public: isPublic });
 }
 
 export async function updateProfile(data: UpdateProfilePayload) {
@@ -77,7 +77,7 @@ export async function updateProfile(data: UpdateProfilePayload) {
     payload.icon_url = data.icon_url;
   }
 
-  return apiPatch("/my/profile/", payload);
+  return apiPatch("/users/me/", payload);
 }
 
 export async function uploadProfileIcon(file: File) {
