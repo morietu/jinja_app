@@ -1,24 +1,44 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+// apps/web/src/features/mypage/components/__tests__/SettingsSection.test.tsx
+import { render, screen } from "@testing-library/react";
+import React from "react";
 import SettingsSection from "../SettingsSection";
-import * as mypageApi from "@/lib/api/mypage";
-
-vi.mock("@/lib/api/mypage");
 
 describe("SettingsSection", () => {
-  it("初期表示で公開状態を表示する", () => {
-    render(<SettingsSection initialIsPublic={true} />);
-    expect(screen.getByText("公開プロフィール")).toBeInTheDocument();
-    expect(screen.getByText("公開中")).toBeInTheDocument();
+  const baseUser = {
+    username: "test-user",
+    profile: {
+      is_public: true,
+    },
+  };
+
+  it("プロフィール編集リンクを表示する", () => {
+    render(<SettingsSection user={baseUser} />);
+
+    const link = screen.getByRole("link", { name: "プロフィールを編集する" });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/mypage/edit");
   });
 
-  it("トグルで updateProfileVisibility が呼ばれる", async () => {
-    const spy = vi.spyOn(mypageApi, "updateProfileVisibility").mockResolvedValue();
+  it("公開中ユーザーには公開プロフィールページへのリンクを表示する", () => {
+    render(<SettingsSection user={baseUser} />);
 
-    render(<SettingsSection initialIsPublic={false} />);
+    expect(screen.getByText("公開プロフィールページ")).toBeInTheDocument();
+    // /users/test-user へのリンクが出ていること
+    const publicLink = screen.getByRole("link", { name: "/users/test-user" });
+    expect(publicLink).toBeInTheDocument();
+    expect(publicLink).toHaveAttribute("href", "/users/test-user");
+  });
 
-    const button = screen.getByRole("button", { name: /非公開/ });
-    await fireEvent.click(button);
+  it("非公開ユーザーには公開プロフィールページへのリンクを表示しない", () => {
+    const privateUser = {
+      ...baseUser,
+      profile: {
+        is_public: false,
+      },
+    };
 
-    expect(spy).toHaveBeenCalledWith(true);
+    render(<SettingsSection user={privateUser} />);
+
+    expect(screen.queryByText("公開プロフィールページ")).not.toBeInTheDocument();
   });
 });
