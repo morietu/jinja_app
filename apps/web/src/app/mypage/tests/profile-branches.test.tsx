@@ -66,3 +66,34 @@ describe("Profile 分岐", () => {
     expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 });
+
+  it("公開プロフィールリンクは公開時だけ表示される", async () => {
+    // 公開中
+    vi.doMock("@/lib/hooks/useAuth", () => ({
+      useAuth: () => ({
+        user: { ...baseUser, profile: { is_public: true } },
+        isLoggedIn: true,
+        loading: false,
+        logout: vi.fn(),
+      }),
+    }));
+    const { default: MyPagePublic } = await import("../page");
+    const { rerender } = render(<MyPagePublic />);
+
+    expect(screen.getByText("公開プロフィールを見る")).toBeInTheDocument();
+
+    // 非公開にして再レンダー
+    vi.resetModules();
+    vi.doMock("@/lib/hooks/useAuth", () => ({
+      useAuth: () => ({
+        user: { ...baseUser, profile: { is_public: false } },
+        isLoggedIn: true,
+        loading: false,
+        logout: vi.fn(),
+      }),
+    }));
+    const { default: MyPagePrivate } = await import("../page");
+    rerender(<MyPagePrivate />);
+
+    expect(screen.queryByText("公開プロフィールを見る")).toBeNull();
+  });
