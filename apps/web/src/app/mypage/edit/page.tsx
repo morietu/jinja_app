@@ -83,7 +83,7 @@ export default function ProfileEditPage() {
   }
 
   return (
-    <main className="max-w-xl mx-auto p-6 space-y-4">
+    <main className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-xl font-bold">プロフィール編集</h1>
 
       {err && <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-red-700">{err}</div>}

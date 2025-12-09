@@ -7,12 +7,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { TabKey } from "@/app/mypage/tabs";
 import { sanitizeTab } from "@/app/mypage/tabs";
+import { SectionCard } from "@/components/layout/SectionCard";
 import ProfileSection from "./ProfileSection";
 import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import FavoritesSection from "./FavoritesSection";
-import { SectionCard } from "@/components/layout/SectionCard";
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boolean] {
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function MyPageScreen() {
     });
   }, [saved, refresh]);
 
-  // 「プロフィールを保存しました」バナー表示
+  // 保存バナー表示
   useEffect(() => {
     if (!saved) return;
     setShowSaved(true);
@@ -94,7 +94,7 @@ export default function MyPageScreen() {
   // --- 読み込み中 ---
   if (loading) {
     return (
-      <main className="mx-auto max-w-4xl space-y-6 p-6">
+      <main className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex items-center justify-between">
           <h1 className="text-xl font-bold">マイページ</h1>
           <div className="rounded bg-gray-100 px-3 py-1 text-gray-400">…</div>
@@ -205,37 +205,27 @@ export default function MyPageScreen() {
         })}
       </nav>
 
-      <section
-        role="tabpanel"
-        id={`panel-${tab}`}
-        aria-labelledby={`tab-${tab}`}
-        tabIndex={0}
-        className="rounded-lg border bg-white"
-      >
+      <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0} className="space-y-4">
         {showSaved && (
-          <div className="mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+          <div className="mb-1 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
             プロフィールを保存しました。
           </div>
         )}
 
         {tab === "profile" && (
-          <div className="space-y-6 p-6 text-sm text-gray-600">
-            <SectionCard title="プロフィール">
-              <ProfileSection user={user} />
-            </SectionCard>
-          </div>
+          <SectionCard title="プロフィール">
+            <ProfileSection user={user} />
+          </SectionCard>
         )}
 
         {tab === "favorites" && (
-          <div className="space-y-6 p-6 text-sm text-gray-600">
-            <SectionCard title="お気に入り">
-              <FavoritesSection />
-            </SectionCard>
-          </div>
+          <SectionCard title="お気に入り" description="あとで実装予定の機能です。">
+            <FavoritesSection />
+          </SectionCard>
         )}
 
         {tab === "goshuin" && (
-          <div className="space-y-6 p-6 text-sm text-gray-600">
+          <div className="space-y-4">
             <SectionCard
               title="御朱印アップロード"
               description="御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。"

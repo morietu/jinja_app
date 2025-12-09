@@ -56,7 +56,7 @@ export default async function PublicProfilePage({ params }: Props) {
   })();
 
   return (
-    <main className="mx-auto max-w-xl p-6 space-y-6">
+    <main className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-8">
       {/* ヘッダー：アイコン＋名前＋@username ＋ 公開バッジ */}
       <header className="flex items-center gap-4">
         {profile.icon_url ? (
