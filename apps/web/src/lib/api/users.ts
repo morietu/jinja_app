@@ -20,10 +20,10 @@ export async function uploadUserIcon(file: File): Promise<{ icon_url: string }> 
   const formData = new FormData();
   formData.append("icon", file);
 
-  const { data } = await api.post<{ icon_url: string }>("my/profile/icon/", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+  const { data } = await api.post<{ icon_url: string }>("users/me/icon/", formData, {
+    //headers: {
+      //"Content-Type": "multipart/form-data",
+    //},
   });
 
   return data;
