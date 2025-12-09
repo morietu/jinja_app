@@ -1,77 +1,53 @@
 // apps/web/src/features/mypage/components/SettingsSection.tsx
 "use client";
 
-import { useState } from "react";
-import type { MouseEvent } from "react";
-import { updateProfileVisibility } from "@/lib/api/mypage";
+import Link from "next/link";
 
 type Props = {
-  initialIsPublic: boolean;
+  // 実際の型は気にせず any でOK（既存の user オブジェクト想定）
+  user: any;
 };
 
-export default function SettingsSection({ initialIsPublic }: Props) {
-  const [isPublic, setIsPublic] = useState(initialIsPublic);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function SettingsSection({ user }: Props) {
+  const profile = user?.profile ?? null;
+  const username: string | null = user?.username ?? null;
+  const isPublic: boolean = profile?.is_public ?? user?.is_public ?? false;
 
-  async function handleToggle(e: MouseEvent<HTMLButtonElement>) {
-    e.preventDefault();
-    if (pending) return;
-
-    const next = !isPublic;
-    setPending(true);
-    setError(null);
-    setIsPublic(next); // 楽観的更新
-
-    try {
-      await updateProfileVisibility(next);
-    } catch (err) {
-      // 失敗したらロールバック
-      setIsPublic((prev) => !prev);
-      setError("保存に失敗しました。時間をおいて再度お試しください。");
-      console.error("updateProfileVisibility failed", err);
-    } finally {
-      setPending(false);
-    }
-  }
+  const hasPublicPage = Boolean(username && isPublic);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 rounded-lg border p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium">公開プロフィール</p>
-            <p className="text-sm text-gray-500">
-              プロフィールを公開すると、他のユーザーもあなたのページを閲覧できます。
-            </p>
-          </div>
+    <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm">
+      <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+        <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
+        設定
+      </h2>
 
-          <button
-            type="button"
-            onClick={handleToggle}
-            disabled={pending}
-            aria-pressed={isPublic}
-            className={
-              "inline-flex items-center rounded-full border px-3 py-1 text-sm transition " +
-              (isPublic
-                ? "border-emerald-500 bg-emerald-500 text-white"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50")
-            }
-          >
-            {isPublic ? "公開中" : "非公開"}
-          </button>
+      <div className="space-y-4 text-sm text-gray-700">
+        <p className="text-xs text-gray-500">
+          プロフィールの公開設定や自己紹介、SNS リンクの編集は 「プロフィールを編集する」から行えます。
+        </p>
+
+        <div>
+          <Link href="/mypage/edit" className="text-sm text-blue-600 underline">
+            プロフィールを編集する
+          </Link>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {/* 公開中だけ「公開プロフィールページ」へのリンクを出す */}
+        {hasPublicPage && (
+          <div className="pt-3 border-t border-orange-50">
+            <div className="text-xs text-gray-400">公開プロフィールページ</div>
+            <Link
+              href={`/users/${username}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex text-xs text-blue-600 underline break-all"
+            >
+              /users/{username}
+            </Link>
+          </div>
+        )}
       </div>
-
-      <div className="space-y-2 rounded-lg border p-4">
-        <p className="font-medium">プロフィール</p>
-        <p className="text-sm text-gray-500">表示名や自己紹介、SNS リンクなどを編集できます。</p>
-        <a href="/mypage/edit" className="inline-flex items-center text-sm text-blue-600 hover:underline">
-          プロフィールを編集する
-        </a>
-      </div>
-    </div>
+    </section>
   );
 }
