@@ -20,7 +20,7 @@ vi.mock("../client", () => {
 });
 
 import api from "../client";
-import { updateMe, getCurrentUser, updateUser, uploadUserIcon } from "../users";
+import { getCurrentUser, updateUser, uploadUserIcon } from "../users";
 
 const mockedApi = vi.mocked(api, { deep: true });
 
