@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest) {
       headers: { "Content-Type": contentType || "text/plain" },
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
+   
     console.error("[api/users/me] PATCH proxy error", err);
     return NextResponse.json({ detail: "proxy error" }, { status: 500 });
   }

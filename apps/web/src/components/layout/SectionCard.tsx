@@ -9,14 +9,20 @@ type Props = {
 
 export function SectionCard({ title, description, children }: Props) {
   return (
-    <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+    <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm space-y-4">
       {(title || description) && (
-        <header>
-          {title && <h2 className="text-sm font-semibold text-slate-800">{title}</h2>}
-          {description && <p className="mt-1 text-xs text-slate-500">{description}</p>}
+        <header className="space-y-1">
+          {title && (
+            <h2 className="flex items-center gap-2 text-base font-semibold text-gray-800">
+              <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
+              {title}
+            </h2>
+          )}
+          {description && <p className="text-xs text-gray-500 leading-relaxed">{description}</p>}
         </header>
       )}
-      {children}
+
+      <div>{children}</div>
     </section>
   );
 }

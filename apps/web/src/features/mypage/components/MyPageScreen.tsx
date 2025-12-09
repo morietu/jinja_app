@@ -12,7 +12,7 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import FavoritesSection from "./FavoritesSection";
-
+import { SectionCard } from "@/components/layout/SectionCard";
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boolean] {
   const router = useRouter();
@@ -36,10 +36,8 @@ function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boo
 }
 
 export default function MyPageScreen() {
-  // ★ 認証・ユーザー情報は useAuth だけを使う
   const { user, isLoggedIn, loading, logout, refresh } = useAuth();
   const [tab, setTab, saved] = useTab();
-
   const [showSaved, setShowSaved] = useState(saved);
 
   // プロフィール保存後だけ /users/me/ を取り直す
@@ -50,10 +48,11 @@ export default function MyPageScreen() {
     });
   }, [saved, refresh]);
 
+  // 「プロフィールを保存しました」バナー表示
   useEffect(() => {
     if (!saved) return;
     setShowSaved(true);
-    const t = setTimeout(() => setShowSaved(false), 4000); // 4秒後に非表示
+    const t = setTimeout(() => setShowSaved(false), 4000);
     return () => clearTimeout(t);
   }, [saved]);
 
@@ -73,7 +72,6 @@ export default function MyPageScreen() {
       { key: "profile" as TabKey, label: "プロフィール" },
       { key: "favorites" as TabKey, label: "お気に入り（準備中）" },
       { key: "goshuin" as TabKey, label: "御朱印" },
-      
     ],
     [],
   );
@@ -91,18 +89,6 @@ export default function MyPageScreen() {
       else if (e.key === "ArrowRight") setTab(tabs[idx >= last ? 0 : idx + 1].key, { focus: true });
     },
     [tab, tabs, setTab],
-  );
-
-  const SectionCard: React.FC<{ title?: string; children: React.ReactNode }> = ({ title, children }) => (
-    <section className="rounded-2xl border border-orange-100 bg-white px-6 py-5 shadow-sm">
-      {title && (
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
-          <span className="inline-block h-5 w-1 rounded-full bg-orange-400" />
-          {title}
-        </h2>
-      )}
-      {children}
-    </section>
   );
 
   // --- 読み込み中 ---
@@ -173,8 +159,6 @@ export default function MyPageScreen() {
   }
 
   // --- ログイン時 ---
-
-
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
@@ -228,7 +212,7 @@ export default function MyPageScreen() {
         tabIndex={0}
         className="rounded-lg border bg-white"
       >
-        {showSaved && ( // ★ ここを変更
+        {showSaved && (
           <div className="mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
             プロフィールを保存しました。
           </div>
@@ -252,14 +236,14 @@ export default function MyPageScreen() {
 
         {tab === "goshuin" && (
           <div className="space-y-6 p-6 text-sm text-gray-600">
-            <SectionCard title="御朱印アップロード">
-              <p className="mb-3 text-xs text-gray-500">
-                御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。
-              </p>
+            <SectionCard
+              title="御朱印アップロード"
+              description="御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。"
+            >
               <GoshuinUploadForm onUploaded={addItem} />
             </SectionCard>
 
-            <section>
+            <SectionCard title="登録済みの御朱印">
               <MyGoshuinList
                 items={items}
                 loading={goshuinLoading}
@@ -267,11 +251,9 @@ export default function MyPageScreen() {
                 onDelete={removeItem}
                 onToggleVisibility={toggleVisibility}
               />
-            </section>
+            </SectionCard>
           </div>
         )}
-
-        
       </section>
     </main>
   );
