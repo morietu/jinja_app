@@ -12,7 +12,7 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import FavoritesSection from "./FavoritesSection";
-import SettingsSection from "./SettingsSection";
+
 
 function useTab(): [TabKey, (t: TabKey, opts?: { focus?: boolean }) => void, boolean] {
   const router = useRouter();
@@ -73,7 +73,7 @@ export default function MyPageScreen() {
       { key: "profile" as TabKey, label: "プロフィール" },
       { key: "favorites" as TabKey, label: "お気に入り（準備中）" },
       { key: "goshuin" as TabKey, label: "御朱印" },
-      { key: "settings" as TabKey, label: "設定" },
+      
     ],
     [],
   );
@@ -173,7 +173,7 @@ export default function MyPageScreen() {
   }
 
   // --- ログイン時 ---
-  const isPublic = user.profile?.is_public ?? user.is_public ?? false;
+
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
@@ -271,13 +271,7 @@ export default function MyPageScreen() {
           </div>
         )}
 
-        {tab === "settings" && (
-          <div className="space-y-6 p-6 text-sm text-gray-600">
-            <SectionCard title="設定">
-              <SettingsSection initialIsPublic={isPublic} />
-            </SectionCard>
-          </div>
-        )}
+        
       </section>
     </main>
   );
