@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
+  
     console.error("[api/users/me/icon] proxy error", err);
     return NextResponse.json({ detail: "proxy error" }, { status: 500 });
   }
