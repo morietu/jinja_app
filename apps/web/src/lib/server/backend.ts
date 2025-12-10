@@ -1,14 +1,17 @@
 // apps/web/src/lib/server/backend.ts
 import type { NextRequest } from "next/server";
 
-// ★ 本番(Vercel)とローカルで分けて決め打ちする
+// 開発中は必ずローカル Django を見る
+// 本番(Vercel)だけ環境変数 or Render を使う
 const BACKEND_ORIGIN =
   process.env.NODE_ENV === "production"
-    ? "https://jinja-backend.onrender.com" // ← Render の URL を直書き
-    : process.env.NEXT_PUBLIC_API_BASE_URL ||
-      process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-      process.env.BACKEND_ORIGIN ||
-      "http://127.0.0.1:8000";
+    ? (
+        process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
+        process.env.NEXT_PUBLIC_API_BASE_URL ||
+        process.env.BACKEND_ORIGIN ||
+        "https://jinja-backend.onrender.com"
+      )
+    : "http://127.0.0.1:8000";
 
 export async function djFetch(
   reqOrPath: NextRequest | string,

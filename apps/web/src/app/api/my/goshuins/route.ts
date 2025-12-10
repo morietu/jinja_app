@@ -6,45 +6,73 @@ export const dynamic = "force-dynamic";
 
 // GET /api/my/goshuins/ → Django /api/my/goshuins/
 export async function GET(req: NextRequest) {
-  const upstream = await djFetch(req, "/api/my/goshuins/", {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-  });
+  try {
+    const upstream = await djFetch(req, "/api/my/goshuins/", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
-  const body = await upstream.text();
+    const text = await upstream.text();
 
-  return new NextResponse(body, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-    },
-  });
+    console.log("[BFF] /api/my/goshuins/ upstream status:", upstream.status);
+    console.log("[BFF] /api/my/goshuins/ upstream body snippet:", text.slice(0, 200));
+
+    return new NextResponse(text, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+      },
+    });
+  } catch (err: unknown) {
+    console.error("[BFF] /api/my/goshuins/ GET error:", err);
+    return NextResponse.json(
+      {
+        detail: "BFF でエラーが発生しました",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
+  }
 }
 
 // POST /api/my/goshuins/ → Django /api/my/goshuins/
 export async function POST(req: NextRequest) {
-  const incoming = await req.formData();
-  const outgoing = new FormData();
-  incoming.forEach((value, key) => {
-    outgoing.append(key, value as any);
-  });
+  try {
+    const incoming = await req.formData();
+    const outgoing = new FormData();
+    incoming.forEach((value, key) => {
+      outgoing.append(key, value as any);
+    });
 
-  const upstream = await djFetch(req, "/api/my/goshuins/", {
-    method: "POST",
-    body: outgoing,
-    headers: {
-      Accept: "application/json",
-    },
-  });
+    const upstream = await djFetch(req, "/api/my/goshuins/", {
+      method: "POST",
+      body: outgoing,
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
-  const body = await upstream.text();
+    const text = await upstream.text();
 
-  return new NextResponse(body, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-    },
-  });
+    console.log("[BFF] /api/my/goshuins/ POST upstream status:", upstream.status);
+    console.log("[BFF] /api/my/goshuins/ POST upstream body snippet:", text.slice(0, 200));
+
+    return new NextResponse(text, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+      },
+    });
+  } catch (err: unknown) {
+    console.error("[BFF] /api/my/goshuins/ POST error:", err);
+    return NextResponse.json(
+      {
+        detail: "BFF でエラーが発生しました",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
+  }
 }
