@@ -2,6 +2,7 @@
 from django.http import Http404
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from temples.views.admin_seed import seed_initial_shrine
 from temples.api.views.route import RouteView
 from temples.api.views.search import (
     search,
@@ -45,4 +46,5 @@ urlpatterns = [
     path("concierge/chat/", ConciergeChatView.as_view(), name="concierge_chat"),
     path("concierge/plan/", ConciergePlanView.as_view(), name="concierge_plan"),
     path("route/", RouteView.as_view(), name="route"),
+    path("admin/seed/shrine/", seed_initial_shrine),
 ]
