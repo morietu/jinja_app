@@ -1,8 +1,10 @@
 // apps/web/src/lib/server/backend.ts
 import type { NextRequest } from "next/server";
 
+
 const BACKEND_ORIGIN =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
   process.env.BACKEND_ORIGIN ||
   "http://127.0.0.1:8000";
 
