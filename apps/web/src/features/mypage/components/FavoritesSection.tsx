@@ -1,22 +1,35 @@
+// apps/web/src/features/mypage/components/FavoritesSection.tsx
+"use client";
+
+import type { ComponentProps } from "react";
+import Link from "next/link";
+import { FavoriteShrineCard } from "./FavoriteShrineCard";
+import { useFavorites } from "./hooks/useFavorites";
+
+// FavoriteShrineCard が受け取る shrine の型をそのまま使う
+type FavoriteShrine = ComponentProps<typeof FavoriteShrineCard>["shrine"];
+
 export default function FavoritesSection() {
   const { items, rawItems, loading, error, toggleFavorite } = useFavorites();
 
   const hasData = (rawItems?.length ?? 0) > 0;
-  const visibleItems = items.slice(0, 3); // マイページでは最大3件だけ表示
+  const visibleItems: FavoriteShrine[] = (items ?? []).slice(0, 3); // マイページでは最大3件だけ表示
 
+  // ✅ 「タイトル文字列を変数経由で使う」パターン（B）
   const headerText = (() => {
     if (loading) return "読み込み中…";
-    if (!hasData) return "お気に入り 0件";
-    return `お気に入り ${rawItems!.length}件`;
+    if (!hasData) return "0件";
+    return `${rawItems!.length}件`;
   })();
 
   return (
     <section className="space-y-3 pt-1 pb-2">
       {/* 上部：件数 + 一覧ページへのリンク */}
       <header className="flex items-center justify-between gap-2 text-xs text-gray-500">
-        {/* 🔽 ここを headerText に差し替え */}
-        <p className="font-medium text-gray-700">{headerText}</p>
-
+        <p>
+          <span className="font-medium text-gray-700">お気に入り</span>
+          <span className="ml-2 text-[11px] text-gray-500">{headerText}</span>
+        </p>
         {hasData && (
           <Link
             href="/favorites"
