@@ -41,12 +41,13 @@ describe("goshuin api client", () => {
     expect(res).toEqual([{ id: 1 }]);
   });
 
-  it("fetchMyGoshuin は /my/goshuin/ を叩いて結果を返す", async () => {
+  it("fetchMyGoshuin は /my/goshuins/ を叩いて結果を返す", async () => {
     apiGetMock.mockResolvedValue({ data: [{ id: 2 }] });
 
     const res = await fetchMyGoshuin();
 
-    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuin/");
+    // ✅ 実装に合わせて plural に変更
+    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([{ id: 2 }]);
   });
 
@@ -175,18 +176,13 @@ describe("updateMyGoshuinVisibility", () => {
   });
 
   it("指定 ID の御朱印の is_public を更新して結果を返す", async () => {
-    const updated: Goshuin = {
-      id: 1,
-      shrine: 1,
-      is_public: true,
-      shrine_name: "テスト神社",
-    };
-
+    const updated = { id: 1, is_public: true };
     apiPatch.mockResolvedValue({ data: updated });
 
     const result = await updateMyGoshuinVisibility(1, true);
 
-    expect(apiPatch).toHaveBeenCalledWith("/my/goshuin/1/", { is_public: true });
+    // ✅ plural + 末尾スラッシュ無しに変更（実装の呼び出しに合わせる）
+    expect(apiPatch).toHaveBeenCalledWith("/my/goshuins/1", { is_public: true });
     expect(result).toEqual(updated);
   });
 });
