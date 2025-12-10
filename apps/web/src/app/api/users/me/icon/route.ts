@@ -1,51 +1,44 @@
 // apps/web/src/app/api/users/me/icon/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { djFetch } from "@/lib/server/backend";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const BACKEND_BASE = "http://127.0.0.1:8000";
 
 export async function POST(req: NextRequest) {
   try {
-    const accessToken = req.cookies.get("access_token")?.value;
-    if (!accessToken) {
-      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
-    }
-
-    // 1. フロントから送られた FormData を読む
     const incoming = await req.formData();
-
-    const icon = incoming.get("icon");
-    if (!icon || typeof icon === "string") {
-      return NextResponse.json({ detail: "icon ファイルがありません" }, { status: 400 });
-    }
-
-    // 2. 送信用の FormData を組み直す
-    const form = new FormData();
-    form.append("icon", icon);
-
-    // 3. Django に転送（Content-Type は fetch に任せる）
-    const backendRes = await fetch(`${BACKEND_BASE}/api/users/me/icon/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: form,
+    const outgoing = new FormData();
+    incoming.forEach((value, key) => {
+      outgoing.append(key, value as any);
     });
 
-    const text = await backendRes.text();
-    const backendContentType = backendRes.headers.get("content-type") ?? "text/plain";
+    const upstream = await djFetch(req, "/api/users/me/icon/", {
+      method: "POST",
+      body: outgoing,
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const text = await upstream.text();
+
+    console.log("[BFF] /api/users/me/icon upstream status:", upstream.status);
+    console.log("[BFF] /api/users/me/icon upstream body snippet:", text.slice(0, 200));
 
     return new NextResponse(text, {
-      status: backendRes.status,
+      status: upstream.status,
       headers: {
-        "Content-Type": backendContentType,
+        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
       },
     });
-  } catch (err) {
-  
-    console.error("[api/users/me/icon] proxy error", err);
-    return NextResponse.json({ detail: "proxy error" }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("[BFF] /api/users/me/icon error:", err);
+    return NextResponse.json(
+      {
+        detail: "BFF /api/users/me/icon でエラーが発生しました",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
   }
 }
