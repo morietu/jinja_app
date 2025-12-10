@@ -9,19 +9,15 @@ export type Favorite = {
 
 export async function getFavorites(): Promise<Favorite[]> {
   const r = await api.get("/favorites/");
-  return Array.isArray(r.data) ? r.data : r.data?.results ?? [];
+  return Array.isArray(r.data) ? r.data : (r.data?.results ?? []);
 }
 
-export async function createFavoriteByShrineId(
-  shrineId: number
-): Promise<Favorite> {
+export async function createFavoriteByShrineId(shrineId: number): Promise<Favorite> {
   const r = await api.post("/favorites/", { shrine_id: shrineId });
   return r.data;
 }
 
-export async function createFavoriteByPlaceId(
-  placeId: string
-): Promise<Favorite> {
+export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
   const r = await api.post("/favorites/", { place_id: placeId });
   return r.data;
 }

@@ -35,10 +35,11 @@ export default function ProfileSection({ user }: Props) {
     return `${birthday}（${age}歳）`;
   })();
 
-  // SectionCard 側で枠・タイトルを出すので、ここは「中身」だけ
+  const username: string | undefined = user?.username;
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
-      {/* 左：アイコン＋公開バッジ＋編集リンク */}
+      {/* 左：アイコン＋バッジ＋リンク類 */}
       <div className="flex flex-col items-center gap-2 sm:w-40">
         <div className="relative h-20 w-20 overflow-hidden rounded-full bg-gray-100">
           <Image
@@ -53,6 +54,13 @@ export default function ProfileSection({ user }: Props) {
         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
           {isPublic ? "公開" : "非公開"}
         </span>
+
+        {/* 公開時だけ、公開プロフィールへのリンクを表示 */}
+        {isPublic && username && (
+          <Link href={`/users/${encodeURIComponent(username)}`} className="text-[11px] text-blue-600 underline">
+            公開プロフィールを見る
+          </Link>
+        )}
 
         <Link href="/mypage/edit" className="text-[11px] text-blue-600 underline">
           プロフィールを編集する

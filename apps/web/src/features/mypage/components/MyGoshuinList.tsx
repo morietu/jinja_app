@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
-import { MyGoshuinCard } from "./MyGoshuinCard";
+import MyGoshuinCard from "./MyGoshuinCard";
 
 type Props = {
   items: Goshuin[] | null;
@@ -18,7 +18,7 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  // --- 状態別レンダー（ここは今のままでOKなら省略） ---
+  // --- 状態別レンダー ---
 
   if (loading) {
     return (
