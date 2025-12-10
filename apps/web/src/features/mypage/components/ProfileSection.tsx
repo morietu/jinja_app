@@ -1,3 +1,4 @@
+// apps/web/src/features/mypage/components/ProfileSection.tsx
 "use client";
 
 import Image from "next/image";
@@ -16,7 +17,6 @@ export default function ProfileSection({ user }: Props) {
   const rawLocation: string | null = profile?.location ?? null;
   const bio: string = profile?.bio ?? "自己紹介はまだ設定されていません。";
   const isPublic: boolean = profile?.is_public ?? user?.is_public ?? false;
-  const username: string | null = user?.username ?? null;
 
   const website: string | null = profile?.website ?? (user as any)?.website ?? null;
   const hasWebsite = typeof website === "string" && website.trim().length > 0 && /^https?:\/\//i.test(website.trim());
@@ -35,13 +35,12 @@ export default function ProfileSection({ user }: Props) {
     return `${birthday}（${age}歳）`;
   })();
 
-  // 公開中 && username ありのときだけ公開プロフィールページがある
-  const hasPublicPage = Boolean(isPublic && username);
+  const username: string | undefined = user?.username;
 
   return (
-    <div className="flex gap-6">
-      {/* 左：アイコン＋公開バッジ＋編集リンク＋公開ページリンク */}
-      <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
+      {/* 左：アイコン＋バッジ＋リンク類 */}
+      <div className="flex flex-col items-center gap-2 sm:w-40">
         <div className="relative h-20 w-20 overflow-hidden rounded-full bg-gray-100">
           <Image
             alt="プロフィールアイコン"
@@ -56,20 +55,16 @@ export default function ProfileSection({ user }: Props) {
           {isPublic ? "公開" : "非公開"}
         </span>
 
-        <Link href="/mypage/edit" className="text-[11px] text-blue-600 underline">
-          プロフィールを編集する
-        </Link>
-
-        {hasPublicPage && (
-          <Link
-            href={`/users/${username}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11px] text-blue-600 underline"
-          >
+        {/* 公開時だけ、公開プロフィールへのリンクを表示 */}
+        {isPublic && username && (
+          <Link href={`/users/${encodeURIComponent(username)}`} className="text-[11px] text-blue-600 underline">
             公開プロフィールを見る
           </Link>
         )}
+
+        <Link href="/mypage/edit" className="text-[11px] text-blue-600 underline">
+          プロフィールを編集する
+        </Link>
       </div>
 
       {/* 右：プロフィール情報 */}
@@ -93,7 +88,7 @@ export default function ProfileSection({ user }: Props) {
           {hasWebsite && (
             <div>
               <div className="text-xs text-gray-400">Webサイト</div>
-              <a href={website!} className="text-xs text-blue-600 underline break-all" target="_blank" rel="noreferrer">
+              <a href={website!} className="break-all text-xs text-blue-600 underline" target="_blank" rel="noreferrer">
                 {website}
               </a>
             </div>

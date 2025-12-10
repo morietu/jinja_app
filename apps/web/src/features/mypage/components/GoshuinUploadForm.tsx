@@ -4,8 +4,7 @@
 import { FormEvent, useState, useEffect } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
-// import { ImagePlus } from "lucide-react"; // ★ アイコン追加
-// import { SomethingElse } from "lucide-react";
+
 import Image from "next/image";
 
 type Props = {
