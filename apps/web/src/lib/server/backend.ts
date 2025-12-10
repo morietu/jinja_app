@@ -1,12 +1,14 @@
 // apps/web/src/lib/server/backend.ts
 import type { NextRequest } from "next/server";
 
-
+// ★ 本番(Vercel)とローカルで分けて決め打ちする
 const BACKEND_ORIGIN =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-  process.env.BACKEND_ORIGIN ||
-  "http://127.0.0.1:8000";
+  process.env.NODE_ENV === "production"
+    ? "https://jinja-backend.onrender.com" // ← Render の URL を直書き
+    : process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
+      process.env.BACKEND_ORIGIN ||
+      "http://127.0.0.1:8000";
 
 export async function djFetch(
   reqOrPath: NextRequest | string,
@@ -42,12 +44,10 @@ export async function djFetch(
     console.log("[djFetch] incoming auth:", incomingAuth || "<none>");
     console.log("[djFetch] incoming content-type:", contentType || "<none>");
 
-    // 1) 既に Authorization があればそれを優先
     if (incomingAuth && !headers.has("Authorization")) {
       headers.set("Authorization", incomingAuth);
     }
 
-    // 2) Cookie から access_token → Authorization に変換
     if (cookie && !headers.has("Authorization")) {
       const m = cookie.match(/access_token=([^;]+)/);
       if (m) {
@@ -56,12 +56,10 @@ export async function djFetch(
       }
     }
 
-    // 3) Cookie 自体も転送
     if (cookie && !headers.has("cookie")) {
       headers.set("cookie", cookie);
     }
 
-    // body が FormData のときは Content-Type を上書きしない
     const isFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
 
     if (contentType && !headers.has("Content-Type") && !isFormDataBody) {
