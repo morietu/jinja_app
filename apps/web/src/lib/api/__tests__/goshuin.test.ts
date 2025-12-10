@@ -10,7 +10,6 @@ import {
   getGoshuin,
   getGoshuinAuto,
   updateMyGoshuinVisibility,
-  type Goshuin,
 } from "../goshuin";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 

@@ -9,6 +9,8 @@ type Props = {
   };
 };
 
+/* eslint-disable @next/next/no-img-element */
+
 export default async function PublicProfilePage({ params }: Props) {
   const username = params.username;
 
@@ -60,7 +62,7 @@ export default async function PublicProfilePage({ params }: Props) {
       {/* ヘッダー：アイコン＋名前＋@username ＋ 公開バッジ */}
       <header className="flex items-center gap-4">
         {profile.icon_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img
             src={profile.icon_url}
             alt={`${nickname} のアイコン`}

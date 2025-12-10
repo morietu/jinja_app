@@ -1,10 +1,3 @@
-// apps/web/src/features/mypage/components/FavoritesSection.tsx
-"use client";
-
-import Link from "next/link";
-import { FavoriteShrineCard } from "./FavoriteShrineCard";
-import { useFavorites } from "./hooks/useFavorites";
-
 export default function FavoritesSection() {
   const { items, rawItems, loading, error, toggleFavorite } = useFavorites();
 
@@ -21,12 +14,9 @@ export default function FavoritesSection() {
     <section className="space-y-3 pt-1 pb-2">
       {/* 上部：件数 + 一覧ページへのリンク */}
       <header className="flex items-center justify-between gap-2 text-xs text-gray-500">
-        <p>
-          <span className="font-medium text-gray-700">お気に入り</span>
-          <span className="ml-2 text-[11px] text-gray-500">
-            {loading ? "読み込み中…" : hasData ? `${rawItems!.length}件` : "0件"}
-          </span>
-        </p>
+        {/* 🔽 ここを headerText に差し替え */}
+        <p className="font-medium text-gray-700">{headerText}</p>
+
         {hasData && (
           <Link
             href="/favorites"

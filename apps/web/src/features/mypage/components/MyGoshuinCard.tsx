@@ -36,7 +36,7 @@ export default function MyGoshuinCard({
   onDelete,
   onToggleVisibility,
 }: Props) {
-  const { shrine_name, shrine_address, visited_at, created_at, is_public, image_url } = item;
+  const { shrine_name, created_at, is_public, image_url } = item;
 
   const handleClickCard = () => {
     if (onOpenDetail) {
