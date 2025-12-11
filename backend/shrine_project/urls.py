@@ -114,7 +114,7 @@ urlpatterns = [
     path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
 
-    path("api/debug/medias/", debug_views.media_debug, name="media-debug"),
+    path("api/debug/media/", debug_views.media_debug, name="media-debug"),
     
     # favorites エンドポイント（/api/favorites/）
     path("api/", include("favorites.urls")),
