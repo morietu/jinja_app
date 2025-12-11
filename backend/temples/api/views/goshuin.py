@@ -75,9 +75,18 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         """
         GET /api/my/goshuins/
         """
-        qs = self.get_queryset()
-        serializer = GoshuinSerializer(qs, many=True, context={"request": request})
-        return Response(serializer.data)
+        try:
+            qs = self.get_queryset()
+            serializer = GoshuinSerializer(qs, many=True, context={"request": request})
+            return Response(serializer.data)
+        except Exception as e:
+            # 本番でも一旦中身が見えるようにデバッグ用レスポンスを返す
+            log.exception("MyGoshuinViewSet.list failed")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
     def retrieve(self, request, pk=None):
         """
