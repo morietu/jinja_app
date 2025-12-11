@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
+from django.views.static import serve as media_serve
 from temples.api.views.create_superuser import create_superuser
 from temples.api.views import debug as debug_views
 
@@ -174,4 +175,15 @@ urlpatterns = [
     path("robots.txt", robots_txt, name="robots_txt"),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG:
+    # ローカル開発用（今まで通り）
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # 本番用：/media/... を Django が直接返す
+    urlpatterns += [
+        re_path(
+            r"^media/(?P<path>.*)$",
+            media_serve,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+    ]
