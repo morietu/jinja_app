@@ -1,17 +1,14 @@
 # backend/temples/api/views/goshuin.py
+from django.db import transaction
 from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
-from django.db import transaction
-
-
-from temples.models import Goshuin, Shrine, GoshuinImage
-from temples.serializers.routes import GoshuinSerializer
-# temples/api/views/goshuin.py
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from temples.models import Goshuin, GoshuinImage, Shrine
+from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
+
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
@@ -42,9 +39,9 @@ class MyGoshuinViewSet(viewsets.ViewSet):
     /api/my/goshuins/ 用
     ログインユーザー自身の御朱印を CRUD する
     """
-    
-    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
 
+    # 本番では基本 JWTAuthentication を使う想定
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
@@ -55,16 +52,14 @@ class MyGoshuinViewSet(viewsets.ViewSet):
             .select_related("shrine")
             .order_by("-created_at")
         )
-    
+
     def get_serializer_class(self):
         if self.action == "create":
             return MyGoshuinCreateSerializer
         return GoshuinSerializer
 
     def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
+        return {"request": self.request}
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -72,6 +67,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
     def perform_update(self, serializer):
         serializer.save(user=self.request.user)
 
+    # ---- 一覧 ----
     def list(self, request):
         """
         GET /api/my/goshuins/
@@ -80,10 +76,10 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         serializer = GoshuinSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
+    # ---- 詳細 ----
     def retrieve(self, request, pk=None):
         """
         GET /api/my/goshuins/{id}/
-        （必要なら）
         """
         try:
             obj = self.get_queryset().get(pk=pk)
@@ -93,6 +89,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         serializer = GoshuinSerializer(obj, context={"request": request})
         return Response(serializer.data)
 
+    # ---- 作成 ----
     def create(self, request):
         """
         POST /api/my/goshuins/
@@ -102,61 +99,34 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         - is_public: "true" / "false"
         - image: ファイル
         """
-
-        print("DEBUG request.method =", request.method)
-        print("DEBUG request.content_type =", request.content_type)
-        print("DEBUG request.data =", request.data)
-        print("DEBUG request.FILES =", request.FILES)
-
-        
+        # shrine が存在するかだけは先にチェック（エラーメッセージを今のまま維持したい場合）
         shrine_id = request.data.get("shrine")
-        image = request.FILES.get("image")
-        title = request.data.get("title", "") or ""
-        is_public_raw = request.data.get("is_public", "false")
-
-        print("DEBUG request.data =", request.data)
-        print("DEBUG shrine_id =", shrine_id)
-
-        errors = {}
-
-        # shrine 必須
         if not shrine_id:
-            errors["shrine"] = ["このフィールドは必須です。"]
-        else:
-            try:
-                shrine = Shrine.objects.get(pk=shrine_id)
-            except Shrine.DoesNotExist:
-                errors["shrine"] = ["指定された神社が存在しません。"]
+            return Response(
+                {"shrine": ["このフィールドは必須です。"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            Shrine.objects.get(pk=shrine_id)
+        except Shrine.DoesNotExist:
+            return Response(
+                {"shrine": ["指定された神社が存在しません。"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # image 必須
-        if not image:
-            errors["image"] = ["このフィールドは必須です。"]
-
-        # is_public を bool に変換
-        is_public = str(is_public_raw).lower() in ("1", "true", "t", "yes", "y", "on")
-
-        if errors:
-            print("ERRORS:", errors)
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
-
-        # Goshuin 本体作成
-        goshuin = Goshuin.objects.create(
-            user=request.user,
-            shrine=shrine,  # type: ignore[name-defined]
-            title=title,
-            is_public=is_public,
+        serializer = MyGoshuinCreateSerializer(
+            data=request.data,
+            context={"request": request},
         )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # 画像レコード
-        GoshuinImage.objects.create(
-            goshuin=goshuin,
-            image=image,
-            order=0,
-        )
+        goshuin = serializer.save()  # user は serializer.create 内で request.user を見る
 
-        serializer = GoshuinSerializer(goshuin, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        out = GoshuinSerializer(goshuin, context={"request": request})
+        return Response(out.data, status=status.HTTP_201_CREATED)
 
+    # ---- 更新（公開/非公開トグル想定） ----
     def partial_update(self, request, pk=None):
         """
         PATCH /api/my/goshuins/{id}/
@@ -176,6 +146,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         serializer = GoshuinSerializer(goshuin, context={"request": request})
         return Response(serializer.data)
 
+    # ---- 削除 ----
     def destroy(self, request, pk=None):
         """
         DELETE /api/my/goshuins/{id}/
