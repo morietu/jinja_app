@@ -3,6 +3,7 @@ from django.http import Http404, HttpResponsePermanentRedirect, JsonResponse
 from django.urls import include, path
 from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
+from .views.create_superuser import create_superuser
 
 from temples.api.views.public_profile import public_profile
 
@@ -205,4 +206,5 @@ urlpatterns = [
     path("route/", RouteAPIView.as_view(), name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
     path("", include(router.urls)),
+    
 ]

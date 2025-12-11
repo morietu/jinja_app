@@ -5,6 +5,8 @@ from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
+from temples.api.views.create_superuser import create_superuser
+
 
 
 from drf_spectacular.renderers import OpenApiJsonRenderer
@@ -103,6 +105,7 @@ def openapi_json(request):
 urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
+    path("admin/create-superuser/", create_superuser),
     path("admin/", admin.site.urls),
     # API ルート
     path("api/users/me/", MeView.as_view(), name="users-me"),
