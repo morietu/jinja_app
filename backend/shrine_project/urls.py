@@ -1,4 +1,6 @@
 # backend/shrine_project/urls.py
+
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -6,7 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from temples.api.views.create_superuser import create_superuser
-
+from temples.api.views import debug as debug_views
 
 
 from drf_spectacular.renderers import OpenApiJsonRenderer
@@ -111,6 +113,8 @@ urlpatterns = [
     path("api/users/me/", MeView.as_view(), name="users-me"),
     path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
+
+    path("api/_debug/media/", debug_views.media_debug, name="media-debug"),
     
     # favorites エンドポイント（/api/favorites/）
     path("api/", include("favorites.urls")),
