@@ -6,10 +6,6 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from temples.models import Goshuin, GoshuinImage, Shrine
-from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
-
-
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
     SessionAuthentication だけど CSRF チェックをスキップする（開発用）
@@ -76,7 +72,6 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         serializer = GoshuinSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
-    # ---- 詳細 ----
     def retrieve(self, request, pk=None):
         """
         GET /api/my/goshuins/{id}/
