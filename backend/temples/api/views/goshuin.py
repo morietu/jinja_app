@@ -9,6 +9,9 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from temples.models import Goshuin, GoshuinImage, Shrine
 from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
 
+import logging
+log = logging.getLogger(__name__)
+
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
@@ -72,9 +75,18 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         """
         GET /api/my/goshuins/
         """
-        qs = self.get_queryset()
-        serializer = GoshuinSerializer(qs, many=True, context={"request": request})
-        return Response(serializer.data)
+        try:
+            qs = self.get_queryset()
+            serializer = GoshuinSerializer(qs, many=True, context={"request": request})
+            return Response(serializer.data)
+        except Exception as e:
+            # サーバーログにも残す
+            log.exception("MyGoshuinViewSet.list failed")
+            # クライアントにエラー内容を返す（開発用の一時措置）
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     # ---- 詳細 ----
     def retrieve(self, request, pk=None):
