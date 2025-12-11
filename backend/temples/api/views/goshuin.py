@@ -6,6 +6,13 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from temples.models import Goshuin, Shrine, GoshuinImage
+from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
+
+import logging
+log = logging.getLogger(__name__)
+
+
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
     SessionAuthentication だけど CSRF チェックをスキップする（開発用）
