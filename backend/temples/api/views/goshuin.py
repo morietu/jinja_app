@@ -1,4 +1,6 @@
 # backend/temples/api/views/goshuin.py
+import os 
+
 from django.db import transaction
 from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -65,10 +67,15 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         return {"request": self.request}
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        goshuin = serializer.save(user=self.request.user)
+        try:
+            path = goshuin.image.path
+            exists = os.path.exists(path)
+            log.warning("[DEBUG] saved goshuin image path=%s exists=%s", path, exists)
+        except Exception as e:
+            log.error("[DEBUG] goshuin image debug failed: %s", e)
 
-    def perform_update(self, serializer):
-        serializer.save(user=self.request.user)
+
 
     # ---- 一覧 ----
     def list(self, request):
@@ -100,6 +107,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         serializer = GoshuinSerializer(obj, context={"request": request})
         return Response(serializer.data)
 
+    
     # ---- 作成 ----
     def create(self, request):
         """
@@ -110,7 +118,6 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         - is_public: "true" / "false"
         - image: ファイル
         """
-        # shrine が存在するかだけは先にチェック（エラーメッセージを今のまま維持したい場合）
         shrine_id = request.data.get("shrine")
         if not shrine_id:
             return Response(
@@ -132,7 +139,15 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        goshuin = serializer.save()  # user は serializer.create 内で request.user を見る
+        # ★ ここで保存して、直後にファイルの存在確認ログを出す
+        goshuin = serializer.save()  # user は serializer.create 内で request.user を見る想定
+
+        try:
+            path = goshuin.image.path
+            exists = os.path.exists(path)
+            log.warning("[DEBUG] saved goshuin image path=%s exists=%s", path, exists)
+        except Exception as e:
+            log.error("[DEBUG] goshuin image debug failed: %s", e)
 
         out = GoshuinSerializer(goshuin, context={"request": request})
         return Response(out.data, status=status.HTTP_201_CREATED)
