@@ -2,8 +2,6 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-const isPlaywright = process.env.PLAYWRIGHT === "1";
-
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../.."),
   trailingSlash: false,
@@ -12,6 +10,7 @@ const nextConfig: NextConfig = {
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
+      // ローカル開発用
       {
         protocol: "http",
         hostname: "127.0.0.1",
@@ -24,12 +23,23 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/media/icons/**",
       },
+
+      // 本番バックエンド用
+      {
+        protocol: "https",
+        hostname: "jinja-backend.onrender.com",
+        pathname: "/media/goshuin/**",
+      },
+      {
+        protocol: "https",
+        hostname: "jinja-backend.onrender.com",
+        pathname: "/media/icons/**",
+      },
     ],
   },
 
-  // 👇 ここを一旦こうする
   async rewrites() {
-    // BFF デバッグのために一旦 rewrites 無し
+    // rewrites は一旦なしのままでOK
     return [];
   },
 };

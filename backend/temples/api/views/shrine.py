@@ -158,7 +158,9 @@ class RankingAPIView(ListAPIView):
 
 # ---- ShrineViewSet ----
 class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Shrine.objects.all().prefetch_related("goriyaku_tags", "deities")
+    
+    queryset = Shrine.objects.all()
+
     permission_classes = [permissions.AllowAny]
     throttle_scope = "shrines"
 
