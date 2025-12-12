@@ -57,7 +57,7 @@ class JsonSpectacularAPIView(SpectacularAPIView):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def healthz(request):
-    return JsonResponse({"ok": True})
+    return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
 
 @extend_schema(exclude=True)  # スキーマに載せない場合は exclude

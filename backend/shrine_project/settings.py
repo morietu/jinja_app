@@ -436,5 +436,7 @@ USE_I18N = True
 USE_TZ = True
 
 STORAGE_LIMIT_BYTES = int(os.getenv("STORAGE_LIMIT_BYTES", str(200 * 1024 * 1024)))
+RELEASE = os.getenv("RENDER_GIT_COMMIT", "local")
+
 
 # ※ MIGRATION_MODULES は上の NoGIS固定ブロックで一度だけ設定する
