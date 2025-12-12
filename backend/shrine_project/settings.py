@@ -435,5 +435,6 @@ TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True
 USE_TZ = True
 
+STORAGE_LIMIT_BYTES = int(os.getenv("STORAGE_LIMIT_BYTES", str(200 * 1024 * 1024)))
 
 # ※ MIGRATION_MODULES は上の NoGIS固定ブロックで一度だけ設定する
