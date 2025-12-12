@@ -195,6 +195,7 @@ class MyGoshuinCreateSerializer(serializers.ModelSerializer):
                 goshuin=goshuin,
                 image=image_file,
                 order=0,
+                size_bytes=getattr(image_file, "size", 0) or 0,
             )
 
         return goshuin

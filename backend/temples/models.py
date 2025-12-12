@@ -424,6 +424,8 @@ class Goshuin(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    
+
     class Meta:
         ordering = ["-created_at"]
 
@@ -432,6 +434,8 @@ class GoshuinImage(models.Model):
     goshuin = models.ForeignKey(Goshuin, on_delete=models.CASCADE, related_name="images")
     image = models.ImageField(upload_to="goshuin/")
     order = models.PositiveIntegerField(default=0)
+
+    size_bytes = models.BigIntegerField(default=0)
 
     class Meta:
         ordering = ["order", "id"]
