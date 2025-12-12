@@ -57,7 +57,7 @@ class JsonSpectacularAPIView(SpectacularAPIView):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def healthz(request):
-    return JsonResponse({"ok": True})
+    return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
 
 @extend_schema(exclude=True)  # スキーマに載せない場合は exclude
@@ -171,6 +171,7 @@ urlpatterns = [
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
     # misc
+    path("healthz", healthz, name="healthz_noslash"),
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
 ]
