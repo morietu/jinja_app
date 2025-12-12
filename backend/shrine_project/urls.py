@@ -171,6 +171,7 @@ urlpatterns = [
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
     # misc
+    path("healthz", healthz, name="healthz_noslash"),
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
 ]
