@@ -116,6 +116,8 @@ urlpatterns = [
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
 
     path("api/debug/media/", debug_views.media_debug, name="media-debug"),
+    path("api/debug/storage/", debug_views.storage_debug, name="storage-debug"),
+    
     
     # favorites エンドポイント（/api/favorites/）
     path("api/", include("favorites.urls")),

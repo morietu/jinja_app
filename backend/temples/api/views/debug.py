@@ -3,11 +3,10 @@ import os
 
 from django.conf import settings
 from django.urls import resolve, Resolver404
-
+from django.db.models import Sum, Count
 from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-
 from temples.models import GoshuinImage
 
 
@@ -88,3 +87,14 @@ def media_debug(request):
     # ---- ここまで ----
 
     return JsonResponse(data)
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def storage_debug(request):
+    qs = GoshuinImage.objects.all()
+    return JsonResponse({
+        "count": qs.count(),
+        "sum_size_bytes": int(qs.aggregate(s=Sum("size_bytes"))["s"] or 0),
+        "zero_count": qs.filter(size_bytes=0).count(),
+        "null_count": qs.filter(size_bytes__isnull=True).count(),
+    })
