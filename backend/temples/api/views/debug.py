@@ -8,8 +8,10 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from temples.models import GoshuinImage
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def media_debug(request):
@@ -88,6 +90,7 @@ def media_debug(request):
 
     return JsonResponse(data)
 
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def storage_debug(request):
