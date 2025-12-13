@@ -5,6 +5,13 @@ from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
+# temples/models.py の先頭（暫定。確認したら削除）
+import os, traceback
+if os.getenv("DEBUG_MODEL_IMPORT", "0") == "1":
+    print("IMPORT temples.models", __name__, __file__)
+    traceback.print_stack(limit=8)
+
+
 # GeoDjangoを使うのは USE_GIS が真 かつ テスト無効化フラグが立っていないときだけ
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
@@ -483,56 +490,7 @@ class ConciergeHistory(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-class ConciergeThread(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="concierge_threads",
-    )
-    title = models.CharField(max_length=100, blank=True, default="")
-    # 一覧用メタ情報
-    last_message = models.TextField(blank=True, default="")
-    last_message_at = models.DateTimeField(default=timezone.now)
-    message_count = models.PositiveIntegerField(default=0)
 
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["-last_message_at"]
-        indexes = [
-            models.Index(fields=["user", "-last_message_at"], name="idx_thread_user_last"),
-        ]
-
-    def __str__(self) -> str:
-        return self.title or f"Thread #{self.pk}"
-
-
-class ConciergeMessage(models.Model):
-    ROLE_CHOICES = [
-        ("user", "User"),
-        ("assistant", "Assistant"),
-        ("system", "System"),
-    ]
-
-    thread = models.ForeignKey(
-        ConciergeThread,
-        on_delete=models.CASCADE,
-        related_name="messages",
-    )
-    role = models.CharField(max_length=16, choices=ROLE_CHOICES)
-    content = models.TextField()
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        ordering = ["created_at"]
-        indexes = [
-            models.Index(fields=["thread", "created_at"], name="idx_msg_thread_created"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.role}: {self.content[:20]}"
-    
 
 class Deity(models.Model):
     name = models.CharField(max_length=64, unique=True)

@@ -1,6 +1,7 @@
 # backend/temples/apps.py
-import logging
 import os
+import logging
+
 
 from django.apps import AppConfig
 
@@ -15,13 +16,19 @@ class TemplesConfig(AppConfig):
     def ready(self):
         # CI/テストでシグナルを読みたくない場合は環境変数で無効化
         if os.getenv("TEMPLES_LOAD_SIGNALS", "1") != "1":
-            logger.info("temples.signals loading is disabled by TEMPLES_LOAD_SIGNALS=0")
             return
 
-        try:
-            from . import signals  # noqa: F401
-        except ImportError as e:
-            # モジュール未配置など「想定内」の失敗のみ握る
-            logger.warning("temples.signals not loaded (ImportError): %s", e)
-        else:
-            logger.debug("temples.signals loaded")
+        from django.apps import apps
+        from django.db.models.signals import pre_save, post_save
+
+        from .signals import (
+            auto_geocode_on_save,
+            on_shrine_saved,
+            fill_latlng_if_missing,
+        )
+
+        Shrine = apps.get_model("temples", "Shrine")
+
+        post_save.connect(on_shrine_saved, sender=Shrine, dispatch_uid="temples.on_shrine_saved")
+        pre_save.connect(auto_geocode_on_save, sender=Shrine, dispatch_uid="temples.auto_geocode_on_save")
+        pre_save.connect(fill_latlng_if_missing, sender=Shrine, dispatch_uid="temples.fill_latlng_if_missing")
