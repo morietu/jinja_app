@@ -5,41 +5,27 @@ from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
-# temples/models.py の先頭（暫定。確認したら削除）
-import os, traceback
-if os.getenv("DEBUG_MODEL_IMPORT", "0") == "1":
-    print("IMPORT temples.models", __name__, __file__)
-    traceback.print_stack(limit=8)
-
 
 # GeoDjangoを使うのは USE_GIS が真 かつ テスト無効化フラグが立っていないときだけ
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
 )
+
 if USE_REAL_GIS:
     from django.contrib.gis.db import models as models  # type: ignore
     from django.contrib.gis.geos import Point  # 実GIS時のみ
+    from django.contrib.gis.db.models import PointField as PointFieldBase
 else:
     models = dj_models  # type: ignore
     Point = None
 
-# --- PointField を環境に応じて差し替える shim -------------------------------
-# GIS を使うときだけ本物の PointField を、テスト(SQLite)では安全な JSON/Text に置換
-USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
-    getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
-)
-
-if USE_REAL_GIS:
-    from django.contrib.gis.db.models import PointField as _RealPointField
-
-    PointFieldBase = _RealPointField
-else:
-    # 非GIS環境では JSONField（または TextField）にフォールバック
-    # 既存コードの引数互換性のため **kwargs 受け取り＆無視
+    # 非GIS環境では JSONField にフォールバック（引数互換のため srid 等を無視）
     class PointFieldBase(dj_models.JSONField):
         def __init__(self, *args, srid=None, geography=None, spatial_index=None, **kwargs):
-            # srid 等は無視。NULL/BLANK 指定はそのまま通す
             super().__init__(*args, **kwargs)
+
+
+
 
 
 # 以降、この PointFieldBase を PointField として使う
