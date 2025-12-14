@@ -45,8 +45,8 @@ describe("goshuin api client", () => {
 
     const res = await fetchMyGoshuin();
 
-    // ✅ 実装に合わせて plural に変更
-    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
+    // ✅ 実装に合わせて singular に変更
+    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuin/");
     expect(res).toEqual([{ id: 2 }]);
   });
 
@@ -180,8 +180,8 @@ describe("updateMyGoshuinVisibility", () => {
 
     const result = await updateMyGoshuinVisibility(1, true);
 
-    // ✅ plural + 末尾スラッシュ無しに変更（実装の呼び出しに合わせる）
-    expect(apiPatch).toHaveBeenCalledWith("/my/goshuins/1", { is_public: true });
+    // ✅ singular + 末尾スラッシュ付きに変更（実装の呼び出しに合わせる）
+    expect(apiPatch).toHaveBeenCalledWith("/my/goshuin/1/", { is_public: true });
     expect(result).toEqual(updated);
   });
 });

@@ -298,7 +298,8 @@ describe("useMyGoshuin", () => {
     });
 
     await act(async () => {
-      await latest.toggleVisibility(1);
+      // 現在の状態（true）から false に反転
+      await latest.toggleVisibility(1, false);
     });
 
     expect(mockUpdateMyGoshuinVisibility).toHaveBeenCalledWith(1, false);
@@ -327,7 +328,8 @@ describe("useMyGoshuin", () => {
     });
 
     await act(async () => {
-      await latest.toggleVisibility(1);
+      // 現在の状態（true）から false に反転を試みる
+      await latest.toggleVisibility(1, false);
     });
 
     // ロールバックされて公開のまま

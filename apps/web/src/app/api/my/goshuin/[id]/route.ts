@@ -34,4 +34,3 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   }
   return proxyMyGoshuinRequest(req, buildPath(id), "DELETE");
 }
-
