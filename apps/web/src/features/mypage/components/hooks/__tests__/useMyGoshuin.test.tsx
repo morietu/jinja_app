@@ -27,7 +27,7 @@ type HookValue = {
   reload: () => Promise<void> | void;
   addItem: (g: Goshuin) => void;
   removeItem: (id: number) => Promise<void> | void;
-  toggleVisibility: (id: number) => Promise<void> | void;
+  toggleVisibility: (id: number, next: boolean) => Promise<void>;
 };
 
 function HookTester({ onReady }: { onReady: (value: HookValue) => void }) {
