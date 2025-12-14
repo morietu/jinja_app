@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
         hostname: "jinja-backend.onrender.com",
         pathname: "/media/goshuin/**",
       },
+      
+      
       // R2のパブリックURLが設定されている場合のみ追加
       ...(r2Hostname
         ? [
