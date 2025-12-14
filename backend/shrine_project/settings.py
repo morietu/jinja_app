@@ -260,6 +260,7 @@ INSTALLED_APPS = [
     "users",
     "favorites",
     "temples.apps.TemplesConfig",
+    "storages",
 ]
 
 # GIS はフラグのみで制御（pytest かどうかでは切り替えない）
@@ -445,7 +446,6 @@ RELEASE = os.getenv("RENDER_GIT_COMMIT", "local")
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")  # local / r2
 
 if STORAGE_BACKEND == "r2":
-    INSTALLED_APPS.append("storages")
     AWS_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "")
     AWS_STORAGE_BUCKET_NAME = os.getenv("R2_BUCKET", "")
@@ -455,18 +455,19 @@ if STORAGE_BACKEND == "r2":
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
-else:
-    MEDIA_URL = "/media/"
-    MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
-    # DEFAULT_FILE_STORAGE は設定しない（Djangoデフォルトに戻す）でOK
 
-    # ★ここが重要：公開配信ドメインを “ホスト名” として設定
     _pub = os.getenv("R2_PUBLIC_BASE_URL", "").strip()
     if _pub:
-        AWS_S3_CUSTOM_DOMAIN = urlparse(_pub).netloc or _pub.replace("https://", "").replace("http://", "")
+        AWS_S3_CUSTOM_DOMAIN = (
+            urlparse(_pub).netloc
+            or _pub.replace("https://", "").replace("http://", "")
+        )
         AWS_S3_URL_PROTOCOL = "https:"
 
     DEFAULT_FILE_STORAGE = "shrine_project.storage_backends.R2MediaStorage"
-
-    # MEDIA_URL は “見た目の整合” として残してOK（ただし .url の主導権は上）
     MEDIA_URL = (_pub.rstrip("/") + "/") if _pub else "/media/"
+
+else:
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+    # DEFAULT_FILE_STORAGE は設定しない（Djangoデフォルトでローカル保存）

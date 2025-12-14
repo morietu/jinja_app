@@ -32,8 +32,8 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "jinja-backend.onrender.com",
-        pathname: "/media/icons/**",
+        hostname: "media.example.com",
+        pathname: "/**",
       },
     ],
   },
