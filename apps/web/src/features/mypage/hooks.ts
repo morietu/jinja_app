@@ -155,12 +155,8 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
 
   // 公開 / 非公開切り替え（失敗時ロールバック＋メッセージ）
   const toggleVisibility = useCallback(
-    async (id: number) => {
+    async (id: number, next: boolean) => {
       if (!items) return;
-
-      // いまの状態から next を決める
-      const target = items.find((g) => g.id === id);
-      const next = target ? !target.is_public : true;
 
       // 楽観的更新
       setItems(items.map((g) => (g.id === id ? { ...g, is_public: next } : g)));
@@ -172,7 +168,9 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
         setError(null);
       } catch (e) {
         // 失敗したら元に戻す
-        setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: !g.is_public } : g)) : prev));
+        const target = items.find((g) => g.id === id);
+        const original = target ? target.is_public : true;
+        setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: original } : g)) : prev));
         setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
         console.error(e);
       }
