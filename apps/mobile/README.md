@@ -1,24 +1,55 @@
-# Expo Router Example
+# Mobile App（WIP）
 
-Use [`expo-router`](https://docs.expo.dev/router/introduction/) to build native navigation using files in the `app/` directory.
+AI参拝ナビの **モバイル版（iOS / Android）** です。  
+現在は **未着手 / プロトタイプ段階** のため、開発・検証は行っていません。
 
-## Launch your own
+---
 
-[![Launch with Expo](https://github.com/expo/examples/blob/master/.gh-assets/launch.svg?raw=true)](https://launch.expo.dev/?github=https://github.com/expo/examples/tree/master/with-router)
+## 現在のステータス
 
-## 🚀 How to use
+- 実装：❌ 未着手
+- Git 管理：❌ 対象外
+- リリース予定：未定
 
-```sh
-npx create-expo-app -e with-router
-```
+このディレクトリは **将来の Expo アプリ用の置き場所**としてのみ存在します。
 
-## Deploy
+---
 
-Deploy on all platforms with Expo Application Services (EAS).
+## 方針（暫定）
 
-- Deploy the website: `npx eas-cli deploy` — [Learn more](https://docs.expo.dev/eas/hosting/get-started/)
-- Deploy on iOS and Android using: `npx eas-cli build` — [Learn more](https://expo.dev/eas)
+- Web（Next.js）で MVP を完成させることを最優先
+- ユーザー反応・機能安定後にモバイル展開を判断
+- 初期は **Expo + API 共有（Backend 共通）** を前提とする
 
-## 📝 Notes
+---
 
-- [Expo Router: Docs](https://docs.expo.dev/router/introduction/)
+## 着手時の予定スタック
+
+- Expo
+- React Native
+- Expo Router
+- 既存 Backend API（`/api/*`）
+
+---
+
+## 開発を開始するタイミングでやること
+
+- `src/` を gitignore から外す
+- 本 README を **実装前提の内容に更新**
+- 環境変数・API 接続方針を明記
+- Web との責務分離（UI / UX 差分）を整理
+
+---
+
+## 関連ドキュメント
+
+- プロジェクト全体の概要  
+  - リポジトリルートの `README.md`
+- アーキテクチャ / 認証 / API 設計  
+  - `docs/` 配下を参照
+
+---
+
+> NOTE  
+> この README は **「今は触らなくていい」ことを明確にするためのもの**です。  
+> 実装が始まったら、迷わず書き換えてください。
