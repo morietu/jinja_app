@@ -42,8 +42,14 @@ export async function proxyMyGoshuinRequest(req: NextRequest, basePath: string, 
     let body: FormData | string | undefined;
     if (method !== "GET") {
       if (isMultipart) {
-        // multipart/form-data の場合は FormData として処理
-        body = await req.formData();
+        // multipart/form-data の場合は FormData として処理。
+        // そのまま渡すと境界線が噛み合わないケースがあったので、念のため詰め替える。
+        const incoming = await req.formData();
+        const outgoing = new FormData();
+        incoming.forEach((value, key) => {
+          outgoing.append(key, value as any);
+        });
+        body = outgoing;
         // Content-Type ヘッダーは FormData を送信する際に自動設定されるため削除
       } else {
         // JSON やその他の場合は text として転送
