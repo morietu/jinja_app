@@ -36,16 +36,26 @@ export async function proxyMyGoshuinRequest(req: NextRequest, basePath: string, 
     if (access) headers["Authorization"] = `Bearer ${access}`;
 
     const ct = req.headers.get("content-type");
-    if (ct) headers["Content-Type"] = ct;
+    const isMultipart = ct?.includes("multipart/form-data") ?? false;
 
-    const init: RequestInit = { method, headers };
+    // body を一度だけ読み取る（FormData は一度しか読み取れないため）
+    let body: FormData | string | undefined;
     if (method !== "GET") {
-      // forward body as text (JSON or form-data as-is)
-      init.body = await req.text();
+      if (isMultipart) {
+        // multipart/form-data の場合は FormData として処理
+        body = await req.formData();
+        // Content-Type ヘッダーは FormData を送信する際に自動設定されるため削除
+      } else {
+        // JSON やその他の場合は text として転送
+        body = await req.text();
+        if (ct) headers["Content-Type"] = ct;
+      }
     }
 
     const search = req.nextUrl?.search || "";
     const target = `${basePath}${search}`;
+
+    const init: RequestInit = { method, headers, body };
 
     let r = await djFetch(target, init);
     let text = await r.text();
@@ -65,7 +75,7 @@ export async function proxyMyGoshuinRequest(req: NextRequest, basePath: string, 
             const newAccess = j.access;
             // retry original request with new access
             headers["Authorization"] = `Bearer ${newAccess}`;
-            r = await djFetch(target, { method, headers, body: init.body });
+            r = await djFetch(target, { method, headers, body });
             text = await r.text();
 
             if (r.ok) {
