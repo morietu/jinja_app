@@ -1,32 +1,51 @@
-# バックエンド（Django/DRF）
+# Backend（Django / DRF）
+
+AI参拝ナビのバックエンド実装です。
+
+---
 
 ## 技術スタック
 
-- **Django 5 + DRF**
-- **PostgreSQL + PostGIS**（位置情報対応）
-- **JWT 認証**（SimpleJWT）
-- **画像アップロード**（S3連携予定）
+- Django 5 + DRF
+- PostgreSQL + PostGIS
+- JWT（SimpleJWT）
+- 画像アップロード（S3 予定）
 
-## 提供API
+---
 
-- `/api/shrines/` - 神社一覧・検索（ご利益・エリア対応）
-- `/api/visits/` - 参拝チェックイン
-- `/api/favorites/` - お気に入り登録
-- `/api/ranking/` - 人気神社ランキング
-- `/api/ai/concierge/` - 干支／四柱推命ベースの提案
+## 役割
 
-## 管理機能
+- 神社 / 御朱印 / お気に入り API
+- AI参拝ナビ（Concierge）
+- ルート計算・位置検索
+- 認証・ユーザー管理
 
-- **Django Admin** で神社・御朱印・ユーザー管理
-- **集計バッチ** でランキングを生成
+---
 
-### 開発用ショートカット（zsh）
-```zsh
-jwt_login     # ログインして ACCESS/REFRESH を環境変数に
-jwt_status    # 長さを確認
-jwt_refresh   # ACCESS を更新
-jwt_logout    # トークンをクリア
+## 開発・設計ドキュメント
 
-# お気に入り操作
-fav_add_shrine 1
-curl -s "$FAV_BASE/" -H "Authorization: Bearer $ACCESS" | jq .
+詳細設計・運用ルールは **docs/** 配下に集約しています。
+
+- アーキテクチャ / 認証  
+  → `docs/10_arch_auth_proxy.md`
+- API 全体概要  
+  → `docs/30_api_overview.md`
+- ローカル疎通確認  
+  → `docs/20_smoke_checks.md`
+- インフラ / デプロイ  
+  → `docs/40_infra_deploy.md`
+- ロードマップ  
+  → `docs/90_roadmap.md`
+
+---
+
+## ローカル起動（最短）
+
+```bash
+cd backend
+source ../.venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 127.0.0.1:8000
+
+---
