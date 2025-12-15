@@ -179,14 +179,4 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
 
 
 
-  return {
-    items,
-    loading,
-    error,
-    upload,
-    addItem,
-    removeItem,
-    toggleVisibility,
-    reload,
-  };
-}
+  
