@@ -57,7 +57,11 @@ export async function POST(req: NextRequest) {
     const text = await upstream.text();
 
     console.log("[BFF] /api/my/goshuins/ POST upstream status:", upstream.status);
-    console.log("[BFF] /api/my/goshuins/ POST upstream body snippet:", text.slice(0, 200));
+
+    // 👇 上限超過はここを通る
+    if (upstream.status === 403) {
+      console.warn("[BFF] goshuin limit exceeded?", text.slice(0, 200));
+    }
 
     return new NextResponse(text, {
       status: upstream.status,

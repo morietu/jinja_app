@@ -2,6 +2,7 @@
 import os 
 
 from django.db import transaction
+
 from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -11,9 +12,15 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from temples.models import Goshuin, Shrine, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
 
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+
 import logging
 log = logging.getLogger(__name__)
 
+
+MAX_MY_GOSHUINS = 10
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
@@ -67,13 +74,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         return {"request": self.request}
 
     def perform_create(self, serializer):
-        goshuin = serializer.save(user=self.request.user)
-        try:
-            path = goshuin.image.path
-            exists = os.path.exists(path)
-            log.warning("[DEBUG] saved goshuin image path=%s exists=%s", path, exists)
-        except Exception as e:
-            log.error("[DEBUG] goshuin image debug failed: %s", e)
+        return serializer.save(user=self.request.user)
 
 
 
@@ -118,30 +119,37 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         - is_public: "true" / "false"
         - image: ファイル
         """
-        shrine_id = request.data.get("shrine")
-        if not shrine_id:
-            return Response(
-                {"shrine": ["このフィールドは必須です。"]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            Shrine.objects.get(pk=shrine_id)
-        except Shrine.DoesNotExist:
-            return Response(
-                {"shrine": ["指定された神社が存在しません。"]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        with transaction.atomic():
+            
+            self.get_queryset().select_for_update().exists()
 
-        serializer = MyGoshuinCreateSerializer(
-            data=request.data,
-            context={"request": request},
-        )
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            count = self.get_queryset().count()
+            if count >= MAX_MY_GOSHUINS:
+                return Response(
+                    {"code": "PLAN_LIMIT_EXCEEDED", "limit": MAX_MY_GOSHUINS, "detail": f"御朱印は最大 {MAX_MY_GOSHUINS} 件までです。"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
-        # ★ ここで保存して、直後にファイルの存在確認ログを出す
-        goshuin = serializer.save()  # user は serializer.create 内で request.user を見る想定
+            shrine_id = request.data.get("shrine")
+            if not shrine_id:
+                return Response(
+                    {"shrine": ["このフィールドは必須です。"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                Shrine.objects.get(pk=shrine_id)
+            except Shrine.DoesNotExist:
+                return Response(
+                    {"shrine": ["指定された神社が存在しません。"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
+            serializer = MyGoshuinCreateSerializer(data=request.data, context={"request": request})
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            goshuin = self.perform_create(serializer)
+        # atomic の外（ログは外でOK）
         try:
             path = goshuin.image.path
             exists = os.path.exists(path)
