@@ -8,6 +8,8 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import ParseError
+
 
 from temples.models import Goshuin, Shrine, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
@@ -109,6 +111,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     
+    
     # ---- 作成 ----
     def create(self, request):
         """
@@ -119,40 +122,53 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         - is_public: "true" / "false"
         - image: ファイル
         """
-        with transaction.atomic():
-            
-            self.get_queryset().select_for_update().exists()
+        try:
+            with transaction.atomic():
+                # ※ ロックは一旦外してOK（原因切り分け優先）
+                # self.get_queryset().select_for_update().exists()
 
-            count = self.get_queryset().count()
-            if count >= MAX_MY_GOSHUINS:
-                return Response(
-                    {"code": "PLAN_LIMIT_EXCEEDED", "limit": MAX_MY_GOSHUINS, "detail": f"御朱印は最大 {MAX_MY_GOSHUINS} 件までです。"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                count = self.get_queryset().count()
+                if count >= MAX_MY_GOSHUINS:
+                    return Response(
+                        {
+                            "code": "PLAN_LIMIT_EXCEEDED",
+                            "limit": MAX_MY_GOSHUINS,
+                            "detail": f"御朱印は最大 {MAX_MY_GOSHUINS} 件までです。",
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
-            shrine_id = request.data.get("shrine")
-            if not shrine_id:
-                return Response(
-                    {"shrine": ["このフィールドは必須です。"]},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            try:
+                shrine_id = request.data.get("shrine")
+                if not shrine_id:
+                    return Response(
+                        {"shrine": ["このフィールドは必須です。"]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 Shrine.objects.get(pk=shrine_id)
-            except Shrine.DoesNotExist:
-                return Response(
-                    {"shrine": ["指定された神社が存在しません。"]},
-                    status=status.HTTP_400_BAD_REQUEST,
+
+                serializer = MyGoshuinCreateSerializer(
+                    data=request.data,
+                    context={"request": request},
                 )
+                serializer.is_valid(raise_exception=True)
 
-            serializer = MyGoshuinCreateSerializer(data=request.data, context={"request": request})
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                goshuin = self.perform_create(serializer)
 
-            goshuin = self.perform_create(serializer)
-        
+            out = GoshuinSerializer(goshuin, context={"request": request})
+            return Response(out.data, status=status.HTTP_201_CREATED)
 
-        out = GoshuinSerializer(goshuin, context={"request": request})
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        except Shrine.DoesNotExist:
+            return Response(
+                {"shrine": ["指定された神社が存在しません。"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            log.exception("MyGoshuinViewSet.create failed")
+            return Response(
+                {"detail": str(e), "type": e.__class__.__name__},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     # ---- 更新（公開/非公開トグル想定） ----
     def partial_update(self, request, pk=None):
