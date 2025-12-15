@@ -1,18 +1,11 @@
-// apps/web/src/lib/api/__tests__/goshuin.test.ts
-
 import axios from "axios";
-import api from "../client";
-import {
-  fetchPublicGoshuin,
-  fetchMyGoshuin,
-  getGoshuinPublicAuto,
-  getMyGoshuinAuto,
-  getGoshuin,
-  getGoshuinAuto,
-  updateMyGoshuinVisibility,
-} from "../goshuin";
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, type Mock } from "vitest";
 
+// ✅ vitest.setup.ts の global mock を、このファイルでは解除
+vi.unmock("@/lib/api/goshuin");
+vi.unmock("../goshuin");
+
+// ✅ client はこのテストでは引き続きモック（api.get/patch の呼び出し検証のため）
 vi.mock("../client", () => ({
   default: {
     get: vi.fn(),
@@ -22,9 +15,30 @@ vi.mock("../client", () => ({
   },
 }));
 
+let api: any;
+let fetchPublicGoshuin: any;
+let fetchMyGoshuin: any;
+let getGoshuinPublicAuto: any;
+let getMyGoshuinAuto: any;
+let getGoshuin: any;
+let getGoshuinAuto: any;
+let updateMyGoshuinVisibility: any;
 
-const apiGetMock = api.get as unknown as Mock;
-const apiPatch = api.patch as unknown as Mock;
+beforeAll(async () => {
+  api = (await import("../client")).default;
+
+  const mod = await import("../goshuin");
+  fetchPublicGoshuin = mod.fetchPublicGoshuin;
+  fetchMyGoshuin = mod.fetchMyGoshuin;
+  getGoshuinPublicAuto = mod.getGoshuinPublicAuto;
+  getMyGoshuinAuto = mod.getMyGoshuinAuto;
+  getGoshuin = mod.getGoshuin;
+  getGoshuinAuto = mod.getGoshuinAuto;
+  updateMyGoshuinVisibility = mod.updateMyGoshuinVisibility;
+});
+
+const apiGetMock = () => api.get as unknown as Mock;
+const apiPatch = () => api.patch as unknown as Mock;
 
 describe("goshuin api client", () => {
   beforeEach(() => {
@@ -32,52 +46,45 @@ describe("goshuin api client", () => {
   });
 
   it("fetchPublicGoshuin は /goshuins/ を叩いて結果を返す", async () => {
-    apiGetMock.mockResolvedValue({ data: [{ id: 1 }] });
+    apiGetMock().mockResolvedValue({ data: [{ id: 1 }] });
 
     const res = await fetchPublicGoshuin();
 
-    expect(apiGetMock).toHaveBeenCalledWith("/goshuins/");
+    expect(apiGetMock()).toHaveBeenCalledWith("/goshuins/");
     expect(res).toEqual([{ id: 1 }]);
   });
 
   it("fetchMyGoshuin は /my/goshuins/ を叩いて結果を返す", async () => {
-    apiGetMock.mockResolvedValue({ data: [{ id: 2 }] });
+    apiGetMock().mockResolvedValue({ data: [{ id: 2 }] });
 
     const res = await fetchMyGoshuin();
 
-    // ✅ 実装に合わせて singular に変更
-    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
+    expect(apiGetMock()).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([{ id: 2 }]);
   });
 
   it("getGoshuinPublicAuto は最初の候補 URL で成功したらその結果を返す", async () => {
-    apiGetMock.mockResolvedValue({ data: [{ id: 10 }] });
+    apiGetMock().mockResolvedValue({ data: [{ id: 10 }] });
 
     const res = await getGoshuinPublicAuto();
 
-    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(apiGetMock()).toHaveBeenCalledTimes(1);
     expect(res).toEqual([{ id: 10 }]);
   });
 
   it("getGoshuinPublicAuto は 404 の場合、次候補へ進み成功した結果を返す", async () => {
-    apiGetMock
-      .mockRejectedValueOnce({
-        isAxiosError: true,
-        response: { status: 404 },
-      })
+    apiGetMock()
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } })
       .mockResolvedValueOnce({ data: [{ id: 20 }] });
 
     const res = await getGoshuinPublicAuto();
 
-    expect(apiGetMock).toHaveBeenCalledTimes(2);
+    expect(apiGetMock()).toHaveBeenCalledTimes(2);
     expect(res).toEqual([{ id: 20 }]);
   });
 
   it("getGoshuinPublicAuto はレスポンスなしの AxiosError の場合、絶対URLで axios.get を叩く", async () => {
-    apiGetMock.mockRejectedValueOnce({
-      isAxiosError: true,
-      response: undefined,
-    });
+    apiGetMock().mockRejectedValueOnce({ isAxiosError: true, response: undefined });
 
     const axiosSpy = vi.spyOn(axios, "get").mockResolvedValueOnce({ data: [{ id: 30 }] } as any);
 
@@ -88,10 +95,7 @@ describe("goshuin api client", () => {
   });
 
   it("getGoshuinPublicAuto は 401/403 の場合は空配列を返す", async () => {
-    apiGetMock.mockRejectedValue({
-      isAxiosError: true,
-      response: { status: 401 },
-    });
+    apiGetMock().mockRejectedValue({ isAxiosError: true, response: { status: 401 } });
 
     const res = await getGoshuinPublicAuto();
 
@@ -99,10 +103,7 @@ describe("goshuin api client", () => {
   });
 
   it("getMyGoshuinAuto は 401 の場合、空配列を返す", async () => {
-    apiGetMock.mockRejectedValue({
-      isAxiosError: true,
-      response: { status: 401 },
-    });
+    apiGetMock().mockRejectedValue({ isAxiosError: true, response: { status: 401 } });
 
     const res = await getMyGoshuinAuto();
 
@@ -110,28 +111,21 @@ describe("goshuin api client", () => {
   });
 
   it("getMyGoshuinAuto は 404 の場合、空配列を返し warn する", async () => {
-    const isAxiosSpy = vi.spyOn(axios, "isAxiosError").mockReturnValue(true);
-
-    apiGetMock.mockRejectedValueOnce({ response: { status: 404 } });
-
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    apiGetMock().mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } });
+
     const res = await getMyGoshuinAuto();
 
-    // 「何回試すか」ではなく「最低限こうなる」を保証する
-    expect(apiGetMock).toHaveBeenCalledTimes(1);
-    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
+    expect(apiGetMock()).toHaveBeenCalledTimes(1);
+    expect(apiGetMock()).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();
-    isAxiosSpy.mockRestore();
   });
 
   it("getMyGoshuinAuto はネットワークエラー（response なし）の場合も空配列を返す", async () => {
-    apiGetMock.mockRejectedValue({
-      isAxiosError: true,
-      response: undefined,
-    });
+    apiGetMock().mockRejectedValue({ isAxiosError: true, response: undefined });
 
     const res = await getMyGoshuinAuto();
 
@@ -139,7 +133,7 @@ describe("goshuin api client", () => {
   });
 
   it("エイリアス getGoshuin / getGoshuinAuto も getGoshuinPublicAuto をラップしている", async () => {
-    apiGetMock.mockResolvedValue({ data: [{ id: 99 }] });
+    apiGetMock().mockResolvedValue({ data: [{ id: 99 }] });
 
     const res1 = await getGoshuin();
     const res2 = await getGoshuinAuto();
@@ -149,8 +143,7 @@ describe("goshuin api client", () => {
   });
 
   it("getGoshuinPublicAuto は AxiosError でない例外でも空配列を返す", async () => {
-    // AxiosError ではない Error を投げるケース
-    apiGetMock.mockRejectedValue(new Error("boom"));
+    apiGetMock().mockRejectedValue(new Error("boom"));
 
     const res = await getGoshuinPublicAuto();
 
@@ -158,10 +151,7 @@ describe("goshuin api client", () => {
   });
 
   it("getGoshuinPublicAuto は 500 などの非 404/401/403 Axios エラーでも空配列を返す", async () => {
-    apiGetMock.mockRejectedValue({
-      isAxiosError: true,
-      response: { status: 500 },
-    });
+    apiGetMock().mockRejectedValue({ isAxiosError: true, response: { status: 500 } });
 
     const res = await getGoshuinPublicAuto();
 
@@ -169,20 +159,18 @@ describe("goshuin api client", () => {
   });
 });
 
-
 describe("updateMyGoshuinVisibility", () => {
   beforeEach(() => {
-    apiPatch.mockReset();
+    apiPatch().mockReset();
   });
 
   it("指定 ID の御朱印の is_public を更新して結果を返す", async () => {
     const updated = { id: 1, is_public: true };
-    apiPatch.mockResolvedValue({ data: updated });
+    apiPatch().mockResolvedValue({ data: updated });
 
     const result = await updateMyGoshuinVisibility(1, true);
 
-    // ✅ singular + 末尾スラッシュ付きに変更（実装の呼び出しに合わせる）
-    expect(apiPatch).toHaveBeenCalledWith("/my/goshuins/1/", { is_public: true });
+    expect(apiPatch()).toHaveBeenCalledWith("/my/goshuins/1/", { is_public: true });
     expect(result).toEqual(updated);
   });
 });
