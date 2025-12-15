@@ -117,6 +117,7 @@ urlpatterns = [
 
     path("api/debug/media/", debug_views.media_debug, name="media-debug"),
     path("api/debug/storage/", debug_views.storage_debug, name="storage-debug"),
+    path("api/debug/storage-backend/", debug_views.storage_backend_debug, name="storage-backend-debug"),
     
     
     # favorites エンドポイント（/api/favorites/）
