@@ -10,12 +10,12 @@ describe("__resolveUrlForTest", () => {
 
   it("相対パスは /api ベースで結合される（デフォルト環境）", () => {
     // NEXT_PUBLIC_API_BASE が未定義なら "/api" ベースになる
-    expect(__resolveUrlForTest("/my/goshuin/")).toBe("/api/my/goshuin/");
-    expect(__resolveUrlForTest("my/goshuin/")).toBe("/api/my/goshuin/");
+    expect(__resolveUrlForTest("/my/goshuins/")).toBe("/api/my/goshuins/");
+    expect(__resolveUrlForTest("my/goshuins/")).toBe("/api/my/goshuins/");
   });
 
   it("/? を ? に正規化する", () => {
-    expect(__resolveUrlForTest("/my/goshuin/?a=1")).toBe("/api/my/goshuin?a=1");
+    expect(__resolveUrlForTest("/my/goshuins/?a=1")).toBe("/api/my/goshuins?a=1");
   });
 });
 
