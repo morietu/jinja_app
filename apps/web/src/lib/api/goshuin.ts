@@ -15,7 +15,8 @@ export type Goshuin = {
 const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
 
 const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
-const MY_CANDIDATES = ["/my/goshuin/", "/goshuin/my/", "/me/goshuin/"] as const;
+const MY_CANDIDATES = ["/my/goshuins/"] as const;
+
 
 function toList(data: any): Goshuin[] {
   if (Array.isArray(data)) return data;
@@ -25,13 +26,13 @@ function toList(data: any): Goshuin[] {
 
 async function fetchPublicFromBackend(): Promise<Goshuin[]> {
   const base = BACKEND_ORIGIN.replace(/\/+$/, "");
-  const url = `${base}/api/goshuin/`;
+  const url = `${base}/api/goshuins/`;
   const r = await axios.get<any>(url, { withCredentials: true });
   return toList(r.data);
 }
 
 export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<any>("/goshuin/");
+  const r = await api.get<any>("/goshuins/");
   return toList(r.data);
 }
 
@@ -89,7 +90,7 @@ export async function fetchGoshuin(): Promise<Goshuin[]> {
 
 // ✅ 自分の御朱印一覧（BFF /api/my/goshuin/ 経由）
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
-  const r = await api.get<any>("/my/goshuin/");
+  const r = await api.get<any>("/my/goshuins/");
   return toList(r.data);
 }
 
@@ -107,19 +108,19 @@ export async function uploadMyGoshuin(input: {
   form.append("is_public", input.isPublic ? "true" : "false");
   form.append("image", input.file);
 
-  const r = await api.post<Goshuin>("/my/goshuin/", form);
+  const r = await api.post<Goshuin>("/my/goshuins/", form);
   return r.data;
 }
 
 export const uploadGoshuin = uploadMyGoshuin;
 
 export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
-  const r = await api.patch<Goshuin>(`/my/goshuin/${id}/`, {
+  const r = await api.patch<Goshuin>(`/my/goshuins/${id}/`, {
     is_public: isPublic,
   });
   return r.data;
 }
 
 export async function deleteMyGoshuin(id: number): Promise<void> {
-  await api.delete(`/my/goshuin/${id}/`);
+  await api.delete(`/my/goshuins/${id}/`);
 }
