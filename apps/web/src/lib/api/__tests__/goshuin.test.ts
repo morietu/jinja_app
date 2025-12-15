@@ -31,12 +31,12 @@ describe("goshuin api client", () => {
     vi.resetAllMocks();
   });
 
-  it("fetchPublicGoshuin は /goshuin/ を叩いて結果を返す", async () => {
+  it("fetchPublicGoshuin は /goshuins/ を叩いて結果を返す", async () => {
     apiGetMock.mockResolvedValue({ data: [{ id: 1 }] });
 
     const res = await fetchPublicGoshuin();
 
-    expect(apiGetMock).toHaveBeenCalledWith("/goshuin/");
+    expect(apiGetMock).toHaveBeenCalledWith("/goshuins/");
     expect(res).toEqual([{ id: 1 }]);
   });
 
@@ -46,7 +46,7 @@ describe("goshuin api client", () => {
     const res = await fetchMyGoshuin();
 
     // ✅ 実装に合わせて singular に変更
-    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuin/");
+    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([{ id: 2 }]);
   });
 
@@ -109,21 +109,22 @@ describe("goshuin api client", () => {
     expect(res).toEqual([]);
   });
 
-  it("getMyGoshuinAuto は 404 しか返らない場合、最終的に空配列を返す", async () => {
-    apiGetMock.mockRejectedValue({
-      isAxiosError: true,
-      response: { status: 404 },
-    });
+  it("getMyGoshuinAuto は 404 の場合、空配列を返し warn する", async () => {
+    const isAxiosSpy = vi.spyOn(axios, "isAxiosError").mockReturnValue(true);
+
+    apiGetMock.mockRejectedValueOnce({ response: { status: 404 } });
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
     const res = await getMyGoshuinAuto();
 
-    expect(apiGetMock).toHaveBeenCalledTimes(3); // CANDIDATES の数ぶん
+    // 「何回試すか」ではなく「最低限こうなる」を保証する
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(apiGetMock).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();
+    isAxiosSpy.mockRestore();
   });
 
   it("getMyGoshuinAuto はネットワークエラー（response なし）の場合も空配列を返す", async () => {
@@ -181,7 +182,7 @@ describe("updateMyGoshuinVisibility", () => {
     const result = await updateMyGoshuinVisibility(1, true);
 
     // ✅ singular + 末尾スラッシュ付きに変更（実装の呼び出しに合わせる）
-    expect(apiPatch).toHaveBeenCalledWith("/my/goshuin/1/", { is_public: true });
+    expect(apiPatch).toHaveBeenCalledWith("/my/goshuins/1/", { is_public: true });
     expect(result).toEqual(updated);
   });
 });
