@@ -75,8 +75,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
     def get_serializer_context(self):
         return {"request": self.request}
 
-    def perform_create(self, serializer):
-        return serializer.save(user=self.request.user)
+    
 
 
 
@@ -152,3 +151,17 @@ class MyGoshuinViewSet(viewsets.ViewSet):
             goshuin.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def create(self, request):
+        count = self.get_queryset().count()
+        if count >= MAX_MY_GOSHUINS:
+            return Response(
+                {"code": "PLAN_LIMIT_EXCEEDED", "limit": MAX_MY_GOSHUINS, "detail": f"御朱印は最大  {MAX_MY_GOSHUINS} 件までです。"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = MyGoshuinCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        goshuin = serializer.save()  # user は serializer 側に寄せる or ここで寄せる
+        out = GoshuinSerializer(goshuin, context={"request": request})
+        return Response(out.data, status=status.HTTP_201_CREATED)
