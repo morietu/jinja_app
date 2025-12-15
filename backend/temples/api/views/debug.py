@@ -7,6 +7,7 @@ from django.db.models import Sum, Count
 from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from temples.models import GoshuinImage
 from drf_spectacular.utils import extend_schema
 
@@ -104,4 +105,15 @@ def storage_debug(request):
         "sum_size_bytes": int(qs.aggregate(s=Sum("size_bytes"))["s"] or 0),
         "zero_count": qs.filter(size_bytes=0).count(),
         "null_count": qs.filter(size_bytes__isnull=True).count(),
+    })
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def storage_backend_debug(request):
+    return JsonResponse({
+        "storage_class": default_storage.__class__.__name__,
+        "storage_module": default_storage.__class__.__module__,
+        "MEDIA_URL": settings.MEDIA_URL,
+        "STORAGE_BACKEND": os.getenv("STORAGE_BACKEND", "local"),
     })
