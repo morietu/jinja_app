@@ -4,7 +4,22 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchMe, type MeResponse } from "@/lib/api/mypage";
 import type { Goshuin } from "@/lib/api/goshuin";
-import { fetchMyGoshuin as fetchMyGoshuinApi, deleteMyGoshuin, updateMyGoshuinVisibility } from "@/lib/api/goshuin";
+import {
+  fetchMyGoshuin as fetchMyGoshuinApi,
+  deleteMyGoshuin,
+  updateMyGoshuinVisibility,
+  uploadMyGoshuin,
+} from "@/lib/api/goshuin";
+
+type PlanLimitError = {
+  code?: string;
+  limit?: number;
+  detail?: string;
+};
+
+function isPlanLimitExceeded(e: unknown): e is PlanLimitError {
+  return !!e && typeof e === "object" && (e as any).code === "PLAN_LIMIT_EXCEEDED";
+}
 
 /**
  * /api/my/profile/（= Django /api/users/me/）を叩くフック
@@ -62,6 +77,12 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ① 先に addItem（upload が使う）
+  const addItem = useCallback((item: Goshuin) => {
+    setItems((prev) => (prev ? [item, ...prev] : [item]));
+  }, []);
+
+  // ② load（初回ロード / reload が使う）
   const load = useCallback(async () => {
     if (!enabled) {
       setLoading(false);
@@ -82,69 +103,48 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     }
   }, [enabled]);
 
-  // 初回ロード
+  // ③ 初回ロードは load を呼ぶだけ（←ここが置き場）
   useEffect(() => {
-    let cancelled = false;
+    void load();
+  }, [load]);
 
-    (async () => {
-      if (!enabled) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
+  // ④ upload（addItem を使う）
+  const upload = useCallback(
+    async (input: { shrineId: number; title: string; isPublic: boolean; file: File }) => {
       try {
-        const res = await fetchMyGoshuinApi();
-        if (!cancelled) {
-          setItems(res);
-          setError(null);
-        }
+        const created = await uploadMyGoshuin(input);
+        addItem(created);
+        setError(null);
+        return created;
       } catch (e) {
-        if (!cancelled) {
-          setItems(null);
-          setError("御朱印一覧の取得に失敗しました。");
-          console.error(e);
+        if (isPlanLimitExceeded(e)) {
+          const limit = (e as any).limit ?? 10;
+          setError(`御朱印は最大${limit}件までです。不要な御朱印を削除してから追加してください。`);
+          return null;
         }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setError("アップロードに失敗しました。時間をおいて再度お試しください。");
+        console.error(e);
+        return null;
       }
-    })();
+    },
+    [addItem],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-
-  // 明示的な再読み込み API
+  // ⑤ reload は load を呼ぶだけ
   const reload = useCallback(async () => {
     await load();
   }, [load]);
 
-  // アップロード成功時に先頭へ追加
-  const addItem = useCallback((item: Goshuin) => {
-    setItems((prev) => {
-      if (!prev) return [item];
-      return [item, ...prev];
-    });
-  }, []);
-
-  // 削除（失敗時ロールバック＋メッセージ）
+  // ⑥ removeItem / toggleVisibility（今のままでOK）
   const removeItem = useCallback(
     async (id: number) => {
       const prev = items;
-
-      // 楽観的に削除
-      if (items) {
-        setItems(items.filter((g) => g.id !== id));
-      }
+      if (items) setItems(items.filter((g) => g.id !== id));
 
       try {
         await deleteMyGoshuin(id);
         setError(null);
       } catch (e) {
-        // ❗ 失敗したら元の一覧に戻す
         setItems(prev ?? null);
         setError("削除に失敗しました。時間をおいて再度お試しください。");
         console.error(e);
@@ -153,21 +153,17 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     [items],
   );
 
-  // 公開 / 非公開切り替え（失敗時ロールバック＋メッセージ）
   const toggleVisibility = useCallback(
     async (id: number, next: boolean) => {
       if (!items) return;
 
-      // 楽観的更新
       setItems(items.map((g) => (g.id === id ? { ...g, is_public: next } : g)));
 
       try {
         const updated = await updateMyGoshuinVisibility(id, next);
-        // サーバー結果で確定
         setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: updated.is_public } : g)) : prev));
         setError(null);
       } catch (e) {
-        // 失敗したら元に戻す
         const target = items.find((g) => g.id === id);
         const original = target ? target.is_public : true;
         setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: original } : g)) : prev));
@@ -178,13 +174,9 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     [items],
   );
 
-  return {
-    items,
-    loading,
-    error,
-    addItem,
-    removeItem,
-    toggleVisibility,
-    reload,
-  };
+  return { items, loading, error, upload, addItem, removeItem, toggleVisibility, reload };
 }
+
+
+
+  
