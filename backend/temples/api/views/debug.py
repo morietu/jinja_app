@@ -10,6 +10,8 @@ from rest_framework.permissions import AllowAny
 from temples.models import GoshuinImage
 from drf_spectacular.utils import extend_schema
 
+from django.core.files.storage import default_storage
+
 
 @extend_schema(exclude=True)
 @api_view(["GET"])
@@ -96,6 +98,8 @@ def media_debug(request):
 def storage_debug(request):
     qs = GoshuinImage.objects.all()
     return JsonResponse({
+        "storage_class": default_storage.__class__.__name__,
+        "storage_module": default_storage.__class__.__module__,
         "count": qs.count(),
         "sum_size_bytes": int(qs.aggregate(s=Sum("size_bytes"))["s"] or 0),
         "zero_count": qs.filter(size_bytes=0).count(),
