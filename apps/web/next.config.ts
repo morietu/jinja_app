@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
         pathname: "/media/goshuin/**",
       },
       
+      {
+        protocol: "https",
+        hostname: "pub-2bcf3477e26d46f6ab5031df3b436f92.r2.dev",
+        pathname: "/**",
+      },
+      
       
       // R2のパブリックURLが設定されている場合のみ追加
       ...(r2Hostname
