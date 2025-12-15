@@ -149,13 +149,7 @@ class MyGoshuinViewSet(viewsets.ViewSet):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             goshuin = self.perform_create(serializer)
-        # atomic の外（ログは外でOK）
-        try:
-            path = goshuin.image.path
-            exists = os.path.exists(path)
-            log.warning("[DEBUG] saved goshuin image path=%s exists=%s", path, exists)
-        except Exception as e:
-            log.error("[DEBUG] goshuin image debug failed: %s", e)
+        
 
         out = GoshuinSerializer(goshuin, context={"request": request})
         return Response(out.data, status=status.HTTP_201_CREATED)
