@@ -441,33 +441,36 @@ STORAGE_LIMIT_BYTES = int(os.getenv("STORAGE_LIMIT_BYTES", str(200 * 1024 * 1024
 RELEASE = os.getenv("RENDER_GIT_COMMIT", "local")
 
 
-# ※ MIGRATION_MODULES は上の NoGIS固定ブロックで一度だけ設定する
-
+# --- Storage ---
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")  # local / r2
 
 if STORAGE_BACKEND == "r2":
-    AWS_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
-    AWS_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "")
-    AWS_STORAGE_BUCKET_NAME = os.getenv("R2_BUCKET", "")
-    AWS_S3_ENDPOINT_URL = os.getenv("R2_ENDPOINT_URL", "")
+    # R2(S3互換) は django-storages の S3Boto3Storage を使う
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+    AWS_ACCESS_KEY_ID = os.environ["R2_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = os.environ["R2_BUCKET"]
+    AWS_S3_ENDPOINT_URL = os.environ["R2_ENDPOINT_URL"]  # https://<accountid>.r2.cloudflarestorage.com
+
     AWS_S3_REGION_NAME = "auto"
-    AWS_S3_ADDRESSING_STYLE = "path"
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
 
-    _pub = os.getenv("R2_PUBLIC_BASE_URL", "").strip()
-    if _pub:
-        AWS_S3_CUSTOM_DOMAIN = (
-            urlparse(_pub).netloc
-            or _pub.replace("https://", "").replace("http://", "")
-        )
-        AWS_S3_URL_PROTOCOL = "https:"
+    # R2 はまず path が無難（virtual でハマりやすい）
+    AWS_S3_ADDRESSING_STYLE = "path"
 
-    DEFAULT_FILE_STORAGE = "shrine_project.storage_backends.R2MediaStorage"
-    MEDIA_URL = (_pub.rstrip("/") + "/") if _pub else "/media/"
+    # 公開URL（必須）例: https://pub-xxxx.r2.dev
+    R2_PUBLIC_BASE_URL = os.environ["R2_PUBLIC_BASE_URL"].rstrip("/")
+    AWS_S3_CUSTOM_DOMAIN = urlparse(R2_PUBLIC_BASE_URL).netloc
+    MEDIA_URL = R2_PUBLIC_BASE_URL + "/"
 
 else:
+    # local
     MEDIA_URL = "/media/"
     MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
-    # DEFAULT_FILE_STORAGE は設定しない（Djangoデフォルトでローカル保存）
