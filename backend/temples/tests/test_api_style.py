@@ -50,7 +50,7 @@ def test_openapi_conventions(client: APIClient):
             "/api/my/goshuin/{id}/",
             "/api/my/goshuins/",
             "/api/my/goshuins/{id}/",
-            "/api/debug/media/",
+            
         }
         if p not in exceptions and not pluralish.search(p):
             violations.append(f"[plural] {p}")
