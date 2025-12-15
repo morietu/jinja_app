@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { render, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import type { AxiosError } from "axios";
 import { useMyGoshuin } from "../useMyGoshuin";
 import type { Goshuin } from "@/lib/api/goshuin";
 
@@ -9,14 +10,17 @@ import type { Goshuin } from "@/lib/api/goshuin";
 vi.mock("@/lib/api/goshuin", () => {
   return {
     fetchMyGoshuin: vi.fn(),
+    uploadMyGoshuin: vi.fn(),
     deleteMyGoshuin: vi.fn(),
     updateMyGoshuinVisibility: vi.fn(),
   };
 });
 
-import { fetchMyGoshuin, deleteMyGoshuin, updateMyGoshuinVisibility } from "@/lib/api/goshuin";
+
+import { fetchMyGoshuin, uploadMyGoshuin, deleteMyGoshuin, updateMyGoshuinVisibility } from "@/lib/api/goshuin";
 
 const mockFetchMyGoshuin = fetchMyGoshuin as unknown as Mock;
+const mockUploadMyGoshuin = uploadMyGoshuin as unknown as Mock;
 const mockDeleteMyGoshuin = deleteMyGoshuin as unknown as Mock;
 const mockUpdateMyGoshuinVisibility = updateMyGoshuinVisibility as unknown as Mock;
 
@@ -25,6 +29,7 @@ type HookValue = {
   loading: boolean;
   error: string | null;
   reload: () => Promise<void> | void;
+  upload: (input: { shrineId: number; title: string; isPublic: boolean; file: File }) => Promise<Goshuin | null>;
   addItem: (g: Goshuin) => void;
   removeItem: (id: number) => Promise<void> | void;
   toggleVisibility: (id: number, next: boolean) => Promise<void>;
@@ -45,19 +50,20 @@ describe("useMyGoshuin", () => {
     vi.resetAllMocks();
   });
 
-  it("初回ロードで fetchMyGoshuin の結果が items に入る", async () => {
-    const sample: Goshuin[] = [
-      {
-        id: 1,
-        shrine: 1,
-        is_public: true,
-        shrine_name: "テスト神社",
-        image_url: "https://example.com/goshuin1.png",
+  it("upload: PLAN_LIMIT_EXCEEDED(403) のときは null を返し、制限メッセージをセットする", async () => {
+    // 初回ロードは空でOK（upload だけ見たい）
+    mockFetchMyGoshuin.mockResolvedValue([]);
+
+    
+    const err = {
+      isAxiosError: true,
+      config: {}, // ← 追加（これがあると “っぽさ” が増して安全）
+      response: {
+        status: 403,
+        data: { code: "PLAN_LIMIT_EXCEEDED", limit: 10, detail: "御朱印は最大 10 件までです。" },
       },
-    ];
-
-    mockFetchMyGoshuin.mockResolvedValue(sample);
-
+    } as unknown as AxiosError;
+    mockUploadMyGoshuin.mockRejectedValue(err);
     let latest = {} as HookValue;
 
     render(
@@ -72,9 +78,20 @@ describe("useMyGoshuin", () => {
       expect(latest.loading).toBe(false);
     });
 
-    expect(mockFetchMyGoshuin).toHaveBeenCalledTimes(1);
-    expect(latest.items).toEqual(sample);
-    expect(latest.error).toBeNull();
+    const file = new File(["dummy"], "a.jpg", { type: "image/jpeg" });
+
+    let result: Goshuin | null = null;
+    await act(async () => {
+      result = await latest.upload({
+        shrineId: 1,
+        title: "t",
+        isPublic: true,
+        file,
+      });
+    });
+
+    expect(result).toBeNull();
+    expect(latest.error).toBe("御朱印は最大10件までです。不要な御朱印を削除してから追加してください。");
   });
 
   it("ロード失敗時には error メッセージがセットされ、loading が false になる", async () => {
