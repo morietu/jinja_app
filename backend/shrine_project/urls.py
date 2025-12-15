@@ -9,7 +9,7 @@ from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve as media_serve
 from temples.api.views.create_superuser import create_superuser
-from temples.api.views import debug as debug_views
+
 
 
 from drf_spectacular.renderers import OpenApiJsonRenderer
@@ -115,9 +115,6 @@ urlpatterns = [
     path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
 
-    path("api/debug/media/", debug_views.media_debug, name="media-debug"),
-    path("api/debug/storage/", debug_views.storage_debug, name="storage-debug"),
-    path("api/debug/storage-backend/", debug_views.storage_backend_debug, name="storage-backend-debug"),
     
     
     # favorites エンドポイント（/api/favorites/）

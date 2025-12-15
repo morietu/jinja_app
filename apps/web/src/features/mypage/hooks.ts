@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { fetchMe, type MeResponse } from "@/lib/api/mypage";
+import axios from "axios";
 import type { Goshuin } from "@/lib/api/goshuin";
 import {
   fetchMyGoshuin as fetchMyGoshuinApi,
@@ -11,14 +12,26 @@ import {
   uploadMyGoshuin,
 } from "@/lib/api/goshuin";
 
-type PlanLimitError = {
+type PlanLimitErrorBody = {
   code?: string;
   limit?: number;
   detail?: string;
 };
 
-function isPlanLimitExceeded(e: unknown): e is PlanLimitError {
-  return !!e && typeof e === "object" && (e as any).code === "PLAN_LIMIT_EXCEEDED";
+function getPlanLimitExceededBody(e: unknown): PlanLimitErrorBody | null {
+  if (!axios.isAxiosError(e)) return null;
+
+  const status = e.response?.status;
+  const data = e.response?.data as any;
+
+  if (status === 403 && data?.code === "PLAN_LIMIT_EXCEEDED") {
+    return {
+      code: data.code,
+      limit: data.limit,
+      detail: data.detail,
+    };
+  }
+  return null;
 }
 
 /**
@@ -117,8 +130,9 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
         setError(null);
         return created;
       } catch (e) {
-        if (isPlanLimitExceeded(e)) {
-          const limit = (e as any).limit ?? 10;
+        const body = getPlanLimitExceededBody(e);
+        if (body) {
+          const limit = body.limit ?? 10;
           setError(`御朱印は最大${limit}件までです。不要な御朱印を削除してから追加してください。`);
           return null;
         }

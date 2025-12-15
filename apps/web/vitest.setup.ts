@@ -27,3 +27,19 @@ vi.mock("@/lib/hooks/useAuth", () => {
     },
   };
 });
+
+
+vi.mock("@/lib/api/goshuin", async () => {
+  const actual = await vi.importActual<any>("@/lib/api/goshuin");
+  return {
+    ...actual,
+    fetchMyGoshuin: vi.fn().mockResolvedValue([]),
+    uploadMyGoshuin: vi.fn(),
+    deleteMyGoshuin: vi.fn(),
+    updateMyGoshuinVisibility: vi.fn(),
+  };
+});
+
+// ---- テスト中の console ノイズを抑える（必要なら）----
+vi.spyOn(console, "error").mockImplementation(() => {});
+vi.spyOn(console, "warn").mockImplementation(() => {});
