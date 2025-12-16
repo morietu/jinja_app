@@ -1,12 +1,20 @@
 // apps/web/src/features/concierge/ConciergeLayout.tsx
 "use client";
-import { useState } from "react";
+import { useState } from "react"; // ✅ useEffect を追加
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
 import ChatPanel from "./ChatPanel";
 import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import Link from "next/link";
 import { useBilling } from "@/features/billing/hooks/useBilling";
+
+function Spinner() {
+  return <div className="py-6 text-center text-sm text-slate-500">読み込み中…</div>;
+}
+
+function Error({ message }: { message: string }) {
+  return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
+}
 
 
 type Props = {
@@ -29,23 +37,30 @@ export default function ConciergeLayout({
   recommendations = [],
 }: Props) {
   const isLandscape = useLandscape();
-
   const [selectedIndex, setSelectedIndex] = useState(0);
- 
 
-  const { status } = useBilling();
-  const isPremium = status?.plan === "premium" && status?.is_active;
+  const billing = useBilling();
+  if (billing.loading) return <Spinner />;
+  if (billing.error) return <Error message={billing.error} />;
+
+  const status = billing.status!;
+  const isPremium = status.plan === "premium" && status.is_active;
 
   const showPaywallHint = !isPremium;
-
   const shown = isPremium ? recommendations : recommendations.slice(0, 1);
 
-  // ✅ selectedIndex が範囲外にならないように丸める
+  // ✅ shown が変わって selectedIndex が範囲外になったら補正
+  
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
-
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
+
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
+
+  
+
+
+  
 
   // 横向き UI
   if (isLandscape) {

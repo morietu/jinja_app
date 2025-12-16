@@ -1,12 +1,13 @@
 export type BillingStatus = {
-  plan: string;
+  plan: "free" | "premium";
   is_active: boolean;
-  provider: string;
+  provider: "stub" | "stripe" | "revenuecat" | "unknown";
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  cancel_at_period_end: boolean;
 };
 
 function apiBase(): string {
-  // 例: http://127.0.0.1:8000 もしくは https://jinja-backend.onrender.com
-  // 空なら同一オリジン（Nextの /api 経由など）にも対応できる
   return process.env.NEXT_PUBLIC_API_BASE ?? "";
 }
 
@@ -17,10 +18,6 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`billing status ${res.status}`);
 
-  const json = (await res.json()) as Partial<BillingStatus>;
-  return {
-    plan: json.plan ?? "free",
-    is_active: Boolean(json.is_active),
-    provider: json.provider ?? "unknown",
-  };
+  const json = (await res.json()) as BillingStatus;
+  return json;
 }
