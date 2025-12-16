@@ -12,3 +12,10 @@
 ## CI失敗時の判断
 - lint/format → 必ず直す
 - flaky test → 原因記録して再実行可
+
+## 現フェーズで E2E テストを導入していない理由
+- 本プロジェクトは MVP フェーズのため、UI/UX と仕様変更の頻度が高い
+- E2E はコスト（実装・保守・CI時間）が高く、変更耐性が低い
+- そのため現時点では以下を重視する
+  - API Contract Test（schema / status / payload）
+  - Unit / Integration Test（ビジネスロジック）

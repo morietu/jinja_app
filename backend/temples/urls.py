@@ -10,12 +10,12 @@ from temples.api.views.search import (
 
 from .api_views import FavoriteViewSet, ShrineNearbyView
 from .api_views_concierge import ConciergeChatView, ConciergePlanView
-from .api_views_places import (
-    PlaceDetailView,
-    PlacesNearbySearchView,
-    PlacesSearchView,
+from temples.views.places import (
     PlacesTextSearchView,
-    place_photo,
+    PlacesNearbySearchView,
+    PlacesDetailsView,
+    PlacesPhotoProxyView,
+    PlacesFindLiteView,
 )
 from .views import PopularShrinesView, shrine_list, shrine_route  # ← shrine_detail は importしない
 
@@ -38,11 +38,15 @@ urlpatterns = [
     path("search/", search, name="search"),
     path("shrines/nearby", ShrineNearbyView.as_view(), name="shrines-nearby"),
     path("", include(router.urls)),
-    path("places/search/", PlacesSearchView.as_view(), name="places_search"),
+
+    
     path("places/text_search/", PlacesTextSearchView.as_view(), name="places_text_search"),
     path("places/nearby_search/", PlacesNearbySearchView.as_view(), name="places_nearby_search"),
-    path("places/photo/", place_photo, name="places_photo"),
-    path("places/<str:place_id>/", PlaceDetailView.as_view(), name="place-detail"),
+    
+    path("places/photo/", PlacesPhotoProxyView.as_view(), name="places_photo"),
+    path("places/<str:place_id>/", PlacesDetailsView.as_view(), name="place-detail"),
+    
+    path("places/find/", PlacesFindLiteView.as_view(), name="places-find-lite"),
     path("concierge/chat/", ConciergeChatView.as_view(), name="concierge_chat"),
     path("concierge/plan/", ConciergePlanView.as_view(), name="concierge_plan"),
     path("route/", RouteView.as_view(), name="route"),

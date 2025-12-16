@@ -7,6 +7,9 @@ from .views.create_superuser import create_superuser
 
 from temples.api.views.public_profile import public_profile
 
+from temples.api.views.places_find_lite import PlacesFindLiteView
+
+
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
 from temples.api.views.concierge import (
@@ -195,7 +198,9 @@ urlpatterns = [
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
+    path("places/find/", PlacesFindLiteView.as_view(), name="places-find-lite"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
+    
     # --- Geocodes (複数形: 正規) ---
     path("geocodes/search/", geocode_search, name="geocodes-search"),
     path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
