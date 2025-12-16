@@ -5,6 +5,9 @@ import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
 import ChatPanel from "./ChatPanel";
 import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
+import Link from "next/link";
+
+
 
 type Props = {
   thread: ConciergeThread | null;
@@ -39,7 +42,12 @@ export default function ConciergeLayout({
   if (isLandscape) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-800">AI神社コンシェルジュ</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">AI神社コンシェルジュ</h2>
+          <Link href="/billing" className="text-xs text-gray-600 underline hover:text-gray-900">
+            プレミアムを見る
+          </Link>
+        </div>
 
         {recommendations.length === 0 && (
           <p className="text-xs text-gray-500">
@@ -97,6 +105,11 @@ export default function ConciergeLayout({
   // 縦向き（通常） UI
   return (
     <div className="mt-4 mx-auto flex w-full max-w-xs flex-col md:max-w-sm">
+      <div className="mb-2 flex items-center justify-end">
+        <Link href="/billing" className="text-xs text-gray-600 underline hover:text-gray-900">
+          プレミアムを見る
+        </Link>
+      </div>
       <div className="flex-1">
         <ChatPanel
           thread={thread}

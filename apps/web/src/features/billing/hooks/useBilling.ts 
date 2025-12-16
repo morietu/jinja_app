@@ -1,0 +1,40 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { getBillingStatus, type BillingStatus } from "@/lib/api/billing";
+
+type UseBillingOptions = {
+  enabled?: boolean;
+};
+
+export function useBilling(opts: UseBillingOptions = {}) {
+  const enabled = opts.enabled ?? true;
+
+  const [status, setStatus] = useState<BillingStatus | null>(null);
+  const [loading, setLoading] = useState<boolean>(enabled);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const s = await getBillingStatus();
+      setStatus(s);
+      return s;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      setError(msg);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    void refresh();
+  }, [enabled, refresh]);
+
+  return { status, loading, error, refresh };
+}
