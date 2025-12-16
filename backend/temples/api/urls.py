@@ -8,7 +8,7 @@ from .views.create_superuser import create_superuser
 from temples.api.views.public_profile import public_profile
 
 from temples.api.views.places_find_lite import PlacesFindLiteView
-
+from temples.api.views.billing import BillingStatusView
 
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
@@ -183,6 +183,8 @@ urlpatterns = [
         ConciergeThreadDetailView.as_view(),
         name="concierge-thread-detail-noslash",
     ),
+
+    path("billing/status/", BillingStatusView.as_view(), name="billing-status"),
 
     path("profiles/<str:username>/", public_profile, name="public_profile"),
     
