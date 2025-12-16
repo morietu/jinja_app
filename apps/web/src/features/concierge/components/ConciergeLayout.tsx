@@ -1,6 +1,6 @@
-// apps/web/src/features/concierge/ConciergeLayout.tsx
+// apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
-import { useState } from "react"; // ✅ useEffect を追加
+import { useEffect, useState } from "react";
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
 import ChatPanel from "./ChatPanel";
@@ -11,11 +11,12 @@ import { useBilling } from "@/features/billing/hooks/useBilling";
 function Spinner() {
   return <div className="py-6 text-center text-sm text-slate-500">読み込み中…</div>;
 }
-
 function Error({ message }: { message: string }) {
   return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
 }
 
+const FREE_RECOMMEND_LIMIT = 1;
+const PREMIUM_RECOMMEND_LIMIT = 3;
 
 type Props = {
   thread: ConciergeThread | null;
@@ -40,25 +41,37 @@ export default function ConciergeLayout({
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const billing = useBilling();
+
+  // ✅ Hooks は early return の前に全部呼ぶ必要があるので、補正ロジックはここでやる
+  const isPremium = billing.loading || billing.error || !billing.status
+    ? false
+    : billing.status.plan === "premium" && billing.status.is_active;
+
+  const limit = isPremium ? PREMIUM_RECOMMEND_LIMIT : FREE_RECOMMEND_LIMIT;
+  const shownLen = Math.min(recommendations.length, limit);
+
+  useEffect(() => {
+    if (shownLen === 0) return;
+    if (selectedIndex > shownLen - 1) setSelectedIndex(0);
+  }, [shownLen, selectedIndex]);
+
+  // --- ここから表示分岐 ---
   if (billing.loading) return <Spinner />;
   if (billing.error) return <Error message={billing.error} />;
 
-  const status = billing.status!;
-  const isPremium = status.plan === "premium" && status.is_active;
+  if (!billing.status) return <Spinner />;
 
-  const showPaywallHint = !isPremium;
-  const shown = isPremium ? recommendations : recommendations.slice(0, 1);
+  const status = billing.status; // ここでは存在する前提にできる
+  const showPaywallHint = !(status.plan === "premium" && status.is_active);
 
-  // ✅ shown が変わって selectedIndex が範囲外になったら補正
-  
+  const shown = recommendations.slice(0, limit);
+
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
-
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
 
   
-
 
   
 
