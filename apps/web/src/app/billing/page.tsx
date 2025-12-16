@@ -3,8 +3,21 @@
 import Link from "next/link";
 import { useBilling } from "@/features/billing/hooks/useBilling";
 
+function Spinner() {
+  return <div className="py-6 text-center text-sm text-slate-500">読み込み中…</div>;
+}
+
+function ErrorView({ message }: { message: string }) {
+  return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
+}
+
 export default function BillingPage() {
-  const { status, loading, error } = useBilling();
+  const billing = useBilling();
+
+  if (billing.loading) return <Spinner />;
+  if (billing.error) return <ErrorView message={billing.error} />;
+
+  const s = billing.status!;
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 py-6">
@@ -18,25 +31,34 @@ export default function BillingPage() {
       <section className="rounded-xl border bg-white p-4 shadow-sm">
         <div className="text-sm font-semibold">現在のステータス</div>
 
-        {loading && <p className="mt-2 text-sm text-gray-500">読み込み中…</p>}
-        {!loading && error && <p className="mt-2 text-sm text-red-600">ステータス取得に失敗しました: {error}</p>}
+        <dl className="mt-3 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-500">プラン</dt>
+            <dd className="font-medium">{s.plan}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-500">有効</dt>
+            <dd className="font-medium">{s.is_active ? "はい" : "いいえ"}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-500">プロバイダ</dt>
+            <dd className="font-medium">{s.provider}</dd>
+          </div>
+        </dl>
+      </section>
 
-        {!loading && !error && (
-          <dl className="mt-3 space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-500">プラン</dt>
-              <dd className="font-medium">{status?.plan ?? "-"}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-500">有効</dt>
-              <dd className="font-medium">{status?.is_active ? "はい" : "いいえ"}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-500">プロバイダ</dt>
-              <dd className="font-medium">{status?.provider ?? "-"}</dd>
-            </div>
-          </dl>
-        )}
+      {/* 契約形状の確認（デバッグ用） */}
+      <section className="rounded-xl border bg-white p-4 text-sm">
+        <div className="mb-2 font-semibold">BillingStatus（contract）</div>
+        <div className="space-y-1 text-slate-700">
+          <div>current_period_end: {s.current_period_end ?? "-"}</div>
+          <div>trial_ends_at: {s.trial_ends_at ?? "-"}</div>
+          <div>cancel_at_period_end: {String(s.cancel_at_period_end)}</div>
+        </div>
+
+        <button type="button" onClick={billing.refresh} className="mt-3 rounded-md border px-3 py-2 text-sm">
+          更新
+        </button>
       </section>
 
       <section className="rounded-xl border bg-gray-50 p-4">
