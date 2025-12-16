@@ -1,6 +1,6 @@
 // apps/web/src/features/concierge/ConciergeLayout.tsx
 "use client";
-import { useState } from "react"; // ✅ useEffect を追加
+import { useEffect, useState } from "react";
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
 import ChatPanel from "./ChatPanel";
@@ -44,20 +44,28 @@ export default function ConciergeLayout({
   if (billing.error) return <Error message={billing.error} />;
 
   const status = billing.status!;
-  const isPremium = status.plan === "premium" && status.is_active;
 
-  const showPaywallHint = !isPremium;
-  const shown = isPremium ? recommendations : recommendations.slice(0, 1);
 
-  // ✅ shown が変わって selectedIndex が範囲外になったら補正
+
   
+  const FREE_RECOMMEND_LIMIT = 1;
+  const PREMIUM_RECOMMEND_LIMIT = 3;
+
+  const isPremium = status.plan === "premium" && status.is_active;
+  const showPaywallHint = !isPremium;
+
+  const shown = recommendations.slice(0, isPremium ? PREMIUM_RECOMMEND_LIMIT : FREE_RECOMMEND_LIMIT);
+
+  useEffect(() => {
+    if (shown.length === 0) return;
+    if (selectedIndex > shown.length - 1) setSelectedIndex(0);
+  }, [shown, selectedIndex]);
+
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
 
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
-
-  
 
 
   
