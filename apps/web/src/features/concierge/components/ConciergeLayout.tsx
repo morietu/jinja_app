@@ -59,6 +59,8 @@ export default function ConciergeLayout({
   if (billing.loading) return <Spinner />;
   if (billing.error) return <Error message={billing.error} />;
 
+  if (!billing.status) return <Spinner />;
+
   const status = billing.status; // ここでは存在する前提にできる
   const showPaywallHint = !(status.plan === "premium" && status.is_active);
 
