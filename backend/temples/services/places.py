@@ -20,6 +20,8 @@ from django.utils import timezone
 from ..models import PlaceRef
 from . import google_places  # 低レベルHTTPクライアント（関数型）に統一
 
+from rest_framework import serializers
+
 req_history = google_places.req_history
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
@@ -762,3 +764,14 @@ def findplacefromtext(*, input, language=None, locationbias=None, fields=None):
     resp = requests.get(url, params=params, timeout=_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
+
+class PlaceLiteSerializer(serializers.Serializer):
+    place_id = serializers.CharField()
+    name = serializers.CharField(allow_blank=True, required=False)
+    address = serializers.CharField(allow_null=True, required=False)
+    lat = serializers.FloatField(allow_null=True, required=False)
+    lng = serializers.FloatField(allow_null=True, required=False)
+    types = serializers.ListField(child=serializers.CharField(), required=False)
+
+class PlaceLiteResponseSerializer(serializers.Serializer):
+    results = PlaceLiteSerializer(many=True)

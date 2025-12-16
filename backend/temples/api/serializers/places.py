@@ -39,3 +39,15 @@ class PlaceDetailResponse(serializers.Serializer):
 class PlacePhotoResponse(serializers.Serializer):
     # 画像をURLで返す場合は url を、バイナリを返すなら OpenApiTypes.BINARY を付ける（後述）
     url = serializers.CharField(required=False)
+
+
+class PlaceLiteSerializer(serializers.Serializer):
+    place_id = serializers.CharField()
+    name = serializers.CharField(allow_blank=True, required=False)
+    address = serializers.CharField(allow_null=True, required=False)
+    lat = serializers.FloatField(allow_null=True, required=False)
+    lng = serializers.FloatField(allow_null=True, required=False)
+    types = serializers.ListField(child=serializers.CharField(), required=False)
+
+class PlaceLiteResponseSerializer(serializers.Serializer):
+    results = PlaceLiteSerializer(many=True)
