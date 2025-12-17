@@ -7,13 +7,10 @@ export type BillingStatus = {
   cancel_at_period_end: boolean;
 };
 
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE ?? "";
-}
+
 
 export async function getBillingStatus(): Promise<BillingStatus> {
-  const base = apiBase();
-  const url = `${base}/billings/status/`;
+  const url = `/billings/status/`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`billing status ${res.status}`);
