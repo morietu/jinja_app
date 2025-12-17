@@ -7,6 +7,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+
+
 from django.conf import settings
 
 from .client import LLMClient, PLACEHOLDER, make_openai_client
@@ -116,6 +118,13 @@ class ConciergeOrchestrator:
 
         return self._fallback_from_candidates(candidates)
 
+
+def orchestrate_concierge(*, query: str, candidates: list[Any] | None = None) -> dict:
+    """
+    テスト/ビューから monkeypatch 可能な module-level 関数。
+    中身は ConciergeOrchestrator に委譲する。
+    """
+    return ConciergeOrchestrator().suggest(query=query, candidates=candidates or [])    
 
 # --- Back-compat: 旧呼び出し向け shim ------------------------------------
 
@@ -246,9 +255,9 @@ def _build_user_prompt_for_plan(
     loc = f"{lat},{lng}" if lat is not None and lng is not None else "不明"
     t = transport or "不明"
     return f"""要望: {query}
-出発位置: {loc}
-移動手段: {t}
-出力は以下のJSONスキーマに厳密に従ってください。"""
+    出発位置: {loc}
+    移動手段: {t}
+    出力は以下のJSONスキーマに厳密に従ってください。"""
 
 
 def generate_plan(
@@ -369,3 +378,10 @@ def generate_plan(
         "recommendations": [{"name": "近隣の神社"}],
         "_error": str(last_err) if last_err else "",
     }
+
+
+__all__ = [
+    ...,
+    "ConciergeOrchestrator",
+    "orchestrate_concierge",
+]

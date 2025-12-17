@@ -26,7 +26,8 @@ from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
-from temples.llm.orchestrator import ConciergeOrchestrator
+from temples.llm import orchestrator as orch
+
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
@@ -34,7 +35,16 @@ from temples.services.concierge_history import append_chat
 
 from .models import ConciergeUsage
 
+# --- compat: tests monkeypatch 用に module attribute を生やす ---
+# import 時に orch 側の依存で落ちても、このモジュール自体は import できるようにする
+try:
+    ConciergeOrchestrator = orch.ConciergeOrchestrator
+    orchestrate_concierge = orch.orchestrate_concierge
+except Exception:  # pragma: no cover
+    ConciergeOrchestrator = None  # type: ignore[misc,assignment]
 
+    def orchestrate_concierge(*args, **kwargs):  # type: ignore[no-redef]
+        return {"recommendations": []}
 
 llm = get_llm_adapter(
     provider=getattr(settings, "LLM_PROVIDER", "openai"),
@@ -357,7 +367,14 @@ def dedupe_recommendations(recs: list[dict]) -> list[dict]:
             seen[key] = r
     return list(seen.values())
 
+def _billing_recommend_limit() -> int:
+    # billing.py と同じ stub env に寄せる
+    plan = os.getenv("BILLING_STUB_PLAN", "free")  # free|premium
+    active = os.getenv("BILLING_STUB_ACTIVE", "0") in {"1", "true", "True"}
 
+    # premium でも active じゃないなら free 扱い
+    is_premium = (plan == "premium") and active
+    return 3 if is_premium else 1
 
 
 class ConciergeChatView(APIView):
@@ -428,7 +445,7 @@ class ConciergeChatView(APIView):
 
             # 1) LLM 推薦
             try:
-                recs = ConciergeOrchestrator().suggest(query=query, candidates=candidates)
+                recs = orch.orchestrate_concierge(query=query, candidates=candidates)
             except RuntimeError:
                 try:
                     recs = ConciergeOrchestrator.suggest(None, query=query, candidates=candidates)
@@ -498,6 +515,7 @@ class ConciergeChatView(APIView):
                 data["recommendations"] = data.get("recommendations") or []
 
             if not data["recommendations"]:
+                limit = _billing_recommend_limit()
                 data["recommendations"] = [
                     {
                         "id": 0,
@@ -511,6 +529,12 @@ class ConciergeChatView(APIView):
                         "__dummy": True,
                     }
                 ]
+
+
+
+            limit = _billing_recommend_limit()
+            data["recommendations"] = (data.get("recommendations") or [])[:limit]
+
 
             dummy_only = all(r.get("__dummy") for r in data.get("recommendations") or [])
 
@@ -840,7 +864,7 @@ class ConciergeChatView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-                       
+
 
 
         
@@ -1362,6 +1386,9 @@ class ConciergePlanView(APIView):
             filled = {"recommendations": patched}
         except Exception:
             pass
+
+        limit = _billing_recommend_limit()
+        filled["recommendations"] = (filled.get("recommendations") or [])[:limit]
 
         # 簡易 stops 生成（徒歩3分 + 滞在30分）
         stops = []
