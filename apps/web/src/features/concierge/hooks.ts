@@ -1,10 +1,9 @@
-// apps/web/src/features/concierge/hooks.ts
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
-
 import axios from "axios";
+
+import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 import {
   fetchThreads,
   fetchThreadDetail,
@@ -13,6 +12,7 @@ import {
   type ConciergeThreadDetail,
   type ConciergeMessage,
   type ConciergeRecommendation,
+  
 } from "@/lib/api/concierge";
 
 /* ====== スレッド一覧 ====== */
@@ -29,12 +29,10 @@ export function useConciergeThreads() {
     setRequiresLogin(false);
 
     try {
-      // ここで 401 が飛んでくる前提
       const data = await fetchThreads();
       setThreads(Array.isArray(data) ? data : []);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
-        // 未ログイン → 履歴は空
         setRequiresLogin(true);
         setThreads([]);
       } else {
@@ -49,14 +47,7 @@ export function useConciergeThreads() {
     void load();
   }, [load]);
 
-  return {
-    threads,
-    loading,
-    error,
-    requiresLogin,
-    reload: load,
-    setThreads,
-  };
+  return { threads, loading, error, requiresLogin, reload: load, setThreads };
 }
 
 /* ====== スレッド詳細（メッセージ一覧） ====== */
@@ -80,23 +71,15 @@ export function useConciergeThreadDetail(threadId: string | null) {
       setError(null);
       try {
         const data = await fetchThreadDetail(threadId);
-        if (!cancelled) {
-          // 401/403/404 のときは fetchThreadDetail 側で null を返す実装にしてある
-          setDetail(data);
-        }
+        if (!cancelled) setDetail(data);
       } catch (err) {
-        if (!cancelled) {
-          setError(err as Error);
-        }
+        if (!cancelled) setError(err as Error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
     void load();
-
     return () => {
       cancelled = true;
     };
@@ -107,20 +90,23 @@ export function useConciergeThreadDetail(threadId: string | null) {
 
 /* ====== チャット送信（/concierge/chat/） ====== */
 
-
-
 export type UseConciergeChatOptions = {
-  // 本番API: thread/messages/recommendations が返ってきたとき
   onUpdated?: (payload: {
     thread: ConciergeThread;
-    messages?: ConciergeMessage[]; // ← optional にする
+    messages?: ConciergeMessage[];
     recommendations?: ConciergeRecommendation[] | null;
+
+    // ★ paywall情報
+    remaining_free?: number;
+    limit?: number;
+    note?: string;
   }) => void;
 
-  // echo だけ返ってきたとき用（未ログインなど）
   onReply?: (reply: string) => void;
-
   onRecommendations?: (recs: ConciergeRecommendation[]) => void;
+
+  // ★ thread が無いケースでも paywall だけ出したいなら使う
+  onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
@@ -135,38 +121,38 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setError(null);
 
       try {
-        const res = await postConciergeChat({
-          query: message,
-          thread_id: threadId ?? undefined,
-        });
+        const res = await postConciergeChat({ query: message, thread_id: threadId ?? undefined });
 
-        // ✅ ここで正規化してからUIへ渡す
+        // ✅ recs はここで正規化して統一
         const recs = normalizeRecommendations(res.data?.recommendations);
-
         options?.onRecommendations?.(recs);
+
+        // paywall は thread の有無に関係なく拾う（UI側で optional で扱える）
+        options?.onPaywall?.({
+          remaining_free: res.remaining_free,
+          limit: res.limit,
+          note: res.note,
+        });
 
         if (res.thread) {
           options?.onUpdated?.({
             thread: res.thread,
             recommendations: recs,
+            remaining_free: res.remaining_free,
+            limit: res.limit,
+            note: res.note,
           });
         }
 
-        // いま有効なのは echo 返信
-        if (res.reply || res.data?.reply || res.data?.raw) {
-          let replyText =
-            res.reply ?? res.data?.reply ?? res.data?.raw ?? "候補が見つかりませんでした。";
-
-          replyText = replyText.replace(/^echo:\s*/i, "");
-          options?.onReply?.(replyText);
+        const replyTextRaw = res.reply ?? res.data?.reply ?? res.data?.raw;
+        if (replyTextRaw) {
+          options?.onReply?.(replyTextRaw.replace(/^echo:\s*/i, ""));
         }
       } catch (err) {
         let msg = "チャット送信に失敗しました";
-
         if (axios.isAxiosError(err)) {
           msg = `チャット送信に失敗しました (${err.response?.status ?? "network error"})`;
         }
-
         setError(msg);
       } finally {
         setSending(false);

@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,6 +23,9 @@ type Props = {
   onSend: (text: string) => void | Promise<void>;
   onRetry: () => void;
   recommendations?: ConciergeRecommendation[];
+
+  paywallNote?: string | null;
+  remainingFree?: number | null;
 };
 
 export default function ConciergeLayout({
@@ -34,15 +36,13 @@ export default function ConciergeLayout({
   onSend,
   onRetry,
   recommendations = [],
+  paywallNote = null,
+  remainingFree = null,
 }: Props) {
   const isLandscape = useLandscape();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const billing = useBilling(); // 表示用（paywall根拠はサーバー側）
 
-  const billing = useBilling();
-
-  
-
-  // ★ 表示件数はサーバー結果を信頼（ここが安全策）
   const shown = recommendations;
   const shownLen = shown.length;
 
@@ -51,20 +51,17 @@ export default function ConciergeLayout({
     if (selectedIndex > shownLen - 1) setSelectedIndex(0);
   }, [shownLen, selectedIndex]);
 
-  // --- ここから表示分岐 ---
   if (billing.loading) return <Spinner />;
   if (billing.error) return <Error message={billing.error} />;
   if (!billing.status) return <Spinner />;
 
-  const status = billing.status;
-  const showPaywallHint = !(status.plan === "premium" && status.is_active);
+  const showPaywallHint = typeof remainingFree === "number" && remainingFree <= 0;
 
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
 
-  // 横向き UI
   if (isLandscape) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
@@ -77,14 +74,13 @@ export default function ConciergeLayout({
 
         {showPaywallHint && (
           <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-            無料版では一部機能に制限があります。プレミアムで制限解除できます。
+            {paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"}
           </div>
         )}
 
         {shown.length === 0 && (
           <p className="text-xs text-gray-500">
-            横向きでは、候補の確認とルート案内だけ利用できます。
-            チャットで相談したいときは、端末を縦向きにしてください。
+            横向きでは、候補の確認とルート案内だけ利用できます。チャットで相談したいときは、端末を縦向きにしてください。
           </p>
         )}
 
@@ -134,7 +130,6 @@ export default function ConciergeLayout({
     );
   }
 
-  // 縦向き（通常） UI
   return (
     <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
       <div className="mb-2 flex items-center justify-end">
@@ -157,7 +152,7 @@ export default function ConciergeLayout({
 
       {showPaywallHint && (
         <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-          無料版では一部機能に制限があります。プレミアムで制限解除できます。
+          {paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"}
         </div>
       )}
 
@@ -196,12 +191,6 @@ export default function ConciergeLayout({
             {current.reason && <p className="mt-1 text-sm text-gray-700">{current.reason}</p>}
 
             {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
-
-            {(current.distance_m ?? 0) > 0 && (
-              <p className="mt-1 text-xs text-gray-500">
-                およそ {(current.distance_m! / 1000).toFixed(1)} km ／{(current.duration_min ?? 0).toFixed(0)} 分
-              </p>
-            )}
           </div>
         </div>
       )}
