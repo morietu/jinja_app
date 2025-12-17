@@ -15,6 +15,29 @@ function Error({ message }: { message: string }) {
   return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
 }
 
+function PaywallCta({ note }: { note: string }) {
+  return (
+    <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+      <div className="leading-relaxed">{note}</div>
+      <div className="mt-2 flex gap-2">
+        <Link
+          href="/billing"
+          className="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+        >
+          プレミアムを見る
+        </Link>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+        >
+          ログイン
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+
 type Props = {
   thread: ConciergeThread | null;
   messages: ConciergeMessage[];
@@ -55,7 +78,7 @@ export default function ConciergeLayout({
   if (billing.error) return <Error message={billing.error} />;
   if (!billing.status) return <Spinner />;
 
-  const showPaywallHint = typeof remainingFree === "number" && remainingFree <= 0;
+  const showPaywallHint = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
 
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
@@ -67,15 +90,10 @@ export default function ConciergeLayout({
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-800">AI神社コンシェルジュ</h2>
-          <Link href="/billing" className="text-xs text-gray-600 underline hover:text-gray-900">
-            プレミアムを見る
-          </Link>
         </div>
 
         {showPaywallHint && (
-          <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-            {paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"}
-          </div>
+          <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
         )}
 
         {shown.length === 0 && (
@@ -130,13 +148,10 @@ export default function ConciergeLayout({
     );
   }
 
+  // 縦向き
   return (
     <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
-      <div className="mb-2 flex items-center justify-end">
-        <Link href="/billing" className="text-xs text-gray-600 underline hover:text-gray-900">
-          プレミアムを見る
-        </Link>
-      </div>
+      
 
       <div className="flex-1">
         <ChatPanel
@@ -151,9 +166,7 @@ export default function ConciergeLayout({
       </div>
 
       {showPaywallHint && (
-        <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-          {paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"}
-        </div>
+        <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
       )}
 
       {shown.length > 1 && (

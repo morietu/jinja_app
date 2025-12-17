@@ -329,7 +329,7 @@ REST_FRAMEWORK = {
         "anon": "100/min",
         "user": "100/min",
         # フィーチャ別スコープ（デフォルト値）
-        "concierge": "5/day",
+        "concierge": "1000/min",
         "places": "30/min",
         "places-nearby": "30/min",
         "shrines": "60/min",

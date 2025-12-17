@@ -4,29 +4,31 @@ import { cookies } from "next/headers";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export async function POST(req: Request) {
-  // ✅ Nextのバージョン差を吸収（cookiesがasyncの環境でも動く）
   const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
-
   const body = await req.text();
 
-  const res = await fetch(`${API_BASE}/api/concierge/chat/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body,
-    cache: "no-store",
-  });
+  const doFetch = (withAuth: boolean) =>
+    fetch(`${API_BASE}/api/concierge/chat/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(withAuth && token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+      cache: "no-store",
+    });
 
-  console.log("proxy concierge/chat called", { hasToken: !!token, status: res.status });
+  let res = await doFetch(true);
 
-  // ✅ 失敗時や非JSONでも落ちないようにする（ここが超重要）
+  // ✅ ここが重要：無効トークンなら匿名で再試行
+  if (res.status === 401 && token) {
+    res = await doFetch(false);
+  }
+
   const text = await res.text();
   try {
-    const data = JSON.parse(text);
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(JSON.parse(text), { status: res.status });
   } catch {
     return new NextResponse(text || "", {
       status: res.status,
