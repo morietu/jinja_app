@@ -11,6 +11,7 @@ type Props = {
   error?: string | null;
   onRetry?: () => void;
   onSend: (text: string) => void | Promise<void>;
+  canSend?: boolean;
 };
 
 export default function ChatPanel({
@@ -21,6 +22,7 @@ export default function ChatPanel({
   error,
   onRetry,
   onSend,
+  canSend = true,
 }: Props) {
   const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -45,8 +47,11 @@ export default function ChatPanel({
   };
 
   const handleSend = async () => {
+    if (!canSend) return;
+
     const trimmed = input.trim();
     if (!trimmed || sending || loading) return;
+
     await onSend(trimmed);
     setInput("");
     setAutoScroll(true);
@@ -162,12 +167,18 @@ export default function ChatPanel({
             onKeyDown={handleKeyDown}
             onCompositionStart={handleCompositionStart}
             onCompositionEnd={handleCompositionEnd}
-            disabled={sending || loading}
+            disabled={sending || loading || !canSend}
           />
+
+          {!canSend && (
+            <p className="text-xs text-slate-600">
+              無料枠を使い切りました。続けて利用するにはプレミアムをご確認ください。
+            </p>
+          )}
           <div className="flex items-center justify-between gap-2">
             <button
               type="submit"
-              disabled={sending || loading || !input.trim()}
+              disabled={sending || loading || !canSend || !input.trim()}
               className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white shadow disabled:opacity-60"
             >
               {sending || loading ? "送信中…" : "送信"}
