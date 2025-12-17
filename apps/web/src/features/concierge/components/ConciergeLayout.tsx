@@ -1,5 +1,6 @@
 // apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
+
 import { useEffect, useState } from "react";
 import { useLandscape } from "@/hooks/useLandscape";
 import ConciergeCard from "@/components/ConciergeCard";
@@ -14,9 +15,6 @@ function Spinner() {
 function Error({ message }: { message: string }) {
   return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
 }
-
-const FREE_RECOMMEND_LIMIT = 1;
-const PREMIUM_RECOMMEND_LIMIT = 3;
 
 type Props = {
   thread: ConciergeThread | null;
@@ -42,13 +40,11 @@ export default function ConciergeLayout({
 
   const billing = useBilling();
 
-  // ✅ Hooks は early return の前に全部呼ぶ必要があるので、補正ロジックはここでやる
-  const isPremium = billing.loading || billing.error || !billing.status
-    ? false
-    : billing.status.plan === "premium" && billing.status.is_active;
+  
 
-  const limit = isPremium ? PREMIUM_RECOMMEND_LIMIT : FREE_RECOMMEND_LIMIT;
-  const shownLen = Math.min(recommendations.length, limit);
+  // ★ 表示件数はサーバー結果を信頼（ここが安全策）
+  const shown = recommendations;
+  const shownLen = shown.length;
 
   useEffect(() => {
     if (shownLen === 0) return;
@@ -58,22 +54,15 @@ export default function ConciergeLayout({
   // --- ここから表示分岐 ---
   if (billing.loading) return <Spinner />;
   if (billing.error) return <Error message={billing.error} />;
-
   if (!billing.status) return <Spinner />;
 
-  const status = billing.status; // ここでは存在する前提にできる
+  const status = billing.status;
   const showPaywallHint = !(status.plan === "premium" && status.is_active);
-
-  const shown = recommendations.slice(0, limit);
 
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
-
-  
-
-  
 
   // 横向き UI
   if (isLandscape) {
@@ -147,12 +136,13 @@ export default function ConciergeLayout({
 
   // 縦向き（通常） UI
   return (
-    <div className="mt-4 mx-auto flex w-full max-w-xs flex-col md:max-w-sm">
+    <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
       <div className="mb-2 flex items-center justify-end">
         <Link href="/billing" className="text-xs text-gray-600 underline hover:text-gray-900">
           プレミアムを見る
         </Link>
       </div>
+
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -198,8 +188,6 @@ export default function ConciergeLayout({
               ※ 現在テスト中の回答（ベータ版）です。実際のレコメンドロジックは今後アップデート予定です。
             </div>
           )}
-
-          
 
           <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
             <div className="mb-1 text-xs font-semibold text-gray-500">今回の候補</div>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 
 import axios from "axios";
 import {
@@ -106,7 +107,7 @@ export function useConciergeThreadDetail(threadId: string | null) {
 
 /* ====== チャット送信（/concierge/chat/） ====== */
 
-// apps/web/src/features/concierge/hooks.ts の該当部分だけ差し替え
+
 
 export type UseConciergeChatOptions = {
   // 本番API: thread/messages/recommendations が返ってきたとき
@@ -139,16 +140,15 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           thread_id: threadId ?? undefined,
         });
 
-        const recs = res.data?.recommendations ?? [];
-        if (recs.length > 0) {
-          options?.onRecommendations?.(recs);
-        }
+        // ✅ ここで正規化してからUIへ渡す
+        const recs = normalizeRecommendations(res.data?.recommendations);
 
-        // ★ thread が返ってきたら必ず onUpdated に流す
+        options?.onRecommendations?.(recs);
+
         if (res.thread) {
           options?.onUpdated?.({
             thread: res.thread,
-            recommendations: recs ?? null,
+            recommendations: recs,
           });
         }
 
