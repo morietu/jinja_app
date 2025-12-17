@@ -79,7 +79,7 @@ export default function ConciergeLayout({
   if (!billing.status) return <Spinner />;
 
   const showPaywallHint = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
-
+  const canSend = !(typeof remainingFree === "number" && remainingFree <= 0);
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
   const isDummy = !!current?.__dummy;
@@ -151,8 +151,6 @@ export default function ConciergeLayout({
   // 縦向き
   return (
     <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
-      
-
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -162,6 +160,7 @@ export default function ConciergeLayout({
           error={error}
           onRetry={onRetry}
           onSend={onSend}
+          canSend={canSend}
         />
       </div>
 
