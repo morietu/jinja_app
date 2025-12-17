@@ -74,6 +74,10 @@ export type ConciergeChatResponse = {
   ok: boolean;
   data?: ConciergeChatData;
   reply?: string;
+
+  remaining_free?: number;
+  limit?: number;
+  
   note?: string;
   thread?: ConciergeThread;
 };

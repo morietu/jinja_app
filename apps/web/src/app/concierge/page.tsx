@@ -1,4 +1,3 @@
-// apps/web/src/app/concierge/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -11,21 +10,25 @@ export default function ConciergePage() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ConciergeMessage[]>([]);
   const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
+  const [paywallNote, setPaywallNote] = useState<string | null>(null);
+  const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
   const { send, sending, error } = useConciergeChat(threadId, {
-    // ★ バックエンドから thread が返ってきたらここで紐付け
-    onUpdated: ({ thread }) => {
+    onUpdated: ({ thread, recommendations }) => {
       setThread(thread);
       setThreadId(String(thread.id));
+      if (Array.isArray(recommendations)) setRecommendations(recommendations);
+    },
+    onPaywall: ({ remaining_free, limit, note }) => {
+      setPaywallNote(note ?? null);
+      setRemainingFree(typeof remaining_free === "number" && typeof limit === "number" ? remaining_free : null);
     },
 
-    // echo 返信を疑似メッセージに変換
+    
     onReply: (replyText) => {
       const now = new Date().toISOString();
-
       setMessages((prev) => {
         const lastId = prev.length ? prev[prev.length - 1].id : 0;
-
         const assistantMsg: ConciergeMessage = {
           id: lastId + 1,
           thread_id: thread?.id ?? 0,
@@ -33,14 +36,8 @@ export default function ConciergePage() {
           content: replyText,
           created_at: now,
         };
-
         return [...prev, assistantMsg];
       });
-    },
-
-    // 推薦候補を右側パネルに渡す用
-    onRecommendations: (recs) => {
-      setRecommendations(recs);
     },
   });
 
@@ -49,10 +46,8 @@ export default function ConciergePage() {
 
     const now = new Date().toISOString();
 
-    // まずユーザーメッセージをローカルに追加
     setMessages((prev) => {
       const lastId = prev.length ? prev[prev.length - 1].id : 0;
-
       const userMsg: ConciergeMessage = {
         id: lastId + 1,
         thread_id: thread?.id ?? 0,
@@ -60,11 +55,9 @@ export default function ConciergePage() {
         content: text,
         created_at: now,
       };
-
       return [...prev, userMsg];
     });
 
-    // API 送信
     await send(text);
   };
 
@@ -87,6 +80,8 @@ export default function ConciergePage() {
         onSend={handleSend}
         onRetry={handleRetry}
         recommendations={recommendations}
+        paywallNote={paywallNote}
+        remainingFree={remainingFree}
       />
     </div>
   );
