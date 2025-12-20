@@ -5,45 +5,61 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const isSecureCookie =
-  process.env.NODE_ENV === "production" &&
-  (process.env.NEXT_PUBLIC_APP_ORIGIN || "").startsWith("https");
+  process.env.NODE_ENV === "production" && (process.env.NEXT_PUBLIC_APP_ORIGIN || "").startsWith("https");
 
-async function readCredentials(req: NextRequest) {
+type Creds = { usernameRaw: string; passwordRaw: string };
+
+async function readCredentialsRaw(req: NextRequest): Promise<Creds> {
   const ct = req.headers.get("content-type") || "";
+
   try {
     if (ct.includes("application/json")) {
       const j = await req.json();
       return {
-        username: String(j?.username || ""),
-        password: String(j?.password || ""),
+        usernameRaw: String(j?.username ?? ""),
+        passwordRaw: String(j?.password ?? ""),
       };
     }
+
     if (ct.includes("application/x-www-form-urlencoded")) {
       const text = await req.text();
       const usp = new URLSearchParams(text);
       return {
-        username: String(usp.get("username") || ""),
-        password: String(usp.get("password") || ""),
+        usernameRaw: String(usp.get("username") ?? ""),
+        passwordRaw: String(usp.get("password") ?? ""),
       };
     }
+
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
       return {
-        username: String(form.get("username") || ""),
-        password: String(form.get("password") || ""),
+        usernameRaw: String(form.get("username") ?? ""),
+        passwordRaw: String(form.get("password") ?? ""),
       };
     }
   } catch {
     /* noop */
   }
-  return { username: "", password: "" };
+
+  return { usernameRaw: "", passwordRaw: "" };
 }
 
 export async function POST(req: NextRequest) {
-  const { username, password } = await readCredentials(req);
-  if (!username || !password) {
+  const { usernameRaw, passwordRaw } = await readCredentialsRaw(req);
+
+  // 1) 未入力は 400（従来どおり）
+  if (!usernameRaw || !passwordRaw) {
     return new NextResponse("Invalid credentials", { status: 400 });
   }
+
+  // 2) 前後スペース混入は 400 で弾く（ここがA案の本体）
+  if (usernameRaw !== usernameRaw.trim() || passwordRaw !== passwordRaw.trim()) {
+    return NextResponse.json({ detail: "ユーザー名/パスワードに余計な空白があります" }, { status: 400 });
+  }
+
+  // 3) ここから先は「そのまま」backend に渡す（trimしない）
+  const username = usernameRaw;
+  const password = passwordRaw;
 
   try {
     const r = await djFetch(`/api/auth/jwt/create/`, {
@@ -51,10 +67,12 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
+
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
       return new NextResponse(txt || "Login failed", { status: r.status });
     }
+
     const { access, refresh } = await r.json();
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
@@ -74,10 +92,7 @@ export async function POST(req: NextRequest) {
     });
     return res;
   } catch {
-    return NextResponse.json(
-      { detail: "バックエンドに接続できません" },
-      { status: 503 }
-    );
+    return NextResponse.json({ detail: "バックエンドに接続できません" }, { status: 503 });
   }
 }
 
