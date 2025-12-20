@@ -139,3 +139,48 @@ def test_guest_user_is_not_rate_limited():
         r != "無料で利用できる回数を使い切りました。"
         for r in replies
     )
+
+
+@pytest.mark.django_db
+def test_premium_user_is_not_rate_limited(monkeypatch):
+    # premium を有効化（stub env）
+    monkeypatch.setenv("BILLING_STUB_PLAN", "premium")
+    monkeypatch.setenv("BILLING_STUB_ACTIVE", "1")
+
+    client = APIClient()
+    User = get_user_model()
+
+    user = User.objects.create_user(username="premium1", password="pass1234")
+
+    today = timezone.localdate()
+    ConciergeUsage.objects.filter(user=user, date=today).delete()
+
+    # JWT 取得
+    r = client.post(
+        "/api/auth/jwt/create/",
+        {"username": "premium1", "password": "pass1234"},
+        format="json",
+    )
+    assert r.status_code == 200
+    access = r.data["access"]
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+    replies = []
+    keys_list = []
+
+    for _ in range(7):
+        res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
+        assert res.status_code == 200
+        replies.append(res.data.get("reply"))
+        keys_list.append(set(res.data.keys()))
+
+    # premium では「使い切りました」にならない
+    assert all(r != "無料で利用できる回数を使い切りました。" for r in replies)
+
+    # premium では remaining_free/limit を返さない（ゲストと同じ扱いに寄せる）
+    for keys in keys_list:
+        assert "remaining_free" not in keys
+        assert "limit" not in keys
+
+    # DB usage も作られない/増えない（0件 or 0回）
+    assert ConciergeUsage.objects.filter(user=user, date=today).count() == 0

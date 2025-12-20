@@ -376,6 +376,12 @@ def _billing_recommend_limit() -> int:
     is_premium = (plan == "premium") and active
     return 3 if is_premium else 1
 
+def _is_premium_active() -> bool:
+    # billing.py と同じ stub env に寄せる（本番では billing 実装に差し替え可能）
+    plan = os.getenv("BILLING_STUB_PLAN", "free")  # free|premium
+    active = os.getenv("BILLING_STUB_ACTIVE", "0") in {"1", "true", "True"}
+    return (plan == "premium") and active
+
 
 class ConciergeChatView(APIView):
     # authentication_classes = []  # ← 明示無効化はやめる（デフォルト認証を使う）
@@ -410,7 +416,9 @@ class ConciergeChatView(APIView):
 
         usage: ConciergeUsage | None = None
 
-        if user is not None:
+        is_premium = _is_premium_active()
+
+        if user is not None and not is_premium:
             usage, _ = ConciergeUsage.objects.get_or_create(
                 user=user,
                 date=today,
