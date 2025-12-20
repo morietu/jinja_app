@@ -18,17 +18,24 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
     e.preventDefault();
     if (inFlight.current || loading) return;
 
-    if (!username || !password) {
-      setError("ユーザー名とパスワードを入力してください");
-      return;
-    }
-
     inFlight.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      // 1) Next の API ルートにログインリクエスト
+      // 1) 未入力チェック（rawで）
+      if (!username || !password) {
+        setError("ユーザー名とパスワードを入力してください");
+        return;
+      }
+
+      // 2) 前後スペース混入は弾く（raw vs trim 比較）
+      if (username !== username.trim() || password !== password.trim()) {
+        setError("ユーザー名/パスワードの前後に空白が入っています");
+        return;
+      }
+
+      // 3) ここから先は raw をそのまま送る（trimしない）
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,16 +53,13 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
             const t = await res.text();
             if (t) msg = t;
           }
-        } catch {
-          // パース失敗時はデフォルトメッセージのまま
-        }
+        } catch {}
         setError(msg);
         return;
       }
 
-      // 2) 成功したのでマイページ(or next)へ遷移
       router.push(next || "/mypage?tab=goshuin");
-      router.refresh(); // サーバーコンポーネントを最新状態に
+      router.refresh();
     } catch {
       setError("通信エラーが発生しました。しばらくしてから再度お試しください。");
     } finally {
