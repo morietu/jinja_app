@@ -61,8 +61,7 @@ export default function ConciergeLayout({
   const shown = recommendations;
   const shownLen = shown.length;
 
-  // billing が取れたら premium 判定に使う（取れない間は premium か不明なので UI を止めない）
-  const canDecidePremium = !billing.loading && !billing.error && !!billing.status;
+  
   
   const isPremiumActive =
     !billing.loading && !billing.error && billing.status?.plan === "premium" && billing.status?.is_active === true;
