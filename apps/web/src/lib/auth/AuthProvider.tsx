@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch("/api/users/me", {
+        const r = await fetch("/api/users/me/", {
           credentials: "include",
           cache: "no-store",
         });

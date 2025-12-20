@@ -10,11 +10,10 @@ export type BillingStatus = {
 
 
 export async function getBillingStatus(): Promise<BillingStatus> {
-  const url = `/billings/status/`;
-
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch("/api/billings/status/", {
+    cache: "no-store",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error(`billing status ${res.status}`);
-
-  const json = (await res.json()) as BillingStatus;
-  return json;
+  return (await res.json()) as BillingStatus;
 }

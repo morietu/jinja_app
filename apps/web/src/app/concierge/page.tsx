@@ -19,12 +19,13 @@ export default function ConciergePage() {
       setThreadId(String(thread.id));
       if (Array.isArray(recommendations)) setRecommendations(recommendations);
     },
-    onPaywall: ({ remaining_free, limit, note }) => {
+
+    onPaywall: ({ remaining_free, note }) => {
+      console.log("[paywall payload]", { remaining_free, note });
+      setRemainingFree(typeof remaining_free === "number" ? remaining_free : null);
       setPaywallNote(note ?? null);
-      setRemainingFree(typeof remaining_free === "number" && typeof limit === "number" ? remaining_free : null);
     },
 
-    
     onReply: (replyText) => {
       const now = new Date().toISOString();
       setMessages((prev) => {

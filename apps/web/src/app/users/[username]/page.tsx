@@ -9,7 +9,7 @@ type Props = {
   };
 };
 
-/* eslint-disable @next/next/no-img-element */
+
 
 export default async function PublicProfilePage({ params }: Props) {
   const username = params.username;

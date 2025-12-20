@@ -3,27 +3,52 @@ import { cookies } from "next/headers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
+async function refreshAccessToken(refresh: string) {
+  const res = await fetch(`${API_BASE}/api/auth/jwt/refresh/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return (data?.access as string | null) ?? null;
+}
+
 export async function POST(req: Request) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const access = cookieStore.get("access_token")?.value;
+  const refresh = cookieStore.get("refresh_token")?.value;
+  
   const body = await req.text();
 
-  const doFetch = (withAuth: boolean) =>
+  const doFetch = (token?: string) =>
     fetch(`${API_BASE}/api/concierge/chat/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(withAuth && token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body,
       cache: "no-store",
     });
 
-  let res = await doFetch(true);
+  // 1st try (access)
+  let res = await doFetch(access);
 
-  // ✅ ここが重要：無効トークンなら匿名で再試行
-  if (res.status === 401 && token) {
-    res = await doFetch(false);
+  // access expired -> refresh -> retry
+  if (res.status === 401 && refresh) {
+    const newAccess = await refreshAccessToken(refresh);
+    if (newAccess) {
+      cookieStore.set("access_token", newAccess, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60,
+        secure: false, // productionは true 判定に合わせる
+      });
+      res = await doFetch(newAccess);
+    }
   }
 
   const text = await res.text();

@@ -8,13 +8,6 @@ import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from 
 import Link from "next/link";
 import { useBilling } from "@/features/billing/hooks/useBilling";
 
-function Spinner() {
-  return <div className="py-6 text-center text-sm text-slate-500">読み込み中…</div>;
-}
-function Error({ message }: { message: string }) {
-  return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
-}
-
 function PaywallCta({ note }: { note: string }) {
   return (
     <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -37,7 +30,6 @@ function PaywallCta({ note }: { note: string }) {
   );
 }
 
-
 type Props = {
   thread: ConciergeThread | null;
   messages: ConciergeMessage[];
@@ -46,9 +38,9 @@ type Props = {
   onSend: (text: string) => void | Promise<void>;
   onRetry: () => void;
   recommendations?: ConciergeRecommendation[];
-
   paywallNote?: string | null;
   remainingFree?: number | null;
+  
 };
 
 export default function ConciergeLayout({
@@ -64,26 +56,42 @@ export default function ConciergeLayout({
 }: Props) {
   const isLandscape = useLandscape();
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const billing = useBilling(); // 表示用（paywall根拠はサーバー側）
 
+  const billing = useBilling(); // 表示用（paywall根拠はサーバー側）
   const shown = recommendations;
   const shownLen = shown.length;
+
+  // billing が取れたら premium 判定に使う（取れない間は premium か不明なので UI を止めない）
+  const canDecidePremium = !billing.loading && !billing.error && !!billing.status;
+  
+  const isPremiumActive =
+    !billing.loading && !billing.error && billing.status?.plan === "premium" && billing.status?.is_active === true;
+
+  const hitPaywall = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
+
+  // premium(active) のときだけ確実に消す
+  const showPaywallHint = hitPaywall && !isPremiumActive;
+
+  // 送信停止も同じ考え（premium(active) なら止めない）
+  const canSend = isPremiumActive || !(typeof remainingFree === "number" && remainingFree <= 0);
 
   useEffect(() => {
     if (shownLen === 0) return;
     if (selectedIndex > shownLen - 1) setSelectedIndex(0);
   }, [shownLen, selectedIndex]);
 
-  if (billing.loading) return <Spinner />;
-  if (billing.error) return <Error message={billing.error} />;
-  if (!billing.status) return <Spinner />;
-
-  const showPaywallHint = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
-  const canSend = !(typeof remainingFree === "number" && remainingFree <= 0);
   const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
+
+
+  console.debug("[concierge]", {
+    isPremiumActive,
+    remainingFree,
+    showPaywallHint,
+    canSend,
+  });
 
   if (isLandscape) {
     return (
@@ -151,6 +159,9 @@ export default function ConciergeLayout({
   // 縦向き
   return (
     <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
+      {showPaywallHint && (
+        <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
+      )}
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -161,12 +172,11 @@ export default function ConciergeLayout({
           onRetry={onRetry}
           onSend={onSend}
           canSend={canSend}
+          
         />
       </div>
 
-      {showPaywallHint && (
-        <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
-      )}
+      
 
       {shown.length > 1 && (
         <div className="flex flex-wrap gap-2 text-xs">
