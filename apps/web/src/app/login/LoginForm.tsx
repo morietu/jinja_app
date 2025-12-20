@@ -53,7 +53,10 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
             const t = await res.text();
             if (t) msg = t;
           }
-        } catch {}
+        } catch (e) {
+          // パース失敗時はデフォルトメッセージのまま
+          void e;
+        }
         setError(msg);
         return;
       }
