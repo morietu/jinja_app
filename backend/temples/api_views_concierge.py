@@ -180,6 +180,14 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
     candidate に formatted_address が無ければ Places で補う（8km bias）
     API キーが無い場合はそのまま返す
     """
+    key = (
+        getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
+        or getattr(dj_settings, "GOOGLE_API_KEY", None)
+        or os.getenv("GOOGLE_MAPS_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("MAPS_API_KEY")
+        or os.getenv("PLACES_API_KEY")
+    )
     
     if not key:
         return candidates
@@ -496,20 +504,14 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
-        
         data = request.data or {}
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
 
-        is_message_mode = bool(message)   # 必要なら残す（reply制御に使う）
-        query = message or query          # ★ message優先
+        # message 優先
+        is_message_mode = bool(message)
+        query = message or query
 
-        if not query:
-            return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        
-        
-        
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -520,20 +522,16 @@ class ConciergeChatView(APIView):
         # intent は常に返す
         intent = extract_intent(query)
 
-        # ---- user 解決：DRFの request.user を最優先 ----
+        # ---- user 解決（DRFが未認証でもBearerから復元）----
         user, token = _resolve_user_and_token(request)
         if user is not None:
             request.user = user
             request.auth = token
 
-        
         is_premium = _is_premium_active()
         today = timezone.localdate()
         daily_limit = getattr(dj_settings, "CONCIERGE_DAILY_FREE_LIMIT", 5)
-
         remaining = None
-
-        # print("ENV:", os.getenv("BILLING_STUB_PLAN"), os.getenv("BILLING_STUB_ACTIVE"))
 
         # ---- rate limit：認証済み & 非premium のみ ----
         if user is not None and not is_premium:
@@ -551,22 +549,8 @@ class ConciergeChatView(APIView):
                     "note": "limit-reached",
                 }
 
-                if user is not None and not is_premium:
-                    recs = {"recommendations": []}
-                    body = {
-                        "ok": True,
-                        "intent": intent,
-                        "data": recs,
-                        "reply": LIMIT_MSG,          # ★必ず返す
-                        "remaining_free": 0,         # ★必ず0
-                        "limit": daily_limit,
-                        "note": "limit-reached",
-                    }
-                    return Response(body, status=status.HTTP_200_OK)
-                    
-
+                # message モードなら候補表示形式で返す（テスト要件）
                 if is_message_mode:
-                    # recommendations から表示名を作る（最低1件は入る設計）
                     names = []
                     for r in (recs.get("recommendations") or [])[:3]:
                         if isinstance(r, dict):
@@ -574,9 +558,6 @@ class ConciergeChatView(APIView):
                             if nm:
                                 names.append(nm)
                     body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
-                else:
-                    # queryモードでも limit 到達時は LIMIT_MSG を必ず返す（テスト要件）
-                    pass
 
                 return Response(body, status=status.HTTP_200_OK)
 
@@ -644,7 +625,7 @@ class ConciergeChatView(APIView):
             body["limit"] = daily_limit
 
         # reply の扱い：
-        # - message がある時は「候補: ...」を必ず返す（今回のテスト要件）
+        # - message がある時は「候補: ...」を必ず返す（テスト要件）
         # - message が無い（query only）かつ candidates が無い時だけ reply を返す（smoke要件）
         if is_message_mode:
             names = []
