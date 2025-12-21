@@ -1,152 +1,80 @@
-# ✅ 開発TODOリスト（到達状況付き・Markdown対応）
+# 開発TODOリスト（最終版・進捗管理用）
 
-## 🟥 優先度A：LLM（OpenAI コンシェルジュ)
-- [ ] 依存追加：`openai` を `requirements.txt` に追記  
-- [ ] 環境変数：`.env` に `OPENAI_API_KEY`, `LLM_MODEL`, `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, (任意) `LLM_BASE_URL`  
-- [ ] モジュール新設：`backend/temples/llm/`（`config.py` / `client.py` / `orchestrator.py`）  
-- [ ] API：`POST /api/concierge/chat`（APIView・8/min スロットリング）  
-- [ ] 例外 / タイムアウト / トークン上限ガード  
-- [ ] スモークテスト（cURL）  
-- [ ] ドキュメント（LLM構成と `.env` 例）  
-- [ ] ブランチ / PR：`api/llm-module-split → api/concierge-endpoint → develop`  
+## 優先度A：LLM（意図抽出のみ・JSON固定）
 
----
+- [x] 自由チャットは行わない
+- [x] LLMは意図抽出（1回呼び・JSON固定）のみ
+- [x] 神社選定・距離・フォールバックはBackend責任
 
-## 🔐 認証 / プロキシ
-- [x] Next `/api` キャッチオール・プロキシ  
-- [x] Cookie `access_token` → `Authorization: Bearer` 自動付与  
-- [x] JWT create/refresh 応答から HttpOnly Cookie 設定  
-- [x] 個別ルート削除 → catch-all 集約  
-- [x] `/api/users/me/` で 200 確認  
-- [ ] FavoriteViewSet 等の `IsAuthenticated` 最終チェック  
-- [ ] （任意）プロキシのデバッグルートを dev 限定  
+- [ ] openai を requirements.txt に追加
+- [ ] .env に OPENAI_API_KEY を設定
+- [ ] .env に LLM_MODEL を設定
+- [ ] .env に LLM_MAX_TOKENS を設定
+- [ ] （任意）.env に LLM_BASE_URL を設定
+- [ ] JSON Schema を固定（goriyaku / tone / atmosphere / avoid / summary）
+- [ ] 最小プロンプト作成（JSONのみ出力）
+- [ ] backend/temples/llm/ を作成
+- [ ] config.py を作成
+- [ ] client.py を作成
+- [ ] intent_extractor.py を作成
+- [ ] POST /api/concierge/chat を実装
+- [ ] 会話履歴を使わないことを保証
+- [ ] JSONパース失敗時のフォールバック実装
+- [ ] レート制限（例：8/min）を設定
+- [ ] タイムアウト・トークン上限ガードを実装
+- [ ] cURL スモークテスト
+- [ ] README に「LLMは意図抽出のみ」と明記
+- [ ] feat/intent-extraction-json ブランチ作成
+- [ ] develop にマージ
 
----
+## ランキング（実装しない）
 
-## 🎨 フロントエンド（Next.js）
-- [x] `axios` 導入（`/api` / `withCredentials:true`）  
-- [x] `apiGet` / `apiPost` / `apiPatch` / `apiDelete` / `isAuthError` ラッパ  
-- [x] 旧 `serverFetch` / `apiFetch` 撤去  
-- [ ] 401 自動リフレッシュ（1回だけ再試行）  
-- [ ] `/login` ページ  
-- [ ] 神社カード / 詳細に「お気に入り」トグル  
-- [ ] ホーム（検索・AI コンシェルジュ入口）  
-- [ ] 神社詳細（住所・ご利益・祭神・ルート）  
-- [ ] マイページ（お気に入り・御朱印投稿管理）  
-- [ ] ランキングページ  
-- [ ] ルートUI（距離・時間表示）  
-- [ ] 旧 `apps/web/lib/http.ts` の掃除  
+- [x] ランキングAPIを作らない
+- [x] 集計バッチを作らない
+- [x] ランキングUIを作らない
+- [x] 管理画面にランキングを作らない
+- [x] README/TODO に「ランキングなし」と明記
 
----
+## 個人プロフィール（実装しない）
 
-## 🧭 コア機能（AI参拝ナビ）
-- [x] ルート提案API（徒歩 / 車MVP：ハバースイン距離＋所要時間 `/api/route/`）  
-- [ ] 人気神社推薦（30日集計）  
-- [ ] ユーザー神社登録（ピン / 名称 / 逆ジオ / 重複チェック）  
-- [ ] 人気API仕様 & テスト（`/api/shrines/popular/`）  
+- [x] プロフィール編集機能を作らない
+- [x] 公開プロフィールページを作らない
+- [x] プロフィール更新APIを作らない
+- [x] プロフィール用UIを作らない
+- [x] README/TODO に「プロフィールなし」と明記
 
----
+## 御朱印（最小構成）
 
-## ⭐ サポート機能
-- [ ] 御朱印投稿API（画像アップ / 公開切替 / 編集 / 削除）  
-- [x] お気に入りAPI（冪等 POST / DELETE 確認済み）  
-- [ ] ランキングAPI（月間・年間TOP10）  
-- [ ] ユーザー認証 / 設定API（プロフィール編集・公開設定）  
+- [x] 御朱印機能は残す
+- [x] 公開 / 非公開のみとする
+- [x] SNS・プロフィール連携は行わない
 
----
+- [ ] 御朱印画像アップロード
+- [ ] 自分の御朱印一覧表示
+- [ ] is_public トグルを実装
+- [ ] 自分は全件閲覧可能
+- [ ] 他人は public のみ閲覧可能
+- [ ] 管理画面は御朱印のみ
 
-## 🗺 Places / 検索系
-- [x] Text Search（Shintoバイアス）  
-- [x] Nearby Search（`q→keyword` / MAX_Q）  
-- [x] Find Place（`/api/places/find_place/`）  
-- [x] Photo プロキシ（`/api/places/photo/`）  
-- [x] Text Search ページネーション  
-- [ ] **GET `/api/places/find/?input=...` 実装**（`{ results: PlaceLite[] }`）  
-- [ ] Frontend：`/search/places` が上記スキーマで 200 / 一致  
+## 認証・基盤
 
----
+- [x] Next.js /api キャッチオールプロキシ
+- [x] Cookie → Authorization Bearer 自動付与
+- [x] JWT refresh を HttpOnly Cookie で処理
+- [x] /api/users/me/ が 200 を返す
+- [ ] FavoriteViewSet の IsAuthenticated 最終確認
 
-## ⚙️ バックエンド作業
-- [x] JWT 認証 `/api/token/*`  
-- [x] Shrine API（一覧・詳細）  
-- [x] Favorite API（冪等・エイリアス許容・制約・Index）  
-- [ ] FavoriteViewSet：`IsAuthenticated` 徹底 / 重複 400/409 統一  
-- [x] モデル拡張（`goriyaku` / `sajin` / `popular` 指標）  
-- [ ] シリアライザ拡張（関連リソース）  
-- [ ] 管理画面拡張（神社・御朱印・ランキング）  
-- [ ] バッチ（30日集計）  
-- [ ] DEBUG 時 `/media/` 配信（ローカル画像）  
+## フロントエンド（整理後）
 
----
+- [x] axios / API ラッパ導入
+- [x] serverFetch / apiFetch 撤去
+- [x] チャットUIを使わない方針確定
+- [x] 相談フォームUIにする方針確定
 
-## 🧪 バグ修正・メンテ
-- [x] `temples/models.py` 整形（Black）  
-- [x] PostGIS インデックス・マイグレーション整備  
-- [x] マイグレーション競合解消（`0021_enable_postgis`）  
-- [x] Bearer 認証手順整理  
-- [x] クエリ取得の堅牢化（`_robust_get_query_param`）  
-- [x] 開発端末 `.zshrc` 整理（jwt_login / jwt_refresh など）  
-
----
-
-## 📱 モバイル（Expo）
-- [ ] API ベース同期（`EXPO_PUBLIC_API_BASE`）  
-- [ ] 近隣神社リスト（`expo-location`）  
-- [ ] 御朱印画像投稿（`expo-image-picker`）  
-
----
-
-## 🛠 インフラ
-- [x] Docker 起動・DB 接続  
-- [x] PostgreSQL + PostGIS 拡張確認  
-- [ ] CORS / CSRF 本番方針（同一オリジン＋リバプロ）  
-- [ ] S3 連携（御朱印画像）  
-- [ ] ECS / Fargate  
-- [ ] SSM Parameter Store  
-- [ ] ALB + ACM（HTTPS）  
-- [ ] Miniforge 初期化  
-- [ ] conda 環境 `jinja_app_py311`  
-- [ ] VS Code / Cursor の Interpreter 切替  
-
----
-
-## 📚 ドキュメント
-- [ ] README：Favorites の `"shrine"` エイリアス例  
-- [ ] README：Nearby 検索の例・並び順・`radius` 追記  
-- [x] TODO：最新版に更新（この変更）  
-- [ ] API 一覧（認証要否・レート制限）  
-- [ ] フロント README：JWT フローと `.env`  
-- [ ] LLM 設定 / 運用（timeouts / レート / 費用）  
-
----
-
-## 🔀 ブランチ / PR運用
-- [ ] `api/places-find-lite`  
-- [ ] `web/search-places-wire`  
-- [ ] `feat/llm-module-split`  
-- [ ] `api/concierge-endpoint`  
-- [ ] `web/auth-login-jwt`  
-- [ ] `web/favorites-toggle-ui`  
-- [ ] レビュー & Squash / CHANGELOG 更新  
-
----
-
-## ✅ 直近の完了（参考）
-- [x] `/api/shrines/nearest/`：ベンダ安全（PostGIS / Spatialite / NoGIS）  
-  - JSON配列  
-  - `radius` 対応  
-  - シリアライザ距離 / 位置  
-  - CIグリーン  
-
-
-- [ ] requirements.txt に openai を追加
-- [ ] .env に OPENAI_*／LLM_* を追記（例を README に反映）
-- [ ] backend/temples/llm/ 配下を新設（config.py / client.py / orchestrator.py）
-- [ ] DRF: POST /api/concierge/chat（APIView, throttle_scope="concierge"）
-- [ ] settings.py: DEFAULT_THROTTLE_RATES に concierge=8/min を追加
-- [ ] タイムアウト／リトライ／トークン上限ガードを実装
-- [ ] urls.py に concierge/chat を配線
-- [ ] cURL スモーク：200/バリデーションエラー/タイムアウト系の確認
-- [ ] README/architecture に LLM 構成と .env 例を追記
-- [ ] PR①: api/llm-module-split（モジュール分割まで）
-- [ ] PR②: api/concierge-endpoint（API公開・テストまで）
+- [ ] 相談フォームUI実装
+- [ ] 神社3件の結果表示
+- [ ] 距離表示
+- [ ] 条件を変えて再検索ボタン
+- [ ] マイページは御朱印管理のみにする
+- [ ] プロフィールUIを削除
+- [ ] ランキング導線を削除
