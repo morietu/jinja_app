@@ -79,10 +79,9 @@ def concierge_chat_compat(request):
     if "ok" not in payload and 200 <= resp.status_code < 300:
         payload["ok"] = True
 
-    # message/query から作った echo を reply として補う（既にあれば上書きしない）
-    if text:
+    # intent 抽出モードでは reply を付けない（JSON固定）
+    if text and "intent" not in payload:
         payload.setdefault("reply", f"echo: {text}")
-
     return DRFResponse(payload, status=resp.status_code)
 
 concierge_chat_compat.throttle_classes = [ScopedRateThrottle]

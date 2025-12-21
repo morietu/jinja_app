@@ -27,6 +27,7 @@ from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
 from temples.llm.backfill import fill_locations
 from temples.llm import orchestrator as orch
+from temples.llm import extract_intent
 
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
@@ -408,6 +409,11 @@ class ConciergeChatView(APIView):
 
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ===== LLM（意図抽出のみ・JSON固定） =====
+        intent = extract_intent(query)
+        body: dict[str, Any] = {"ok": True, "intent": intent}
+        return Response({"ok": True, "intent": intent}, status=status.HTTP_200_OK)
 
         # --- 利用回数チェック（認証ユーザーのみカウント） --------------------
         user = request.user if request.user.is_authenticated else None
