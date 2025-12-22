@@ -170,6 +170,7 @@ def test_premium_user_is_not_rate_limited(monkeypatch):
 
     for _ in range(7):
         res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
+        print("DEBUG chat response:", res.data)
         assert res.status_code == 200
         replies.append(res.data.get("reply"))
         keys_list.append(set(res.data.keys()))
