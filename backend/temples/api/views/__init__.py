@@ -6,7 +6,7 @@ from .shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
 from .goshuin import PublicGoshuinViewSet, MyGoshuinViewSet  # ★ 追加
 
 def chat(request, *args, **kwargs):
-    ...
+    
     return ConciergeChatView.as_view()(request, *args, **kwargs)
 
 chat_legacy = chat
