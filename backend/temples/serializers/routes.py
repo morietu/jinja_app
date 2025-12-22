@@ -1,14 +1,48 @@
 # backend/temples/serializers/routes.py
 
 from typing import List
-
+from django.conf import settings
 from rest_framework import serializers
 from temples.api.serializers.shrine import ShrineSerializer
 from temples.models import Favorite, Goshuin, Shrine, GoshuinImage
-from rest_framework import serializers
 
-# ---- Shrine / Favorite（既存APIのI/Oを維持） ----
-# ShrineSerializer は既存（temples.api.serializers.shrine）を利用
+MAX_BYTES = 10 * 1024 * 1024  # 10MB（調整OK）
+ALLOWED_CT = {"image/jpeg", "image/png", "image/webp"}
+
+
+class MyGoshuinCreateSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(write_only=True)
+
+    class Meta:
+        model = Goshuin
+        fields = ["id", "shrine", "title", "is_public", "image"]
+        read_only_fields = ["id"]
+
+    def validate_image(self, f):
+        ct = getattr(f, "content_type", None)
+        if ct and ct not in ALLOWED_CT:
+            raise serializers.ValidationError("Unsupported image type.")
+        size = getattr(f, "size", 0) or 0
+        if size > MAX_BYTES:
+            raise serializers.ValidationError("Image too large.")
+        return f
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        user = request.user
+
+        image_file = validated_data.pop("image", None)
+        goshuin = Goshuin.objects.create(user=user, **validated_data)
+
+        if image_file is not None:
+            GoshuinImage.objects.create(
+                goshuin=goshuin,
+                image=image_file,
+                order=0,
+                size_bytes=getattr(image_file, "size", 0) or 0,
+            )
+
+        return goshuin
 
 
 class ShrineListSerializer(serializers.ModelSerializer):
