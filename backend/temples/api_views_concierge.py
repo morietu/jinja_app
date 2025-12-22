@@ -167,7 +167,6 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
         or os.getenv("MAPS_API_KEY")
         or os.getenv("PLACES_API_KEY")
     )
-
     if not key:
         return candidates
 
@@ -405,10 +404,10 @@ def _is_premium_active() -> bool:
     plan, active = _billing_stub_env()
     return (plan == "premium") and (active in {"1", "true", "yes", "y", "on"})
 
+
 def _billing_recommend_limit() -> int:
     # free は少なめ / premium は多め（既存の stops が最大6なので premium=6 が自然）
     return 6 if _is_premium_active() else 3
-
 
 
 def _force_user_from_bearer(req):
@@ -484,7 +483,6 @@ def _resolve_user_and_token(request):
 
     # 3) Bearer から復元
     return _force_user_from_bearer(request)
-
 
 
 LIMIT_MSG = "無料で利用できる回数を使い切りました。"
@@ -621,9 +619,7 @@ class ConciergeChatView(APIView):
             body["remaining_free"] = remaining
             body["limit"] = daily_limit
 
-        # reply の扱い：
-        # - message がある時は「候補: ...」を必ず返す（テスト要件）
-        # - message が無い（query only）かつ candidates が無い時だけ reply を返す（smoke要件）
+        # message がある時は「候補: ...」を必ず返す（テスト要件）
         if is_message_mode:
             names = []
             for r in (recs.get("recommendations") or [])[:3]:
@@ -951,7 +947,9 @@ class ConciergePlanView(APIView):
                 lng = loc.get("lng") if isinstance(loc, dict) else None
                 travel_minutes = 3
                 eta += travel_minutes
-                disp = rec.get("display_address") or (f"{lat:.3f}, {lng:.3f}" if (lat is not None and lng is not None) else None)
+                disp = rec.get("display_address") or (
+                    f"{lat:.3f}, {lng:.3f}" if (lat is not None and lng is not None) else None
+                )
                 stops.append(
                     {
                         "order": i,
