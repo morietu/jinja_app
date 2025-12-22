@@ -10,15 +10,10 @@ import re
 
 import requests
 
-
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from django.conf import settings as dj_settings
-from django.conf import settings as dj_settings
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.authentication import SessionAuthentication
-from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
@@ -44,9 +39,6 @@ from temples.services import google_places as GP
 from temples.services.concierge_history import append_chat
 
 from .models import ConciergeUsage
-
-
-
 
 
 
@@ -110,7 +102,6 @@ WISH_SYNONYMS: Dict[str, List[str]] = {
 
 
 
-
 def _parse_radius(data: Dict[str, Any]) -> int:
     """radius_m / radius_km を m に変換（既定 8000、1..50000 にクリップ）"""
     if (rm := data.get("radius_m")) is not None:
@@ -144,8 +135,6 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
             or getattr(dj_settings, "GOOGLE_API_KEY", None)
             or os.getenv("GOOGLE_MAPS_API_KEY")
             or os.getenv("GOOGLE_API_KEY")
-            or os.getenv("MAPS_API_KEY")
-            or os.getenv("PLACES_API_KEY")
         )
         if key:
             try:
@@ -180,7 +169,14 @@ def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str 
     candidate に formatted_address が無ければ Places で補う（8km bias）
     API キーが無い場合はそのまま返す
     """
-    
+    key = (
+        getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
+        or getattr(dj_settings, "GOOGLE_API_KEY", None)
+        or os.getenv("GOOGLE_MAPS_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("MAPS_API_KEY")
+        or os.getenv("PLACES_API_KEY")
+    )
     if not key:
         return candidates
 
@@ -408,9 +404,8 @@ def _is_premium_active() -> bool:
     return (plan == "premium") and (active in {"1", "true", "yes", "y", "on"})
 
 def _billing_recommend_limit() -> int:
-    # free は少なめ / premium は多め（既存 stops の最大6に合わせる）
+    # free は少なめ / premium は多め（既存の stops が最大6なので premium=6 が自然）
     return 6 if _is_premium_active() else 3
-
 
 def _force_user_from_bearer(req):
     """
@@ -498,14 +493,20 @@ class ConciergeChatView(APIView):
     def post(self, request, *args, **kwargs):
         
         data = request.data or {}
+
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
 
-        is_message_mode = bool(message)   # 必要なら残す（reply制御に使う）
-        query = message or query          # ★ message優先
+        # ★ messageが来たら問答無用でmessageモード（queryが勝手に入っても無視）
+        is_message_mode = bool(message)
 
-        if not query:
-            return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
+        # 実際に使うqueryは、query優先・無ければmessage
+        query = query or message
+
+        
+
+
+        
         
         
         
@@ -642,10 +643,8 @@ class ConciergeChatView(APIView):
         if user is not None and not is_premium:
             body["remaining_free"] = remaining
             body["limit"] = daily_limit
-
-        # reply の扱い：
-        # - message がある時は「候補: ...」を必ず返す（今回のテスト要件）
-        # - message が無い（query only）かつ candidates が無い時だけ reply を返す（smoke要件）
+        
+        # ★ messageモードは reply を作る
         if is_message_mode:
             names = []
             for r in (recs.get("recommendations") or [])[:3]:
@@ -658,15 +657,14 @@ class ConciergeChatView(APIView):
             if not candidates:
                 body["reply"] = None
 
+        
+        
         return Response(body, status=status.HTTP_200_OK)
 
     
 
 class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None
-
-
-
 
 
 
