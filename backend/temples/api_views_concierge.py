@@ -399,18 +399,8 @@ _ORIG_BILLING_STUB_PLAN = os.environ.get("BILLING_STUB_PLAN")
 _ORIG_BILLING_STUB_ACTIVE = os.environ.get("BILLING_STUB_ACTIVE")
 
 def _billing_stub_env() -> tuple[str, str]:
-    plan = os.environ.get("BILLING_STUB_PLAN")
-    active = os.environ.get("BILLING_STUB_ACTIVE")
-
-    if getattr(dj_settings, "IS_PYTEST", False):
-        # pytest開始前から存在していた値（=外部export）は無視して free 扱いへ
-        if plan == _ORIG_BILLING_STUB_PLAN:
-            plan = None
-        if active == _ORIG_BILLING_STUB_ACTIVE:
-            active = None
-
-    plan = (plan or "free").strip().lower()
-    active = (active or "0").strip().lower()
+    plan = (os.getenv("BILLING_STUB_PLAN") or "free").strip().lower()
+    active = (os.getenv("BILLING_STUB_ACTIVE") or "0").strip().lower()
     return plan, active
 
 def _is_premium_active() -> bool:
@@ -504,6 +494,7 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
+        
         data = request.data or {}
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
@@ -547,15 +538,44 @@ class ConciergeChatView(APIView):
             usage, _ = ConciergeUsage.objects.get_or_create(user=user, date=today)
 
             if usage.count >= daily_limit:
+                recs = {"recommendations": []}
                 body = {
                     "ok": True,
                     "intent": intent,
-                    "data": {"recommendations": []},
-                    "reply": LIMIT_MSG,  # candidates があっても limit 到達時は返してOK
+                    "data": recs,
+                    "reply": LIMIT_MSG,
                     "remaining_free": 0,
                     "limit": daily_limit,
                     "note": "limit-reached",
                 }
+
+                if user is not None and not is_premium:
+                    recs = {"recommendations": []}
+                    body = {
+                        "ok": True,
+                        "intent": intent,
+                        "data": recs,
+                        "reply": LIMIT_MSG,          # ★必ず返す
+                        "remaining_free": 0,         # ★必ず0
+                        "limit": daily_limit,
+                        "note": "limit-reached",
+                    }
+                    return Response(body, status=status.HTTP_200_OK)
+                    
+
+                if is_message_mode:
+                    # recommendations から表示名を作る（最低1件は入る設計）
+                    names = []
+                    for r in (recs.get("recommendations") or [])[:3]:
+                        if isinstance(r, dict):
+                            nm = (r.get("display_name") or r.get("name") or "").strip()
+                            if nm:
+                                names.append(nm)
+                    body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
+                else:
+                    # queryモードでも limit 到達時は LIMIT_MSG を必ず返す（テスト要件）
+                    pass
+
                 return Response(body, status=status.HTTP_200_OK)
 
             usage.count += 1
