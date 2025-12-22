@@ -188,3 +188,35 @@ def test_my_goshuins_other_users_entry_is_not_visible(client: APIClient):
 
     # MyGoshuinViewSet は user 限定 queryset なので 404 が正
     assert res.status_code == 404
+
+@pytest.mark.django_db
+def test_my_goshuins_create_rejects_unsupported_content_type(client: APIClient):
+    user = _make_user("ct@example.com")
+    shrine = _make_shrine()
+    client.force_authenticate(user=user)
+
+    # PNGバイトを「text/plain」と偽って送る
+    f = _png_file(name="x.txt")
+    f.content_type = "text/plain"
+
+    res = client.post(
+        "/api/my/goshuins/",
+        data={"shrine": shrine.id, "title": "t", "is_public": False, "image": f},
+        format="multipart",
+    )
+    assert res.status_code == 400
+    body = res.json()
+    assert "image" in body
+
+
+@pytest.mark.django_db
+def test_my_goshuins_create_rejects_too_large_image(client: APIClient, settings):
+    user = _make_user("size@example.com")
+    shrine = _make_shrine()
+    client.force_authenticate(user=user)
+
+    # 上限を小さくしてテストを軽くする（10KB）
+    # ※ settings を使わない実装なら、このテストは “実際に10MB超” を作る必要があるので重い
+    # → もし定数直書きで行くなら、実装側を settings 経由にするのがオススメ
+    #   （後述の「改善案」参照）
+    # ここでは一旦「実装が settings を参照する形」に寄せる前提で書く

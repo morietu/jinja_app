@@ -1,14 +1,16 @@
 # backend/temples/serializers/routes.py
 
+from __future__ import annotations
+
 from typing import List
 from django.conf import settings
 from rest_framework import serializers
 from temples.api.serializers.shrine import ShrineSerializer
 from temples.models import Favorite, Goshuin, Shrine, GoshuinImage
 
-MAX_BYTES = 10 * 1024 * 1024  # 10MB（調整OK）
-ALLOWED_CT = {"image/jpeg", "image/png", "image/webp"}
-
+# ---- Goshuin image validation ----
+MAX_GOSHUIN_IMAGE_BYTES = getattr(settings, "GOSHUIN_IMAGE_MAX_BYTES", 10 * 1024 * 1024)
+ALLOWED_GOSHUIN_IMAGE_CT = {"image/jpeg", "image/png", "image/webp"}
 
 class MyGoshuinCreateSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(write_only=True)
@@ -20,30 +22,29 @@ class MyGoshuinCreateSerializer(serializers.ModelSerializer):
 
     def validate_image(self, f):
         ct = getattr(f, "content_type", None)
-        if ct and ct not in ALLOWED_CT:
+        if ct and ct not in ALLOWED_GOSHUIN_IMAGE_CT:
             raise serializers.ValidationError("Unsupported image type.")
-        size = getattr(f, "size", 0) or 0
-        if size > MAX_BYTES:
+
+        size = getattr(f, "size", None)
+        if isinstance(size, int) and size > MAX_GOSHUIN_IMAGE_BYTES:
             raise serializers.ValidationError("Image too large.")
+
         return f
 
     def create(self, validated_data):
         request = self.context["request"]
         user = request.user
 
-        image_file = validated_data.pop("image", None)
+        image_file = validated_data.pop("image")
         goshuin = Goshuin.objects.create(user=user, **validated_data)
 
-        if image_file is not None:
-            GoshuinImage.objects.create(
-                goshuin=goshuin,
-                image=image_file,
-                order=0,
-                size_bytes=getattr(image_file, "size", 0) or 0,
-            )
-
+        GoshuinImage.objects.create(
+            goshuin=goshuin,
+            image=image_file,
+            order=0,
+            size_bytes=getattr(image_file, "size", 0) or 0,
+        )
         return goshuin
-
 
 class ShrineListSerializer(serializers.ModelSerializer):
     location = serializers.SerializerMethodField()
@@ -197,39 +198,3 @@ class LocationMixin(serializers.Serializer):
         if getattr(obj, "latitude", None) is None or getattr(obj, "longitude", None) is None:
             return None
         return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
-
-
-class MyGoshuinCreateSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(write_only=True)
-
-    class Meta:
-        model = Goshuin
-        fields = [
-            "id",
-            "shrine",
-            "title",
-            "is_public",
-            "image",
-        ]
-        read_only_fields = ["id"]
-
-    def create(self, validated_data):
-        request = self.context["request"]
-        user = request.user
-
-        # 画像だけ先に抜き出す
-        image_file = validated_data.pop("image", None)
-
-        # Goshuin 本体を作成
-        goshuin = Goshuin.objects.create(user=user, **validated_data)
-
-        # 画像があれば GoshuinImage を1枚作る
-        if image_file is not None:
-            GoshuinImage.objects.create(
-                goshuin=goshuin,
-                image=image_file,
-                order=0,
-                size_bytes=getattr(image_file, "size", 0) or 0,
-            )
-
-        return goshuin
