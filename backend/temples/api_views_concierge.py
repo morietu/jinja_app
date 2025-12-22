@@ -486,6 +486,8 @@ def _resolve_user_and_token(request):
     # 3) Bearer から復元
     return _force_user_from_bearer(request)
 
+
+
 LIMIT_MSG = "無料で利用できる回数を使い切りました。"
 
 class ConciergeChatView(APIView):
