@@ -407,8 +407,18 @@ _ORIG_BILLING_STUB_PLAN = os.environ.get("BILLING_STUB_PLAN")
 _ORIG_BILLING_STUB_ACTIVE = os.environ.get("BILLING_STUB_ACTIVE")
 
 def _billing_stub_env() -> tuple[str, str]:
-    plan = (os.getenv("BILLING_STUB_PLAN") or "free").strip().lower()
-    active = (os.getenv("BILLING_STUB_ACTIVE") or "0").strip().lower()
+    plan = os.environ.get("BILLING_STUB_PLAN")
+    active = os.environ.get("BILLING_STUB_ACTIVE")
+
+    if getattr(dj_settings, "IS_PYTEST", False):
+        # pytest開始前から存在していた値（=外部export）は無視して free 扱いへ
+        if plan == _ORIG_BILLING_STUB_PLAN:
+            plan = None
+        if active == _ORIG_BILLING_STUB_ACTIVE:
+            active = None
+
+    plan = (plan or "free").strip().lower()
+    active = (active or "0").strip().lower()
     return plan, active
 
 def _is_premium_active() -> bool:
