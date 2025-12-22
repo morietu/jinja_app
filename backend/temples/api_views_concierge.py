@@ -403,6 +403,9 @@ def _is_premium_active() -> bool:
     plan, active = _billing_stub_env()
     return (plan == "premium") and (active in {"1", "true", "yes", "y", "on"})
 
+def _billing_recommend_limit() -> int:
+    # free は少なめ / premium は多め（既存の stops が最大6なので premium=6 が自然）
+    return 6 if _is_premium_active() else 3
 
 def _force_user_from_bearer(req):
     """
@@ -477,6 +480,8 @@ def _resolve_user_and_token(request):
 
     # 3) Bearer から復元
     return _force_user_from_bearer(request)
+
+
 
 LIMIT_MSG = "無料で利用できる回数を使い切りました。"
 
