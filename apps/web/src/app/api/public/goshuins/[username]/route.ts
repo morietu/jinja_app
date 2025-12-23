@@ -17,52 +17,52 @@ type Paginated<T> = {
 
 export async function GET(req: Request, { params }: { params: { username: string } }) {
   const base = (process.env.DJANGO_API_BASE_URL ?? "").replace(/\/$/, "");
-  if (!base) {
-    return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
-  }
+  if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
   const { searchParams } = new URL(req.url);
   const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
   const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
 
-  // backend は「公開一覧 = /api/goshuins/」で返している（現状 pagination なしで配列）
-  const upstreamUrl = `${base}/goshuins/?username=${encodeURIComponent(params.username)}`;
+  const upstream = `${base}/goshuins/?username=${encodeURIComponent(params.username)}`;
 
   try {
-    const res = await fetch(upstreamUrl, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-    });
+    const res = await fetch(upstream, { cache: "no-store" });
+    const contentType = res.headers.get("content-type") ?? "application/json";
 
+    // upstream が失敗ならそのまま返す（デバッグしやすい）
     if (!res.ok) {
-      // upstream のエラーはそのまま返す（デバッグしやすく）
       const text = await res.text();
-      return new NextResponse(text || JSON.stringify({ error: "upstream error" }), {
-        status: res.status,
-        headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
-      });
+      return new NextResponse(text, { status: res.status, headers: { "content-type": contentType } });
     }
 
-    const raw = (await res.json()) as unknown;
+    const data = (await res.json()) as unknown;
 
-    // upstream が配列じゃない場合でも落ちないようにする
-    const all = Array.isArray(raw) ? (raw as Goshuin[]) : [];
-    const count = all.length;
-    const results = all.slice(offset, offset + limit);
+    // ① upstream が配列だった場合：Paginated に包む
+    if (Array.isArray(data)) {
+      const all = data as Goshuin[];
+      const results = all.slice(offset, offset + limit);
 
-    // next/previous は「この API 自身」へのリンクでOK
-    const origin = new URL(req.url).origin;
-    const path = `/api/public/goshuins/${encodeURIComponent(params.username)}`;
+      const hasPrev = offset > 0;
+      const hasNext = offset + limit < all.length;
 
-    const previous = offset > 0 ? `${origin}${path}?limit=${limit}&offset=${Math.max(0, offset - limit)}` : null;
+      const mkUrl = (newOffset: number) =>
+        `/api/public/goshuins/${encodeURIComponent(params.username)}?limit=${limit}&offset=${newOffset}`;
 
-    const next = offset + limit < count ? `${origin}${path}?limit=${limit}&offset=${offset + limit}` : null;
+      const body: Paginated<Goshuin> = {
+        count: all.length,
+        previous: hasPrev ? mkUrl(Math.max(0, offset - limit)) : null,
+        next: hasNext ? mkUrl(offset + limit) : null,
+        results,
+      };
 
-    const payload: Paginated<Goshuin> = { count, next, previous, results };
-    return NextResponse.json(payload, { status: 200 });
+      return NextResponse.json(body, { status: 200 });
+    }
+
+    // ② 既に Paginated 形式ならそのまま返す
+    return NextResponse.json(data, { status: 200 });
   } catch (e) {
     return NextResponse.json(
-      { error: "upstream fetch failed", upstreamUrl, message: e instanceof Error ? e.message : String(e) },
+      { error: "upstream fetch failed", upstream, message: e instanceof Error ? e.message : String(e) },
       { status: 502 },
     );
   }
