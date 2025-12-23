@@ -125,7 +125,9 @@ export default function MyGoshuinTopSection() {
       <header className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-900">あなたの御朱印</h2>
-          <p className="mt-1 text-xs text-slate-500">アップロードした御朱印をここで確認できます。</p>
+          <p className="mt-1 text-xs text-slate-500">
+            公開した御朱印は「公開ページ」に表示されます（非公開は自分だけ）。
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
