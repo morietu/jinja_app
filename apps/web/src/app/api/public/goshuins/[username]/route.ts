@@ -15,7 +15,9 @@ type Paginated<T> = {
   results: T[];
 };
 
-export async function GET(req: Request, { params }: { params: { username: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params;
+
   const base = (process.env.DJANGO_API_BASE_URL ?? "").replace(/\/$/, "");
   if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
@@ -23,13 +25,12 @@ export async function GET(req: Request, { params }: { params: { username: string
   const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
   const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
 
-  const upstream = `${base}/goshuins/?username=${encodeURIComponent(params.username)}`;
+  const upstream = `${base}/goshuins/?username=${encodeURIComponent(username)}`;
 
   try {
     const res = await fetch(upstream, { cache: "no-store" });
     const contentType = res.headers.get("content-type") ?? "application/json";
 
-    // upstream が失敗ならそのまま返す（デバッグしやすい）
     if (!res.ok) {
       const text = await res.text();
       return new NextResponse(text, { status: res.status, headers: { "content-type": contentType } });
@@ -37,28 +38,23 @@ export async function GET(req: Request, { params }: { params: { username: string
 
     const data = (await res.json()) as unknown;
 
-    // ① upstream が配列だった場合：Paginated に包む
     if (Array.isArray(data)) {
       const all = data as Goshuin[];
       const results = all.slice(offset, offset + limit);
 
-      const hasPrev = offset > 0;
-      const hasNext = offset + limit < all.length;
-
       const mkUrl = (newOffset: number) =>
-        `/api/public/goshuins/${encodeURIComponent(params.username)}?limit=${limit}&offset=${newOffset}`;
+        `/api/public/goshuins/${encodeURIComponent(username)}?limit=${limit}&offset=${newOffset}`;
 
       const body: Paginated<Goshuin> = {
         count: all.length,
-        previous: hasPrev ? mkUrl(Math.max(0, offset - limit)) : null,
-        next: hasNext ? mkUrl(offset + limit) : null,
+        previous: offset > 0 ? mkUrl(Math.max(0, offset - limit)) : null,
+        next: offset + limit < all.length ? mkUrl(offset + limit) : null,
         results,
       };
 
       return NextResponse.json(body, { status: 200 });
     }
 
-    // ② 既に Paginated 形式ならそのまま返す
     return NextResponse.json(data, { status: 200 });
   } catch (e) {
     return NextResponse.json(
