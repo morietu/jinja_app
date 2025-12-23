@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PublicGoshuinHeader from "./PublicGoshuinHeader";
 
 type Props = {
   params: { username: string };
@@ -57,8 +58,8 @@ function Card({ g }: { g: Goshuin }) {
 export default async function PublicGoshuinPage({ params, searchParams }: Props) {
   const { username } = params;
 
-  const limit = Number(searchParams?.limit ?? 12);
-  const offset = Number(searchParams?.offset ?? 0);
+  const limit = Math.max(1, Math.min(48, Number(searchParams?.limit ?? 12) || 12));
+  const offset = Math.max(0, Number(searchParams?.offset ?? 0) || 0);
 
   let data: Paginated<Goshuin>;
   try {
@@ -68,24 +69,12 @@ export default async function PublicGoshuinPage({ params, searchParams }: Props)
   }
 
   const items = data.results ?? [];
-
   const prevOffset = Math.max(0, offset - limit);
   const nextOffset = offset + limit;
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">@{username} の御朱印帳</h1>
-          <p className="mt-1 text-xs text-slate-500">公開されている御朱印のみ表示します。</p>
-        </div>
-
-        <div className="text-xs text-slate-500">
-          {data.count
-            ? `${Math.min(offset + 1, data.count)}-${Math.min(offset + limit, data.count)} / ${data.count}`
-            : ""}
-        </div>
-      </header>
+      <PublicGoshuinHeader username={username} count={data.count} limit={limit} offset={offset} />
 
       {items.length === 0 ? (
         <div className="rounded-2xl border bg-white p-6 text-sm text-slate-600">公開されている御朱印がありません。</div>
