@@ -5,8 +5,8 @@ import type { Metadata } from "next";
 
 
 type Props = {
-  params: { username: string };
-  searchParams?: { offset?: string; limit?: string };
+  params: Promise<{ username: string }>;
+  searchParams?: Promise<{ offset?: string; limit?: string }>;
 };
 
 type Goshuin = {
@@ -57,8 +57,8 @@ function Card({ g }: { g: Goshuin }) {
   );
 }
 
-export async function generateMetadata({ params }: { params: { username: string } }): Promise<Metadata> {
-  const username = params.username;
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
+  const { username } = await params;
 
   const title = `@${username} の御朱印帳 | 神社ナビ`;
   const description = "公開している御朱印をまとめて見られます。";
@@ -88,10 +88,12 @@ export async function generateMetadata({ params }: { params: { username: string 
 }
 
 export default async function PublicGoshuinPage({ params, searchParams }: Props) {
-  const { username } = params;
+  const { username } = await params;
 
-  const limit = Math.max(1, Math.min(48, Number(searchParams?.limit ?? 12) || 12));
-  const offset = Math.max(0, Number(searchParams?.offset ?? 0) || 0);
+  const sp = (await searchParams) ?? {};
+  const limit = Math.max(1, Math.min(48, Number(sp.limit ?? 12) || 12));
+  const offset = Math.max(0, Number(sp.offset ?? 0) || 0);
+
 
   let data: Paginated<Goshuin>;
   try {
