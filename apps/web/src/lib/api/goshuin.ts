@@ -88,7 +88,7 @@ export async function fetchGoshuin(): Promise<Goshuin[]> {
   return fetchPublicGoshuin();
 }
 
-// ✅ 自分の御朱印一覧（BFF /api/my/goshuin/ 経由）
+// ✅ 自分の御朱印一覧（BFF /api/my/goshuins/ 経由）
 export async function fetchMyGoshuin(): Promise<Goshuin[]> {
   const r = await api.get<any>("/my/goshuins/");
   return toList(r.data);

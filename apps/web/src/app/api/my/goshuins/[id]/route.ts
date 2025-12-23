@@ -8,77 +8,101 @@ function extractIdFromUrl(req: NextRequest): string | null {
   const url = new URL(req.url);
   const segments = url.pathname.replace(/\/+$/, "").split("/");
   const last = segments[segments.length - 1] ?? "";
-  if (!last || last === "undefined") {
-    return null;
-  }
+  if (!last || last === "undefined") return null;
   return last;
 }
 
-// DELETE /api/my/goshuins/:id → Django /api/my/goshuins/:id/
-export async function DELETE(req: NextRequest) {
-  const id = extractIdFromUrl(req);
+async function refreshAccessToken(req: NextRequest): Promise<string | null> {
+  const refresh = req.cookies.get("refresh_token")?.value ?? null;
+  if (!refresh) return null;
 
-  console.log("[BFF DELETE ENTER] rawUrl =", req.url, "id =", id);
-
-  if (!id) {
-    console.error("[BFF DELETE] id could not be resolved");
-    return NextResponse.json({ detail: "id is required" }, { status: 400 });
-  }
-
-  const upstream = await djFetch(req, `/api/my/goshuins/${id}/`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-    },
+  const r = await djFetch(req, "/api/auth/jwt/refresh/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ refresh }),
   });
 
-  console.log("[BFF DELETE upstream status]", upstream.status);
+  if (!r.ok) return null;
 
-  // ★ 204 の場合は body なしでそのまま返す
-  if (upstream.status === 204) {
-    return new NextResponse(null, { status: 204 });
+  const data = (await r.json()) as { access?: string };
+  return data.access ?? null;
+}
+
+export async function PATCH(req: NextRequest) {
+  const id = extractIdFromUrl(req);
+  if (!id) return NextResponse.json({ detail: "id is required" }, { status: 400 });
+
+  const body = await req.text();
+  const contentType = req.headers.get("content-type") ?? "application/json";
+
+  const doUpstream = (accessOverride?: string) =>
+    djFetch(req, `/api/my/goshuins/${id}/`, {
+      method: "PATCH",
+      body,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": contentType,
+        ...(accessOverride ? { Authorization: `Bearer ${accessOverride}` } : {}),
+      },
+    });
+
+  let upstream = await doUpstream();
+
+  // access期限切れ → refresh → retry
+  if (upstream.status === 401) {
+    const newAccess = await refreshAccessToken(req);
+    if (newAccess) upstream = await doUpstream(newAccess);
+
+    // ブラウザ側の次リクエストも通るよう cookie 更新（retry が成功した時だけ）
+    if (newAccess && upstream.ok) {
+      const text = await upstream.text();
+      const res = new NextResponse(text, {
+        status: upstream.status,
+        headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
+      });
+      res.cookies.set("access_token", newAccess, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 });
+      return res;
+    }
   }
 
   const text = await upstream.text();
-
   return new NextResponse(text, {
     status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-    },
+    headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
   });
 }
 
-
-// PATCH /api/my/goshuins/:id/ → Django /api/my/goshuins/:id/
-export async function PATCH(req: NextRequest) {
+export async function DELETE(req: NextRequest) {
   const id = extractIdFromUrl(req);
-  const body = await req.text();
+  if (!id) return NextResponse.json({ detail: "id is required" }, { status: 400 });
 
-  console.log("[BFF PATCH ENTER] rawUrl =", req.url, "id =", id, "body=", body);
+  const doUpstream = (accessOverride?: string) =>
+    djFetch(req, `/api/my/goshuins/${id}/`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        ...(accessOverride ? { Authorization: `Bearer ${accessOverride}` } : {}),
+      },
+    });
 
-  if (!id) {
-    console.error("[BFF PATCH] id could not be resolved");
-    return NextResponse.json({ detail: "id is required" }, { status: 400 });
+  let upstream = await doUpstream();
+
+  if (upstream.status === 401) {
+    const newAccess = await refreshAccessToken(req);
+    if (newAccess) upstream = await doUpstream(newAccess);
+
+    if (newAccess && upstream.status === 204) {
+      const res = new NextResponse(null, { status: 204 });
+      res.cookies.set("access_token", newAccess, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 });
+      return res;
+    }
   }
 
-  const upstream = await djFetch(req, `/api/my/goshuins/${id}/`, {
-    method: "PATCH",
-    body,
-    headers: {
-      "Content-Type": req.headers.get("content-type") ?? "application/json",
-      Accept: "application/json",
-    },
-  });
-
-  console.log("[BFF PATCH upstream status]", upstream.status);
+  if (upstream.status === 204) return new NextResponse(null, { status: 204 });
 
   const text = await upstream.text();
-
   return new NextResponse(text, {
     status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-    },
+    headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
   });
 }

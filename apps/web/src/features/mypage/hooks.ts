@@ -1,8 +1,8 @@
 // apps/web/src/features/mypage/hooks.ts
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { fetchMe, type MeResponse } from "@/lib/api/mypage";
+import { useEffect, useState, useCallback, useRef } from "react";
+
 import axios from "axios";
 import type { Goshuin } from "@/lib/api/goshuin";
 import {
@@ -37,39 +37,7 @@ function getPlanLimitExceededBody(e: unknown): PlanLimitErrorBody | null {
 /**
  * /api/my/profile/（= Django /api/users/me/）を叩くフック
  */
-export function useMe() {
-  const [data, setData] = useState<MeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetchMe(); // res は MeResponse
-        if (!cancelled) {
-          setData(res); // ★ res.user ではなく res そのもの
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError("ユーザー情報の取得に失敗しました");
-          console.error(e);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { me: data, loading, error };
-}
 
 type UseMyGoshuinOptions = {
   enabled?: boolean;
@@ -90,9 +58,48 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const itemsRef = useRef<Goshuin[] | null>(null);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const removeItem = useCallback(async (id: number) => {
+    const snapshot = itemsRef.current; // ★最新の配列を確保
+    setItems((cur) => (cur ? cur.filter((g) => g.id !== id) : cur));
+
+    try {
+      await deleteMyGoshuin(id);
+      setError(null);
+    } catch (e) {
+      setItems(snapshot ?? null); // ★丸ごとロールバック
+      setError("削除に失敗しました。時間をおいて再度お試しください。");
+      console.error(e);
+    }
+  }, []);
+
+  const toggleVisibility = useCallback(async (id: number, next: boolean) => {
+    const snapshot = itemsRef.current; // ★最新の配列を確保
+    setItems((cur) => (cur ? cur.map((g) => (g.id === id ? { ...g, is_public: next } : g)) : cur));
+
+    try {
+      const updated = await updateMyGoshuinVisibility(id, next);
+      setItems((cur) => (cur ? cur.map((g) => (g.id === id ? { ...g, is_public: updated.is_public } : g)) : cur));
+      setError(null);
+    } catch (e) {
+      setItems(snapshot ?? null); // ★丸ごとロールバック（これが一番堅い）
+      setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
+      console.error(e);
+    }
+  }, []);
+
   // ① 先に addItem（upload が使う）
   const addItem = useCallback((item: Goshuin) => {
-    setItems((prev) => (prev ? [item, ...prev] : [item]));
+    setItems((prev) => {
+      const list = prev ?? [];
+      const exists = list.some((x) => x.id === item.id);
+      if (exists) return list.map((x) => (x.id === item.id ? item : x));
+      return [item, ...list];
+    });
   }, []);
 
   // ② load（初回ロード / reload が使う）
@@ -149,44 +156,10 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     await load();
   }, [load]);
 
-  // ⑥ removeItem / toggleVisibility（今のままでOK）
-  const removeItem = useCallback(
-    async (id: number) => {
-      const prev = items;
-      if (items) setItems(items.filter((g) => g.id !== id));
+  
+  // ⑥ removeItem / toggleVisibility（堅牢版）
 
-      try {
-        await deleteMyGoshuin(id);
-        setError(null);
-      } catch (e) {
-        setItems(prev ?? null);
-        setError("削除に失敗しました。時間をおいて再度お試しください。");
-        console.error(e);
-      }
-    },
-    [items],
-  );
-
-  const toggleVisibility = useCallback(
-    async (id: number, next: boolean) => {
-      if (!items) return;
-
-      setItems(items.map((g) => (g.id === id ? { ...g, is_public: next } : g)));
-
-      try {
-        const updated = await updateMyGoshuinVisibility(id, next);
-        setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: updated.is_public } : g)) : prev));
-        setError(null);
-      } catch (e) {
-        const target = items.find((g) => g.id === id);
-        const original = target ? target.is_public : true;
-        setItems((prev) => (prev ? prev.map((g) => (g.id === id ? { ...g, is_public: original } : g)) : prev));
-        setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
-        console.error(e);
-      }
-    },
-    [items],
-  );
+  
 
   return { items, loading, error, upload, addItem, removeItem, toggleVisibility, reload };
 }

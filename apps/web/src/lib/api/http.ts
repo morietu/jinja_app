@@ -67,7 +67,7 @@ export function __resolveUrlForTest(path: string): string {
   // 先頭に / を付けて正規化
   let p = path.startsWith("/") ? path : `/${path}`;
 
-  // "/my/goshuin/?a=1" → "/my/goshuin?a=1" に正規化
+  // "/my/goshuins/?a=1" → "/my/goshuins?a=1" に正規化
   p = p.replace("/?", "?");
 
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;

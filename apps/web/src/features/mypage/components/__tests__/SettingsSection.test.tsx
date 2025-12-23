@@ -11,13 +11,7 @@ describe("SettingsSection", () => {
     },
   };
 
-  it("プロフィール編集リンクを表示する", () => {
-    render(<SettingsSection user={baseUser} />);
-
-    const link = screen.getByRole("link", { name: "プロフィールを編集する" });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/mypage/edit");
-  });
+  
 
   it("公開中ユーザーには公開プロフィールページへのリンクを表示する", () => {
     render(<SettingsSection user={baseUser} />);

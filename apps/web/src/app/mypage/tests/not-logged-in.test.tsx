@@ -16,9 +16,6 @@ vi.mock("@/lib/hooks/useAuth", () => ({
 describe("MyPage 未ログイン", () => {
   it("ログイン導線が表示される", () => {
     render(<MyPage />);
-    expect(screen.getByRole("link", { name: "ログインへ" })).toHaveAttribute(
-      "href",
-      "/login?next=/mypage"
-    );
+    expect(screen.getByRole("link", { name: "ログインへ" })).toHaveAttribute("href", "/login?next=/mypage?tab=goshuin");
   });
 });

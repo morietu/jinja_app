@@ -1,14 +1,9 @@
-// apps/web/src/app/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
-import { HomeRankingSection } from "@/features/home/components/HomeRankingSection";
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { SectionCard } from "@/components/layout/SectionCard";
-
-
-
-
+import MyGoshuinTopSection from "@/features/goshuin/components/MyGoshuinTopSection";
 
 export default function HomePage() {
   const router = useRouter();
@@ -43,14 +38,8 @@ export default function HomePage() {
         >
           <HomeNearbySection />
         </SectionCard>
-
-        {/* 人気ランキング（既存） */}
-        <SectionCard
-          title="今人気の神社ランキング（30日）"
-          description="最近30日間の御朱印アップ数・お気に入り数をもとにしたランキングです。"
-        >
-          <HomeRankingSection />
-        </SectionCard>
+        {/* 追加：あなたの御朱印 */}
+        <MyGoshuinTopSection />
       </div>
     </main>
   );

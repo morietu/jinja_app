@@ -5,5 +5,5 @@ export const TABS: TabKey[] = ["profile", "favorites", "goshuin"];
 
 export function sanitizeTab(v?: string | null): TabKey {
   if (!v) return "profile";
-  return TABS.includes(v as TabKey) ? (v as TabKey) : "profile";
+  return (TABS as readonly string[]).includes(v) ? (v as TabKey) : "profile";
 }

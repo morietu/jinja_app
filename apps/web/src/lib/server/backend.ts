@@ -51,12 +51,18 @@ export async function djFetch(
       headers.set("Authorization", incomingAuth);
     }
 
-    if (cookie && !headers.has("Authorization")) {
-      const m = cookie.match(/access_token=([^;]+)/);
-      if (m) {
-        const token = decodeURIComponent(m[1]);
-        headers.set("Authorization", `Bearer ${token}`);
-      }
+    // cookie -> Authorization（access_token を優先）
+    if (!headers.has("Authorization")) {
+      const access = req.cookies.get("access_token")?.value;
+
+      // req.cookies が取れない環境の保険（今まで通り）
+      const fallback = (() => {
+        const m = cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      })();
+
+      const token = access || fallback;
+      if (token) headers.set("Authorization", `Bearer ${token}`);
     }
 
     if (cookie && !headers.has("cookie")) {
@@ -84,5 +90,6 @@ export async function djFetch(
     (finalInit as any).duplex = "half";
   }
 
+  headers.set("Host", "127.0.0.1");
   return fetch(url, finalInit);
 }
