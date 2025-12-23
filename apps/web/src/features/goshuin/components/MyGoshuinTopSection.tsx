@@ -75,13 +75,50 @@ export default function MyGoshuinTopSection() {
     enabled: isLoggedIn,
   });
 
-
   const hasPublic = Boolean(items?.some((g) => g.is_public));
   const publicUrl = username ? `/g/${encodeURIComponent(username)}` : null;
 
-  
   const latest = (items ?? []).slice(0, 4);
   const showPlaceholders = !isLoggedIn || (!loading && !error && latest.length === 0);
+  const thumbs = (
+    <>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      ) : showPlaceholders ? (
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <PlaceholderToriiCard key={i} label={i < 3 ? "鳥居イメージ" : "あなたの御朱印"} />
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            {!isLoggedIn
+              ? "ログインすると、御朱印を保存してここに並べられます。"
+              : "まだ御朱印がありません。下から画像をアップロードできます。"}
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {latest.map((g) => (
+            <GoshuinCardMini
+              key={g.id}
+              title={g.title}
+              imageUrl={g.image_url}
+              shrineName={g.shrine_name ?? null}
+              isPublic={g.is_public}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -94,20 +131,18 @@ export default function MyGoshuinTopSection() {
         <div className="flex items-center gap-2">
           {/* ログイン済なら公開ページ導線（公開が無いなら disabled 表示） */}
           {isLoggedIn && publicUrl && (
-            <a
+            <Link
               href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
+              aria-disabled={!hasPublic}
+              title={hasPublic ? "公開御朱印帳を開く" : "公開中の御朱印がありません"}
               className={`rounded-md px-3 py-2 text-xs font-medium ${
                 hasPublic
                   ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                   : "pointer-events-none bg-slate-100 text-slate-400"
               }`}
-              aria-disabled={!hasPublic}
-              title={hasPublic ? "公開御朱印帳を開く" : "公開中の御朱印がありません"}
             >
               公開ページ
-            </a>
+            </Link>
           )}
 
           {!isLoggedIn ? (
@@ -126,51 +161,20 @@ export default function MyGoshuinTopSection() {
         </div>
       </header>
 
-      {/* サムネ領域（未ログインでもイメージが伝わるように出す） */}
+      {/* サムネ領域（公開がある時は全体クリックで /g/:username） */}
       <div className="mt-5">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-        ) : showPlaceholders ? (
-          <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <PlaceholderToriiCard key={i} label={i < 3 ? "鳥居イメージ" : "あなたの御朱印"} />
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              {!isLoggedIn
-                ? "ログインすると、御朱印を保存してここに並べられます。"
-                : "まだ御朱印がありません。下から画像をアップロードできます。"}
-            </div>
-          </>
+        {isLoggedIn && hasPublic && publicUrl ? (
+          <Link
+            href={publicUrl}
+            className="block rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-400"
+            aria-label="公開御朱印帳を開く"
+          >
+            <div className="cursor-pointer transition-opacity hover:opacity-95">{thumbs}</div>
+          </Link>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {latest.map((g) => (
-              <GoshuinCardMini
-                key={g.id}
-                title={g.title}
-                imageUrl={g.image_url}
-                shrineName={g.shrine_name ?? null}
-                isPublic={g.is_public}
-              />
-            ))}
-          </div>
+          thumbs
         )}
       </div>
-
-      {/* 最短の動線：ログイン時だけアップロードを出す */}
-      {isLoggedIn && hasPublic && user?.username && (
-        <Link href={`/g/${user.username}`} className="text-xs text-blue-600 underline">
-          公開御朱印帳を見る
-        </Link>
-      )}
     </section>
   );
 }
