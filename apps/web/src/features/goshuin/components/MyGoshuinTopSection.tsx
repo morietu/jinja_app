@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useMyGoshuin } from "@/features/mypage/hooks";
-import GoshuinUploadForm from "@/features/mypage/components/GoshuinUploadForm";
+
 
 
 
@@ -23,7 +23,7 @@ function GoshuinCardMini({
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="aspect-[4/5] bg-muted">
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+          
           <img src={imageUrl} alt={title ?? "御朱印"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">画像なし</div>
@@ -71,7 +71,7 @@ export default function MyGoshuinTopSection() {
   const { isLoggedIn, user } = useAuth();
   const username = user?.username ?? null;
 
-  const { items, loading, error, upload, reload } = useMyGoshuin({
+  const { items, loading, error, reload } = useMyGoshuin({
     enabled: isLoggedIn,
   });
 
