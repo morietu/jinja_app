@@ -21,11 +21,7 @@ export function useAuth() {
     }
   }, []);
 
-  // 初期ロード
-  useEffect(() => {
-    fetchMe();
-  }, [fetchMe]);
-
+  
   const login = useCallback(
     async (username: string, password: string) => {
       await loginApiCompat(username, password); // Cookie 設定（Next API 経由）
@@ -54,6 +50,5 @@ export function useAuth() {
     logout,
     isLoggedIn,
     isAuthenticated,
-    refresh: fetchMe, // ★ ここがポイント
   };
 }

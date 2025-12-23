@@ -28,9 +28,7 @@ export default function SettingsSection({ user }: Props) {
         </p>
 
         <div>
-          <Link href="/mypage/edit" className="text-sm text-blue-600 underline">
-            プロフィールを編集する
-          </Link>
+          
         </div>
 
         {/* 公開中だけ「公開プロフィールページ」へのリンクを出す */}

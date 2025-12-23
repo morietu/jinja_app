@@ -60,7 +60,14 @@ export async function POST(req: NextRequest) {
   // 3) ここから先は「そのまま」backend に渡す（trimしない）
   const username = usernameRaw;
   const password = passwordRaw;
-
+  
+  console.log(
+    "[login] DJ URL =",
+    process.env.API_BASE,
+    process.env.NEXT_PUBLIC_BACKEND_ORIGIN,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+  );
+  console.log("[login] payload username len =", username.length);
   try {
     const r = await djFetch(`/api/auth/jwt/create/`, {
       method: "POST",
@@ -70,6 +77,7 @@ export async function POST(req: NextRequest) {
 
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
+      console.error("[login] upstream status", r.status, "body", txt.slice(0, 200));
       return new NextResponse(txt || "Login failed", { status: r.status });
     }
 
