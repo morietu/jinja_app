@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicGoshuinHeader from "./PublicGoshuinHeader";
+import type { Metadata } from "next";
+
 
 type Props = {
   params: { username: string };
@@ -53,6 +55,36 @@ function Card({ g }: { g: Goshuin }) {
       </div>
     </div>
   );
+}
+
+export async function generateMetadata({ params }: { params: { username: string } }): Promise<Metadata> {
+  const username = params.username;
+
+  const title = `@${username} の御朱印帳 | 神社ナビ`;
+  const description = "公開している御朱印をまとめて見られます。";
+
+  const siteUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://YOUR-PROD-DOMAIN";
+
+  const ogImage = `${siteUrl}/ogp/goshuin-default.png`;
+  const url = `${siteUrl}/g/${encodeURIComponent(username)}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      images: [{ url: ogImage }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function PublicGoshuinPage({ params, searchParams }: Props) {

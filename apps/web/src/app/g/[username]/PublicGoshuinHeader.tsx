@@ -13,12 +13,13 @@ export default function PublicGoshuinHeader({ username, count, limit, offset }: 
   const from = count ? Math.min(offset + 1, count) : 0;
   const to = count ? Math.min(offset + limit, count) : 0;
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/g/${encodeURIComponent(username)}` : "";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const shareUrl = baseUrl ? `${baseUrl}/g/${encodeURIComponent(username)}` : "";
 
   const onCopy = async () => {
     if (!shareUrl) return;
     await navigator.clipboard.writeText(shareUrl);
-    // トーストが無ければ最小はこれでOK
     alert("URLをコピーしました");
   };
 
