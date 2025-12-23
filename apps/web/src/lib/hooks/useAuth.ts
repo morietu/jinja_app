@@ -1,6 +1,7 @@
 // apps/web/src/lib/hooks/useAuth.ts
 "use client";
-import { useEffect, useState, useCallback } from "react";
+
+import { useState, useCallback } from "react";
 import { getCurrentUser, type UserMe } from "@/lib/api/users";
 import { loginApi as loginApiCompat, logout as logoutApi } from "@/lib/api/auth";
 

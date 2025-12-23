@@ -28,7 +28,7 @@ function Card({ g }: { g: Goshuin }) {
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="aspect-[4/5] bg-slate-100">
         {g.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
+          
           <img src={g.image_url} alt={g.title ?? "御朱印"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-500">画像なし</div>
