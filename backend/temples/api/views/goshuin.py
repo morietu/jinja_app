@@ -25,11 +25,6 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 
 
 class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    GET /api/goshuins/
-    GET /api/goshuins/{id}/  ※ router が作る
-    公開(is_public=True)のみ
-    """
     queryset = (
         Goshuin.objects.filter(is_public=True)
         .select_related("shrine", "user")
@@ -37,7 +32,14 @@ class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
     )
     serializer_class = GoshuinSerializer
     permission_classes = [permissions.AllowAny]
-    pagination_class = None  # 配列で返す（現状互換）
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        username = self.request.query_params.get("username")
+        if username:
+            qs = qs.filter(user__username=username)
+        return qs
 
 
 class MyGoshuinViewSet(viewsets.ViewSet):
