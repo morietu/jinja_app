@@ -77,7 +77,7 @@ function PlaceholderToriiCard({ label = "サンプル" }: { label?: string }) {
 
 export default function MyGoshuinTopSection() {
   const { isLoggedIn, user } = useAuth();
-  const username = user?.username ?? null;
+  
 
   const { items, loading, error } = useMyGoshuin({ enabled: isLoggedIn });
 
