@@ -51,15 +51,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Jinja
               </Link>
 
-              {/* 右側：検索アイコン＋御朱印帳 */}
-              <div className="ml-auto flex items-center gap-3">
-                {/* 検索アイコンボタン */}
+              <div className="ml-auto flex items-center gap-4">
+                {/* 検索 */}
                 <Link
                   href="/search"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm shadow-sm"
                   aria-label="神社を検索"
                 >
                   <span aria-hidden>🔍</span>
+                </Link>
+
+                {/* みんなの公開御朱印 */}
+                <Link href="/goshuins/public" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+                  みんなの御朱印
                 </Link>
 
                 {/* 御朱印帳 */}

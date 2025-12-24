@@ -15,9 +15,7 @@ type Paginated<T> = {
   results: T[];
 };
 
-export async function GET(req: Request, { params }: { params: Promise<{ username: string }> }) {
-  const { username } = await params;
-
+export async function GET(req: Request) {
   const base = (process.env.DJANGO_API_BASE_URL ?? "").replace(/\/$/, "");
   if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
@@ -25,7 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ username
   const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
   const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
 
-  const upstream = `${base}/goshuins/?username=${encodeURIComponent(username)}`;
+  const upstream = `${base}/goshuins/?is_public=true`;
 
   try {
     const res = await fetch(upstream, { cache: "no-store" });
@@ -38,24 +36,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ username
 
     const data = (await res.json()) as unknown;
 
-    if (Array.isArray(data)) {
-      const all = data as Goshuin[];
-      const results = all.slice(offset, offset + limit);
+    const all = Array.isArray(data) ? (data as Goshuin[]) : [];
+    const results = all.slice(offset, offset + limit);
 
-      const mkUrl = (newOffset: number) =>
-        `/api/public/goshuins/${encodeURIComponent(username)}?limit=${limit}&offset=${newOffset}`;
+    const body: Paginated<Goshuin> = {
+      count: all.length,
+      previous: offset > 0 ? `/api/public/goshuins?limit=${limit}&offset=${Math.max(0, offset - limit)}` : null,
+      next: offset + limit < all.length ? `/api/public/goshuins?limit=${limit}&offset=${offset + limit}` : null,
+      results,
+    };
 
-      const body: Paginated<Goshuin> = {
-        count: all.length,
-        previous: offset > 0 ? mkUrl(Math.max(0, offset - limit)) : null,
-        next: offset + limit < all.length ? mkUrl(offset + limit) : null,
-        results,
-      };
-
-      return NextResponse.json(body, { status: 200 });
-    }
-
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(body, { status: 200 });
   } catch (e) {
     return NextResponse.json(
       { error: "upstream fetch failed", upstream, message: e instanceof Error ? e.message : String(e) },
