@@ -4,62 +4,49 @@ import type { Paginated, Shrine } from "./types";
 
 export type { Shrine } from "./types";
 
-const API_BASE = process.env.PLAYWRIGHT_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api";
 
-export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
-  const searchParams = new URLSearchParams();
-  if (params?.q) searchParams.set("q", params.q);
 
-  const query = searchParams.toString();
-  const url = query ? `${API_BASE}/shrines/?${query}` : `${API_BASE}/shrines/`;
+// ✅ Next(3000) の /api を叩く（E2E/CIでも動くように absolute）
+const WEB_BASE =
+  process.env.PLAYWRIGHT_BASE_URL ||
+  process.env.NEXT_PUBLIC_WEB_BASE_URL ||
+  "http://localhost:3000";
 
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`failed to fetch shrines: ${res.status}`);
-
-  const data = await res.json();
-  if (Array.isArray(data)) return data;
-  return data.results ?? [];
-}
-
-export async function getShrine(id: number): Promise<Shrine> {
-  const shrines = await getShrines();
-  const shrine = shrines.find((s) => Number(s.id) === id);
-  if (!shrine) throw new Error("shrine not found");
-  return shrine;
-}
-
-// ✅ 人気神社ランキング（/api/populars/ を直接叩く）
-const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
-const POPULARS_API_BASE = `${BACKEND_ORIGIN}/api/populars/`;
+const WEB_API_BASE = `${WEB_BASE}/api`;
 
 export async function getPopularShrines(params?: {
   limit?: number;
   nearLat?: number;
   nearLng?: number;
   radiusKm?: number;
-}) {
-  const searchParams = new URLSearchParams();
-
-  if (params?.limit != null) searchParams.set("limit", String(params.limit));
+}): Promise<Shrine[]> {
+  const sp = new URLSearchParams();
+  if (params?.limit != null) sp.set("limit", String(params.limit));
   if (params?.nearLat != null && params?.nearLng != null && params?.radiusKm != null) {
-    searchParams.set("near", `${params.nearLat},${params.nearLng}`);
-    searchParams.set("radius_km", String(params.radiusKm));
+    sp.set("near", `${params.nearLat},${params.nearLng}`);
+    sp.set("radius_km", String(params.radiusKm));
   }
 
-  const query = searchParams.toString();
-  const url = query.length > 0 ? `${POPULARS_API_BASE}?${query}` : POPULARS_API_BASE;
+  // ✅ Next の /api/populars を用意してるならそれを叩く
+  const query = sp.toString();
+  const url = query ? `${WEB_API_BASE}/populars/?${query}` : `${WEB_API_BASE}/populars/`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("failed to fetch popular shrines");
-
   const data = await res.json();
+
   if (Array.isArray(data)) return data;
-  if (Array.isArray(data.results)) return data.results;
-  if (Array.isArray(data.items)) return data.items;
-  return [];
+  return data.results ?? data.items ?? [];
 }
 
-// 近くの神社（DRFページネーション形式）
+export async function getShrine(id: number): Promise<Shrine> {
+  const url = `${WEB_API_BASE}/shrines/${id}/`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`failed to fetch shrine: ${res.status}`);
+  return (await res.json()) as Shrine;
+}
+
+// 近くの神社（ここは axios の baseURL が /api ならこのままでOK）
 export async function fetchNearestShrines(params: {
   lat: number;
   lng: number;
