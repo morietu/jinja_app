@@ -82,9 +82,10 @@ export default function MyGoshuinTopSection() {
   const hasAny = (items ?? []).length > 0;
   const hasPublic = (items ?? []).some((g) => g.is_public);
   const showPublishCta = isLoggedIn && !loading && !error && hasAny && !hasPublic;
+  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 4);
 
-  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 2);
   const showPlaceholders = !isLoggedIn || (!loading && !error && latestPublic.length === 0);
+  const GRID = "grid grid-cols-2 gap-4 sm:grid-cols-4";
 
   const emptyText = !isLoggedIn
     ? ""
@@ -94,46 +95,51 @@ export default function MyGoshuinTopSection() {
         ? "公開中の御朱印がありません。"
         : "";
 
-  const thumbs = (
-    <>
-      {loading ? (
-        <div className="grid grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      ) : showPlaceholders ? (
-        <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <PlaceholderToriiCard key={i} label={i < 1 ? "鳥居イメージ" : "あなたの御朱印"} />
+    const thumbs = (
+      <>
+        {loading ? (
+          <div className={GRID}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className={i >= 2 ? "hidden sm:block" : ""}>
+                <div className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />
+              </div>
             ))}
           </div>
-
-          {emptyText && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              {emptyText}
+        ) : error ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        ) : showPlaceholders ? (
+          <>
+            <div className={GRID}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className={i >= 2 ? "hidden sm:block" : ""}>
+                  <PlaceholderToriiCard label={i === 0 ? "鳥居イメージ" : "あなたの御朱印"} />
+                </div>
+              ))}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {latestPublic.map((g) => (
-            <GoshuinCardMini
-              key={g.id}
-              title={g.title}
-              imageUrl={g.image_url}
-              shrineName={g.shrine_name ?? null}
-              isPublic={g.is_public}
-              showBadge={false}
-            />
-          ))}
-        </div>
-      )}
-    </>
-  );
+
+            {emptyText && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                {emptyText}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className={GRID}>
+            {latestPublic.map((g, i) => (
+              <div key={g.id} className={i >= 2 ? "hidden sm:block" : ""}>
+                <GoshuinCardMini
+                  title={g.title}
+                  imageUrl={g.image_url}
+                  shrineName={g.shrine_name ?? null}
+                  isPublic={g.is_public}
+                  showBadge={false}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
 
   return (
     <div className="space-y-4">
