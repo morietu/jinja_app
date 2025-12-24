@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
+import Link from "next/link";
+
+
 
 export default function MyPageView() {
   const router = useRouter();
@@ -82,8 +85,29 @@ export default function MyPageView() {
     });
   };
 
-  if (loading) return <div className="p-4 text-sm text-gray-500">読み込み中...</div>;
-  if (!user) return <div className="p-4 text-sm text-red-600">未ログインです。</div>;
+  if (loading) return (
+    <div className="p-4 text-sm text-gray-500" role="status" aria-busy="true">
+      読み込み中...
+    </div>
+  );
+  
+  if (!user) {
+    const next = tab === "goshuin" ? "/mypage?tab=goshuin" : "/mypage?tab=profile";
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <h1 className="mb-4 text-xl font-bold">マイページ</h1>
+        <div className="rounded-lg border bg-white p-6">
+          <p className="mb-3">利用するにはログインしてください。</p>
+          <Link
+            href={`/login?next=${encodeURIComponent(next)}`}
+            className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            ログインへ
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="space-y-6">

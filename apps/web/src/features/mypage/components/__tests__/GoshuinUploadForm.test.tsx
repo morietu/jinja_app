@@ -8,6 +8,10 @@ vi.mock("@/lib/api/goshuin", () => ({
   uploadMyGoshuin: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams("shrine=1"),
+}));
+
 describe("GoshuinUploadForm", () => {
   it("正常アップロード時に API が呼ばれ、成功メッセージが表示される", async () => {
     (uploadMyGoshuin as any).mockResolvedValue({

@@ -35,6 +35,7 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
     setError(null);
     setSuccess(null);
 
+    
     if (!shrineId) {
       setError("神社詳細ページから「御朱印を追加」で来てください。");
       return;
@@ -43,6 +44,18 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
       setError("画像ファイルを選択してください。");
       return;
     }
+
+    if (!file.type.startsWith("image/")) {
+      setError("画像ファイルのみアップロードできます。");
+      return;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setError("ファイルサイズは 5MB 以下を推奨しています。");
+      return;
+    }
+
 
     try {
       setLoading(true);
@@ -75,7 +88,13 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
 
       <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border p-4">
         <span>🖼️ 画像を選択</span>
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          aria-label="御朱印画像"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
       </label>
 
       {previewUrl && <Image src={previewUrl} alt="preview" width={400} height={400} unoptimized />}
