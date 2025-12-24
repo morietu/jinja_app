@@ -78,10 +78,13 @@ export default function MyGoshuinTopSection() {
   const publicUrl = username ? `/g/${encodeURIComponent(username)}` : null;
 
   const hasAny = (items ?? []).length > 0;
-  const hasPublic = Boolean(items?.some((g) => g.is_public));
-  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 4);
-
+  
+  const hasPublic = (items ?? []).some((g) => g.is_public);
   const showPublishCta = isLoggedIn && !loading && !error && hasAny && !hasPublic;
+  
+  
+  
+  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 4);
   const showPlaceholders = !isLoggedIn || (!loading && !error && latestPublic.length === 0);
 
   const emptyText = !isLoggedIn
@@ -177,7 +180,18 @@ export default function MyGoshuinTopSection() {
 
       {showPublishCta && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          まず1枚だけ公開してみよう。公開すると、あなたの「公開ページ」に表示されます。
+          <div className="font-medium">まず1枚だけ公開してみよう</div>
+          <div className="mt-1 text-[13px] text-amber-900/80">
+            公開すると、あなたの「公開ページ」に表示されてカードが強くなります。
+          </div>
+          <div className="mt-3">
+            <Link
+              href="/mypage?tab=goshuin"
+              className="inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700"
+            >
+              公開設定をする
+            </Link>
+          </div>
         </div>
       )}
 
