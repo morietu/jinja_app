@@ -61,13 +61,15 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
                 </header>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {publicGoshuins.results.slice(0, 4).map((g) => {
+                  {publicGoshuins.results.slice(0, 4).map((g, i) => {
                     const href = g.shrine ? `/shrines/${g.shrine}` : "/goshuins/public";
                     return (
                       <Link
                         key={g.id}
                         href={href}
-                        className="block overflow-hidden rounded-2xl border bg-white shadow-sm hover:opacity-95"
+                        className={`block overflow-hidden rounded-2xl border bg-white shadow-sm hover:opacity-95 ${
+                          i >= 2 ? "hidden sm:block" : ""
+                        }`}
                       >
                         <div className="relative aspect-[4/5] bg-slate-100">
                           {g.image_url ? (

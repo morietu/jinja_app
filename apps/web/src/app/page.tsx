@@ -17,8 +17,16 @@ export default async function Page() {
   const proto = h.get("x-forwarded-proto") ?? "http";
   const baseUrl = `${proto}://${host}`;
 
-  const res = await fetch(`${baseUrl}/api/public/goshuins?limit=2&offset=0`, { cache: "no-store" });
-  const data: Paginated<Goshuin> | null = res.ok ? await res.json() : null;
+  let data: Paginated<Goshuin> | null = null;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/public/goshuins?limit=4&offset=0`, { cache: "no-store" });
+    if (res.ok) data = (await res.json()) as Paginated<Goshuin>;
+  } catch (e) {
+    // dev のときだけでも良いので「何が落ちたか」見える化
+    console.error("[top] fetch /api/public/goshuins failed:", e);
+    data = null;
+  }
 
   return <HomePage publicGoshuins={data} />;
 }
