@@ -1,8 +1,8 @@
-// apps/web/src/app/login/LoginForm.tsx
 "use client";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 type Props = { next?: string };
 
@@ -13,6 +13,7 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,48 +24,21 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
     setError(null);
 
     try {
-      // 1) 未入力チェック（rawで）
       if (!username || !password) {
         setError("ユーザー名とパスワードを入力してください");
         return;
       }
-
-      // 2) 前後スペース混入は弾く（raw vs trim 比較）
       if (username !== username.trim() || password !== password.trim()) {
         setError("ユーザー名/パスワードの前後に空白が入っています");
         return;
       }
 
-      // 3) ここから先は raw をそのまま送る（trimしない）
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!res.ok) {
-        let msg = "ログインに失敗しました。";
-        try {
-          const ct = res.headers.get("content-type") || "";
-          if (ct.includes("application/json")) {
-            const j = await res.json();
-            msg = String(j.detail || j.message || j.error || msg);
-          } else {
-            const t = await res.text();
-            if (t) msg = t;
-          }
-        } catch (e) {
-          // パース失敗時はデフォルトメッセージのまま
-          void e;
-        }
-        setError(msg);
-        return;
-      }
+      await login(username, password); // ✅ここがポイント（Auth state 更新）
 
       router.push(next || "/mypage?tab=goshuin");
       router.refresh();
     } catch {
-      setError("通信エラーが発生しました。しばらくしてから再度お試しください。");
+      setError("ログインに失敗しました。");
     } finally {
       setLoading(false);
       inFlight.current = false;
