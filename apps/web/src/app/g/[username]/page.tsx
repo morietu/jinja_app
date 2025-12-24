@@ -63,10 +63,9 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   const title = `@${username} の御朱印帳 | 神社ナビ`;
   const description = "公開している御朱印をまとめて見られます。";
 
-  const siteUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://YOUR-PROD-DOMAIN";
+  const siteUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://jinja-app-web.vercel.app";
 
-  
-  const ogImage = `${siteUrl}/ogp/goshuin.png`;
+  const ogImage = `${siteUrl}/ogp/goshuin.png?v=2`; // ← v=2 はXキャッシュ対策
   const url = `${siteUrl}/g/${encodeURIComponent(username)}`;
 
   return {
