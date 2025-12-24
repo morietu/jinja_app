@@ -6,7 +6,51 @@ import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 
-// ...（GoshuinCardMini / PlaceholderToriiCard はそのまま）
+
+function GoshuinCardMini({
+  title,
+  imageUrl,
+  shrineName,
+  isPublic,
+  showBadge = true,
+}: {
+  title?: string | null;
+  imageUrl?: string | null;
+  shrineName?: string | null;
+  isPublic: boolean;
+  showBadge?: boolean;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+      <div className="aspect-[4/5] bg-slate-100">
+        {imageUrl ? (
+          <img src={imageUrl} alt={title ?? "御朱印"} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">画像なし</div>
+        )}
+      </div>
+
+      <div className="space-y-1 p-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium text-slate-800">{title || "（無題）"}</div>
+          {shrineName ? <div className="truncate text-[11px] text-slate-500">{shrineName}</div> : null}
+        </div>
+
+        {showBadge && (
+          <div>
+            <span
+              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] ${
+                isPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {isPublic ? "公開" : "非公開"}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function PlaceholderToriiCard({ label = "サンプル" }: { label?: string }) {
   return (
