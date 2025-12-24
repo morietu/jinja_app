@@ -65,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
   const siteUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://jinja-app-web.vercel.app";
 
-  const ogImage = `${siteUrl}/ogp/goshuin.png?v=2`; // ← v=2 はXキャッシュ対策
+  const ogImage = `${siteUrl}/ogp/goshuin-1200x630.png?v=1`;
   const url = `${siteUrl}/g/${encodeURIComponent(username)}`;
 
   return {
