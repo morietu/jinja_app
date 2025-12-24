@@ -69,6 +69,19 @@ export async function djFetch(
       headers.set("cookie", cookie);
     }
 
+    const csrf = req.headers.get("x-csrftoken") ?? req.headers.get("x-csrf-token");
+    if (csrf && !headers.has("x-csrftoken")) headers.set("x-csrftoken", csrf);
+
+    const origin = req.headers.get("origin");
+    if (origin && !headers.has("origin")) headers.set("origin", origin);
+
+    const referer = req.headers.get("referer");
+    if (referer && !headers.has("referer")) headers.set("referer", referer);
+
+    // ⚠️ multipart のとき Content-Type を自前で set しない（boundary が壊れる）
+    // もし djFetch 内で content-type を固定してたら削除する
+    // upstreamHeaders.delete("content-type");
+
     const isFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
 
     if (contentType && !headers.has("Content-Type") && !isFormDataBody) {
@@ -90,6 +103,10 @@ export async function djFetch(
     (finalInit as any).duplex = "half";
   }
 
-  headers.set("Host", "127.0.0.1");
+  // 開発時のみ Host を固定（CSRF / localhost 用）
+  if (process.env.NODE_ENV !== "production") {
+    headers.set("Host", "127.0.0.1");
+  }
+
   return fetch(url, finalInit);
 }

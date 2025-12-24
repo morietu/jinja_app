@@ -97,13 +97,18 @@ export async function fetchMyGoshuin(): Promise<Goshuin[]> {
 // ---- BFF 経由の POST / PATCH / DELETE ----
 
 export async function uploadMyGoshuin(input: {
-  shrineId: number;
+  shrineId?: number;
   title: string;
   isPublic: boolean;
   file: File;
 }): Promise<Goshuin> {
   const form = new FormData();
-  form.append("shrine", String(input.shrineId));
+
+  // ✅ shrineId がある時だけ送る（undefined を "undefined" にしない）
+  if (input.shrineId != null) {
+    form.append("shrine", String(input.shrineId));
+  }
+
   form.append("title", input.title);
   form.append("is_public", input.isPublic ? "true" : "false");
   form.append("image", input.file);

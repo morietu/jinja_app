@@ -12,3 +12,23 @@ const api = axios.create({
 
 // ここでは Authorization は付けない（HttpOnly クッキーのため JS から読めない）
 export default api;
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+api.interceptors.request.use((config) => {
+  const method = (config.method || "get").toLowerCase();
+
+  // GET/HEAD/OPTIONS 以外だけ CSRF を付ける
+  if (!["get", "head", "options"].includes(method)) {
+    const token = getCookie("csrftoken");
+    if (token) {
+      config.headers = config.headers ?? {};
+      (config.headers as any)["X-CSRFToken"] = token;
+    }
+  }
+  return config;
+});

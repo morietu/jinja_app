@@ -5,7 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
 
-export default function GoshuinUploadForm({ onUploaded }: any) {
+type Props = { onUploaded?: (g: any) => void };
+
+export default function GoshuinUploadForm({ onUploaded }: Props) {
   const sp = useSearchParams();
 
   const shrineId = useMemo(() => {
@@ -35,11 +37,13 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
     setError(null);
     setSuccess(null);
 
-    
+    // ① shrineId を先に検証
     if (!shrineId) {
       setError("神社詳細ページから「御朱印を追加」で来てください。");
       return;
     }
+
+    // ② file を先に検証（ここが重要）
     if (!file) {
       setError("画像ファイルを選択してください。");
       return;
@@ -56,9 +60,10 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
       return;
     }
 
-
+    // ③ POSTは1回だけ
     try {
       setLoading(true);
+
       const created = await uploadMyGoshuin({
         shrineId,
         title: "",
@@ -76,7 +81,6 @@ export default function GoshuinUploadForm({ onUploaded }: any) {
       setLoading(false);
     }
   };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {!shrineId && <p className="text-xs text-amber-700">※ 神社が未指定です。神社詳細から来てください。</p>}
