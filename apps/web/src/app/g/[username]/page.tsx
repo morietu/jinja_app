@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   const siteUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://YOUR-PROD-DOMAIN";
 
   
-  const ogImage = `${siteUrl}/ogp/goshuin-hero.png`; // ←差し替え
+  const ogImage = `${siteUrl}/ogp/goshuin.png`;
   const url = `${siteUrl}/g/${encodeURIComponent(username)}`;
 
   return {
