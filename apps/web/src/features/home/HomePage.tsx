@@ -54,15 +54,14 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
                 <header className="mb-3 flex items-end justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">みんなの公開御朱印</h3>
-                    
                   </div>
                   <Link href="/goshuins/public" className="text-xs text-emerald-700 hover:underline">
                     もっと見る →
                   </Link>
                 </header>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {publicGoshuins.results.slice(0, 2).map((g) => {
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {publicGoshuins.results.slice(0, 4).map((g) => {
                     const href = g.shrine ? `/shrines/${g.shrine}` : "/goshuins/public";
                     return (
                       <Link
@@ -71,13 +70,13 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
                         className="block overflow-hidden rounded-2xl border bg-white shadow-sm hover:opacity-95"
                       >
                         <div className="relative aspect-[4/5] bg-slate-100">
-                          {g.image_url && (
+                          {g.image_url ? (
                             <img src={g.image_url} alt={g.title ?? "御朱印"} className="h-full w-full object-cover" />
-                          )}
+                          ) : null}
                         </div>
+
                         <div className="p-3">
                           <div className="truncate text-sm font-medium text-slate-800">{g.title || "（無題）"}</div>
-                          {/* ✅ 神社名をここに */}
                           {g.shrine_name ? (
                             <div className="truncate text-[11px] text-slate-500">{g.shrine_name}</div>
                           ) : null}
@@ -93,4 +92,4 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
       </div>
     </main>
   );
-}
+} 
