@@ -5,25 +5,23 @@ import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 
-
-
-
 function GoshuinCardMini({
   title,
   imageUrl,
   shrineName,
   isPublic,
+  showBadge = true,
 }: {
   title?: string | null;
   imageUrl?: string | null;
   shrineName?: string | null;
   isPublic: boolean;
+  showBadge?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="aspect-[4/5] bg-muted">
         {imageUrl ? (
-          
           <img src={imageUrl} alt={title ?? "御朱印"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">画像なし</div>
@@ -37,13 +35,15 @@ function GoshuinCardMini({
             <div className="truncate text-[11px] text-slate-500">{shrineName || ""}</div>
           </div>
 
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${
-              isPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
-            }`}
-          >
-            {isPublic ? "公開" : "非公開"}
-          </span>
+          {showBadge && (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${
+                isPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {isPublic ? "公開" : "非公開"}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -75,11 +75,23 @@ export default function MyGoshuinTopSection() {
     enabled: isLoggedIn,
   });
 
-  const hasPublic = Boolean(items?.some((g) => g.is_public));
   const publicUrl = username ? `/g/${encodeURIComponent(username)}` : null;
 
-  const latest = (items ?? []).slice(0, 4);
-  const showPlaceholders = !isLoggedIn || (!loading && !error && latest.length === 0);
+  const hasAny = (items ?? []).length > 0;
+  const hasPublic = Boolean(items?.some((g) => g.is_public));
+  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 4);
+
+  const showPublishCta = isLoggedIn && !loading && !error && hasAny && !hasPublic;
+  const showPlaceholders = !isLoggedIn || (!loading && !error && latestPublic.length === 0);
+
+  const emptyText = !isLoggedIn
+    ? "ログインすると、御朱印を保存してここに並べられます。"
+    : !hasAny
+      ? "まだ御朱印がありません。下から画像をアップロードできます。"
+      : !hasPublic
+        ? "公開中の御朱印がありません。公開するとトップにも表示されます。"
+        : "";
+
   const thumbs = (
     <>
       {loading ? (
@@ -98,21 +110,22 @@ export default function MyGoshuinTopSection() {
             ))}
           </div>
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            {!isLoggedIn
-              ? "ログインすると、御朱印を保存してここに並べられます。"
-              : "まだ御朱印がありません。下から画像をアップロードできます。"}
-          </div>
+          {emptyText && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              {emptyText}
+            </div>
+          )}
         </>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {latest.map((g) => (
+          {latestPublic.map((g) => (
             <GoshuinCardMini
               key={g.id}
               title={g.title}
               imageUrl={g.image_url}
               shrineName={g.shrine_name ?? null}
               isPublic={g.is_public}
+              showBadge={false}
             />
           ))}
         </div>
@@ -131,7 +144,6 @@ export default function MyGoshuinTopSection() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* ログイン済なら公開ページ導線（公開が無いなら disabled 表示） */}
           {isLoggedIn && publicUrl && (
             <Link
               href={publicUrl}
@@ -163,7 +175,12 @@ export default function MyGoshuinTopSection() {
         </div>
       </header>
 
-      {/* サムネ領域（公開がある時は全体クリックで /g/:username） */}
+      {showPublishCta && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          まず1枚だけ公開してみよう。公開すると、あなたの「公開ページ」に表示されます。
+        </div>
+      )}
+
       <div className="mt-5">
         {isLoggedIn && hasPublic && publicUrl ? (
           <Link
