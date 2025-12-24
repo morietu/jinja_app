@@ -3,11 +3,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/hooks/useAuth";
+
 import { SectionCard } from "@/components/layout/SectionCard";
 import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
@@ -79,12 +80,14 @@ export default function MyPageScreen() {
       </header>
 
       <div className="space-y-4">
-        <SectionCard
-          title="御朱印アップロード"
-          description="御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。"
-        >
-          <GoshuinUploadForm onUploaded={addItem} />
-        </SectionCard>
+        <div id="goshuin-upload">
+          <SectionCard
+            title="御朱印アップロード"
+            description="御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。"
+          >
+            <GoshuinUploadForm onUploaded={addItem} />
+          </SectionCard>
+        </div>
 
         <SectionCard title="登録済みの御朱印">
           <MyGoshuinList

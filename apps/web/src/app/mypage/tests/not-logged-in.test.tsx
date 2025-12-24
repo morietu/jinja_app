@@ -9,8 +9,13 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
-vi.mock("@/lib/hooks/useAuth", () => ({
-  useAuth: () => ({ user: null, isLoggedIn: false, loading: false, logout: vi.fn() }),
+vi.mock("@/lib/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: null,
+    isLoggedIn: false,
+    loading: false,
+    logout: vi.fn(),
+  }),
 }));
 
 describe("MyPage 未ログイン", () => {

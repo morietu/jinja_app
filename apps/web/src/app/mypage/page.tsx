@@ -1,8 +1,8 @@
 // apps/web/src/app/mypage/page.tsx
 "use client";
 
-import MyPageScreen from "@/features/mypage/components/MyPageScreen";
+import MyPageView from "@/components/views/MyPageView";
 
 export default function MyPagePage() {
-  return <MyPageScreen />;
+  return <MyPageView />;
 }

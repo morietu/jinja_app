@@ -2,15 +2,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
+import MyPageScreen from "@/features/mypage/components/MyPageScreen";
 
 export default function MyPageView() {
-  const [user, setUser] = useState<UserMe | null>(null);
-  const [form, setForm] = useState({
-    nickname: "",
-    is_public: true,
-  });
+  const router = useRouter();
+  const sp = useSearchParams();
+  const tab = sp.get("tab") ?? "profile";
 
+  // 既存 state / effect はそのまま
+  const [user, setUser] = useState<UserMe | null>(null);
+  const [form, setForm] = useState({ nickname: "", is_public: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -20,7 +23,6 @@ export default function MyPageView() {
       const me = await getCurrentUser();
       if (me) {
         setUser(me);
-
         setForm({
           nickname: (me.profile?.nickname ?? "").trim(),
           is_public: !!me.profile?.is_public,
@@ -30,7 +32,18 @@ export default function MyPageView() {
     })();
   }, []);
 
-  // 変更有無（前後の空白は無視して比較）
+  // ✅ hash に #goshuin-upload があるとき、描画後にスクロール
+  useEffect(() => {
+    if (tab !== "goshuin") return;
+    const hash = window.location.hash;
+    if (hash !== "#goshuin-upload") return;
+
+    // ちょい遅延させると安定する
+    requestAnimationFrame(() => {
+      document.querySelector(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [tab]);
+
   const dirty = useMemo(() => {
     if (!user) return false;
     const nick0 = (user.profile?.nickname ?? "").trim();
@@ -38,11 +51,7 @@ export default function MyPageView() {
     const nickDirty = nick1 !== nick0;
     const publicDirty = Boolean(form.is_public) !== Boolean(user.profile?.is_public);
     return nickDirty || publicDirty;
-  }, [
-    user,                 // 取得後のスナップショットが変わったら再計算
-    form.nickname,        // 入力の変化で再計算
-    form.is_public,
-  ]);
+  }, [user, form.nickname, form.is_public]);
 
   const handleSave = async () => {
     if (!user || !dirty || saving) return;
@@ -52,9 +61,7 @@ export default function MyPageView() {
       const nick0 = (user.profile?.nickname ?? "").trim();
       const nick1 = (form.nickname ?? "").trim();
       if (nick1 !== nick0) payload.nickname = nick1;
-      if (Boolean(form.is_public) !== Boolean(user.profile?.is_public)) {
-        payload.is_public = form.is_public;
-      }
+      if (Boolean(form.is_public) !== Boolean(user.profile?.is_public)) payload.is_public = form.is_public;
 
       const updated = await updateUser(payload);
       setUser(updated);
@@ -76,49 +83,75 @@ export default function MyPageView() {
   };
 
   if (loading) return <div className="p-4 text-sm text-gray-500">読み込み中...</div>;
-  if (!user)   return <div className="p-4 text-sm text-red-600">未ログインです。</div>;
+  if (!user) return <div className="p-4 text-sm text-red-600">未ログインです。</div>;
 
   return (
     <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium mb-1">ニックネーム</label>
-        <input
-          type="text"
-          value={form.nickname}
-          onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
-          disabled={saving}
-          className="w-full border rounded px-3 py-2"
-        />
-      </div>
-
-      <label className="inline-flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={form.is_public}
-          onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))}
-          disabled={saving}
-        />
-        <span>プロフィールを公開</span>
-      </label>
-
+      {/* ✅ タブ */}
       <div className="flex gap-2">
         <button
-          onClick={handleSave}
-          disabled={!dirty || saving}
-          title={!dirty ? "変更すると有効になります" : undefined}
-          className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+          className={`rounded px-3 py-2 text-sm ${tab === "profile" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
+          onClick={() => router.push("/mypage?tab=profile")}
+          type="button"
         >
-          {saving ? "保存中..." : "保存"}
+          プロフィール
         </button>
         <button
+          className={`rounded px-3 py-2 text-sm ${tab === "goshuin" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
+          onClick={() => router.push("/mypage?tab=goshuin")}
           type="button"
-          onClick={handleReset}
-          disabled={!dirty || saving}
-          className="px-4 py-2 rounded border"
         >
-          変更を破棄
+          御朱印
         </button>
       </div>
+
+      {/* ✅ タブ中身 */}
+      {tab === "goshuin" ? (
+        <MyPageScreen />
+      ) : (
+        <div className="space-y-6">
+          {/* ↓ここはあなたの現状のプロフィール編集UIをそのまま */}
+          <div>
+            <label className="block text-sm font-medium mb-1">ニックネーム</label>
+            <input
+              type="text"
+              value={form.nickname}
+              onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
+              disabled={saving}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={form.is_public}
+              onChange={(e) => setForm((f) => ({ ...f, is_public: e.target.checked }))}
+              disabled={saving}
+            />
+            <span>プロフィールを公開</span>
+          </label>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              title={!dirty ? "変更すると有効になります" : undefined}
+              className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+            >
+              {saving ? "保存中..." : "保存"}
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={!dirty || saving}
+              className="px-4 py-2 rounded border"
+            >
+              変更を破棄
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
