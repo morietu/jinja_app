@@ -25,6 +25,20 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   const { id } = await props.params;
   const numericId = Number(id);
 
+  // ✅ 追加：NaN / 0 / 負数 を弾く（ここがAの修正）
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return (
+      <main className="p-4 max-w-md mx-auto space-y-4">
+        <div className="rounded-xl border bg-white p-4 text-center text-sm">不正な神社IDです。</div>
+        <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
+          ← 地図に戻る
+        </Link>
+      </main>
+    );
+  }
+
+  const addGoshuinHref = `/mypage?tab=goshuin&shrine=${numericId}#goshuin-upload`;
+
   let shrine: Shrine | null = null;
   try {
     shrine = await getShrine(numericId);
@@ -35,10 +49,15 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   if (!shrine) {
     return (
       <main className="p-4 max-w-md mx-auto space-y-4">
-        <div className="rounded-xl border bg-white p-4 text-center text-sm">神社の詳細情報が見つかりませんでした。</div>
-        <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
-          ← 地図に戻る
+        <Link
+          href={addGoshuinHref}
+          className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
+        >
+          この神社で御朱印を追加
         </Link>
+
+        <div className="rounded-xl border bg-white p-4 text-center text-sm">神社の詳細情報が見つかりませんでした。</div>
+        
       </main>
     );
   }
@@ -55,6 +74,12 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-6">
+      <Link
+        href={addGoshuinHref}
+        className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
+      >
+        この神社で御朱印を追加
+      </Link>
       {/* アクションカード */}
       <ShortcutCardGrid>
         <ShortcutCard

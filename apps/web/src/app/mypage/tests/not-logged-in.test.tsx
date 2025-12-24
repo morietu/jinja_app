@@ -5,17 +5,20 @@ import MyPage from "../page";
 import React from "react";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams("tab=goshuin"),
 }));
 
-vi.mock("@/lib/hooks/useAuth", () => ({
-  useAuth: () => ({ user: null, isLoggedIn: false, loading: false, logout: vi.fn() }),
+vi.mock("@/lib/api/users", () => ({
+  getCurrentUser: vi.fn().mockResolvedValue(null),
+  updateUser: vi.fn(),
 }));
 
 describe("MyPage 未ログイン", () => {
-  it("ログイン導線が表示される", () => {
+  it("ログイン導線が表示される", async () => {
     render(<MyPage />);
-    expect(screen.getByRole("link", { name: "ログインへ" })).toHaveAttribute("href", "/login?next=/mypage?tab=goshuin");
+
+    const link = await screen.findByRole("link", { name: "ログインへ" });
+    expect(link).toHaveAttribute("href", "/login?next=%2Fmypage%3Ftab%3Dgoshuin");
   });
 });

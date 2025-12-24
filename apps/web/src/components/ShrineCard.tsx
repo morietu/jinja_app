@@ -10,7 +10,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useFavorite } from "@/hooks/useFavorite";
 
 type ShrineLite = {

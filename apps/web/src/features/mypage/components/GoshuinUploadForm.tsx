@@ -1,75 +1,77 @@
-// apps/web/src/features/mypage/components/GoshuinUploadForm.tsx
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
-import type { Goshuin } from "@/lib/api/goshuin";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
 
-import Image from "next/image";
+export default function GoshuinUploadForm({ onUploaded }: any) {
+  const sp = useSearchParams();
 
-type Props = {
-  onUploaded?: (goshuin: Goshuin) => void;
-};
+  const shrineId = useMemo(() => {
+    const q = sp.get("shrine");
+    const n = Number(q);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [sp]);
 
-export default function GoshuinUploadForm({ onUploaded }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const inputId = "goshuin-image";
-
-  // file が変わるたびにプレビュー URL を作る
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
+    if (!file) return setPreviewUrl(null);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    return () => URL.revokeObjectURL(url);
   }, [file]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSuccessMessage(null);
-    setErrorMessage(null);
+    if (loading) return;
 
+    setError(null);
+    setSuccess(null);
+
+    
+    if (!shrineId) {
+      setError("神社詳細ページから「御朱印を追加」で来てください。");
+      return;
+    }
     if (!file) {
-      setErrorMessage("画像ファイルを選択してください。");
+      setError("画像ファイルを選択してください。");
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      setErrorMessage("画像ファイルのみアップロードできます。");
+      setError("画像ファイルのみアップロードできます。");
       return;
     }
 
     const maxBytes = 5 * 1024 * 1024;
     if (file.size > maxBytes) {
-      setErrorMessage("ファイルサイズは 5MB 以下を推奨しています。");
+      setError("ファイルサイズは 5MB 以下を推奨しています。");
       return;
     }
 
+
     try {
       setLoading(true);
-
       const created = await uploadMyGoshuin({
-        shrineId: 1,
+        shrineId,
         title: "",
-        isPublic: true,
+        isPublic,
         file,
       });
 
-      setSuccessMessage("御朱印をアップロードしました。");
+      setSuccess("御朱印をアップロードしました。");
       setFile(null);
-      if (onUploaded) onUploaded(created);
-    } catch (err: any) {
-      console.error("uploadMyGoshuin failed", err);
-      setErrorMessage("アップロードに失敗しました。時間をおいて再度お試しください。");
+      setIsPublic(false);
+      onUploaded?.(created);
+    } catch {
+      setError("アップロードに失敗しました。");
     } finally {
       setLoading(false);
     }
@@ -77,72 +79,34 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* 説明エリア */}
-      <div className="space-y-1 text-sm">
-        <p className="font-medium">スマホで撮った御朱印の写真をアップロードして、マイページに保存できます。</p>
-        <p className="text-xs text-muted-foreground">御朱印画像は 5MB までの jpg / png ファイルに対応しています。</p>
-      </div>
+      {!shrineId && <p className="text-xs text-amber-700">※ 神社が未指定です。神社詳細から来てください。</p>}
 
-      {/* ファイル入力 */}
-      <div>
-        <label htmlFor={inputId} className="flex cursor-pointer flex-col items-center justify-center ...">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
-            <span className="text-lg" aria-hidden="true">
-              🖼️
-            </span>
-          </div>
+      <label className="inline-flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+        公開する
+      </label>
 
-          <div className="space-y-1 mt-2 text-center">
-            <p className="text-sm font-medium">{file ? "画像を変更する" : "画像を選択する"}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {file ? `選択中: ${file.name}` : "タップして御朱印の写真を選んでください"}
-            </p>
-          </div>
-        </label>
-
+      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border p-4">
+        <span>🖼️ 画像を選択</span>
         <input
-          id={inputId}
           type="file"
           accept="image/*"
-          aria-label="御朱印画像"
-          disabled={loading}
-          onChange={(e) => {
-            const f = e.target.files?.[0] ?? null;
-            setFile(f);
-            // ここで previewUrl をセットしているなら、そのまま維持
-          }}
           className="hidden"
+          aria-label="御朱印画像"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-      </div>
+      </label>
 
-      {/* プレビュー */}
-      {previewUrl && (
-        <div className="mt-3">
-          <p className="mb-1 text-xs text-gray-500">プレビュー</p>
-          <div className="relative inline-block max-h-48 w-full">
-            <Image
-              src={previewUrl}
-              alt="御朱印プレビュー"
-              width={400}
-              height={400}
-              unoptimized
-              className="max-h-48 w-auto rounded border object-contain"
-            />
-          </div>
-        </div>
-      )}
+      {previewUrl && <Image src={previewUrl} alt="preview" width={400} height={400} unoptimized />}
 
-      <button
-        type="submit"
-        disabled={loading || !file}
-        className="px-4 py-2 text-sm font-medium rounded-md bg-orange-500 text-white disabled:opacity-50"
-      >
-        {loading ? "アップロード中..." : "アップロードする"}
+      <button disabled={!file || !shrineId || loading} className="bg-orange-500 text-white px-4 py-2 rounded">
+        {loading ? "アップロード中..." : "アップロード"}
       </button>
 
-      {/* メッセージ */}
-      {successMessage && <p className="text-sm text-green-700">{successMessage}</p>}
-      {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
+      <p className="text-xs text-slate-500">shrineId: {String(shrineId ?? "null")}</p>
+
+      {success && <p className="text-green-700">{success}</p>}
+      {error && <p className="text-red-600">{error}</p>}
     </form>
   );
 }

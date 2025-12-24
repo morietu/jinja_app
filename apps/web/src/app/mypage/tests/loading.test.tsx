@@ -8,9 +8,14 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
-vi.mock("@/lib/hooks/useAuth", () => ({
+vi.mock("@/lib/auth/AuthProvider", () => ({
   useAuth: () => ({ user: null, isLoggedIn: false, loading: true, logout: vi.fn() }),
 }));
+
+vi.mock("@/lib/api/users", () => ({
+  getCurrentUser: vi.fn(async () => null),
+}));
+
 
 describe("MyPage loading", () => {
   it("Skeletonのみを表示し、tabpanelは出さない", () => {
