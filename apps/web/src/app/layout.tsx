@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -6,8 +7,8 @@ import Link from "next/link";
 import ClientBootstrap from "./providers/ClientBootstrap";
 import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
-import { HeaderAuthButtons } from "@/components/layout/HeaderAuthButtons";
 
+import { HeaderAuthButtons } from "@/components/layout/HeaderAuthButtons";
 
 const geistSans = localFont({
   src: [
@@ -69,7 +70,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Link>
 
                 {/* 認証ボタン（御朱印帳・ログイン） */}
-                <HeaderAuthButtons />
+                <Suspense fallback={null}>
+                  <HeaderAuthButtons />
+                </Suspense>
               </div>
             </nav>
           </header>
