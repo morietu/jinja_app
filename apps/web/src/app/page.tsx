@@ -1,46 +1,24 @@
-"use client";
+// apps/web/src/app/page.tsx
+import HomePage from "@/features/home/HomePage";
+import { headers } from "next/headers";
 
-import { useRouter } from "next/navigation";
-import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
-import { SectionCard } from "@/components/layout/SectionCard";
-import MyGoshuinTopSection from "@/features/goshuin/components/MyGoshuinTopSection";
+type Goshuin = {
+  id: number;
+  shrine?: number;
+  title?: string | null;
+  image_url?: string | null;
+  shrine_name?: string | null;
+};
+type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
 
-export default function HomePage() {
-  const router = useRouter();
+export default async function Page() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const baseUrl = `${proto}://${host}`;
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
-        {/* ヒーロー：メイン導線はコンシェルジュ */}
-        <SectionCard>
-          <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-            <span className="text-lg">⛩</span>
-            <span>今の気持ちから、ぴったりの神社を案内します</span>
-          </p>
+  const res = await fetch(`${baseUrl}/api/public/goshuins?limit=2&offset=0`, { cache: "no-store" });
+  const data: Paginated<Goshuin> | null = res.ok ? await res.json() : null;
 
-          <h1 className="mt-4 text-2xl font-semibold text-slate-900">神社ナビ</h1>
-          <p className="mt-2 text-sm text-slate-700">
-            今の気持ちや悩みを伝えると、あなたに合った神社をコンシェルジュが提案します。
-          </p>
-
-          <button
-            className="mt-6 w-full rounded-full bg-amber-500 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
-            onClick={() => router.push("/concierge")}
-          >
-            今の気持ちから神社を探す
-          </button>
-        </SectionCard>
-
-        {/* 近くの神社 */}
-        <SectionCard
-          title="今いる場所の近くの神社"
-          description="位置情報をもとに、徒歩圏内の神社を優先して表示します。"
-        >
-          <HomeNearbySection />
-        </SectionCard>
-        {/* 追加：あなたの御朱印 */}
-        <MyGoshuinTopSection />
-      </div>
-    </main>
-  );
+  return <HomePage publicGoshuins={data} />;
 }
