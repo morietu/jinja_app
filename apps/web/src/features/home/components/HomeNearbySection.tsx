@@ -1,7 +1,7 @@
 // apps/web/src/features/home/components/HomeNearbySection.tsx
 "use client";
 import axios from "axios";
-
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -161,6 +161,19 @@ export function HomeNearbySection() {
           errorMessage={errorMessage}
           onRefetch={handleRefetch}
           onRetry={handleRetry}
+          itemHref={(p: any) => {
+            const placeId = p.place_id;
+            if (!placeId) return null;
+
+            const usp = new URLSearchParams();
+            usp.set("place_id", String(placeId));
+
+            if (typeof lat === "number" && typeof lng === "number") {
+              usp.set("locationbias", `circle:1500@${lat},${lng}`);
+            }
+
+            return `/shrines/resolve?${usp.toString()}`;
+          }}
         />
       </div>
     </div>
