@@ -116,3 +116,7 @@ apps/web/.eslintcache
 
 # mobile app (WIP / not tracked yet)
 apps/mobile/src/
+
+# debug artifacts
+photo.jpg
+real.jpg

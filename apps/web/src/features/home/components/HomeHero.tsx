@@ -25,6 +25,13 @@ export function HomeHero() {
       <Link href="/concierge/history" className="text-[11px] text-gray-500 underline">
         過去の相談を見る
       </Link>
+
+      <Link
+        href="/search"
+        className="inline-flex items-center justify-center rounded-full px-4 py-3 text-sm font-semibold bg-emerald-600 text-white shadow-md active:scale-[0.98] transition"
+      >
+        キーワードで神社を検索
+      </Link>
     </div>
   );
 }

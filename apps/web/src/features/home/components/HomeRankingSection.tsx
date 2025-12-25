@@ -50,7 +50,7 @@ export function HomeRankingSection() {
         {items.map((item, index) => (
           <Link
             key={item.id}
-            href={`/shrines/${item.id}`}
+            href="/ranking"
             className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs shadow-sm transition active:scale-[0.99]"
           >
             <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
