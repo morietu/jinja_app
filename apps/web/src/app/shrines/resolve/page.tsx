@@ -1,16 +1,29 @@
+// apps/web/src/app/shrines/resolve/page.tsx
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
-export default function Page({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const keywordRaw = searchParams.keyword ?? "";
-  const keyword = Array.isArray(keywordRaw) ? keywordRaw[0] : keywordRaw;
+export default async function ResolvePage({ searchParams }: { searchParams: { place_id?: string } }) {
+  const placeId = searchParams.place_id;
+  if (!placeId) redirect("/search");
 
-  const locationbiasRaw = searchParams.locationbias ?? "";
-  const locationbias = Array.isArray(locationbiasRaw) ? locationbiasRaw[0] : locationbiasRaw;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const baseUrl = `${proto}://${host}`;
 
-  const usp = new URLSearchParams();
-  if (keyword) usp.set("keyword", keyword);
-  if (locationbias) usp.set("locationbias", locationbias);
+  // Next の BFF(/api/places/find) を叩く（中で Django にプロキシさせる想定）
+  const res = await fetch(`${baseUrl}/api/places/find`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ place_id: placeId }),
+    cache: "no-store",
+  });
 
-  const qs = usp.toString();
-  redirect(qs ? `/search?${qs}` : "/search");
+  if (!res.ok) redirect(`/search?keyword=${encodeURIComponent("神社")}`);
+
+  const data = await res.json();
+  const shrineId = data.shrine_id ?? data.id;
+  if (!shrineId) redirect("/search");
+
+  redirect(`/shrines/${shrineId}`);
 }

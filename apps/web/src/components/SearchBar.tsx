@@ -8,14 +8,16 @@ import { buildLocationBias } from "@/lib/locationBias";
 
 type Props = {
   className?: string;
-  initialKeyword?: string;          // ★ 追加
-  initialLocationBias?: string;     // （必要なら）
+  initialKeyword?: string;
+  initialLocationBias?: string;
+  initialFilters?: Record<string, string>;
 };
 
 export default function SearchBar({
   className,
   initialKeyword = "",
   initialLocationBias = "",
+  initialFilters = {},
 }: Props) {
   const router = useRouter();
   const [q, setQ] = useState(initialKeyword);
@@ -32,9 +34,11 @@ export default function SearchBar({
     const keyword = q.trim();
     if (!keyword) return;
 
-    const params = new URLSearchParams({ keyword });
+    const params = new URLSearchParams({
+      ...initialFilters, // ★ 既存フィルタを引き継ぐ
+      keyword,
+    });
 
-    // 位置バイアス（ボタンで取れた場合を優先。なければ初期値を使う）
     const lb = buildLocationBias(lat, lng, 1500);
     if (lb) params.set("locationbias", lb);
     else if (initialLocationBias) params.set("locationbias", initialLocationBias);
