@@ -4,8 +4,7 @@ import { NearbyListItem } from "./NearbyList.Item";
 import { NearbyListLoading } from "./NearbyList.Loading";
 import { NearbyListEmpty } from "./NearbyList.Empty";
 import { NearbyListError } from "./NearbyList.Error";
-import type { NearbyItem } from "./types";
-import { nearbyItemKey } from "./types";
+import { nearbyItemKey, type NearbyItem } from "./types";
 
 
 export type NearbyListState = "loading" | "success" | "empty" | "error";

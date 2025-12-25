@@ -1,3 +1,4 @@
+// NearbyList.item.test.tsx
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NearbyListItem } from "../NearbyList.Item";
@@ -33,7 +34,7 @@ describe("NearbyListItem", () => {
         kind="place"
         place_id="m1"
         title="近所の神社"
-        subtitle={null}
+        subtitle={undefined}
         lat={35.0}
         lng={139.0}
         distance_m={120}

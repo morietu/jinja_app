@@ -29,7 +29,7 @@ function toNearbyItem(p: PlacesNearbyResponse["results"][number]): NearbyItem {
     kind: "place",
     place_id: p.place_id,
     title: p.name,
-    subtitle: p.address,
+    subtitle: p.address ?? undefined,
     lat: p.lat,
     lng: p.lng,
     distance_m: p.distance_m ?? null,
@@ -52,7 +52,7 @@ export function HomeNearbySection() {
       setErrorMessage(undefined);
 
       const data = await apiGet<PlacesNearbyResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
-      
+
       const mapped = (data.results ?? []).map(toNearbyItem);
 
       if (!mapped.length) {
