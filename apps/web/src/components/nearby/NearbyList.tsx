@@ -7,6 +7,7 @@ import { NearbyListError } from "./NearbyList.Error";
 import type { NearbyItem } from "./types";
 import { nearbyItemKey } from "./types";
 
+
 export type NearbyListState = "loading" | "success" | "empty" | "error";
 
 export type NearbyListProps = {
@@ -57,7 +58,7 @@ export function NearbyList({
           {items.map((x) => {
             const href = itemHref?.(x) ?? null;
 
-            const key = x.kind === "place" ? x.place_id : x.kind;
+            const key = nearbyItemKey(x);
 
             const row = <NearbyListItem {...x} />; // ✅ ここ
 
