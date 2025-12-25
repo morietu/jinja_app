@@ -1,4 +1,3 @@
-// apps/web/src/components/nearby/NearbyList.Item.tsx
 import * as React from "react";
 import { MapPin, Navigation } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,13 +8,10 @@ const metersToKm = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `
 export function NearbyListItem(props: NearbyItem) {
   const distanceLabel = typeof props.distance_m === "number" ? metersToKm(props.distance_m) : null;
 
-  const ariaLabel = [props.title, props.subtitle, distanceLabel ? `距離 ${distanceLabel}` : null]
-    .filter(Boolean)
-    .join("、");
+  const ariaLabel = [props.title, props.subtitle, distanceLabel && `距離 ${distanceLabel}`].filter(Boolean).join("、");
 
   return (
     <Card className="rounded-2xl shadow-sm hover:shadow transition">
-      {/* ✅ role/aria-label を “確実にDOMに出るdiv” に置く */}
       <div role="listitem" aria-label={ariaLabel}>
         <CardContent className="p-4 flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
