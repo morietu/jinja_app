@@ -53,18 +53,20 @@ export function NearbyList({
 
       {state === "success" && (
         <div role="list" aria-label="近隣の神社一覧" className="space-y-3">
+          
           {items.map((x) => {
             const href = itemHref?.(x) ?? null;
-            const key = nearbyItemKey(x);
 
-            const row = <NearbyListItem item={x} />;
+            const key = x.kind === "place" ? x.place_id : x.kind;
+
+            const row = <NearbyListItem {...x} />; // ✅ ここ
 
             return href ? (
               <Link key={key} href={href} className="block">
                 {row}
               </Link>
             ) : (
-              <React.Fragment key={key}>{row}</React.Fragment>
+              <div key={key}>{row}</div>
             );
           })}
         </div>

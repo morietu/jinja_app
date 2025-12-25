@@ -9,27 +9,32 @@ const metersToKm = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `
 export function NearbyListItem(props: NearbyItem) {
   const distanceLabel = typeof props.distance_m === "number" ? metersToKm(props.distance_m) : null;
 
+  const ariaLabel = [props.title, props.subtitle, distanceLabel ? `距離 ${distanceLabel}` : null]
+    .filter(Boolean)
+    .join("、");
+
   return (
-    <Card role="listitem" className="rounded-2xl shadow-sm hover:shadow transition">
-      <CardContent className="p-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-          <MapPin className="h-5 w-5" aria-hidden />
-        </div>
+    <Card className="rounded-2xl shadow-sm hover:shadow transition">
+      {/* ✅ role/aria-label を “確実にDOMに出るdiv” に置く */}
+      <div role="listitem" aria-label={ariaLabel}>
+        <CardContent className="p-4 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+            <MapPin className="h-5 w-5" aria-hidden />
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="font-medium truncate">{props.title}</div>
-          {props.subtitle && <div className="text-sm text-muted-foreground truncate">{props.subtitle}</div>}
+          <div className="min-w-0 flex-1">
+            <div className="font-medium truncate">{props.title}</div>
+            {props.subtitle && <div className="text-sm text-muted-foreground truncate">{props.subtitle}</div>}
 
-          {distanceLabel && (
-            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-              <Navigation className="h-4 w-4" aria-hidden />
-              <span>{distanceLabel}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
+            {distanceLabel && (
+              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <Navigation className="h-4 w-4" aria-hidden />
+                <span>{distanceLabel}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </div>
     </Card>
   );
 }
-
-export type { NearbyItem } from "./types";

@@ -23,13 +23,38 @@ describe("NearbyList stories parity", () => {
   test("Success snapshot", () => {
     const { asFragment } = render(
       <NearbyList
-        lat={35.68} lng={139.76} state="success"
+        lat={35.68}
+        lng={139.76}
+        state="success"
         items={[
-          { id: "1", name: "明治神宮", distanceMeters: 850, durationMinutes: 12, address: "東京都渋谷区" },
-          { id: "2", name: "神田明神", distanceMeters: 2300, durationMinutes: 28, address: "東京都千代田区" },
+          {
+            kind: "place",
+            place_id: "p1",
+            title: "明治神宮",
+            subtitle: "東京都渋谷区",
+            lat: 35.68,
+            lng: 139.76,
+            distance_m: 850,
+            rating: null,
+            user_ratings_total: null,
+            icon: null,
+          },
+          {
+            kind: "place",
+            place_id: "p2",
+            title: "神田明神",
+            subtitle: "東京都千代田区",
+            lat: 35.695,
+            lng: 139.768,
+            distance_m: 2300,
+            rating: null,
+            user_ratings_total: null,
+            icon: null,
+          },
         ]}
-      />
+      />,
     );
+
     expect(screen.getByRole("list", { name: "近隣の神社一覧" })).toBeInTheDocument();
     expect(asFragment()).toMatchSnapshot();
   });
