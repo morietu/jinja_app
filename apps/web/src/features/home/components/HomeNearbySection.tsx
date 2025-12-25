@@ -111,6 +111,8 @@ export function HomeNearbySection() {
 
   const hasResults = state === "success" && items.length > 0;
 
+  
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
