@@ -1,4 +1,5 @@
 // src/app/search/page.tsx
+import { headers } from "next/headers";
 import SearchBar from "@/components/SearchBar";
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
@@ -11,27 +12,21 @@ type RawSearchParams = Record<string, string | string[] | undefined>;
 
 type FetchParams = { keyword: string; locationbias?: string };
 
-async function fetchPlaces(params: FetchParams) {
+async function fetchPlaces(baseUrl: string, params: FetchParams) {
+  if (!params?.keyword) throw new Error("keyword is required");
   const usp = new URLSearchParams();
-  usp.set("q", params.keyword); // API は q を受ける前提
+  usp.set("q", params.keyword);
   usp.set("language", "ja");
-  usp.set(
-    "fields",
-    "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon"
-  );
+  usp.set("fields", "place_id,name,formatted_address,geometry,photos,opening_hours,rating,user_ratings_total,icon");
   if (params.locationbias) usp.set("locationbias", params.locationbias);
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/places/search?${usp.toString()}`,
-    { cache: "no-store" },
-  );
+  const url = new URL(`/api/places/search?${usp.toString()}`, baseUrl);
 
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("search failed");
   return res.json() as Promise<{ results: any[] }>;
-
-  
-
 }
+
 
 function parseLocationBiasCenter(lb: string): { lat: number; lng: number } | null {
   // 例: "circle:2000@35.681236,139.767125" / "point:35.681236,139.767125"
@@ -61,6 +56,11 @@ export default async function SearchPage({
   // Next 15 で Promise になる想定
   searchParams?: Promise<RawSearchParams>;
 }) {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const baseUrl = `${proto}://${host}`;
+
   const sp: RawSearchParams = (await searchParams) ?? {};
 
   // URL は ?keyword= でも ?q= でも受ける
@@ -80,7 +80,9 @@ export default async function SearchPage({
   const openNow = openNowStr === "1" || openNowStr === "true";
 
 
-  const data = keyword ? await fetchPlaces({ keyword: keyword.trim(), locationbias }) : { results: [] as any[] };
+  const data = keyword
+    ? await fetchPlaces(baseUrl, { keyword: keyword.trim(), locationbias })
+    : { results: [] as any[] };
 
   const results: any[] = Array.isArray(data.results) ? data.results : [];
 

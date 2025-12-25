@@ -1,15 +1,16 @@
 // apps/web/src/features/home/components/HomeNearbySection.tsx
 "use client";
-import axios from "axios";
 
+import axios from "axios";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/http";
-import type { NearbyListState, ShrineListItem } from "@/components/nearby/NearbyList";
+import type { NearbyListState } from "@/components/nearby/NearbyList";
+import type { NearbyItem } from "@/components/nearby/types";
+import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 
-// NearbyList は dynamic import（前と同じ）
 const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((m) => m.NearbyList), {
   ssr: false,
   loading: () => (
@@ -23,60 +24,57 @@ const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((
 
 const LIMIT = 10;
 
-// TODO: 実際の API レスポンスに合わせて型を調整する
-type NearbyApiResponse = {
-  results: any[];
-};
+function toNearbyItem(p: PlacesNearbyResponse["results"][number]): NearbyItem {
+  return {
+    kind: "place",
+    place_id: p.place_id,
+    title: p.name,
+    subtitle: p.address,
+    lat: p.lat,
+    lng: p.lng,
+    distance_m: p.distance_m ?? null,
+    rating: p.rating ?? null,
+    user_ratings_total: p.user_ratings_total ?? null,
+    icon: p.icon ?? null,
+  };
+}
 
 export function HomeNearbySection() {
-  const [lat, setLat] = useState<number | undefined>();
-  const [lng, setLng] = useState<number | undefined>();
+  const [lat, setLat] = useState<number>();
+  const [lng, setLng] = useState<number>();
   const [state, setState] = useState<NearbyListState>("loading");
-  const [items, setItems] = useState<ShrineListItem[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [items, setItems] = useState<NearbyItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>();
 
-  // 近くの神社API呼び出し
   const fetchNearby = useCallback(async (lat: number, lng: number) => {
     try {
       setState("loading");
       setErrorMessage(undefined);
 
-      // TODO: 実際のAPIエンドポイントが決まったらここを更新
-      const data = await apiGet<NearbyApiResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
+      const data = await apiGet<PlacesNearbyResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
+      
+      const mapped = (data.results ?? []).map(toNearbyItem);
 
-      const results = data?.results ?? [];
-
-      if (!results.length) {
+      if (!mapped.length) {
         setItems([]);
         setState("empty");
         return;
       }
 
-      const mapped = results as unknown as ShrineListItem[];
       setItems(mapped);
       setState("success");
     } catch (err) {
-      // 🔽 ここを追加
       if (axios.isAxiosError(err) && err.response?.status === 404) {
-        // まだ API 未実装 or パス違い → ひとまず「データなし」として扱う
         setItems([]);
         setErrorMessage(undefined);
         setState("empty");
-        if (process.env.NODE_ENV === "development") {
-          console.info("[HomeNearbySection] nearby API not found (404). Treat as empty.");
-        }
         return;
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to fetch nearby shrines", err);
       }
       setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
       setState("error");
     }
   }, []);
 
-  // 位置情報の取得
   const requestLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setErrorMessage("この端末では位置情報が利用できません。");
@@ -88,55 +86,33 @@ export function HomeNearbySection() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-
-        setLat(lat);
-        setLng(lng);
-
-        fetchNearby(lat, lng);
+        const la = pos.coords.latitude;
+        const ln = pos.coords.longitude;
+        setLat(la);
+        setLng(ln);
+        fetchNearby(la, ln);
       },
-      // エラーコールバック部分だけ差し替え
-
-      (err) => {
-        if (process.env.NODE_ENV === "development") {
-          console.info("Failed to get location", err);
-        }
-
+      () => {
         setErrorMessage("位置情報の取得に失敗しました。ブラウザの設定を確認し、再度お試しください。");
         setState("error");
       },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-      },
+      { enableHighAccuracy: false, timeout: 10000 },
     );
   }, [fetchNearby]);
 
-  // 初回マウント時に位置情報を取得
   useEffect(() => {
     requestLocation();
   }, [requestLocation]);
 
-  // NearbyList からの「再検索」
   const handleRefetch = () => {
-    if (typeof lat === "number" && typeof lng === "number") {
-      fetchNearby(lat, lng);
-    } else {
-      requestLocation();
-    }
+    if (typeof lat === "number" && typeof lng === "number") fetchNearby(lat, lng);
+    else requestLocation();
   };
 
-  // エラー状態からの「再試行」
-  const handleRetry = () => {
-    requestLocation();
-  };
-  // 一覧に結果があるかどうか
   const hasResults = state === "success" && items.length > 0;
 
   return (
     <div className="space-y-3">
-      {/* ヘッダーの文言は SectionCard 側に移したので、ここは再検索ボタンだけ */}
       <div className="flex justify-end">
         {hasResults && (
           <Button
@@ -160,7 +136,18 @@ export function HomeNearbySection() {
           items={items}
           errorMessage={errorMessage}
           onRefetch={handleRefetch}
-          onRetry={handleRetry}
+          onRetry={requestLocation}
+          itemHref={(item) => {
+            if (item.kind !== "place") return null;
+
+            const usp = new URLSearchParams();
+            usp.set("place_id", item.place_id);
+
+            if (typeof lat === "number" && typeof lng === "number") {
+              usp.set("locationbias", `circle:1500@${lat},${lng}`);
+            }
+            return `/shrines/resolve?${usp.toString()}`;
+          }}
         />
       </div>
     </div>
