@@ -2,7 +2,7 @@
 import SearchBar from "@/components/SearchBar";
 import PlaceCard from "@/components/PlaceCard";
 import { gmapsDirUrl } from "@/lib/maps";
-import { apiGet } from "@/lib/api/http";
+
 
 
 
