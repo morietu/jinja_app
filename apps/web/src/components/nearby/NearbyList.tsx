@@ -1,15 +1,15 @@
+import Link from "next/link";
 import * as React from "react";
-import { NearbyListItem, ShrineListItem } from "./NearbyList.Item";
+import { NearbyListItem, type ShrineListItem } from "./NearbyList.Item";
 import { NearbyListLoading } from "./NearbyList.Loading";
 import { NearbyListEmpty } from "./NearbyList.Empty";
 import { NearbyListError } from "./NearbyList.Error";
 
-
 export type NearbyListState = "loading" | "success" | "empty" | "error";
 
 export type NearbyListProps = {
-  lat?: number; // ← オプショナル化
-  lng?: number; // ← オプショナル化
+  lat?: number;
+  lng?: number;
   limit?: number;
   state: NearbyListState;
   items?: ShrineListItem[];
@@ -19,6 +19,7 @@ export type NearbyListProps = {
   onItemClick?: (id: string) => void;
   className?: string;
   "aria-label"?: string;
+  itemHref?: (item: ShrineListItem) => string | null;
 };
 
 export function NearbyList({
@@ -32,9 +33,9 @@ export function NearbyList({
   onRetry,
   onItemClick,
   className,
+  itemHref,
   ...rest
 }: NearbyListProps) {
-  // SR向け説明（座標・件数はSRのみ）
   const hasCoords = typeof lat === "number" && typeof lng === "number";
 
   const srLabel = hasCoords
@@ -55,17 +56,29 @@ export function NearbyList({
 
       {state === "success" && (
         <div role="list" aria-label="近隣の神社一覧" className="space-y-3">
-          {items.map((s) => (
-            <NearbyListItem key={s.id} {...s} onClick={onItemClick} />
-          ))}
+          {items.map((s) => {
+            const href = itemHref?.(s) ?? null;
+
+            // id が無い可能性があるなら place_id を fallback
+            const key = (s as any).place_id ?? s.id;
+
+            const item = <NearbyListItem {...s} onClick={onItemClick} />;
+
+            return href ? (
+              <Link key={key} href={href} className="block">
+                {item}
+              </Link>
+            ) : (
+              <div key={key}>{item}</div>
+            );
+          })}
         </div>
       )}
     </section>
   );
 }
 
-// re-export subcomponents for convenient imports in tests and stories
-export { NearbyListItem, type ShrineListItem } from "./NearbyList.Item";
+export { NearbyListItem } from "./NearbyList.Item";
 export { NearbyListLoading } from "./NearbyList.Loading";
 export { NearbyListEmpty } from "./NearbyList.Empty";
 export { NearbyListError } from "./NearbyList.Error";
