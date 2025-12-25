@@ -4,6 +4,8 @@ import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
 import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
 import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
+import { gmapsDirUrl } from "@/lib/maps";
+
 
 // ✅ コンポーネントの外でOK
 function getBenefitLabels(shrine: Shrine): string[] {
@@ -66,14 +68,33 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   const lat = shrine.lat ?? shrine.latitude ?? null;
   const lng = shrine.lng ?? shrine.longitude ?? null;
 
-  const hasLocation = lat != null && lng != null;
-  const mapHref = hasLocation ? `/map?lat=${lat}&lng=${lng}` : "/map";
 
+  const latNum = lat == null ? null : Number(lat);
+  const lngNum = lng == null ? null : Number(lng);
+
+  const hasLocation = Number.isFinite(latNum) && Number.isFinite(lngNum);
+
+  const mapsRouteHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum!, lng: lngNum! }, mode: "walk" }) : null;
+
+  const mapHref = hasLocation ? `/map?lat=${latNum}&lng=${lngNum}` : "/map";
   // ✅ ご利益ラベルも shrine 確定後に計算
   const benefitLabels = getBenefitLabels(shrine);
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-6">
+      {/* ✅ 最優先：経路 */}
+      {mapsRouteHref && (
+        <a
+          href={mapsRouteHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          経路を開く（徒歩）
+        </a>
+      )}
+
+      {/* 2番手：御朱印 */}
       <Link
         href={addGoshuinHref}
         className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
