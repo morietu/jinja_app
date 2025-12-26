@@ -6,6 +6,7 @@ import type { NearbyItem } from "./types";
 const metersToKm = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
 
 export function NearbyListItem(props: NearbyItem) {
+  console.log("[NearbyListItem]", props.title, props.distance_m, typeof props.distance_m);
   const distanceLabel = typeof props.distance_m === "number" ? metersToKm(props.distance_m) : null;
 
   const ariaLabel = [props.title, props.subtitle, distanceLabel && `距離 ${distanceLabel}`].filter(Boolean).join("、");
