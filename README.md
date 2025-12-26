@@ -60,6 +60,8 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 
+PLACES_API_NEW=1 python manage.py runserver 8000
+
 ### Web
 cd apps/web
 pnpm install
