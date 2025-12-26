@@ -1,9 +1,17 @@
+// apps/web/src/features/goshuin/components/MyGoshuinTopSection.tsx
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth/AuthProvider";
-import { useMyGoshuin } from "@/features/mypage/hooks";
+
+type Goshuin = {
+  id: number;
+  shrine?: number;
+  title?: string | null;
+  image_url?: string | null;
+  shrine_name?: string | null;
+  is_public: boolean;
+};
 
 function GoshuinCardMini({
   title,
@@ -54,7 +62,7 @@ function GoshuinCardMini({
       {Inner}
     </Link>
   ) : (
-    <div className="overflow-hidden rounded-2xl border bg-white shadow-sm opacity-60 cursor-not-allowed">{Inner}</div>
+    <div className="cursor-not-allowed overflow-hidden rounded-2xl border bg-white shadow-sm opacity-60">{Inner}</div>
   );
 }
 
@@ -75,15 +83,21 @@ function PlaceholderToriiCard({ label = "サンプル" }: { label?: string }) {
   );
 }
 
-export default function MyGoshuinTopSection() {
-  const { isLoggedIn } = useAuth();
-  
-
-  const { items, loading, error } = useMyGoshuin({ enabled: isLoggedIn });
-
-  const hasAny = (items ?? []).length > 0;
-  const hasPublic = (items ?? []).some((g) => g.is_public);
-  const latestPublic = (items ?? []).filter((g) => g.is_public).slice(0, 4);
+export default function MyGoshuinTopSection({
+  isLoggedIn,
+  items,
+  loading,
+  error,
+}: {
+  isLoggedIn: boolean;
+  items?: Goshuin[] | null;
+  loading?: boolean;
+  error?: string | null;
+}) {
+  const list = items ?? [];
+  const hasAny = list.length > 0;
+  const hasPublic = list.some((g) => g.is_public);
+  const latestPublic = list.filter((g) => g.is_public).slice(0, 4);
 
   const showPlaceholders = !isLoggedIn || (!loading && !error && latestPublic.length === 0);
   const GRID = "grid grid-cols-2 gap-4 sm:grid-cols-4";
@@ -95,10 +109,9 @@ export default function MyGoshuinTopSection() {
       : !hasPublic
         ? "公開中の御朱印がありません。"
         : "";
-  
-  
-  const thumbs = (
-    <>
+
+  return (
+    <div className="space-y-4">
       {loading ? (
         <div className={GRID}>
           {Array.from({ length: 4 }).map((_, i) => (
@@ -139,11 +152,8 @@ export default function MyGoshuinTopSection() {
               />
             </div>
           ))}
-          
         </div>
       )}
-    </>
+    </div>
   );
-
-  return <div className="space-y-4">{thumbs}</div>;
 }
