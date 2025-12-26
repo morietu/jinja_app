@@ -1,7 +1,8 @@
 // apps/web/src/components/NearbyPlaces.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { NearbyList } from "@/components/nearby/NearbyList";
 import type { NearbyItem } from "@/components/nearby/types";
@@ -36,7 +37,7 @@ async function fetchNearby(lat: number, lng: number, limit: number) {
 export default function NearbyPlaces({
   limit = 10,
   onSelectPlaceId,
-  selectedPlaceId,
+  selectedPlaceId: _selectedPlaceId,
 }: {
   limit?: number;
   onSelectPlaceId?: (placeId: string) => void;
@@ -55,6 +56,7 @@ export default function NearbyPlaces({
 
   // fetch 二重実行防止
   const inflightRef = useRef(false);
+
 
   const pickCoordsOnce = useCallback(() => {
     if (decidedRef.current) return;
@@ -100,9 +102,13 @@ export default function NearbyPlaces({
     }
   }, [limit]);
 
+  const didFetchRef = useRef(false);
+  
   // 「coordsが取れたらそれで1回だけ」「取れなければfallbackで1回だけ」
   useEffect(() => {
     if (geoLoading) return;
+    if (didFetchRef.current) return;
+    didFetchRef.current = true;
 
     pickCoordsOnce();
     void runFetch();
