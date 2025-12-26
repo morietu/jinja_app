@@ -5,6 +5,7 @@ import { getShrine, type Shrine } from "@/lib/api/shrines";
 import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
 import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
 import { gmapsDirUrl } from "@/lib/maps";
+import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 
 
 // ✅ コンポーネントの外でOK
@@ -82,6 +83,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-6">
+      <ShrineDetailToast shrineId={numericId} />
       {/* ✅ 最優先：経路 */}
       {mapsRouteHref && (
         <a
@@ -101,6 +103,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
       >
         この神社で御朱印を追加
       </Link>
+      <section id="goshuins" className="scroll-mt-24" />
       {/* アクションカード */}
       <ShortcutCardGrid>
         <ShortcutCard
@@ -118,6 +121,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
       {/* 写真ギャラリー */}
       <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <ShrinePhotoGallery shrine={shrine} />
+        <section id="goshuins">{/* ここに御朱印一覧 */}</section>
 
         <div className="p-4 space-y-3">
           <header className="space-y-1">
