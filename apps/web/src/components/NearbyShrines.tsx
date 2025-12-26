@@ -116,6 +116,9 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
   const extraMessage =
     usedFallback && !errorMessage ? "近くには見つからなかったため、人気の神社を表示しています。" : undefined;
 
+  const lat = coords?.lat;
+  const lng = coords?.lng;
+
   return (
     <NearbyList
       lat={coords?.lat ?? 0}
@@ -124,18 +127,22 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       state={state}
       items={items}
       errorMessage={errorMessage ?? extraMessage}
-      onRefetch={load}
-      onRetry={load}
+      onRefetch={() => void load()}
+      onRetry={() => void load()}
       className="space-y-3"
       aria-label="近くの神社"
       itemHref={(item) => {
-        if (item.kind !== "place") return null;
+        // NearbyShrines は kind: "temple" を作っているのでここも合わせる
+        if (item.kind !== "temple") return null;
+
         const usp = new URLSearchParams();
-        usp.set("focus", item.place_id);
+        usp.set("focus", item.temple_id);
+
         if (typeof lat === "number" && typeof lng === "number") {
           usp.set("lat", String(lat));
           usp.set("lng", String(lng));
         }
+
         return `/map?${usp.toString()}`;
       }}
     />
