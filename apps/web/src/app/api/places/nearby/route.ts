@@ -1,3 +1,4 @@
+// apps/web/src/app/api/places/nearby/route.ts
 import { NextResponse } from "next/server";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
 
@@ -9,45 +10,65 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const qs = url.searchParams.toString();
 
-  const upstream = await fetch(`${API_BASE}/api/places/nearby/?${qs}`, { cache: "no-store" });
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${API_BASE}/api/places/nearby-search/?${qs}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+  } catch (e) {
+    console.error("[nearby] upstream fetch failed:", e);
+    const body: PlacesNearbyResponse = { results: [] };
+    return NextResponse.json(body, { status: 200 });
+  }
 
-  // ✅ 404 は空で返す（UIはempty）
+  // 404 は「近く無し」扱い
   if (upstream.status === 404) {
     const body: PlacesNearbyResponse = { results: [] };
     return NextResponse.json(body, { status: 200 });
   }
 
-  const raw = await upstream.json().catch(() => null);
-  const resultsRaw: any[] = Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  // upstream がエラーなら UI は壊さず empty に倒す（ログだけ出す）
+  if (!upstream.ok) {
+    const txt = await upstream.text().catch(() => "");
+    console.error("[nearby] upstream not ok:", upstream.status, txt.slice(0, 300));
+    const body: PlacesNearbyResponse = { results: [] };
+    return NextResponse.json(body, { status: 200 });
+  }
 
-  const mapped: MaybePlace[] = resultsRaw.map((r): MaybePlace => {
-    const place_id = String(r?.place_id ?? "");
-    const name = String(r?.name ?? "");
+  const raw = await upstream.json().catch(async () => {
+    const txt = await upstream.text().catch(() => "");
+    console.error("[nearby] upstream json parse failed:", txt.slice(0, 300));
+    return null;
+  });
 
-    const addressRaw = r?.address ?? r?.formatted_address ?? null;
-    const address: string | null = addressRaw == null ? null : String(addressRaw);
+  const resultsRaw: any[] = Array.isArray(raw?.results) ? raw.results : [];
 
-    const lat = Number(r?.lat ?? r?.geometry?.location?.lat);
-    const lng = Number(r?.lng ?? r?.geometry?.location?.lng);
+  const mapped: MaybePlace[] = resultsRaw.map((r) => {
+    const place_id = String(r.place_id ?? r.placeId ?? r.id ?? "");
+    const name = String(r.name ?? r.title ?? "");
+    const address = r.address ?? r.formatted_address ?? r.formattedAddress ?? undefined;
+
+    const lat = Number(r.lat ?? r.location?.latitude ?? r.location?.lat ?? r.geometry?.location?.lat);
+    const lng = Number(r.lng ?? r.location?.longitude ?? r.location?.lng ?? r.geometry?.location?.lng);
 
     if (!place_id || !name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
     return {
       place_id,
       name,
-      address,
+      ...(address ? { address } : {}),
       lat,
       lng,
-      distance_m: r?.distance_m ?? null,
-      rating: r?.rating ?? null,
-      user_ratings_total: r?.user_ratings_total ?? null,
-      icon: r?.icon ?? null,
+      distance_m: r.distance_m ?? null,
+      rating: r.rating ?? null,
+      user_ratings_total: r.user_ratings_total ?? null,
+      icon: r.icon ?? null,
     } satisfies PlacesNearbyResult;
   });
 
-  const nonNull = (x: MaybePlace): x is PlacesNearbyResult => x !== null;
-  const results: PlacesNearbyResult[] = mapped.filter(nonNull);
+  const results = mapped.filter((x): x is PlacesNearbyResult => x !== null);
 
   const body: PlacesNearbyResponse = { results };
-  return NextResponse.json(body, { status: upstream.status });
+  return NextResponse.json(body, { status: 200 });
 }
