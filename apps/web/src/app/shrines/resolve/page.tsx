@@ -19,16 +19,15 @@ export default async function ResolvePage({
   const proto = h.get("x-forwarded-proto") ?? "http";
   const baseUrl = `${proto}://${host}`;
 
-  const res = await fetch(`${baseUrl}/api/places/find`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ place_id: placeId }),
+  const res = await fetch(`${baseUrl}/api/places/detail/?place_id=${encodeURIComponent(placeId)}`, {
     cache: "no-store",
   });
 
   if (!res.ok) redirect("/?toast=resolve_failed");
 
   const data = await res.json();
+
+  // あとは data から shrineId を組み立てる（いまの仕様に合わせて）
   const shrineId = data.shrine_id ?? data.id;
   if (!shrineId) redirect("/?toast=resolve_no_shrine");
 

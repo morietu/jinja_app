@@ -2,19 +2,23 @@
 import { findPlace, searchPlaces } from "@/lib/api/places";
 
 export async function resolvePlaceFromUtterance(text: string) {
-  // まず B: /places/find/ を input で叩いて “特定” を試みる
+  const q = text.trim();
+
+  // ✅ ガード：空文字・空白のみなら find/search を呼ばない
+  if (!q) {
+    return { kind: "candidates", data: [] } as const;
+  }
+
   try {
     const found = await findPlace({
-      input: text,
+      input: q,
       language: "ja",
       fields: "place_id,name,formatted_address,geometry",
     });
-    // ここで found に shrine_id などが入っていれば “取り込み/紐付け済み”
     return { kind: "found", data: found } as const;
   } catch {
-    // 404/422 等で解決不可なら A にフォールバック
     const res = await searchPlaces({
-      q: text,
+      q,
       language: "ja",
     });
     return { kind: "candidates", data: res.results ?? [] } as const;
