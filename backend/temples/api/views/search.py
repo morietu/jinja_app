@@ -25,6 +25,7 @@ from temples.api.serializers.places import (
     TextSearchResponse,
 )
 from temples.services import google_places as GP
+from temples.services import places as PlacesSvc
 
 logger = logging.getLogger(__name__)
 
@@ -491,20 +492,23 @@ def detail_short(request, id: str):
     responses={200: OpenApiTypes.OBJECT},
     tags=["places"],
 )
-
-
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 def places_find(request):
-    data = request.query_params if request.method == "GET" else request.data
+    # GET/POST 両方で payload 揺れを吸収
+    if request.method == "GET":
+        q = (request.query_params.get("input") or request.query_params.get("q") or request.query_params.get("query") or "").strip()
+        lat = request.query_params.get("lat")
+        lng = request.query_params.get("lng")
+        radius = request.query_params.get("radius")
+    else:
+        q = (request.data.get("input") or request.data.get("q") or request.data.get("query") or "").strip()
+        lat = request.data.get("lat")
+        lng = request.data.get("lng")
+        radius = request.data.get("radius")
 
-    q = (data.get("input") or data.get("q") or data.get("query") or "").strip()
     if not q:
         return Response({"detail": "input is required"}, status=400)
-
-    lat = data.get("lat")
-    lng = data.get("lng")
-    radius = data.get("radius")  # meters
 
     locationbias = None
     try:
@@ -519,13 +523,21 @@ def places_find(request):
     )
 
     try:
-        data = GP.findplacefromtext(
+        data = PlacesSvc.find_place(
             input=q,
             language="ja",
             locationbias=locationbias,
             fields=fields,
         )
-        return Response(data)
+
+        # contract: results を必ず返す
+        if "results" in data:
+            return Response(data)
+        if "candidates" in data:
+            return Response({"results": data.get("candidates") or [], "status": data.get("status")})
+        # どちらでもなければ空で返す（壊さない）
+        return Response({"results": [], "status": data.get("status")})
+
     except Exception:
         logger.exception("places.find failed")
         return Response({"detail": "places.find failed due to an internal error"}, status=502)
