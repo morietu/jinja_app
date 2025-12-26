@@ -1,19 +1,27 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import api from "../client";
 
 function getRequestInterceptor() {
-  // axios instance の request interceptor を直接叩く
   const handlers = (api as any).interceptors.request.handlers;
   expect(handlers?.length).toBeGreaterThan(0);
-  return handlers[0].fulfilled as (config: any) => any;
+  return handlers[0].fulfilled as (config: any) => any; // CSRF interceptor
 }
+
+function clearCookie(name: string) {
+  // jsdom は path が一致しないと消えないことがあるので path=/ を付ける
+  document.cookie = `${name}=; Max-Age=0; path=/`;
+}
+
+beforeEach(() => {
+  clearCookie("csrftoken");
+});
 
 describe("api client (csrf interceptor)", () => {
   it("GET のときは CSRF ヘッダを付けない", () => {
-    document.cookie = "csrftoken=abc";
+    document.cookie = "csrftoken=abc; path=/";
     const run = getRequestInterceptor();
 
     const cfg = run({ method: "get", headers: {} });
@@ -22,7 +30,7 @@ describe("api client (csrf interceptor)", () => {
   });
 
   it("POST かつ csrftoken がある場合、headers が未定義でも X-CSRFToken を付与する", () => {
-    document.cookie = "csrftoken=token123";
+    document.cookie = "csrftoken=token123; path=/";
     const run = getRequestInterceptor();
 
     const cfg = run({ method: "post" }); // headers: undefined
@@ -32,8 +40,7 @@ describe("api client (csrf interceptor)", () => {
   });
 
   it("POST でも csrftoken が無い場合は X-CSRFToken を付けない", () => {
-    // cookie を空にする（jsdomは set で上書きできる）
-    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    // beforeEach で消えてる想定
     const run = getRequestInterceptor();
 
     const cfg = run({ method: "post", headers: {} });
@@ -43,7 +50,6 @@ describe("api client (csrf interceptor)", () => {
 
   it("document が undefined の場合は CSRF を付けない（getCookie が null を返す）", () => {
     const original = (globalThis as any).document;
-    // jsdom環境でも一時的に document を潰して分岐を踏む
     (globalThis as any).document = undefined;
 
     try {
