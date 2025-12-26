@@ -1,6 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import Link from "next/link";
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { SectionCard } from "@/components/layout/SectionCard";
@@ -18,6 +20,31 @@ type Paginated<T> = { count: number; next: string | null; previous: string | nul
 
 export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated<Goshuin> | null }) {
   const router = useRouter();
+  const sp = useSearchParams();
+  const shownRef = useRef(false);
+
+  useEffect(() => {
+    const t = sp.get("toast");
+    if (!t) return;
+
+    // ★StrictMode対策：同一マウント中は1回だけ
+    if (shownRef.current) return;
+    shownRef.current = true;
+
+    const msg =
+      t === "resolve_failed"
+        ? "神社の特定に失敗しました。もう一度お試しください。"
+        : t === "resolve_no_shrine"
+          ? "神社情報が見つかりませんでした。"
+          : t === "resolve_missing_place"
+            ? "リンクが不完全でした。"
+            : "処理に失敗しました。";
+
+    alert(msg);
+
+    // クエリ掃除（戻る履歴を汚さない）
+    router.replace("/", { scroll: false });
+  }, [sp, router]);
 
   return (
     <main className="min-h-screen bg-slate-50">

@@ -129,9 +129,14 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       className="space-y-3"
       aria-label="近くの神社"
       itemHref={(item) => {
-        if (item.kind === "temple") return `/shrines/${item.temple_id}`;
-        if (item.kind === "place") return `/shrines/resolve?place_id=${item.place_id}`;
-        return null;
+        if (item.kind !== "place") return null;
+        const usp = new URLSearchParams();
+        usp.set("focus", item.place_id);
+        if (typeof lat === "number" && typeof lng === "number") {
+          usp.set("lat", String(lat));
+          usp.set("lng", String(lng));
+        }
+        return `/map?${usp.toString()}`;
       }}
     />
   );
