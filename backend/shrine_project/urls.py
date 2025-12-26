@@ -62,6 +62,7 @@ def healthz(request):
     return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
 
+@extend_schema(exclude=True) 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_db(request):
