@@ -10,10 +10,10 @@ type UIState = "loading" | "success" | "empty" | "error";
 
 const NEARBY_RADIUS_KM = 30;
 
-export default function NearbyShrines({ 
+export default function NearbyShrines({
   limit = 10,
   onSelectPlaceId,
-  selectedPlaceId,
+  selectedPlaceId: _selectedPlaceId,
 }: {
   limit?: number;
   onSelectPlaceId?: (placeId: string) => void;
@@ -70,7 +70,6 @@ export default function NearbyShrines({
         results = await getPopularShrines({ limit });
         setUsedFallback(true);
       }
-
 
       const mapped = (results ?? []).map(toItem).filter(isNearbyItem);
       if (mapped.length === 0) {
@@ -139,20 +138,24 @@ export default function NearbyShrines({
       onRetry={() => void load()}
       className="space-y-3"
       aria-label="近くの神社"
-      itemHref={onSelectPlaceId ? () => null : (item) => {
-        // NearbyShrines は kind: "temple" を作っているのでここも合わせる
-        if (item.kind !== "temple") return null;
+      itemHref={
+        onSelectPlaceId
+          ? () => null
+          : (item) => {
+              // NearbyShrines は kind: "temple" を作っているのでここも合わせる
+              if (item.kind !== "temple") return null;
 
-        const usp = new URLSearchParams();
-        usp.set("focus", item.temple_id);
+              const usp = new URLSearchParams();
+              usp.set("focus", item.temple_id);
 
-        if (typeof lat === "number" && typeof lng === "number") {
-          usp.set("lat", String(lat));
-          usp.set("lng", String(lng));
-        }
+              if (typeof lat === "number" && typeof lng === "number") {
+                usp.set("lat", String(lat));
+                usp.set("lng", String(lng));
+              }
 
-        return `/map?${usp.toString()}`;
-      }}
+              return `/map?${usp.toString()}`;
+            }
+      }
       onItemClick={(item) => {
         // place のときだけ選択できる（kind が違うなら合わせて調整）
         if (item.kind !== "place") return;
