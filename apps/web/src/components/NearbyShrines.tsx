@@ -10,7 +10,15 @@ type UIState = "loading" | "success" | "empty" | "error";
 
 const NEARBY_RADIUS_KM = 30;
 
-export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
+export default function NearbyShrines({ 
+  limit = 10,
+  onSelectPlaceId,
+  selectedPlaceId,
+}: {
+  limit?: number;
+  onSelectPlaceId?: (placeId: string) => void;
+  selectedPlaceId?: string | null;
+}) {
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
   const [state, setState] = useState<UIState>("loading");
   const [items, setItems] = useState<NearbyItem[]>([]);
@@ -131,7 +139,7 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       onRetry={() => void load()}
       className="space-y-3"
       aria-label="近くの神社"
-      itemHref={(item) => {
+      itemHref={onSelectPlaceId ? () => null : (item) => {
         // NearbyShrines は kind: "temple" を作っているのでここも合わせる
         if (item.kind !== "temple") return null;
 
@@ -144,6 +152,11 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
         }
 
         return `/map?${usp.toString()}`;
+      }}
+      onItemClick={(item) => {
+        // place のときだけ選択できる（kind が違うなら合わせて調整）
+        if (item.kind !== "place") return;
+        onSelectPlaceId?.(item.place_id);
       }}
     />
   );

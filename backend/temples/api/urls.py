@@ -10,7 +10,7 @@ from temples.api.views.search import places_find
 
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
-
+from temples.api.views.shrine_from_place import shrine_from_place
 
 
 # Concierge の互換シム
@@ -143,6 +143,10 @@ urlpatterns = [
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
+
+    path("shrines/from-place/", shrine_from_place, name="shrines-from-place"),
+
+    
     # --- My Goshuin（単数形 /api/my/goshuin/... 互換） ---
     path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
     path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),

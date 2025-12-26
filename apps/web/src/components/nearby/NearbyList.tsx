@@ -21,6 +21,7 @@ export type NearbyListProps = {
   className?: string;
   "aria-label"?: string;
   itemHref?: (item: NearbyItem) => string | null;
+  onItemClick?: (item: NearbyItem) => void;
 };
 
 export function NearbyList({
@@ -34,6 +35,7 @@ export function NearbyList({
   onRetry,
   className,
   itemHref,
+  onItemClick,
   ...rest
 }: NearbyListProps) {
   const hasCoords = typeof lat === "number" && typeof lng === "number";
@@ -59,7 +61,7 @@ export function NearbyList({
 
             if (!href) {
               return (
-                <div key={key}>
+                <div key={key} onClick={() => onItemClick?.(x)} className={onItemClick ? "cursor-pointer" : undefined}>
                   <NearbyListItem {...x} />
                 </div>
               );

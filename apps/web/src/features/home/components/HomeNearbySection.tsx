@@ -2,7 +2,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NearbyListState } from "@/components/nearby/NearbyList";
@@ -21,9 +21,8 @@ const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((
   ),
 });
 
-const FETCH_LIMIT = 10;     // APIに取りに行く数（精度確保）
-const DISPLAY_LIMIT = 3;    // トップで見せる数（UX）
-
+const FETCH_LIMIT = 10; // APIに取りに行く数（精度確保）
+const DISPLAY_LIMIT = 3; // トップで見せる数（UX）
 const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅
 
 function toNearbyItem(p: PlacesNearbyResponse["results"][number]): NearbyItem {
@@ -55,25 +54,27 @@ export function HomeNearbySection() {
   const [errorMessage, setErrorMessage] = useState<string>();
   const [usingFallback, setUsingFallback] = useState(false);
 
+  // このマウントで「座標を確定したら」二度と決めない
+  const decidedRef = useRef(false);
+  // fetch中の二重実行を防ぐ（連打/再マウント/多重イベント）
+  const inflightRef = useRef(false);
+  // geolocation起動を一回にする（StrictMode対策）
+  const requestedGeoRef = useRef(false);
+
   const runFetch = useCallback(async (la: number, ln: number, opts?: { fallbackUsed?: boolean; msg?: string }) => {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+
     setState("loading");
     setErrorMessage(opts?.msg);
     setUsingFallback(!!opts?.fallbackUsed);
 
-    if (opts?.fallbackUsed && opts?.msg) {
-      toast(opts.msg);
-    }
+    if (opts?.fallbackUsed && opts?.msg) toast(opts.msg);
 
     try {
       const data = await fetchNearbyViaBFF(la, ln, FETCH_LIMIT);
       const mapped = (data.results ?? []).map(toNearbyItem);
-
-      console.log(
-        "nearby items distance_m:",
-        mapped.map((x) => ({ title: x.title, distance_m: x.distance_m })),
-      );
       const sliced = mapped.slice(0, DISPLAY_LIMIT);
-
 
       setLat(la);
       setLng(ln);
@@ -92,24 +93,43 @@ export function HomeNearbySection() {
       setState("error");
       setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
       toast("近くの神社の取得に失敗しました");
+    } finally {
+      inflightRef.current = false;
     }
   }, []);
 
-  const requestLocation = useCallback(() => {
-    // geolocation 未対応 → fallback で必ず動かす
+  const decideAndFetchFallbackOnce = useCallback(() => {
+    if (decidedRef.current) return;
+    decidedRef.current = true;
+
+    void runFetch(FALLBACK.lat, FALLBACK.lng, {
+      fallbackUsed: true,
+      msg: "位置情報が利用できないため、東京駅周辺を表示しています。",
+    });
+  }, [runFetch]);
+
+  const requestLocationOnce = useCallback(() => {
+    if (requestedGeoRef.current) return;
+    requestedGeoRef.current = true;
+
+    // geolocation 未対応 → fallback で確定
     if (!("geolocation" in navigator)) {
-      void runFetch(FALLBACK.lat, FALLBACK.lng, {
-        fallbackUsed: true,
-        msg: "位置情報が利用できないため、東京駅周辺を表示しています。",
-      });
+      decideAndFetchFallbackOnce();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (decidedRef.current) return; // 既に fallback 等で決定済みなら何もしない
+        decidedRef.current = true;
+
         void runFetch(pos.coords.latitude, pos.coords.longitude, { fallbackUsed: false, msg: undefined });
       },
       (e) => {
+        // 失敗したら fallback で確定（このマウントで1回だけ）
+        if (decidedRef.current) return;
+        decidedRef.current = true;
+
         void runFetch(FALLBACK.lat, FALLBACK.lng, {
           fallbackUsed: true,
           msg: `位置情報の取得に失敗したため、東京駅周辺を表示しています。(code=${e.code})`,
@@ -117,18 +137,24 @@ export function HomeNearbySection() {
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
-  }, [runFetch]);
+  }, [decideAndFetchFallbackOnce, runFetch]);
 
-    useEffect(() => {
-      
-      requestLocation();
-    }, [requestLocation]);
+  // 「coordsが取れたらそれで1回だけ」「取れなければfallbackで1回だけ」
+  useEffect(() => {
+    requestLocationOnce();
+  }, [requestLocationOnce]);
 
   const handleRefetch = () => {
+    // 手動の「再検索」は “もう一度決める” なのでリセットしてからやる
+    decidedRef.current = false;
+    requestedGeoRef.current = false;
+
     if (typeof lat === "number" && typeof lng === "number") {
       void runFetch(lat, lng, { fallbackUsed: usingFallback, msg: errorMessage });
+      decidedRef.current = true; // 既存座標で決め打ち
+      requestedGeoRef.current = true;
     } else {
-      requestLocation();
+      requestLocationOnce();
     }
   };
 
@@ -159,7 +185,7 @@ export function HomeNearbySection() {
           items={items}
           errorMessage={errorMessage}
           onRefetch={handleRefetch}
-          onRetry={requestLocation}
+          onRetry={handleRefetch}
           itemHref={(item) => {
             if (item.kind !== "place") return null;
 
