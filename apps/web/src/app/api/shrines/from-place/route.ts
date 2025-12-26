@@ -1,24 +1,36 @@
 // apps/web/src/app/api/shrines/from-place/route.ts
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
-  const place_id = body?.place_id;
+  const h = await headers();
 
-  if (!place_id || typeof place_id !== "string") {
-    return NextResponse.json({ error: "place_id required" }, { status: 400 });
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
   const upstream = await fetch(`${API_BASE}/api/shrines/from-place/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ place_id }),
     cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      // 認証が必要な場合に備えて、来たヘッダをできるだけ引き継ぐ
+      ...(h.get("authorization") ? { Authorization: h.get("authorization") as string } : {}),
+      ...(h.get("cookie") ? { cookie: h.get("cookie") as string } : {}),
+    },
+    body: JSON.stringify(payload),
   });
 
-  const data = await upstream.json().catch(() => null);
-
-  return NextResponse.json(data ?? { error: "upstream failed" }, { status: upstream.status });
+  const text = await upstream.text().catch(() => "");
+  // upstream のステータスはそのまま返す（デバッグしやすい）
+  return new NextResponse(text, {
+    status: upstream.status,
+    headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
+  });
 }
