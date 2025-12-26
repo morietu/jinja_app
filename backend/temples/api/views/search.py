@@ -483,3 +483,47 @@ def detail_short(request, id: str):
         DRFRequest = None
     dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
     return detail(dj_req, id=id)
+
+
+@extend_schema(
+    summary="Places: find (lite)",
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+    tags=["places"],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def places_find(request):
+    # フロントの payload 揺れを吸収
+    q = (request.data.get("input") or request.data.get("q") or request.data.get("query") or "").strip()
+    if not q:
+        return Response({"detail": "input is required"}, status=400)
+
+    # locationbias が欲しければ吸収（任意）
+    lat = request.data.get("lat")
+    lng = request.data.get("lng")
+    radius = request.data.get("radius")  # meters 想定
+
+    locationbias = None
+    try:
+        if lat is not None and lng is not None and radius is not None:
+            locationbias = f"circle:{int(radius)}@{float(lat)},{float(lng)}"
+    except Exception:
+        locationbias = None
+
+    fields = (
+        "place_id,formatted_address,geometry,photos,name,"
+        "rating,user_ratings_total,types,opening_hours,icon"
+    )
+
+    try:
+        data = GP.findplacefromtext(
+            input=q,
+            language="ja",
+            locationbias=locationbias,
+            fields=fields,
+        )
+        return Response(data)
+    except Exception:
+        logger.exception("places.find failed")
+        return Response({"detail": "places.find failed due to an internal error"}, status=502)
