@@ -491,18 +491,20 @@ def detail_short(request, id: str):
     responses={200: OpenApiTypes.OBJECT},
     tags=["places"],
 )
-@api_view(["POST"])
+
+
+@api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 def places_find(request):
-    # フロントの payload 揺れを吸収
-    q = (request.data.get("input") or request.data.get("q") or request.data.get("query") or "").strip()
+    data = request.query_params if request.method == "GET" else request.data
+
+    q = (data.get("input") or data.get("q") or data.get("query") or "").strip()
     if not q:
         return Response({"detail": "input is required"}, status=400)
 
-    # locationbias が欲しければ吸収（任意）
-    lat = request.data.get("lat")
-    lng = request.data.get("lng")
-    radius = request.data.get("radius")  # meters 想定
+    lat = data.get("lat")
+    lng = data.get("lng")
+    radius = data.get("radius")  # meters
 
     locationbias = None
     try:
