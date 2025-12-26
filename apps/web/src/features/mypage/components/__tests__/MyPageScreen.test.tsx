@@ -13,6 +13,13 @@ vi.mock("@/features/mypage/hooks", () => ({
   useMyGoshuin: (args: any) => mockUseMyGoshuin(args),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => ({
+    get: (_k: string) => null, // shrine クエリ無し想定
+  }),
+}));
+
 // 子コンポーネントは中身まで追わない（coverage目的）
 vi.mock("../GoshuinUploadForm", () => ({
   default: () => <div>UPLOAD_FORM</div>,
@@ -54,7 +61,9 @@ describe("MyPageScreen", () => {
     });
 
     render(<MyPageScreen />);
-    expect(screen.getByRole("link", { name: "ログインへ" })).toHaveAttribute("href", "/login?next=/mypage?tab=goshuin");
+    const link = screen.getByRole("link", { name: "ログインへ" });
+    const href = link.getAttribute("href")!;
+    expect(decodeURIComponent(href)).toBe("/login?next=/mypage?tab=goshuin");
   });
 
   it("ログイン時は アップロードと一覧を表示する", () => {
