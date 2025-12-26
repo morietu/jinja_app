@@ -42,7 +42,6 @@ function toNearbyItem(p: PlacesNearbyResponse["results"][number]): NearbyItem {
 }
 
 async function fetchNearbyViaBFF(lat: number, lng: number, limit: number) {
-  const radius = 2000;
   const r = await fetch(`/api/places/nearby?lat=${lat}&lng=${lng}&limit=${limit}`, { cache: "no-store" });
   if (!r.ok) throw new Error(`nearby bff failed: ${r.status}`);
   return (await r.json()) as PlacesNearbyResponse;
@@ -121,7 +120,7 @@ export function HomeNearbySection() {
   }, [runFetch]);
 
     useEffect(() => {
-      toast("toast動作テスト");
+      
       requestLocation();
     }, [requestLocation]);
 
