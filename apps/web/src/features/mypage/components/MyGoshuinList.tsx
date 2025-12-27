@@ -12,16 +12,22 @@ type Props = {
   error: string | null;
   onDelete?: (id: number) => void | Promise<void>;
   onToggleVisibility?: (id: number, next: boolean) => void | Promise<void>;
+  navigateOnCardClick?: boolean;
 };
 
-export default function MyGoshuinList({ items, loading, error, onDelete, onToggleVisibility }: Props) {
+export default function MyGoshuinList({
+  items,
+  loading,
+  error,
+  onDelete,
+  onToggleVisibility,
+  navigateOnCardClick = false,
+}: Props) {
   const router = useRouter();
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
-
-  // --- 状態別レンダー ---
 
   if (loading) {
     return (
@@ -56,9 +62,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     );
   }
 
-  // -----------------
-  // ハンドラ
-  // -----------------
   const handleOpenDetail = (g: Goshuin) => {
     setSelected(g);
     setDetailOpen(true);
@@ -77,7 +80,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     }
   };
 
-  // ★ ここを「id, next をそのまま使う」関数にする
   const handleToggleVisibility = async (id: number, next: boolean) => {
     if (!onToggleVisibility) return;
 
@@ -89,9 +91,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     }
   };
 
-  // -----------------
-  // 本体レンダー
-  // -----------------
   return (
     <>
       <section className="space-y-3 rounded-2xl border bg-white p-6 shadow-sm">
@@ -105,8 +104,16 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
               isDeleting={deletingId === g.id}
               isToggling={togglingId === g.id}
               onOpenDetail={(item) => {
-                const shrineId = Number(item.shrine);
                 console.log("[MyGoshuinList] open", { id: item.id, shrine: item.shrine });
+
+                // ✅ デフォ: モーダル（テストが期待する挙動）
+                if (!navigateOnCardClick) {
+                  handleOpenDetail(item);
+                  return;
+                }
+
+                // ✅ 実機用: 遷移
+                const shrineId = Number(item.shrine);
                 if (!Number.isFinite(shrineId) || shrineId <= 0) {
                   console.warn("[MyGoshuinList] invalid shrine id", item);
                   return;
@@ -131,4 +138,3 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     </>
   );
 }
-    
