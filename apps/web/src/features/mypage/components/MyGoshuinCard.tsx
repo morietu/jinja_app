@@ -57,12 +57,13 @@ export default function MyGoshuinCard({ item, isDeleting, isToggling, onDelete, 
   return (
     <Link href={`/shrines/${item.shrine}`} className="block">
       <article
-        role="link"
+        role="button"
         tabIndex={0}
-        onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
+        onClick={() => onOpenDetail?.(item)}
+        onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
-            // Linkがあるので通常は不要だが、a11y保険
             e.preventDefault();
+            onOpenDetail?.(item);
           }
         }}
         className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/20 bg-card transition-all duration-300 hover:-translate-y-0.5 hover:border-border/40 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"

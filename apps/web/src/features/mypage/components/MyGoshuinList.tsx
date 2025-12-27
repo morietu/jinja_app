@@ -104,20 +104,15 @@ export default function MyGoshuinList({
               isDeleting={deletingId === g.id}
               isToggling={togglingId === g.id}
               onOpenDetail={(item) => {
-                console.log("[MyGoshuinList] open", { id: item.id, shrine: item.shrine });
-
-                // ✅ デフォ: モーダル（テストが期待する挙動）
+                // ✅ デフォルトはテストが期待する「モーダルを開く」
                 if (!navigateOnCardClick) {
                   handleOpenDetail(item);
                   return;
                 }
 
-                // ✅ 実機用: 遷移
+                // ✅ 実機で欲しい「神社詳細へ遷移」
                 const shrineId = Number(item.shrine);
-                if (!Number.isFinite(shrineId) || shrineId <= 0) {
-                  console.warn("[MyGoshuinList] invalid shrine id", item);
-                  return;
-                }
+                if (!Number.isFinite(shrineId) || shrineId <= 0) return;
                 router.push(`/shrines/${shrineId}`);
               }}
               onDelete={onDelete ? handleDelete : undefined}
