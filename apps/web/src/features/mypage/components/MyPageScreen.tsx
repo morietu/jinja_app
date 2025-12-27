@@ -89,6 +89,7 @@ export default function MyPageScreen() {
             error={goshuinError}
             onDelete={removeItem}
             onToggleVisibility={toggleVisibility}
+            navigateOnCardClick
           />
         </SectionCard>
       </div>

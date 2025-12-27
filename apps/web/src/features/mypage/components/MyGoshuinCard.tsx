@@ -1,4 +1,3 @@
-// apps/web/src/features/mypage/components/MyGoshuinCard.tsx
 "use client";
 
 import type { MouseEvent, KeyboardEvent } from "react";
@@ -12,22 +11,21 @@ type Props = {
   item: Goshuin;
   isDeleting?: boolean;
   isToggling?: boolean;
-  onOpenDetail?: (g: Goshuin) => void; // 親が「遷移」or「モーダル」を決める
+  onOpenDetail?: (g: Goshuin) => void;
   onDelete?: (id: number) => void;
   onToggleVisibility?: (id: number, next: boolean) => void;
 };
 
-function toProxiedMediaUrl(image_url?: string | null): string | null {
-  if (!image_url) return null;
-  if (image_url.startsWith("/media/")) return image_url;
-
+function toProxiedMedia(url: string): string {
+  if (url.startsWith("/media/")) return url;
   try {
-    const u = new URL(image_url);
+    const u = new URL(url);
     if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
-  } catch {
-    // 非URL（相対パス等）の場合はそのまま使う
-
-    return image_url;
+  } catch (e) {
+    // eslint no-empty 対策：握りつぶすなら意図を明示
+    void e;
+  }
+  return url;
 }
 
 export default function MyGoshuinCard({
@@ -40,21 +38,9 @@ export default function MyGoshuinCard({
 }: Props) {
   const { shrine_name, created_at, is_public, image_url } = item;
 
-  const proxiedImageUrl = image_url ? toProxiedMediaUrl(image_url) : null;
-
-  const createdAtLabel =
-    created_at &&
-    new Date(created_at).toLocaleDateString("ja-JP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-
-  const visibilityLabel = is_public ? "公開" : "非公開";
-  const deleteAriaLabel = isDeleting ? "削除中…" : "削除";
-  const toggleAriaLabel = isToggling ? "切り替え中…" : is_public ? "非公開にする" : "公開する";
-
-  const handleClickCard = () => onOpenDetail?.(item);
+  const handleClickCard = () => {
+    onOpenDetail?.(item);
+  };
 
   const handleClickDelete = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -66,6 +52,14 @@ export default function MyGoshuinCard({
     if (!onToggleVisibility) return;
     onToggleVisibility(item.id, !item.is_public);
   };
+
+  const proxiedImageUrl = image_url ? toProxiedMedia(image_url) : null;
+
+  const createdAtLabel =
+    created_at &&
+    new Date(created_at).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+  const visibilityLabel = is_public ? "公開" : "非公開";
 
   return (
     <article
@@ -117,7 +111,7 @@ export default function MyGoshuinCard({
                 "supports-[hover:hover]:group-hover:opacity-100 supports-[hover:hover]:group-hover:translate-y-0",
               )}
               onClick={handleClickToggle}
-              aria-label={toggleAriaLabel}
+              aria-label={isToggling ? "切り替え中…" : is_public ? "非公開にする" : "公開する"}
               disabled={isToggling}
             >
               {is_public ? (
@@ -140,7 +134,7 @@ export default function MyGoshuinCard({
                 "supports-[hover:hover]:group-hover:opacity-100 supports-[hover:hover]:group-hover:translate-y-0",
               )}
               onClick={handleClickDelete}
-              aria-label={deleteAriaLabel}
+              aria-label={isDeleting ? "削除中…" : "削除"}
               disabled={isDeleting}
             >
               <Trash2 className="h-4 w-4" />
@@ -154,7 +148,6 @@ export default function MyGoshuinCard({
           {item.title || shrine_name || "タイトル未設定"}
         </h3>
         <p className="line-clamp-1 text-xs text-muted-foreground">{shrine_name ?? "-"}</p>
-
         <p className="text-[11px] text-muted-foreground">
           登録日: <time>{createdAtLabel ?? "-"}</time>
         </p>
