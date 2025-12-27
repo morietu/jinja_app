@@ -26,9 +26,8 @@ function toProxiedMediaUrl(image_url?: string | null): string | null {
     if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
   } catch {
     // 非URL（相対パス等）の場合はそのまま使う
-  }
 
-  return image_url;
+    return image_url;
 }
 
 export default function MyGoshuinCard({
