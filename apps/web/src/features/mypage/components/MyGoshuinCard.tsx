@@ -24,7 +24,9 @@ function toProxiedMediaUrl(image_url?: string | null): string | null {
   try {
     const u = new URL(image_url);
     if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
-  } catch {}
+  } catch {
+    // 非URL（相対パス等）の場合はそのまま使う
+  }
 
   return image_url;
 }
@@ -39,7 +41,7 @@ export default function MyGoshuinCard({
 }: Props) {
   const { shrine_name, created_at, is_public, image_url } = item;
 
-  const proxiedImageUrl = toProxiedMediaUrl(image_url);
+  const proxiedImageUrl = image_url ? toProxiedMediaUrl(image_url) : null;
 
   const createdAtLabel =
     created_at &&
