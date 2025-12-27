@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
-import { bffPostJsonWithAuth } from "@/lib/bff/fetch";
+import { NextRequest, NextResponse } from "next/server";
+import { bffPostJsonWithAuthFromReq } from "@/lib/bff/fetch";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function POST(req: NextRequest) {
   let payload: unknown;
   try {
     payload = await req.json();
@@ -9,5 +13,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  return bffPostJsonWithAuth("/api/shrines/from-place/", payload);
+  return bffPostJsonWithAuthFromReq(req, "/api/shrines/from-place/", payload);
+  
 }
