@@ -20,10 +20,7 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
   const res = await fetch(`${baseUrl}/api/shrines/from-place/`, {
     method: "POST",
     cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ place_id: placeId }),
   });
 
