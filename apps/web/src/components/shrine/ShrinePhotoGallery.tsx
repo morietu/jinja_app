@@ -12,6 +12,16 @@ type Props = {
   className?: string;
 };
 
+function toProxiedMedia(url: string): string {
+  if (url.startsWith("/media/")) return url;
+  try {
+    const u = new URL(url);
+    if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
+  } catch {}
+  return url;
+}
+
+
 function extractPhotos(shrine: Shrine): string[] {
   const list: string[] = [];
 
@@ -27,7 +37,7 @@ function extractPhotos(shrine: Shrine): string[] {
   }
 
   // 重複削除
-  return Array.from(new Set(list));
+  return Array.from(new Set(list)).map(toProxiedMedia);
 }
 
 export default function ShrinePhotoGallery({ shrine, className }: Props) {

@@ -9,18 +9,22 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
   if (!placeId) redirect("/?toast=resolve_missing_place");
 
   const h = await headers();
+  const cookieHeader = h.get("cookie") ?? "";
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
   const baseUrl = `${proto}://${host}`;
 
   // ★これが肝：ユーザーの cookie を “そのまま” BFF に転送
-  const cookieHeader = h.get("cookie") ?? "";
   console.log("[resolve] cookieHeader len =", cookieHeader.length);
 
   const res = await fetch(`${baseUrl}/api/shrines/from-place/`, {
     method: "POST",
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookieHeader ? { cookie: cookieHeader } : {}),
+    },
     body: JSON.stringify({ place_id: placeId }),
   });
 
