@@ -14,10 +14,16 @@ type Props = {
 
 function toProxiedMedia(url: string): string {
   if (url.startsWith("/media/")) return url;
+
   try {
     const u = new URL(url);
-    if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
-  } catch {}
+    if (u.pathname.startsWith("/media/")) {
+      return `${u.pathname}${u.search}`;
+    }
+  } catch {
+    // 非URL（相対パスなど）の場合はそのまま返す
+  }
+
   return url;
 }
 
