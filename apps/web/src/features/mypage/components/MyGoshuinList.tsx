@@ -1,4 +1,6 @@
 // apps/web/src/features/mypage/components/MyGoshuinList.tsx
+"use client";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
@@ -13,6 +15,7 @@ type Props = {
 };
 
 export default function MyGoshuinList({ items, loading, error, onDelete, onToggleVisibility }: Props) {
+  const router = useRouter();
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -101,7 +104,15 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
               item={g}
               isDeleting={deletingId === g.id}
               isToggling={togglingId === g.id}
-              onOpenDetail={handleOpenDetail}
+              onOpenDetail={(item) => {
+                const shrineId = Number(item.shrine);
+                console.log("[MyGoshuinList] open", { id: item.id, shrine: item.shrine });
+                if (!Number.isFinite(shrineId) || shrineId <= 0) {
+                  console.warn("[MyGoshuinList] invalid shrine id", item);
+                  return;
+                }
+                router.push(`/shrines/${shrineId}`);
+              }}
               onDelete={onDelete ? handleDelete : undefined}
               onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
             />
@@ -120,3 +131,4 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     </>
   );
 }
+    
