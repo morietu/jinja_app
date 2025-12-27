@@ -27,6 +27,7 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
     body: JSON.stringify({ place_id: placeId }),
   });
 
+  if (res.status === 401) redirect("/?toast=login_required"); // 例
   if (!res.ok) redirect("/?toast=resolve_failed");
 
   const data = (await res.json()) as { shrine_id?: string; id?: string };

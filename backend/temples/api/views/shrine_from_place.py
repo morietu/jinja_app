@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from temples.services import google_places as GP
 from temples.models import Shrine  # ここは実プロジェクトの import に合わせて
-from rest_framework.permissions import AllowAny
+
 from django.contrib.gis.geos import Point
 
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])  # いまはデバッグでOK。本番は IsAuthenticated に戻す
+@permission_classes([IsAuthenticated])  # いまはデバッグでOK。本番は IsAuthenticated に戻す
 def shrine_from_place(request):
     place_id = (request.data.get("place_id") or "").strip()
     if not place_id:
