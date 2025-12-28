@@ -6,6 +6,7 @@ export type UnifiedConciergeResponse = {
   stop_reason: StopReason;
   note?: string | null;
   reply?: string | null;
+  remaining_free?: number | null;
   data: {
     recommendations: Array<{
       name: string;
