@@ -73,3 +73,9 @@ export type ConciergeChatResponse = {
   remaining_free?: number;
   limit?: number;
 };
+
+export type ConciergeThreadDetail = {
+  thread: ConciergeThread;
+  messages: ConciergeMessage[];
+  recommendations?: ConciergeRecommendation[];
+};

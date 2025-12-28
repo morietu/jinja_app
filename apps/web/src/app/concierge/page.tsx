@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
+
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 
 export default function ConciergePage() {
@@ -15,37 +16,50 @@ export default function ConciergePage() {
   const [paywallNote, setPaywallNote] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
+  // ★ thread_id を「同期的に」持つ（onUnified で assistant message を積むため）
+  const threadIdRef = useRef<number>(0);
+
   // ★ 追加：Unified の最後の値
   const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse | null>(null);
 
   const { send, sending, error } = useConciergeChat(threadId, {
-    onUnified: setLastUnified,
+    onUnified: (u) => {
+      setLastUnified(u);
+
+      // reply を string に正規化（ここが肝）
+      const reply = typeof u.reply === "string" ? u.reply : null;
+      if (!reply) return;
+
+      const now = new Date().toISOString();
+
+
+
+        setMessages((prev) => {
+          const lastId = prev.length ? prev[prev.length - 1].id : 0;
+          return [
+            ...prev,
+            {
+              id: lastId + 1,
+              thread_id: threadIdRef.current,
+              role: "assistant",
+              content: reply,
+              created_at: now,
+            },
+          ];
+        });
+    },
 
     // 既存はまだ残す（段階的に削除する）
     onUpdated: ({ thread, recommendations }) => {
       setThread(thread);
       setThreadId(String(thread.id));
+      threadIdRef.current = thread.id;
       if (Array.isArray(recommendations)) setRecommendations(recommendations);
     },
+
     onPaywall: ({ remaining_free, note }) => {
       setRemainingFree(typeof remaining_free === "number" ? remaining_free : null);
       setPaywallNote(note ?? null);
-    },
-    onReply: (replyText) => {
-      const now = new Date().toISOString();
-      setMessages((prev) => {
-        const lastId = prev.length ? prev[prev.length - 1].id : 0;
-        return [
-          ...prev,
-          {
-            id: lastId + 1,
-            thread_id: thread?.id ?? 0,
-            role: "assistant",
-            content: replyText,
-            created_at: now,
-          },
-        ];
-      });
     },
   });
 

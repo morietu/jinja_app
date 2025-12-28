@@ -3,84 +3,24 @@ import axios from "axios";
 import api from "./client";
 import { apiPost } from "./http";
 
-/* ====== スレッド / メッセージ ====== */
+export type {
+  ConciergeThread,
+  ConciergeMessage,
+  ConciergeRecommendation,
+  ConciergeChatRequest,
+  ConciergeChatData,
+  ConciergeChatResponse,
+  ConciergeThreadDetail,
+} from "./concierge/types";
 
-export type ConciergeThread = {
-  id: number;
-  title: string;
-  last_message: string;
-  last_message_at: string | null;
-  message_count: number;
-};
-
-export type ConciergeMessage = {
-  id: number;
-  thread_id: number;
-  role: "user" | "assistant" | "system";
-  content: string;
-  created_at: string;
-};
-
-/* ====== レコメンド候補 ====== */
-
-export type ConciergeRecommendation = {
-  id?: number | null;
-  place_id?: string | null;
-
-  name: string;
-  display_name?: string;
-
-  address?: string | null;
-  display_address?: string | null;
-
-  location?:
-    | string
-    | null
-    | {
-        lat: number;
-        lng: number;
-      };
-  lat?: number | null;
-  lng?: number | null;
-
-  distance_m?: number | null;
-  duration_min?: number | null;
-  score?: number | null;
-  popular_score?: number | null;
-
-  tags?: string[];
-  deities?: string[];
-
-  reason: string;
-
-  photo_url?: string | null;
-  __dummy?: boolean;
-};
+import type {
+  ConciergeThread,
+  ConciergeChatRequest,
+  ConciergeChatResponse,
+  ConciergeThreadDetail,
+} from "./concierge/types";
 
 /* ====== チャット API ====== */
-
-export type ConciergeChatRequest = {
-  query: string;
-  thread_id?: number | string | null;
-};
-
-export type ConciergeChatData = {
-  recommendations?: ConciergeRecommendation[];
-  raw?: string;
-  reply?: string;
-};
-
-export type ConciergeChatResponse = {
-  ok: boolean;
-  data?: ConciergeChatData;
-  reply?: string;
-
-  remaining_free?: number;
-  limit?: number;
-  
-  note?: string;
-  thread?: ConciergeThread;
-};
 
 export async function postConciergeChat(body: ConciergeChatRequest): Promise<ConciergeChatResponse> {
   // ★ ここは今まで通り Next の /api/concierge/chat/ プロキシを叩く
@@ -99,12 +39,6 @@ export async function fetchThreads(): Promise<ConciergeThread[]> {
 
   return [];
 }
-
-export type ConciergeThreadDetail = {
-  thread: ConciergeThread;
-  messages: ConciergeMessage[];
-  recommendations?: ConciergeRecommendation[];
-};
 
 export async function fetchThreadDetail(threadId: string): Promise<ConciergeThreadDetail | null> {
   try {
