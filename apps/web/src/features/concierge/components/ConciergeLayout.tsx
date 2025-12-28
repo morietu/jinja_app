@@ -213,7 +213,7 @@ export default function ConciergeLayout({
         </div>
       )}
 
-      {current && (
+      {(current || stopReason === "design") && (
         <div className="mt-4 grid gap-2">
           <Link href="/nearby" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
             近くの神社を探す
@@ -226,17 +226,19 @@ export default function ConciergeLayout({
             新しい相談をする（履歴へ）
           </Link>
 
-          <button
-            type="button"
-            className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-            onClick={() => {
-              document.getElementById("concierge-reason")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-          >
-            今回のおすすめ理由を見る
-          </button>
+          {current && (
+            <button
+              type="button"
+              className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+              onClick={() => {
+                document.getElementById("concierge-reason")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              今回のおすすめ理由を見る
+            </button>
+          )}
 
-          {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
+          {current && locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
         </div>
       )}
     </div>
