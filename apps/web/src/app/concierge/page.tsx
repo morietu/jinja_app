@@ -11,6 +11,10 @@ import type { StopReason } from "@/features/concierge/types/unified";
 
 const MAX_TURNS = 2;
 
+type StopReason = "design" | "paywall" | null;
+
+const MAX_TURNS = 2;
+
 export default function ConciergePage() {
   const [thread, setThread] = useState<ConciergeThread | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
