@@ -55,8 +55,11 @@ export default function ConciergeHistoryDetailPage() {
         onSend={() => {}}
         onRetry={() => {}}
         recommendations={recommendations}
+        paywallNote={null}
+        remainingFree={null}
+        stopReason={"design"}
+        canSend={false}
       />
-
       <button
         type="button"
         onClick={handleContinue}
