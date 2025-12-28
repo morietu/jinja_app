@@ -5,9 +5,7 @@ import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
-import type { StopReason } from "@/features/concierge/types/unified";
-
-const MAX_TURNS = 2;
+import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 
 export default function ConciergePage() {
   const [thread, setThread] = useState<ConciergeThread | null>(null);
@@ -17,7 +15,13 @@ export default function ConciergePage() {
   const [paywallNote, setPaywallNote] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
+  // ★ 追加：Unified の最後の値
+  const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse | null>(null);
+
   const { send, sending, error } = useConciergeChat(threadId, {
+    onUnified: setLastUnified,
+
+    // 既存はまだ残す（段階的に削除する）
     onUpdated: ({ thread, recommendations }) => {
       setThread(thread);
       setThreadId(String(thread.id));
@@ -48,19 +52,15 @@ export default function ConciergePage() {
   const sp = useSearchParams();
   const force = sp.get("force"); // "design" | "paywall" | null
 
-  const userTurns = messages.filter((m) => m.role === "user").length;
-
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
-  const computed: StopReason =
-    userTurns >= MAX_TURNS ? "design" : typeof remainingFree === "number" && remainingFree <= 0 ? "paywall" : null;
-
-  // 送信停止理由（devだけ上書き）
-  const stopReason: StopReason = process.env.NODE_ENV !== "production" && forced ? forced : computed;
+  // stopReason は Unified を単一の真実として扱う（remainingFree/paywallNote は表示用）
+  const stopReason: StopReason =
+    process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
 
   const canSend = stopReason === null;
 
-  // ★表示用（force=paywall のときだけ 0 扱い）
+  // ★ 表示用（force=paywall のときだけ 0 扱い）
   const remainingFreeView = process.env.NODE_ENV !== "production" && forced === "paywall" ? 0 : remainingFree;
 
   const handleSend = async (text: string) => {
