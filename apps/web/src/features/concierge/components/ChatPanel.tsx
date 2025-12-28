@@ -11,7 +11,7 @@ type Props = {
   error?: string | null;
   onRetry?: () => void;
   onSend: (text: string) => void | Promise<void>;
-  canSend?: boolean;
+  canSend: boolean;
 };
 
 export default function ChatPanel({

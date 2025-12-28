@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
+import type { StopReason } from "@/features/concierge/types/unified";
 
-type StopReason = "design" | "paywall" | null;
+
 
 const MAX_TURNS = 2;
 
@@ -17,6 +18,7 @@ export default function ConciergePage() {
   const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
   const [paywallNote, setPaywallNote] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
+  
 
   const { send, sending, error } = useConciergeChat(threadId, {
     onUpdated: ({ thread, recommendations }) => {

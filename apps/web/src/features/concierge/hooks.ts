@@ -1,7 +1,10 @@
+// apps/web/src/features/concierge/hooks.ts
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
+import type { UnifiedConciergeResponse, StopReason } from "@/features/concierge/types/unified";
 
 import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 import {
@@ -91,6 +94,9 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
+  
+  onUnified?: (u: UnifiedConciergeResponse) => void;
+  
   onUpdated?: (payload: {
     thread: ConciergeThread;
     messages?: ConciergeMessage[];
@@ -109,6 +115,35 @@ export type UseConciergeChatOptions = {
   onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
+function normalizeConciergeResponse(
+  raw: any,
+  recs: Array<{ name: string; reason?: string }>,
+): UnifiedConciergeResponse {
+  // stop_reason が無いバックでも paywall は拾えるようにする（安全）
+  const stop: StopReason =
+    raw?.stop_reason === "design" || raw?.stop_reason === "paywall"
+      ? raw.stop_reason
+      : typeof raw?.remaining_free === "number" && raw.remaining_free <= 0
+        ? "paywall"
+        : null;
+
+  const note = typeof raw?.note === "string" ? raw.note : null;
+
+  const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
+  const reply = typeof replyCandidate === "string" ? replyCandidate : null;
+
+  // ok は「通信が成功したら true」扱いに寄せる（raw.ok が明示 false のときだけ false）
+  const ok = raw?.ok === false ? false : true;
+
+  return {
+    ok,
+    stop_reason: stop,
+    note,
+    reply,
+    data: { recommendations: recs },
+  };
+}
+
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +160,11 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
         // ✅ recs はここで正規化して統一
         const recs = normalizeRecommendations(res.data?.recommendations);
+
+        // ✅ Unified を作って必ず流す（これがBFF/adapterの要）
+        const unified = normalizeConciergeResponse(res, recs);
+        options?.onUnified?.(unified);
+
         options?.onRecommendations?.(recs);
 
         // paywall は thread の有無に関係なく拾う（UI側で optional で扱える）
@@ -144,11 +184,19 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           });
         }
 
-        const replyTextRaw = res.reply ?? res.data?.reply ?? res.data?.raw;
-        if (replyTextRaw) {
-          options?.onReply?.(replyTextRaw.replace(/^echo:\s*/i, ""));
+        if (unified.reply) {
+          options?.onReply?.(unified.reply.replace(/^echo:\s*/i, ""));
         }
       } catch (err) {
+        const unified: UnifiedConciergeResponse = {
+          ok: false,
+          stop_reason: null,
+          note: "チャット送信に失敗しました",
+          reply: null,
+          data: { recommendations: [] },
+        };
+        options?.onUnified?.(unified);
+
         let msg = "チャット送信に失敗しました";
         if (axios.isAxiosError(err)) {
           msg = `チャット送信に失敗しました (${err.response?.status ?? "network error"})`;

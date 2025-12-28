@@ -7,6 +7,7 @@ import ChatPanel from "./ChatPanel";
 import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import Link from "next/link";
 import { useBilling } from "@/features/billing/hooks/useBilling";
+import type { StopReason } from "@/features/concierge/types/unified";
 
 function PaywallCta({ note }: { note: string }) {
   return (
@@ -30,7 +31,7 @@ function PaywallCta({ note }: { note: string }) {
   );
 }
 
-type StopReason = "design" | "paywall" | null;
+
 
 type Props = {
   thread: ConciergeThread | null;
