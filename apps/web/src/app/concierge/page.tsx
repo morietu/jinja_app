@@ -55,6 +55,7 @@ export default function ConciergePage() {
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
   // stopReason は Unified を単一の真実として扱う（remainingFree/paywallNote は表示用）
+  // dev の force があるときだけ上書き
   const stopReason: StopReason =
     process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
 
@@ -62,6 +63,13 @@ export default function ConciergePage() {
 
   // ★ 表示用（force=paywall のときだけ 0 扱い）
   const remainingFreeView = process.env.NODE_ENV !== "production" && forced === "paywall" ? 0 : remainingFree;
+
+  const noteFromUnified = lastUnified?.note ?? null;
+
+  const paywallNoteView =
+    process.env.NODE_ENV !== "production" && forced === "paywall"
+      ? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"
+      : (noteFromUnified ?? paywallNote); // ←優先順位を逆転
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
@@ -88,11 +96,6 @@ export default function ConciergePage() {
     if (!lastUser) return;
     void handleSend(lastUser.content);
   };
-
-  const paywallNoteView =
-    process.env.NODE_ENV !== "production" && forced === "paywall"
-      ? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"
-      : paywallNote;
 
   return (
     <div className="px-4 py-4">
