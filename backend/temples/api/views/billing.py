@@ -45,10 +45,14 @@ class BillingStatusView(APIView):
 
         now = datetime.now(timezone.utc)
 
+        provider = _provider()
+        if stub_plan == "premium" and provider == "stub":
+            provider = "stripe"
+
         payload = {
             "plan": "premium" if stub_plan == "premium" else "free",
             "is_active": bool(stub_active),
-            "provider": _provider(),
+            "provider": provider,
             "current_period_end": (now + timedelta(days=30)) if stub_active else None,
             "trial_ends_at": None,
             "cancel_at_period_end": bool(stub_cancel_at_period_end),
