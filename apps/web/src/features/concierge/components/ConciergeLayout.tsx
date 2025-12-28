@@ -30,6 +30,8 @@ function PaywallCta({ note }: { note: string }) {
   );
 }
 
+type StopReason = "design" | "paywall" | null;
+
 type Props = {
   thread: ConciergeThread | null;
   messages: ConciergeMessage[];
@@ -41,6 +43,8 @@ type Props = {
   paywallNote?: string | null;
   remainingFree?: number | null;
   
+  stopReason: StopReason;
+  canSend: boolean;
 };
 
 export default function ConciergeLayout({
@@ -53,6 +57,8 @@ export default function ConciergeLayout({
   recommendations = [],
   paywallNote = null,
   remainingFree = null,
+  stopReason,
+  canSend,
 }: Props) {
   const isLandscape = useLandscape();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -61,18 +67,16 @@ export default function ConciergeLayout({
   const shown = recommendations;
   const shownLen = shown.length;
 
-  
-  
   const isPremiumActive =
     !billing.loading && !billing.error && billing.status?.plan === "premium" && billing.status?.is_active === true;
 
+  // これだけでOK（stopReason/canSend 自体は計算しない）
   const hitPaywall = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
 
-  // premium(active) のときだけ確実に消す
-  const showPaywallHint = hitPaywall && !isPremiumActive;
+  // stopReason が paywall なら無条件で出す（devの force でも確実に出る）
+  const showPaywallHint = stopReason === "paywall" || (hitPaywall && !isPremiumActive);
 
-  // 送信停止も同じ考え（premium(active) なら止めない）
-  const canSend = isPremiumActive || !(typeof remainingFree === "number" && remainingFree <= 0);
+  const showStopBanner = stopReason !== null;
 
   useEffect(() => {
     if (shownLen === 0) return;
@@ -83,7 +87,6 @@ export default function ConciergeLayout({
   const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
   const isDummy = !!current?.__dummy;
   const locationText = current?.display_address ?? "";
-
 
   console.debug("[concierge]", {
     isPremiumActive,
@@ -100,7 +103,14 @@ export default function ConciergeLayout({
         </div>
 
         {showPaywallHint && (
-          <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
+          <PaywallCta
+            note={
+              paywallNote ??
+              (stopReason === "paywall"
+                ? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"
+                : "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。")
+            }
+          />
         )}
 
         {shown.length === 0 && (
@@ -171,11 +181,17 @@ export default function ConciergeLayout({
           onRetry={onRetry}
           onSend={onSend}
           canSend={canSend}
-          
         />
       </div>
 
-      
+      {showStopBanner && stopReason === "design" && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <div className="font-semibold">ここまでで候補を出しました</div>
+          <div className="mt-1 leading-relaxed">
+            次は「地図で見る」で参拝の行動に移しましょう。続きの相談は「新しい相談」からできます。
+          </div>
+        </div>
+      )}
 
       {shown.length > 1 && (
         <div className="flex flex-wrap gap-2 text-xs">
@@ -198,21 +214,29 @@ export default function ConciergeLayout({
       )}
 
       {current && (
-        <div className="mt-4 space-y-2">
-          {isDummy && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              ※ 現在テスト中の回答（ベータ版）です。実際のレコメンドロジックは今後アップデート予定です。
-            </div>
-          )}
+        <div className="mt-4 grid gap-2">
+          <Link href="/nearby" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
+            近くの神社を探す
+          </Link>
 
-          <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-            <div className="mb-1 text-xs font-semibold text-gray-500">今回の候補</div>
-            <div className="text-base font-semibold">{current.display_name || current.name}</div>
+          <Link
+            href="/concierge/history"
+            className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+          >
+            新しい相談をする（履歴へ）
+          </Link>
 
-            {current.reason && <p className="mt-1 text-sm text-gray-700">{current.reason}</p>}
+          <button
+            type="button"
+            className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+            onClick={() => {
+              document.getElementById("concierge-reason")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            今回のおすすめ理由を見る
+          </button>
 
-            {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
-          </div>
+          {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
         </div>
       )}
     </div>
