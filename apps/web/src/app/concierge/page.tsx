@@ -1,52 +1,62 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
-
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
+
+type ChatEvent =
+  | { kind: "user"; text: string; at: string; thread_id: number }
+  | { kind: "assistant"; text: string; at: string; thread_id: number };
 
 export default function ConciergePage() {
   const [thread, setThread] = useState<ConciergeThread | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ConciergeMessage[]>([]);
+
+  // ✅ messages state をやめて events にする
+  const [events, setEvents] = useState<ChatEvent[]>([]);
+
   const [recommendations, setRecommendations] = useState<ConciergeRecommendation[]>([]);
   const [paywallNote, setPaywallNote] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
-  // ★ thread_id を「同期的に」持つ（onUnified で assistant message を積むため）
+  // thread_id を同期参照（assistant message 用）
   const threadIdRef = useRef<number>(0);
 
-  // ★ 追加：Unified の最後の値
+  // Unified の最後の値
   const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse | null>(null);
+
+  // ✅ UIに渡す messages は events から派生生成
+  const messages: ConciergeMessage[] = useMemo(() => {
+    return events.map((e, idx) => ({
+      id: idx + 1, // UI用の連番でOK
+      thread_id: e.thread_id,
+      role: e.kind,
+      content: e.text,
+      created_at: e.at,
+    }));
+  }, [events]);
 
   const { send, sending, error } = useConciergeChat(threadId, {
     onUnified: (u) => {
       setLastUnified(u);
 
-      // reply を string に正規化（ここが肝）
+      // assistant reply を events に積む（messages直積みを廃止）
       const reply = typeof u.reply === "string" ? u.reply : null;
       if (!reply) return;
 
       const now = new Date().toISOString();
-
-
-
-        setMessages((prev) => {
-          const lastId = prev.length ? prev[prev.length - 1].id : 0;
-          return [
-            ...prev,
-            {
-              id: lastId + 1,
-              thread_id: threadIdRef.current,
-              role: "assistant",
-              content: reply,
-              created_at: now,
-            },
-          ];
-        });
+      setEvents((prev) => [
+        ...prev,
+        {
+          kind: "assistant",
+          text: reply,
+          at: now,
+          thread_id: threadIdRef.current,
+        },
+      ]);
     },
 
     // 既存はまだ残す（段階的に削除する）
@@ -68,14 +78,13 @@ export default function ConciergePage() {
 
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
-  // stopReason は Unified を単一の真実として扱う（remainingFree/paywallNote は表示用）
-  // dev の force があるときだけ上書き
+  // stopReason は Unified を単一の真実（dev force があるときだけ上書き）
   const stopReason: StopReason =
     process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
 
   const canSend = stopReason === null;
 
-  // ★ 表示用（force=paywall のときだけ 0 扱い）
+  // 表示用（force=paywall のときだけ 0 扱い）
   const remainingFreeView = process.env.NODE_ENV !== "production" && forced === "paywall" ? 0 : remainingFree;
 
   const noteFromUnified = lastUnified?.note ?? null;
@@ -83,7 +92,7 @@ export default function ConciergePage() {
   const paywallNoteView =
     process.env.NODE_ENV !== "production" && forced === "paywall"
       ? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"
-      : (noteFromUnified ?? paywallNote); // ←優先順位を逆転
+      : (noteFromUnified ?? paywallNote);
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
@@ -97,18 +106,24 @@ export default function ConciergePage() {
     }
 
     const now = new Date().toISOString();
-    setMessages((prev) => {
-      const lastId = prev.length ? prev[prev.length - 1].id : 0;
-      return [...prev, { id: lastId + 1, thread_id: thread?.id ?? 0, role: "user", content: trimmed, created_at: now }];
-    });
+    setEvents((prev) => [
+      ...prev,
+      {
+        kind: "user",
+        text: trimmed,
+        at: now,
+        // thread がまだ無い最初の一発でも threadIdRef を使える（0の可能性はあるがUI用途ならOK）
+        thread_id: thread?.id ?? threadIdRef.current ?? 0,
+      },
+    ]);
 
     await send(trimmed);
   };
 
   const handleRetry = () => {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const lastUser = [...events].reverse().find((e) => e.kind === "user");
     if (!lastUser) return;
-    void handleSend(lastUser.content);
+    void handleSend(lastUser.text);
   };
 
   return (

@@ -34,10 +34,6 @@ function getPlanLimitExceededBody(e: unknown): PlanLimitErrorBody | null {
   return null;
 }
 
-/**
- * /api/my/profile/（= Django /api/users/me/）を叩くフック
- */
-
 
 type UseMyGoshuinOptions = {
   enabled?: boolean;
@@ -157,7 +153,7 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
   }, [load]);
 
   
-  // ⑥ removeItem / toggleVisibility（堅牢版）
+  
 
   
 
