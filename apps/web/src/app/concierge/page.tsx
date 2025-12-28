@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
@@ -49,6 +49,8 @@ function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage
 
 type EventsByThread = Record<number, ChatEvent[]>;
 
+const STORAGE_KEY = "concierge:eventsByThread";
+
 function getThreadEvents(map: EventsByThread, tid: number): ChatEvent[] {
   return map[tid] ?? [];
 }
@@ -77,11 +79,35 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
 }
 
 export default function ConciergePage() {
-  // ✅ thread単位でイベント保持
-  const [eventsByThread, setEventsByThread] = useState<EventsByThread>({ 0: [] });
+
+  // ✅ thread単位でイベント保持（localStorageから復元）
+  const [eventsByThread, setEventsByThread] = useState<EventsByThread>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as EventsByThread) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // ✅ localStorageへ保存（副作用はここだけ）
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
+    } catch {
+      // quota / private mode 等は無視
+    }
+  }, [eventsByThread]);
 
   // ✅ 今表示している thread（最初は 0=暫定）
   const [activeThreadId, setActiveThreadId] = useState<number>(0);
+  const activeThreadIdRef = useRef<number>(0);
+
+  const setActiveTid = (tid: number) => {
+    activeThreadIdRef.current = tid;
+    setActiveThreadId(tid);
+  };
 
   const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
 
@@ -126,17 +152,19 @@ export default function ConciergePage() {
 
       // ① thread が返ってきたら、0(暫定)→実threadId へ昇格
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
+      const currentTid = activeThreadIdRef.current;
 
       setEventsByThread((prev) => {
         let cur = prev;
 
         // active が 0 で、threadが確定したら昇格
-        if (activeThreadId === 0 && nextTid !== 0) {
+        if (currentTid === 0 && nextTid !== 0) {
           cur = promoteThread(cur, 0, nextTid);
         }
 
         // ② 保存先 tid を確定（昇格後は nextTid に積む）
-        const tidToWrite = nextTid !== 0 ? nextTid : activeThreadId;
+        const tidToWrite = nextTid !== 0 ? nextTid : currentTid;
+
 
         return appendEvents(cur, tidToWrite, [
           { type: "assistant_state", unified: u, at: now },
@@ -147,9 +175,8 @@ export default function ConciergePage() {
       });
 
       // ③ activeThreadId も確定IDに切り替える（0のままだと参照がズレる）
-      if (activeThreadId === 0 && nextTid !== 0) {
-        setActiveThreadId(nextTid);
-      }
+      if (currentTid === 0 && nextTid !== 0) setActiveTid(nextTid);
+      
     },
   });
 
@@ -174,19 +201,29 @@ export default function ConciergePage() {
     if (!canSend) return;
 
     const now = new Date().toISOString();
+    const currentTid = activeThreadIdRef.current;
 
-    // ✅ user_message は activeThreadId に積む（確定後は nextTid に昇格される）
     setEventsByThread((prev) =>
-      appendEvents(prev, activeThreadId, { type: "user_message", text: trimmed, at: now } as const),
+      appendEvents(prev, currentTid, {
+        type: "user_message",
+        text: trimmed,
+        at: now,
+      } as const),
     );
 
-    await send(trimmed);
-  };
+  await send(trimmed);
+};
+
+
 
   const handleRetry = () => {
     const lastUser = [...events].reverse().find((e) => e.type === "user_message");
     if (!lastUser) return;
     void handleSend(lastUser.text);
+  };
+
+  const handleNewThread = () => {
+    setActiveTid(0);
   };
 
   return (
@@ -201,6 +238,7 @@ export default function ConciergePage() {
         error={error}
         onSend={handleSend}
         onRetry={handleRetry}
+        onNewThread={handleNewThread}
         recommendations={recommendations}
         paywallNote={paywallNoteView}
         remainingFree={remainingFreeView}

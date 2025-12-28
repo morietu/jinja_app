@@ -40,10 +40,11 @@ type Props = {
   error?: string | null;
   onSend: (text: string) => void | Promise<void>;
   onRetry: () => void;
+  onNewThread: () => void;
   recommendations?: ConciergeRecommendation[];
   paywallNote?: string | null;
   remainingFree?: number | null;
-  
+
   stopReason: StopReason;
   canSend: boolean;
 };
@@ -55,6 +56,7 @@ export default function ConciergeLayout({
   error,
   onSend,
   onRetry,
+  onNewThread,
   recommendations = [],
   paywallNote = null,
   remainingFree = null,
@@ -223,6 +225,7 @@ export default function ConciergeLayout({
           <Link
             href="/concierge/history"
             className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+            onClick={onNewThread}
           >
             新しい相談をする（履歴へ）
           </Link>
