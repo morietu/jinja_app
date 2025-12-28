@@ -3,6 +3,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+
 import axios from "axios";
 import type { UnifiedConciergeResponse, StopReason } from "@/features/concierge/types/unified";
 
@@ -115,11 +116,10 @@ export type UseConciergeChatOptions = {
   onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
-function normalizeConciergeResponse(
-  raw: any,
-  recs: Array<{ name: string; reason?: string }>,
-): UnifiedConciergeResponse {
-  // stop_reason が無いバックでも paywall は拾えるようにする（安全）
+// apps/web/src/features/concierge/hooks.ts
+// （同ファイル内に既にある normalizeConciergeResponse をこれに差し替え）
+
+function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): UnifiedConciergeResponse {
   const stop: StopReason =
     raw?.stop_reason === "design" || raw?.stop_reason === "paywall"
       ? raw.stop_reason
@@ -132,17 +132,23 @@ function normalizeConciergeResponse(
   const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
   const reply = typeof replyCandidate === "string" ? replyCandidate : null;
 
-  // ok は「通信が成功したら true」扱いに寄せる（raw.ok が明示 false のときだけ false）
   const ok = raw?.ok === false ? false : true;
+
+  const remaining_free = typeof raw?.remaining_free === "number" ? raw.remaining_free : null;
+
+  const thread = raw?.thread && typeof raw.thread?.id === "number" ? (raw.thread as ConciergeThread) : null;
 
   return {
     ok,
     stop_reason: stop,
     note,
     reply,
+    remaining_free,
+    thread,
     data: { recommendations: recs },
   };
 }
+
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
