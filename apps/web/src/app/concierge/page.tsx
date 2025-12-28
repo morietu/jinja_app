@@ -9,16 +9,13 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 
 type ChatEvent =
-  | { type: "user_message"; text: string; at: string; thread_id: number }
-  | { type: "assistant_reply"; text: string; at: string; thread_id: number }
-  | { type: "assistant_state"; unified: UnifiedConciergeResponse; at: string; thread_id: number };
+  | { type: "user_message"; text: string; at: string }
+  | { type: "assistant_reply"; text: string; at: string }
+  | { type: "assistant_state"; unified: UnifiedConciergeResponse; at: string };
 
-function patchThreadId(events: ChatEvent[], nextThreadId: number): ChatEvent[] {
-  if (!nextThreadId) return events;
-  return events.map((e) => (e.thread_id === 0 ? { ...e, thread_id: nextThreadId } : e));
-}
 
-  function deriveMessages(events: ChatEvent[]): ConciergeMessage[] {
+  
+function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
 
   return events.flatMap((e) => {
@@ -27,7 +24,7 @@ function patchThreadId(events: ChatEvent[], nextThreadId: number): ChatEvent[] {
       return [
         {
           id: mid,
-          thread_id: e.thread_id,
+          thread_id: threadId,
           role: "user" as ConciergeMessage["role"],
           content: e.text,
           created_at: e.at,
@@ -40,7 +37,7 @@ function patchThreadId(events: ChatEvent[], nextThreadId: number): ChatEvent[] {
       return [
         {
           id: mid,
-          thread_id: e.thread_id,
+          thread_id: threadId,
           role: "assistant" as ConciergeMessage["role"],
           content: e.text,
           created_at: e.at,
@@ -56,11 +53,9 @@ export default function ConciergePage() {
   // ✅ thread / threadId state を削除（events から導出）
   const [events, setEvents] = useState<ChatEvent[]>([]);
 
-  // thread_id を同期参照（thread確定前でもUIが壊れないように）
-  const threadIdRef = useRef<number>(0);
 
-  const messages = useMemo(() => deriveMessages(events), [events]);
 
+  
   // ✅ lastUnified（状態の単一ソース）
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -78,6 +73,10 @@ export default function ConciergePage() {
 
   // ✅ threadId は thread から導出（useConciergeChat の引数用）
   const threadId: string | null = thread ? String(thread.id) : null;
+  const threadIdNum = thread?.id ?? 0;
+
+  const messages = useMemo(() => deriveMessages(events, threadIdNum), [events, threadIdNum]);
+
 
   const recommendations = useMemo(() => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -95,41 +94,26 @@ export default function ConciergePage() {
     onUnified: (u) => {
       const now = new Date().toISOString();
 
-      // ① thread が来たら確定
-      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
-
-      // ★「初めて thread が確定した」瞬間だけ、過去イベントの 0 を補正
-      const shouldPatch = threadIdRef.current === 0 && nextTid !== 0;
-      if (nextTid) threadIdRef.current = nextTid;
-
-      setEvents((prev) => {
-        const patched = shouldPatch ? patchThreadId(prev, nextTid) : prev;
-
-        return [
-          ...patched,
-          { type: "assistant_state", unified: u, at: now, thread_id: nextTid || 0 },
-          ...(typeof u.reply === "string" && u.reply.trim()
-            ? [{ type: "assistant_reply", text: u.reply, at: now, thread_id: nextTid || 0 } as const]
-            : []),
-        ];
-      });
+      setEvents((prev) => [
+        ...prev,
+        { type: "assistant_state", unified: u, at: now },
+        ...(typeof u.reply === "string" && u.reply.trim()
+          ? [{ type: "assistant_reply", text: u.reply, at: now } as const]
+          : []),
+      ]);
     },
   });
   const sp = useSearchParams();
   const force = sp.get("force"); // "design" | "paywall" | null
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
-    // ✅ dev の force を切り替えたら、events をリセット（状態が残って入力不能になるのを防ぐ）
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    setEvents([]);
-    threadIdRef.current = 0;
-  }, [forced]);
+  const isDevForced = process.env.NODE_ENV !== "production" && !!forced;
 
-  const stopReason: StopReason =
-    process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
+  const stopReason: StopReason = isDevForced ? (forced as StopReason) : (lastUnified?.stop_reason ?? null);
 
-  const canSend = stopReason === null;
+
+  const canSend = stopReason === null || isDevForced;
+  
 
   const remainingFreeRaw = lastUnified?.remaining_free ?? null;
   const remainingFreeView = process.env.NODE_ENV !== "production" && forced === "paywall" ? 0 : remainingFreeRaw;
@@ -146,7 +130,7 @@ export default function ConciergePage() {
     if (!canSend) return;
 
     const now = new Date().toISOString();
-    const tid = thread?.id ?? threadIdRef.current ?? 0;
+    
 
     setEvents((prev) => [
       ...prev,
@@ -154,7 +138,7 @@ export default function ConciergePage() {
         type: "user_message",
         text: trimmed,
         at: now,
-        thread_id: tid,
+        
       },
     ]);
 
