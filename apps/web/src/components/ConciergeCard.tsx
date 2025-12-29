@@ -60,17 +60,18 @@ export default function ConciergeCard({
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "静かに手を合わせたい社";
 
   // coords は lat/lng を最優先、無ければ location(obj) を見る
+
   const lat = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
   const lng = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
 
-  const canMap = typeof lat === "number" && typeof lng === "number";
+  const canMap = Number.isFinite(lat) && Number.isFinite(lng);
 
   const gmapsLink = canMap
-    ? `https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}${
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}${
         s.place_id ? `&destination_place_id=${encodeURIComponent(s.place_id)}` : ""
       }`
     : undefined;
-  
+
   // 取り込み済み表示（初期はDBにidがあればtrue）
   const [imported, setImported] = useState<boolean>(!!s.id);
   const [err, setErr] = useState<string | null>(null);
@@ -82,11 +83,16 @@ export default function ConciergeCard({
     initial: false,
   });
 
+  function onFavClick() {
+    toggle().catch(() => setErr("お気に入り更新に失敗しました"));
+    onFavorited?.(s.place_id);
+  }
+  
 
   // place_id からShrine作成→お気に入り登録
   async function onImport() {
     if (!s.place_id) {
-      setErr("place_idがありません（地図候補のみの可能性）。");
+      setErr("この候補は保存できません（地図のみ表示できます）。");
       return;
     }
     setErr(null);
@@ -104,18 +110,13 @@ export default function ConciergeCard({
     }
   }
 
-  function onFavClick() {
-    toggle().catch(() => setErr("お気に入り更新に失敗しました"));
-    onFavorited?.(s.place_id);
-  }
-
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm min-h-[200px] transition hover:-translate-y-0.5 hover:shadow-md">
       {!!s.photo_url && (
         <div className="relative mb-3 h-36 w-full">
           <Image
             src={s.photo_url}
-            alt={s.name}
+            alt={title}
             fill
             className="rounded-lg object-cover"
             sizes="(max-width: 768px) 100vw, 600px"
@@ -133,14 +134,18 @@ export default function ConciergeCard({
           <h3 className="font-semibold">{title}</h3>
           {addrText && <p className="mt-1 text-sm text-gray-600 truncate">{addrText}</p>}
 
+          <p className="mt-2 text-sm text-gray-800">
+            <span className="mr-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+              おすすめ
+            </span>
+            {reasonText}
+          </p>
+
           {typeof s.distance_m === "number" && typeof s.duration_min === "number" && (
-            <p className="mt-1 text-sm">
-              距離 <span className="font-medium">{(s.distance_m / 1000).toFixed(1)} km</span> ／ 目安{" "}
-              <span className="font-medium">{s.duration_min} 分</span>
+            <p className="mt-2 text-xs text-gray-600">
+              距離 {(s.distance_m / 1000).toFixed(1)} km ・ 目安 {s.duration_min} 分
             </p>
           )}
-
-          <p className="mt-1 text-sm text-gray-700">{reasonText}</p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -160,9 +165,9 @@ export default function ConciergeCard({
               className={`rounded-lg px-3 py-1.5 text-sm text-white transition ${
                 imported ? "bg-gray-400" : "bg-emerald-600 hover:bg-emerald-700"
               } disabled:opacity-60`}
-              title={!s.place_id ? "place_idが無いので保存できません" : ""}
+              title={!s.place_id ? "保存には place_id が必要です" : ""}
             >
-              {imported ? "保存済み" : busy ? "保存中…" : "＋ DBへ取り込む"}
+              {imported ? "保存済み" : busy ? "保存中…" : "保存（マイページ）"}
             </button>
 
             {gmapsLink && (
@@ -183,7 +188,7 @@ export default function ConciergeCard({
                   });
                 }}
               >
-                {showMapButton ? "地図で見る" : "ルートを見る"}
+                {showMapButton ? "地図で見る" : "ルート開始"}
               </a>
             )}
           </div>
