@@ -6,6 +6,7 @@ type ShrineItem = {
   id: number | string;
   name: string;
   distance_m?: number | null;
+  place_id?: string;
 };
 
 export default function NearbyPage() {
@@ -59,8 +60,8 @@ export default function NearbyPage() {
     <main className="p-4 space-y-3">
       <h1 className="text-xl font-bold">近くの神社</h1>
       <ul className="grid gap-2">
-        {items.map((s) => (
-          <li key={s.id} data-testid="nearby-item" className="p-3 rounded border">
+        {items.map((s, idx) => (
+          <li key={s.place_id ?? String(s.id)} data-testid="nearby-item" className="p-3 rounded border">
             <div className="font-medium">{s.name ?? `#${s.id}`}</div>
             {typeof s.distance_m === "number" && (
               <div className="text-sm text-gray-500">{Math.round(s.distance_m)} m</div>
