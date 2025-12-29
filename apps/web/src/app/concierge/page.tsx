@@ -127,7 +127,9 @@ export default function ConciergePage() {
       console.time("save");
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
-      } catch {}
+      } catch {
+        // noop: storage が使えない環境（
+      }
       console.timeEnd("save");
     }, 250); // まずは250ms
     return () => window.clearTimeout(id);

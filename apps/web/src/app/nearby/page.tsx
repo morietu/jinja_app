@@ -61,7 +61,7 @@ export default function NearbyPage() {
       <h1 className="text-xl font-bold">近くの神社</h1>
       <ul className="grid gap-2">
         {items.map((s, idx) => (
-          <li key={s.place_id ?? String(s.id)} data-testid="nearby-item" className="p-3 rounded border">
+          <li key={String(s.place_id ?? `${s.id}-${idx}`)} data-testid="nearby-item" className="p-3 rounded border">
             <div className="font-medium">{s.name ?? `#${s.id}`}</div>
             {typeof s.distance_m === "number" && (
               <div className="text-sm text-gray-500">{Math.round(s.distance_m)} m</div>
