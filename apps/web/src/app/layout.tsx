@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Link>
 
                 <Link href="/goshuins/public" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-                  みんなの御朱印
+                  公開御朱印
                 </Link>
 
                 <Suspense fallback={null}>
