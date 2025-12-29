@@ -6,6 +6,8 @@ import api from "@/lib/api/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import Image from "next/image";
 
+import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
+
 type Shrine = {
   name: string;
   display_name?: string | null;
@@ -59,10 +61,17 @@ export default function ConciergeCard({
 
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "静かに手を合わせたい社";
 
+  const tag = benefitLabel(pickBenefitTagFromRec(s));
+
+  
+
   // coords は lat/lng を最優先、無ければ location(obj) を見る
 
-  const lat = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
-  const lng = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
+  const latRaw = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
+  const lngRaw = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
+
+  const lat = typeof latRaw === "number" ? latRaw : Number(latRaw);
+  const lng = typeof lngRaw === "number" ? lngRaw : Number(lngRaw);
 
   const canMap = Number.isFinite(lat) && Number.isFinite(lng);
 
@@ -135,12 +144,15 @@ export default function ConciergeCard({
           {addrText && <p className="mt-1 text-sm text-gray-600 truncate">{addrText}</p>}
 
           <p className="mt-2 text-sm text-gray-800">
-            <span className="mr-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-              おすすめ
-            </span>
+            {tag && (
+              <span className="mr-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                {tag}
+              </span>
+            )}
             {reasonText}
           </p>
 
+          {/* 距離は補助情報 */}
           {typeof s.distance_m === "number" && typeof s.duration_min === "number" && (
             <p className="mt-2 text-xs text-gray-600">
               距離 {(s.distance_m / 1000).toFixed(1)} km ・ 目安 {s.duration_min} 分

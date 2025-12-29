@@ -148,12 +148,9 @@ export default function ConciergeLayout({
             </div>
 
             <section className="mt-4 rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
-              <h4 className="mb-1 text-sm font-semibold">ルート案内</h4>
+              <h4 className="mb-1 text-sm font-semibold">次にやること</h4>
               <p className="leading-relaxed">
-                気になる神社の「地図で見る」をタップすると、Googleマップで現在地からのルートを開きます。
-              </p>
-              <p className="mt-1 leading-relaxed">
-                複数まわりたいときは、行きたい順に「地図で見る」を開いてルートを調整してください。
+                気になる候補の「地図で見る」を押して、Googleマップでルートを開始してください。
               </p>
             </section>
           </>
