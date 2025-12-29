@@ -3,7 +3,9 @@
 
 from .concierge import ConciergeChatView
 from .shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
-from .goshuin import PublicGoshuinViewSet, MyGoshuinViewSet  # ★ 追加
+from .goshuin import PublicGoshuinViewSet, MyGoshuinViewSet
+from temples.services.concierge_history import append_chat
+
 
 def chat(request, *args, **kwargs):
     

@@ -116,8 +116,6 @@ export type UseConciergeChatOptions = {
   onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
-// apps/web/src/features/concierge/hooks.ts
-// （同ファイル内に既にある normalizeConciergeResponse をこれに差し替え）
 
 function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): UnifiedConciergeResponse {
   const stop: StopReason =
@@ -133,10 +131,13 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   const reply = typeof replyCandidate === "string" ? replyCandidate : null;
 
   const ok = raw?.ok === false ? false : true;
-
   const remaining_free = typeof raw?.remaining_free === "number" ? raw.remaining_free : null;
 
-  const thread = raw?.thread && typeof raw.thread?.id === "number" ? (raw.thread as ConciergeThread) : null;
+  const tid = Number(raw?.thread?.id);
+  const thread =
+    raw?.thread && Number.isFinite(tid)
+      ? ({ ...raw.thread, id: tid } as ConciergeThread)
+      : null;
 
   return {
     ok,
@@ -148,7 +149,6 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
     data: { recommendations: recs },
   };
 }
-
 
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
@@ -164,29 +164,37 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       try {
         const res = await postConciergeChat({ query: message, thread_id: threadId ?? undefined });
 
-        // ✅ recs はここで正規化して統一
-        const recs = normalizeRecommendations(res.data?.recommendations);
+        // ✅ axiosレスポンス判定（payload自身も "data" を持つので "status" で判定）
+        const isAxiosLike =
+          !!res &&
+          typeof res === "object" &&
+          "status" in (res as any) &&
+          "data" in (res as any);
 
-        // ✅ Unified を作って必ず流す（これがBFF/adapterの要）
-        const unified = normalizeConciergeResponse(res, recs);
+        const payload = isAxiosLike ? (res as any).data : res;
+
+        // ✅ recommendations は payload 起点で統一
+        const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
+
+        // ✅ unified も payload 起点で統一（thread が拾える）
+        const unified = normalizeConciergeResponse(payload, recs);
         options?.onUnified?.(unified);
 
         options?.onRecommendations?.(recs);
 
-        // paywall は thread の有無に関係なく拾う（UI側で optional で扱える）
         options?.onPaywall?.({
-          remaining_free: res.remaining_free,
-          limit: res.limit,
-          note: res.note,
+          remaining_free: payload?.remaining_free,
+          limit: payload?.limit,
+          note: payload?.note,
         });
 
-        if (res.thread) {
+        if (payload?.thread) {
           options?.onUpdated?.({
-            thread: res.thread,
+            thread: payload.thread,
             recommendations: recs,
-            remaining_free: res.remaining_free,
-            limit: res.limit,
-            note: res.note,
+            remaining_free: payload?.remaining_free,
+            limit: payload?.limit,
+            note: payload?.note,
           });
         }
 
@@ -200,6 +208,8 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           note: "チャット送信に失敗しました",
           reply: null,
           data: { recommendations: [] },
+          thread: null,
+          remaining_free: null,
         };
         options?.onUnified?.(unified);
 

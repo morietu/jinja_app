@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
@@ -8,11 +9,8 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
-/**
- * deriveMessages は UI 表示専用の純関数。
- * - events 以外の外部状態を参照しない
- * - assistant_state は表示しない
- */
+
+
 function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
 
@@ -61,7 +59,6 @@ function appendEvents(map: EventsByThread, tid: number, next: ChatEvent | ChatEv
   return { ...map, [tid]: [...cur, ...arr] };
 }
 
-// 0(暫定) → 実threadId に昇格（初回だけ）
 function promoteThread(map: EventsByThread, fromTid: number, toTid: number): EventsByThread {
   if (!toTid) return map;
   if (fromTid === toTid) return map;
@@ -69,7 +66,6 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
   const fromEvents = getThreadEvents(map, fromTid);
   const toEvents = getThreadEvents(map, toTid);
 
-  // すでに昇格済みなら何もしない
   if (!fromEvents.length) return map;
 
   const next: EventsByThread = { ...map };
@@ -79,39 +75,69 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
 }
 
 export default function ConciergePage() {
+  const router = useRouter();
+  const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
+  const [hydrated, setHydrated] = useState(false);
 
-  // ✅ thread単位でイベント保持（localStorageから復元）
-  const [eventsByThread, setEventsByThread] = useState<EventsByThread>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as EventsByThread) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  // ✅ localStorageへ保存（副作用はここだけ）
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
-    } catch {
-      // quota / private mode 等は無視
-    }
-  }, [eventsByThread]);
-
-  // ✅ 今表示している thread（最初は 0=暫定）
   const [activeThreadId, setActiveThreadId] = useState<number>(0);
   const activeThreadIdRef = useRef<number>(0);
+
+  const [promotedTid, setPromotedTid] = useState<number | null>(null);
 
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
   };
 
+  const sp = useSearchParams();
+
+  const tidFromQuery = useMemo(() => {
+    const raw = sp.get("tid");
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }, [sp]);
+
+  // ① restore（client mount 後に 1回だけ）
+  useEffect(() => {
+    console.time("restore");
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setEventsByThread(JSON.parse(raw) as EventsByThread);
+    } catch {
+      // ignore
+    } finally {
+      console.timeEnd("restore");
+      setHydrated(true);
+    }
+  }, []);
+
+  // ② URL tid → activeThreadId（hydrated 後だけ） ← URL同期はここ “だけ”
+  useEffect(() => {
+    if (!hydrated) return;
+
+    if (tidFromQuery === 0 && activeThreadIdRef.current !== 0) return;
+
+    setActiveTid(tidFromQuery);
+  }, [tidFromQuery, hydrated]);
+
+  // ③ save（hydrated 後だけ）
+  useEffect(() => {
+    if (!hydrated) return;
+    const id = window.setTimeout(() => {
+      console.time("save");
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
+      } catch {}
+      console.timeEnd("save");
+    }, 250); // まずは250ms
+    return () => window.clearTimeout(id);
+  }, [eventsByThread, hydrated]);
+
+  const force = sp.get("force"); // "design" | "paywall" | null
+  const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
+
   const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
 
-  // ✅ lastUnified（状態の単一ソース）: activeThread の events から導出
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
@@ -120,14 +146,11 @@ export default function ConciergePage() {
     return null;
   }, [events]);
 
-  // ✅ thread は lastUnified から導出
   const thread: ConciergeThread | null = useMemo(() => {
     const t = lastUnified?.thread;
     return t && typeof t.id === "number" ? t : null;
   }, [lastUnified]);
 
-  // ✅ useConciergeChat 用 threadId
-  const threadId: string | null = thread ? String(thread.id) : null;
   const threadIdNum = thread?.id ?? activeThreadId;
 
   const messages = useMemo(() => deriveMessages(events, threadIdNum), [events, threadIdNum]);
@@ -137,53 +160,54 @@ export default function ConciergePage() {
       const e = events[i];
       if (e.type !== "assistant_state") continue;
       const recs = e.unified?.data?.recommendations;
-      if (Array.isArray(recs)) return recs; // 空でも上書き
+      if (Array.isArray(recs)) return recs;
     }
     return [];
   }, [events]);
 
-  const sp = useSearchParams();
-  const force = sp.get("force"); // "design" | "paywall" | null
-  const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
+  // ✅ useConciergeChat は activeThreadId を正にする（URL依存を消す）
+  const chatThreadId: string | null = activeThreadId !== 0 ? String(activeThreadId) : thread ? String(thread.id) : null;
 
-  const { send, sending, error } = useConciergeChat(threadId, {
+  const { send, sending, error } = useConciergeChat(chatThreadId, {
     onUnified: (u) => {
       const now = new Date().toISOString();
-
-      // ① thread が返ってきたら、0(暫定)→実threadId へ昇格
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
       const currentTid = activeThreadIdRef.current;
+
+      console.debug("[onUnified raw]", u);
+      console.debug("[onUnified thread]", u?.thread);
+
+      // 昇格が起きたら state だけ更新（副作用は effect に逃がす）
+      if (currentTid === 0 && nextTid !== 0) {
+        setActiveTid(nextTid);
+        setPromotedTid(nextTid);
+      }
 
       setEventsByThread((prev) => {
         let cur = prev;
 
-        // active が 0 で、threadが確定したら昇格
         if (currentTid === 0 && nextTid !== 0) {
           cur = promoteThread(cur, 0, nextTid);
         }
 
-        // ② 保存先 tid を確定（昇格後は nextTid に積む）
         const tidToWrite = nextTid !== 0 ? nextTid : currentTid;
 
-
-        return appendEvents(cur, tidToWrite, [
+        const nextEvents: ChatEvent[] = [
           { type: "assistant_state", unified: u, at: now },
           ...(typeof u.reply === "string" && u.reply.trim()
             ? [{ type: "assistant_reply", text: u.reply, at: now } as const]
             : []),
-        ]);
-      });
+        ];
 
-      // ③ activeThreadId も確定IDに切り替える（0のままだと参照がズレる）
-      if (currentTid === 0 && nextTid !== 0) setActiveTid(nextTid);
-      
+        return appendEvents(cur, tidToWrite, nextEvents);
+      });
     },
   });
+    
+
 
   const isDevForced = process.env.NODE_ENV !== "production" && !!forced;
   const stopReason: StopReason = isDevForced ? (forced as StopReason) : (lastUnified?.stop_reason ?? null);
-
-  // ✅ dev force でも送信できる（表示だけ強制）
   const canSend = stopReason === null || isDevForced;
 
   const remainingFreeRaw = lastUnified?.remaining_free ?? null;
@@ -204,17 +228,11 @@ export default function ConciergePage() {
     const currentTid = activeThreadIdRef.current;
 
     setEventsByThread((prev) =>
-      appendEvents(prev, currentTid, {
-        type: "user_message",
-        text: trimmed,
-        at: now,
-      } as const),
+      appendEvents(prev, currentTid, { type: "user_message", text: trimmed, at: now } as const),
     );
 
-  await send(trimmed);
-};
-
-
+    await send(trimmed);
+  };
 
   const handleRetry = () => {
     const lastUser = [...events].reverse().find((e) => e.type === "user_message");
@@ -225,6 +243,14 @@ export default function ConciergePage() {
   const handleNewThread = () => {
     setActiveTid(0);
   };
+
+  
+
+  useEffect(() => {
+    if (!promotedTid) return;
+    router.replace(`/concierge?tid=${promotedTid}`);
+    setPromotedTid(null);
+  }, [promotedTid, router]);
 
   return (
     <div className="px-4 py-4">

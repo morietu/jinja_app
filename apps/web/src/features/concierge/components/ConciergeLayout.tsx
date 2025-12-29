@@ -40,7 +40,7 @@ type Props = {
   error?: string | null;
   onSend: (text: string) => void | Promise<void>;
   onRetry: () => void;
-  onNewThread: () => void;
+  onNewThread?: () => void;
   recommendations?: ConciergeRecommendation[];
   paywallNote?: string | null;
   remainingFree?: number | null;

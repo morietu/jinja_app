@@ -29,6 +29,8 @@ from temples.llm.backfill import fill_locations
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
+from temples.services.concierge_history import append_chat
+from temples.models import ConciergeThread
 
 from .models import ConciergeUsage
 
@@ -613,6 +615,61 @@ class ConciergeChatView(APIView):
                     r["location"] = addr
 
         body = {"ok": True, "intent": intent, "data": recs}
+
+
+        # 非premium認証ユーザーだけ remaining_free/limit を返す
+        if user is not None and not is_premium:
+            body["remaining_free"] = remaining
+            body["limit"] = daily_limit
+
+        # message がある時は「候補: ...」を必ず返す（テスト要件）
+        if is_message_mode:
+            names = []
+            for r in (recs.get("recommendations") or [])[:3]:
+                if isinstance(r, dict):
+                    nm = (r.get("display_name") or r.get("name") or "").strip()
+                    if nm:
+                        names.append(nm)
+            body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
+        else:
+            if not candidates:
+                body["reply"] = None
+
+        # --- thread 保存（認証ユーザーのみ）---
+
+        thread_obj = None
+        if user is not None and getattr(user, "is_authenticated", False):
+            # ✅ thread_id / threadId 両対応
+            thread_id_raw = data.get("thread_id") or data.get("threadId")
+
+            # ✅ int 変換 + 0/"" は None 扱い
+            try:
+                thread_id = int(thread_id_raw) if thread_id_raw not in (None, "", 0, "0") else None
+            except Exception:
+                thread_id = None
+
+            # ✅ 保存したい返信文（無ければ None）
+            reply_text = body.get("reply")
+            if not isinstance(reply_text, str):
+                reply_text = None
+
+            try:
+                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=thread_id)
+                thread_obj = saved.thread
+            except ConciergeThread.DoesNotExist:
+                # 不正な thread_id が来たら新規で作る
+                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
+                thread_obj = saved.thread
+
+        if thread_obj is not None:
+            body["thread"] = {"id": thread_obj.id}
+
+        return Response(body, status=status.HTTP_200_OK)
+
+        if thread is not None:
+            body["thread"] = {"id": thread.id}
+
+        return Response(body, status=status.HTTP_200_OK)
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
         if user is not None and not is_premium:
