@@ -134,18 +134,12 @@ export default function ConciergeLayout({
             <div className="space-y-3">
               {shown.map((r, idx) => (
                 <ConciergeCard
-                  key={r.id ?? r.place_id ?? idx}
+                  key={(r as any).shrine_id ?? r.id ?? r.place_id ?? idx}
                   s={{
-                    name: r.name,
+                    ...r,
                     id: (r as any).shrine_id ?? r.id ?? null,
-                    place_id: r.place_id ?? null,
-                    address: r.address ?? null,
-                    lat: r.lat ?? null,
-                    lng: r.lng ?? null,
-                    distance_m: r.distance_m ?? 0,
-                    duration_min: r.duration_min ?? 0,
-                    reason: r.reason,
-                    photo_url: r.photo_url ?? null,
+                    distance_m: typeof r.distance_m === "number" ? r.distance_m : null,
+                    duration_min: typeof r.duration_min === "number" ? r.duration_min : null,
                   }}
                   index={idx}
                   showMapButton

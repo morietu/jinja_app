@@ -13,12 +13,14 @@ export function normalizeRecommendations(input: unknown): ConciergeRecommendatio
       const display_address =
         (r.display_address ?? null) || (typeof loc === "string" && loc.trim() ? loc.trim() : null) || null;
 
+      const reason = typeof r.reason === "string" ? r.reason.trim() : r.reason == null ? null : String(r.reason).trim();
+
       return {
         ...r,
         name,
         display_name: r.display_name || name,
         display_address,
-        reason: (r.reason || "").toString(),
+        reason, // ✅ null を残す
         __dummy: r.__dummy === true,
       } as ConciergeRecommendation;
     });
