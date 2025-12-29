@@ -589,11 +589,14 @@ class ConciergeChatView(APIView):
             if isinstance(c, dict) and c.get("name") and c.get("formatted_address"):
                 cand_addr[(c["name"] or "").strip()] = c["formatted_address"]
 
+        # --- location 補完 ---
         for r in recs.get("recommendations", []) or []:
             if not isinstance(r, dict):
                 continue
+
             if r.get("location"):
                 continue
+
             nm = (r.get("name") or "").strip()
             if nm in cand_addr:
                 addr = cand_addr[nm]
@@ -613,6 +616,21 @@ class ConciergeChatView(APIView):
                     r["location"] = bf._shorten_japanese_address(addr) or addr
                 except Exception:
                     r["location"] = addr
+
+        # --- 最後に1回だけ：表示名と reason を全件確定 ---
+        for r in recs.get("recommendations", []) or []:
+            if not isinstance(r, dict):
+                continue
+
+            if r.get("name"):
+                cleaned = _clean_display_name(r["name"])
+                r["display_name"] = cleaned
+                r["name"] = cleaned
+
+            try:
+                r["reason"] = _normalize_reason(r, query=query)
+            except Exception:
+                r["reason"] = "静かに手を合わせたい社"
 
         body = {"ok": True, "intent": intent, "data": recs}
 
@@ -665,31 +683,7 @@ class ConciergeChatView(APIView):
             body["thread"] = {"id": thread_obj.id}
 
         return Response(body, status=status.HTTP_200_OK)
-
-        if thread is not None:
-            body["thread"] = {"id": thread.id}
-
-        return Response(body, status=status.HTTP_200_OK)
-
-        # 非premium認証ユーザーだけ remaining_free/limit を返す
-        if user is not None and not is_premium:
-            body["remaining_free"] = remaining
-            body["limit"] = daily_limit
-
-        # message がある時は「候補: ...」を必ず返す（テスト要件）
-        if is_message_mode:
-            names = []
-            for r in (recs.get("recommendations") or [])[:3]:
-                if isinstance(r, dict):
-                    nm = (r.get("display_name") or r.get("name") or "").strip()
-                    if nm:
-                        names.append(nm)
-            body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
-        else:
-            if not candidates:
-                body["reply"] = None
-
-        return Response(body, status=status.HTTP_200_OK)
+        
 
 
 class ConciergeChatViewLegacy(ConciergeChatView):
