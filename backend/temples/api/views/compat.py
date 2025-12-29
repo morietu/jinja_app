@@ -29,8 +29,7 @@ from temples import api_views_concierge as concierge
     ],
 )
 @api_view(["POST"])
-@permission_classes([AllowAny])
-@authentication_classes([])
+
 def concierge_chat_compat(request):
     """
     ConciergeChat 本実装のレスポンス（ok+data）に
@@ -59,6 +58,12 @@ def concierge_chat_compat(request):
     raw2 = json.dumps(parsed, ensure_ascii=False).encode("utf-8")
 
     dj_req = getattr(request, "_request", request)
+
+    try:
+        dj_req.user = getattr(request, "user", None) or getattr(dj_req, "user", None)
+        dj_req.auth = getattr(request, "auth", None)
+    except Exception:
+        pass
     try:
         dj_req._body = raw2
         dj_req._stream = io.BytesIO(raw2)  # None ではなく BytesIO

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 async function refreshAccessToken(refresh: string) {
@@ -15,49 +18,71 @@ async function refreshAccessToken(refresh: string) {
   return (data?.access as string | null) ?? null;
 }
 
+// ✅ cookies() が「Promise を返す版」「同期で返す版」両対応
+async function getCookieStore() {
+  const cs: any = cookies();
+  return typeof cs?.then === "function" ? await cs : cs;
+}
+
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const access = cookieStore.get("access_token")?.value;
-  const refresh = cookieStore.get("refresh_token")?.value;
-  
-  const body = await req.text();
+  try {
+    const cookieStore: any = await getCookieStore();
 
-  const doFetch = (token?: string) =>
-    fetch(`${API_BASE}/api/concierge/chat/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body,
-      cache: "no-store",
-    });
+    const access = cookieStore?.get?.("access_token")?.value;
+    const refresh = cookieStore?.get?.("refresh_token")?.value;
 
-  // 1st try (access)
-  let res = await doFetch(access);
+    const body = await req.text();
 
-  // access expired -> refresh -> retry
-  if (res.status === 401 && refresh) {
-    const newAccess = await refreshAccessToken(refresh);
+    const doFetch = async (token?: string) =>
+      await fetch(`${API_BASE}/api/concierge/chat/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body,
+        cache: "no-store",
+      });
+
+    let upstream = await doFetch(access);
+    let newAccess: string | null = null;
+
+    if (upstream.status === 401 && refresh) {
+      newAccess = await refreshAccessToken(refresh);
+      if (newAccess) upstream = await doFetch(newAccess);
+    }
+
+    const text = await upstream.text();
+
+    let payload: any;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      return new NextResponse(text || "", {
+        status: upstream.status,
+        headers: { "Content-Type": upstream.headers.get("content-type") ?? "text/plain; charset=utf-8" },
+      });
+    }
+
+    const res = NextResponse.json(payload, { status: upstream.status });
+
+    // ✅ cookie更新は response に対して
     if (newAccess) {
-      cookieStore.set("access_token", newAccess, {
+      res.cookies.set("access_token", newAccess, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
         maxAge: 60 * 60,
-        secure: false, // productionは true 判定に合わせる
+        secure: false,
       });
-      res = await doFetch(newAccess);
     }
-  }
 
-  const text = await res.text();
-  try {
-    return NextResponse.json(JSON.parse(text), { status: res.status });
-  } catch {
-    return new NextResponse(text || "", {
-      status: res.status,
-      headers: { "Content-Type": res.headers.get("content-type") ?? "text/plain; charset=utf-8" },
-    });
+    return res;
+  } catch (e: any) {
+    console.error("[/api/concierge/chat] route error:", e);
+    return NextResponse.json(
+      { ok: false, detail: String(e?.message ?? e), name: e?.name ?? null, stack: e?.stack ?? null },
+      { status: 500 },
+    );
   }
 }

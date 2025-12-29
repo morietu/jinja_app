@@ -7,8 +7,7 @@ import Link from "next/link";
 
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { SectionCard } from "@/components/layout/SectionCard";
-import MyGoshuinTopSection from "@/features/goshuin/components/MyGoshuinTopSection";
-import { useAuth } from "@/lib/auth/AuthProvider"; // ✅ 追加
+
 
 type Goshuin = {
   id: number;
@@ -25,7 +24,7 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
   const sp = useSearchParams();
   const shownRef = useRef(false);
 
-  const { isLoggedIn } = useAuth(); // ✅ 追加
+  
 
   useEffect(() => {
     const t = sp.get("toast");
@@ -65,9 +64,9 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
           <HomeNearbySection />
         </SectionCard>
 
-        <SectionCard title="御朱印" description="あなたの御朱印と、公開御朱印">
+        <SectionCard title="御朱印" description="公開御朱印">
           {/* ✅ Homeでは fetch しない：表示はプレースホルダ */}
-          <MyGoshuinTopSection isLoggedIn={isLoggedIn} items={null} loading={false} error={null} />
+          
 
           {publicGoshuins && publicGoshuins.count > 0 && (
             <>
@@ -75,7 +74,7 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
               <div>
                 <header className="mb-3 flex items-end justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-800">みんなの公開御朱印</h3>
+                    <h3 className="text-sm font-semibold text-slate-800">公開御朱印</h3>
                   </div>
                   <Link href="/goshuins/public" className="text-xs text-emerald-700 hover:underline">
                     もっと見る →
