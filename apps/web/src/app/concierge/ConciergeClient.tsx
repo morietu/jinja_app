@@ -74,8 +74,9 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
   return next;
 }
 
-export default function ConciergePage() {
+export default function ConciergeClient() {
   const router = useRouter();
+  const sp = useSearchParams();
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
@@ -89,7 +90,6 @@ export default function ConciergePage() {
     setActiveThreadId(tid);
   };
 
-  const sp = useSearchParams();
 
   const tidFromQuery = useMemo(() => {
     const raw = sp.get("tid");
@@ -99,6 +99,7 @@ export default function ConciergePage() {
 
   // ① restore（client mount 後に 1回だけ）
   useEffect(() => {
+    
     console.time("restore");
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -205,7 +206,6 @@ export default function ConciergePage() {
       });
     },
   });
-    
 
   const isDevForced = process.env.NODE_ENV !== "production" && !!forced;
   const stopReason: StopReason = isDevForced ? (forced as StopReason) : (lastUnified?.stop_reason ?? null);
@@ -244,8 +244,6 @@ export default function ConciergePage() {
   const handleNewThread = () => {
     setActiveTid(0);
   };
-
-  
 
   useEffect(() => {
     if (!promotedTid) return;
