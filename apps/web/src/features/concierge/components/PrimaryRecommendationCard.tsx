@@ -21,6 +21,7 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex }: Props) 
         }}
         index={0}
         showMapButton
+        showSaveOnly
       />
     </div>
   );

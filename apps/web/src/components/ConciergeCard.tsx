@@ -2,10 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import api from "@/lib/api/client";
 import { useFavorite } from "@/hooks/useFavorite";
 import Image from "next/image";
-
 import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
 
 type Shrine = {
@@ -14,7 +12,6 @@ type Shrine = {
   address?: string | null;
   display_address?: string | null;
 
-  // chat/plan どっちも来る可能性がある
   lat?: number | null;
   lng?: number | null;
   location?: { lat?: number | null; lng?: number | null } | string | null;
@@ -24,7 +21,6 @@ type Shrine = {
   reason?: string | null;
   photo_url?: string | null;
 
-  // nearby等の互換用（無い場合がある）
   distance_m?: number | null;
   duration_min?: number | null;
 };
@@ -32,11 +28,19 @@ type Shrine = {
 type Props = {
   s: Shrine;
   index?: number;
-  onImported?: (payload: { id: number; place_id?: string | null }) => void;
+
   onFavorited?: (place_id?: string | null) => void;
-  /** コンシェルジュ候補用に「地図で見る」ボタンを出すかどうか */
+
+  /** ラベルを「地図で見る」にするか（falseなら「ルート開始」） */
   showMapButton?: boolean;
-  /** ルート案内用に、親へ「この神社を選んだよ」を伝える */
+
+  /**
+   * 保存ボタン表示フラグ（命名はそのまま使う）
+   * - Primary: true（保存ボタン出す）
+   * - 他候補リスト: false（保存ボタン出さない）
+   */
+  showSaveOnly?: boolean;
+
   onRouteSelect?: (payload: {
     name: string;
     lat?: number | null;
@@ -51,27 +55,20 @@ type Props = {
 export default function ConciergeCard({
   s,
   index = 0,
-  onImported,
   onFavorited,
   showMapButton = false,
   onRouteSelect,
+  showSaveOnly = false,
 }: Props) {
   const title = (s.display_name || s.name || "").trim() || "（名称不明）";
   const addrText = (s.display_address ?? s.address ?? null)?.toString().trim() || null;
-
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "静かに手を合わせたい社";
 
-  const tag = benefitLabel(pickBenefitTagFromRec(s));
+  const tag = benefitLabel(pickBenefitTagFromRec(s as any));
 
-  
-
-  // coords は lat/lng を最優先、無ければ location(obj) を見る
-
-  const latRaw = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
-  const lngRaw = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
-
-  const lat = typeof latRaw === "number" ? latRaw : Number(latRaw);
-  const lng = typeof lngRaw === "number" ? lngRaw : Number(lngRaw);
+  // coords: lat/lng を最優先、無ければ location(obj)
+  const lat = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
+  const lng = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
 
   const canMap = Number.isFinite(lat) && Number.isFinite(lng);
 
@@ -81,42 +78,19 @@ export default function ConciergeCard({
       }`
     : undefined;
 
-  // 取り込み済み表示（初期はDBにidがあればtrue）
-  const [imported, setImported] = useState<boolean>(!!s.id);
   const [err, setErr] = useState<string | null>(null);
 
-  // お気に入りの追加/削除/トグル
-  const { fav, busy, add, toggle } = useFavorite({
+  const { fav, busy, toggle } = useFavorite({
     shrineId: s.id ?? undefined,
     placeId: s.place_id ?? undefined,
     initial: false,
   });
 
-  function onFavClick() {
-    toggle().catch(() => setErr("お気に入り更新に失敗しました"));
-    onFavorited?.(s.place_id);
-  }
-  
-
-  // place_id からShrine作成→お気に入り登録
-  async function onImport() {
-    if (!s.place_id) {
-      setErr("この候補は保存できません（地図のみ表示できます）。");
-      return;
-    }
+  function onSaveClick() {
     setErr(null);
-    try {
-      const { data } = await api.post("places/find/", { place_id: s.place_id });
-      const shrineId: number | undefined = data?.shrine_id ?? data?.id ?? data?.shrine?.id;
-      if (!shrineId) throw new Error("取り込みレスポンスに shrine_id がありません。");
-
-      await add(); // お気に入り登録
-      setImported(true);
-      onImported?.({ id: shrineId, place_id: s.place_id });
-    } catch (e: any) {
-      const msg = e?.response?.data?.detail ?? e?.message ?? "保存に失敗しました。もう一度お試しください。";
-      setErr(msg);
-    }
+    toggle()
+      .then(() => onFavorited?.(s.place_id))
+      .catch(() => setErr("保存の更新に失敗しました"));
   }
 
   return (
@@ -152,7 +126,6 @@ export default function ConciergeCard({
             {reasonText}
           </p>
 
-          {/* 距離は補助情報 */}
           {typeof s.distance_m === "number" && typeof s.duration_min === "number" && (
             <p className="mt-2 text-xs text-gray-600">
               距離 {(s.distance_m / 1000).toFixed(1)} km ・ 目安 {s.duration_min} 分
@@ -160,27 +133,18 @@ export default function ConciergeCard({
           )}
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={onFavClick}
-              disabled={busy}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                fav ? "bg-yellow-50 border-yellow-300" : "hover:bg-gray-50"
-              } disabled:opacity-60`}
-              aria-pressed={fav}
-            >
-              {busy ? "…" : fav ? "★ お気に入り中" : "☆ お気に入り"}
-            </button>
-
-            <button
-              disabled={busy || imported || !s.place_id}
-              onClick={onImport}
-              className={`rounded-lg px-3 py-1.5 text-sm text-white transition ${
-                imported ? "bg-gray-400" : "bg-emerald-600 hover:bg-emerald-700"
-              } disabled:opacity-60`}
-              title={!s.place_id ? "保存には place_id が必要です" : ""}
-            >
-              {imported ? "保存済み" : busy ? "保存中…" : "保存（マイページ）"}
-            </button>
+            {showSaveOnly && (
+              <button
+                onClick={onSaveClick}
+                disabled={busy}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                  fav ? "bg-yellow-50 border-yellow-300" : "hover:bg-gray-50"
+                } disabled:opacity-60`}
+                aria-pressed={fav}
+              >
+                {busy ? "…" : fav ? "保存済み" : "保存"}
+              </button>
+            )}
 
             {gmapsLink && (
               <a
