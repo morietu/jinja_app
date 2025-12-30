@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useLandscape } from "@/hooks/useLandscape";
-import ConciergeCard from "@/components/ConciergeCard";
+
 import ChatPanel from "./ChatPanel";
 import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import Link from "next/link";
 import { useBilling } from "@/features/billing/hooks/useBilling";
 import type { StopReason } from "@/features/concierge/types/unified";
+import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
+import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
+
+
 
 function PaywallCta({ note }: { note: string }) {
   return (
@@ -64,7 +68,9 @@ export default function ConciergeLayout({
   canSend,
 }: Props) {
   const isLandscape = useLandscape();
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
+  
+
 
   const billing = useBilling(); // 表示用（paywall根拠はサーバー側）
   const shown = recommendations;
@@ -79,17 +85,24 @@ export default function ConciergeLayout({
   // stopReason が paywall なら無条件で出す（devの force でも確実に出る）
   const showPaywallHint = stopReason === "paywall" || (hitPaywall && !isPremiumActive);
 
-  const showStopBanner = stopReason !== null;
 
+
+  // recommendations が更新されたら primary を先頭に戻す（挙動安定）
   useEffect(() => {
     if (shownLen === 0) return;
-    if (selectedIndex > shownLen - 1) setSelectedIndex(0);
-  }, [shownLen, selectedIndex]);
+    setPrimaryIndex(0);
+  }, [shownLen]);
 
-  const safeIndex = Math.min(selectedIndex, Math.max(0, shown.length - 1));
-  const current = shown.length > 0 ? (shown[safeIndex] ?? shown[0]) : null;
-  const isDummy = !!current?.__dummy;
-  const locationText = current?.display_address ?? "";
+  // primaryIndex が範囲外に出た時の保険
+  useEffect(() => {
+    if (shownLen === 0) return;
+    if (primaryIndex > shownLen - 1) setPrimaryIndex(0);
+  }, [shownLen, primaryIndex]);  
+
+  const primary = shownLen > 0 ? (shown[primaryIndex] ?? shown[0]) : null;
+  const isDummy = !!primary?.__dummy;
+  const locationText = primary?.display_address ?? "";
+
 
   console.debug("[concierge]", {
     isPremiumActive,
@@ -106,23 +119,14 @@ export default function ConciergeLayout({
         </div>
 
         {showPaywallHint && (
-          <PaywallCta
-            note={
-              paywallNote ??
-              (stopReason === "paywall"
-                ? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"
-                : "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。")
-            }
-          />
+          <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
         )}
 
-        {shown.length === 0 && (
+        {shownLen === 0 ? (
           <p className="text-xs text-gray-500">
             横向きでは、候補の確認とルート案内だけ利用できます。チャットで相談したいときは、端末を縦向きにしてください。
           </p>
-        )}
-
-        {shown.length > 0 && (
+        ) : (
           <>
             {isDummy && (
               <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -130,28 +134,15 @@ export default function ConciergeLayout({
               </div>
             )}
 
-            <h3 className="mb-2 mt-1 text-xs font-semibold text-gray-600">今回のおすすめ神社</h3>
-            <div className="space-y-3">
-              {shown.map((r, idx) => (
-                <ConciergeCard
-                  key={(r as any).shrine_id ?? r.id ?? r.place_id ?? idx}
-                  s={{
-                    ...r,
-                    id: (r as any).shrine_id ?? r.id ?? null,
-                    distance_m: typeof r.distance_m === "number" ? r.distance_m : null,
-                    duration_min: typeof r.duration_min === "number" ? r.duration_min : null,
-                  }}
-                  index={idx}
-                  showMapButton
-                />
-              ))}
-            </div>
+            <h3 className="mb-2 mt-1 text-xs font-semibold text-gray-600">今回のおすすめ</h3>
+
+            {primary && <PrimaryRecommendationCard rec={primary} primaryIndex={primaryIndex} />}
+
+            <RecommendationSwitchList items={shown} primaryIndex={primaryIndex} onSelect={setPrimaryIndex} />
 
             <section className="mt-4 rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
               <h4 className="mb-1 text-sm font-semibold">次にやること</h4>
-              <p className="leading-relaxed">
-                気になる候補の「地図で見る」を押して、Googleマップでルートを開始してください。
-              </p>
+              <p className="leading-relaxed">「地図で見る」でGoogleマップを開いてください。</p>
             </section>
           </>
         )}
@@ -159,12 +150,13 @@ export default function ConciergeLayout({
     );
   }
 
-  // 縦向き
+    // 縦向き
   return (
     <div className="mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm">
       {showPaywallHint && (
         <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />
       )}
+
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -178,36 +170,28 @@ export default function ConciergeLayout({
         />
       </div>
 
-      {showStopBanner && stopReason === "design" && (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-          <div className="font-semibold">ここまでで候補を出しました</div>
-          <div className="mt-1 leading-relaxed">
-            次は「地図で見る」で参拝の行動に移しましょう。続きの相談は「新しい相談」からできます。
-          </div>
-        </div>
+      {shownLen > 0 && (
+        <>
+          {isDummy && (
+            <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              ※ 現在テスト中の回答（ベータ版）です。
+            </div>
+          )}
+
+          <h3 className="mb-2 mt-1 text-xs font-semibold text-gray-600">今回のおすすめ</h3>
+
+          {primary && <PrimaryRecommendationCard rec={primary} primaryIndex={primaryIndex} />}
+
+          <RecommendationSwitchList items={shown} primaryIndex={primaryIndex} onSelect={setPrimaryIndex} />
+
+          <section className="mt-4 rounded-lg bg-gray-50 px-3 py-3 text-xs text-gray-700">
+            <h4 className="mb-1 text-sm font-semibold">次にやること</h4>
+            <p className="leading-relaxed">「地図で見る」でGoogleマップを開いてください。</p>
+          </section>
+        </>
       )}
 
-      {shown.length > 1 && (
-        <div className="flex flex-wrap gap-2 text-xs">
-          {shown.map((_, idx) => {
-            const active = idx === safeIndex;
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSelectedIndex(idx)}
-                className={`rounded-full border px-3 py-1 ${
-                  active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600"
-                }`}
-              >
-                候補{idx + 1}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {(current || stopReason === "design") && (
+      {primary ? (
         <div className="mt-4 grid gap-2">
           <Link href="/nearby" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
             近くの神社を探す
@@ -221,21 +205,11 @@ export default function ConciergeLayout({
             新しい相談をする（履歴へ）
           </Link>
 
-          {current && (
-            <button
-              type="button"
-              className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-              onClick={() => {
-                document.getElementById("concierge-reason")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-            >
-              今回のおすすめ理由を見る
-            </button>
-          )}
-
-          {current && locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
+          {locationText && <p className="mt-2 text-xs text-gray-500">{locationText}</p>}
         </div>
-      )}
+      ) : stopReason === "design" ? (
+        <div className="mt-4 text-xs text-slate-500">候補がありません。条件を変えてもう一度お試しください。</div>
+      ) : null}
     </div>
   );
 }
