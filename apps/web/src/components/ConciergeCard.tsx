@@ -1,8 +1,6 @@
 // apps/web/src/components/ConciergeCard.tsx
 "use client";
 
-import { useState } from "react";
-import { useFavorite } from "@/hooks/useFavorite";
 import Image from "next/image";
 import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
 
@@ -28,19 +26,7 @@ type Shrine = {
 type Props = {
   s: Shrine;
   index?: number;
-
-  onFavorited?: (place_id?: string | null) => void;
-
-  /** ラベルを「地図で見る」にするか（falseなら「ルート開始」） */
   showMapButton?: boolean;
-
-  /**
-   * 保存ボタン表示フラグ（命名はそのまま使う）
-   * - Primary: true（保存ボタン出す）
-   * - 他候補リスト: false（保存ボタン出さない）
-   */
-  showSaveOnly?: boolean;
-
   onRouteSelect?: (payload: {
     name: string;
     lat?: number | null;
@@ -52,46 +38,44 @@ type Props = {
   }) => void;
 };
 
-export default function ConciergeCard({
-  s,
-  index = 0,
-  onFavorited,
-  showMapButton = false,
-  onRouteSelect,
-  showSaveOnly = false,
-}: Props) {
+export default function ConciergeCard({ s, index = 0, showMapButton = false, onRouteSelect }: Props) {
   const title = (s.display_name || s.name || "").trim() || "（名称不明）";
   const addrText = (s.display_address ?? s.address ?? null)?.toString().trim() || null;
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "静かに手を合わせたい社";
-
   const tag = benefitLabel(pickBenefitTagFromRec(s as any));
 
-  // coords: lat/lng を最優先、無ければ location(obj)
-  const lat = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
-  const lng = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
+  const latRaw = s.lat ?? (typeof s.location === "object" ? (s.location?.lat ?? null) : null);
+  const lngRaw = s.lng ?? (typeof s.location === "object" ? (s.location?.lng ?? null) : null);
 
-  const canMap = Number.isFinite(lat) && Number.isFinite(lng);
+  const parseNum = (v: unknown): number | null => {
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    if (typeof v === "string") {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
 
+  let lat = parseNum(latRaw);
+  let lng = parseNum(lngRaw);
+
+  if ((lat == null || lng == null) && typeof s.location === "string") {
+    const m = s.location.split(",").map((x) => x.trim());
+    if (m.length >= 2) {
+      lat = parseNum(m[0]);
+      lng = parseNum(m[1]);
+    }
+  }
+
+  const isValidLatLng = (a: number | null, b: number | null) =>
+    a != null && b != null && a >= -90 && a <= 90 && b >= -180 && b <= 180;
+
+  const canMap = isValidLatLng(lat, lng);
   const gmapsLink = canMap
     ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}${
         s.place_id ? `&destination_place_id=${encodeURIComponent(s.place_id)}` : ""
       }`
-    : undefined;
-
-  const [err, setErr] = useState<string | null>(null);
-
-  const { fav, busy, toggle } = useFavorite({
-    shrineId: s.id ?? undefined,
-    placeId: s.place_id ?? undefined,
-    initial: false,
-  });
-
-  function onSaveClick() {
-    setErr(null);
-    toggle()
-      .then(() => onFavorited?.(s.place_id))
-      .catch(() => setErr("保存の更新に失敗しました"));
-  }
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([title, addrText].filter(Boolean).join(" "))}`;
 
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm min-h-[200px] transition hover:-translate-y-0.5 hover:shadow-md">
@@ -133,19 +117,6 @@ export default function ConciergeCard({
           )}
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {showSaveOnly && (
-              <button
-                onClick={onSaveClick}
-                disabled={busy}
-                className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                  fav ? "bg-yellow-50 border-yellow-300" : "hover:bg-gray-50"
-                } disabled:opacity-60`}
-                aria-pressed={fav}
-              >
-                {busy ? "…" : fav ? "保存済み" : "保存"}
-              </button>
-            )}
-
             {gmapsLink && (
               <a
                 href={gmapsLink}
@@ -168,8 +139,6 @@ export default function ConciergeCard({
               </a>
             )}
           </div>
-
-          {err && <div className="mt-2 text-sm text-red-600">{err}</div>}
         </div>
       </div>
     </div>
