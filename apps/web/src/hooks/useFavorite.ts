@@ -48,11 +48,12 @@ export function useFavorite({ shrineId, placeId, initial }: Args) {
 
   // ① cache が既にあるなら即反映（初期描画の体感が良くなる）
   const cached = useMemo(() => {
+    if (typeof shrineId !== "number" && !placeId) return null;
     const c = peekFavoritesCache();
     if (!c) return null;
     const hit = c.find((f) => favoriteMatchKey(f, { shrineId, placeId })) ?? null;
     return hit ? { fav: true, pk: hit.id } : { fav: false, pk: null };
-  }, [key, shrineId, placeId]);
+  }, [shrineId, placeId]);
 
   const [fav, setFav] = useState<boolean>(() => {
     if (typeof initial === "boolean") return initial;
