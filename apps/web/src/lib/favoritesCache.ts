@@ -1,19 +1,15 @@
 // apps/web/src/lib/favoritesCache.ts
 import type { Favorite } from "@/lib/api/favorites";
+import { favoriteMatchKey } from "@/lib/favorites/normalize";
 
 let favoritesCache: Favorite[] | null = null;
 let favoritesInFlight: Promise<Favorite[]> | null = null;
 
-export function peekFavoritesCache(): Favorite[] | null {
+export function peekFavoritesCache() {
   return favoritesCache;
 }
 
-export function setFavoritesCache(xs: Favorite[]) {
-  favoritesCache = xs;
-}
-
-export function invalidateFavoritesCache() {
-  favoritesCache = null;
+export function clearFavoritesInFlight() {
   favoritesInFlight = null;
 }
 
@@ -33,32 +29,39 @@ export async function getFavoritesCached(fetcher: () => Promise<Favorite[]>): Pr
   return favoritesInFlight;
 }
 
-// --- mutate helpers ---
-export function upsertFavorite(created: Favorite) {
+export function upsertFavorite(f: Favorite) {
   if (!favoritesCache) {
-    favoritesCache = [created];
+    favoritesCache = [f];
     return;
   }
-  const exists = favoritesCache.some((f) => f.id === created.id);
-  favoritesCache = exists ? favoritesCache : [created, ...favoritesCache];
+
+  const idx = favoritesCache.findIndex((x) => x.id === f.id);
+  if (idx >= 0) {
+    favoritesCache = [...favoritesCache.slice(0, idx), f, ...favoritesCache.slice(idx + 1)];
+    return;
+  }
+
+  favoritesCache = [f, ...favoritesCache];
 }
 
 export function removeFavoriteFromCacheByPk(pk: number) {
   if (!favoritesCache) return;
-  favoritesCache = favoritesCache.filter((f) => f.id !== pk);
+  favoritesCache = favoritesCache.filter((x) => x.id !== pk);
 }
 
 export function removeFavoriteFromCacheByShrineId(shrineId: number) {
   if (!favoritesCache) return;
-  favoritesCache = favoritesCache.filter((f: any) => (f.shrine_id ?? f.target_id ?? f.shrine?.id) !== shrineId);
+  favoritesCache = favoritesCache.filter((x) => !favoriteMatchKey(x, { shrineId }));
 }
 
 export function removeFavoriteFromCacheByPlaceId(placeId: string) {
   if (!favoritesCache) return;
-  favoritesCache = favoritesCache.filter((f: any) => String(f.place_id ?? "") !== String(placeId));
+  favoritesCache = favoritesCache.filter((x) => !favoriteMatchKey(x, { placeId }));
 }
 
-// 「揺れ」対策：外で inFlight を握ってた場合に備えて潰す
-export function clearFavoritesInFlight() {
+
+
+export function __resetFavoritesCacheForTest() {
+  favoritesCache = null;
   favoritesInFlight = null;
 }
