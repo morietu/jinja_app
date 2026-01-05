@@ -46,7 +46,7 @@ export default function ShrineCard({
   // （rules-of-hooks 回避のため、早期 return より前に置く）
 
   // 初期fav（命名ゆれ吸収）
-  const init =
+  const _init =
     typeof initialFav === "boolean"
       ? initialFav
       : (shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false;
