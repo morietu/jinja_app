@@ -4,17 +4,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
+import type { Favorite } from "@/lib/api/favorites";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
+import FavoritesSection from "@/features/mypage/components/FavoritesSection";
 import Link from "next/link";
 
+type Props = { initialFavorites: Favorite[] };
 
-
-export default function MyPageView() {
+export default function MyPageView({ initialFavorites }: Props) {
+  console.log("[MyPageView] initialFavorites", initialFavorites);
+  
   const router = useRouter();
   const sp = useSearchParams();
   const tab = sp.get("tab") ?? "profile";
 
-  // 既存 state / effect はそのまま
   const [user, setUser] = useState<UserMe | null>(null);
   const [form, setForm] = useState({ nickname: "", is_public: true });
   const [loading, setLoading] = useState(true);
@@ -35,13 +38,10 @@ export default function MyPageView() {
     })();
   }, []);
 
-  // ✅ hash に #goshuin-upload があるとき、描画後にスクロール
   useEffect(() => {
     if (tab !== "goshuin") return;
     const hash = window.location.hash;
     if (hash !== "#goshuin-upload") return;
-
-    // ちょい遅延させると安定する
     requestAnimationFrame(() => {
       document.querySelector(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -51,9 +51,7 @@ export default function MyPageView() {
     if (!user) return false;
     const nick0 = (user.profile?.nickname ?? "").trim();
     const nick1 = (form.nickname ?? "").trim();
-    const nickDirty = nick1 !== nick0;
-    const publicDirty = Boolean(form.is_public) !== Boolean(user.profile?.is_public);
-    return nickDirty || publicDirty;
+    return nick1 !== nick0 || Boolean(form.is_public) !== Boolean(user.profile?.is_public);
   }, [user, form.nickname, form.is_public]);
 
   const handleSave = async () => {
@@ -79,18 +77,17 @@ export default function MyPageView() {
 
   const handleReset = () => {
     if (!user) return;
-    setForm({
-      nickname: user.profile?.nickname ?? "",
-      is_public: !!user.profile?.is_public,
-    });
+    setForm({ nickname: user.profile?.nickname ?? "", is_public: !!user.profile?.is_public });
   };
 
-  if (loading) return (
-    <div className="p-4 text-sm text-gray-500" role="status" aria-busy="true">
-      読み込み中...
-    </div>
-  );
-  
+  if (loading) {
+    return (
+      <div className="p-4 text-sm text-gray-500" role="status" aria-busy="true">
+        読み込み中...
+      </div>
+    );
+  }
+
   if (!user) {
     const next = tab === "goshuin" ? "/mypage?tab=goshuin" : "/mypage?tab=profile";
     return (
@@ -111,7 +108,6 @@ export default function MyPageView() {
 
   return (
     <div className="space-y-6">
-      {/* ✅ タブ */}
       <div className="flex gap-2">
         <button
           className={`rounded px-3 py-2 text-sm ${tab === "profile" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
@@ -127,14 +123,23 @@ export default function MyPageView() {
         >
           御朱印
         </button>
+        {/* タブUIに追加 */}
+        <button
+          className={`rounded px-3 py-2 text-sm ${tab === "favorites" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
+          onClick={() => router.push("/mypage?tab=favorites")}
+          type="button"
+        >
+          保存した神社
+        </button>
       </div>
 
-      {/* ✅ タブ中身 */}
       {tab === "goshuin" ? (
         <MyPageScreen />
+      ) : tab === "favorites" ? (
+        <FavoritesSection initialFavorites={initialFavorites} />
       ) : (
         <div className="space-y-6">
-          {/* ↓ここはあなたの現状のプロフィール編集UIをそのまま */}
+          {/* profile */}
           <div>
             <label className="block text-sm font-medium mb-1">ニックネーム</label>
             <input
@@ -160,7 +165,6 @@ export default function MyPageView() {
             <button
               onClick={handleSave}
               disabled={!dirty || saving}
-              title={!dirty ? "変更すると有効になります" : undefined}
               className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
             >
               {saving ? "保存中..." : "保存"}

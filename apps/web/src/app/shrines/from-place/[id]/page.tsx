@@ -3,6 +3,12 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+type Props = {
+  params: { id: string };
+  searchParams?: { from?: string };
+};
+
+
 type ShrineData = {
   id: number;
   name_jp?: string | null;
@@ -15,26 +21,25 @@ async function fetchShrineData(id: string): Promise<ShrineData | null> {
   const proto = h.get("x-forwarded-proto") ?? "http";
   const baseUrl = `${proto}://${host}`;
 
+  const cookie = h.get("cookie") ?? "";
+
   const res = await fetch(`${baseUrl}/api/shrines/${encodeURIComponent(id)}/data/`, {
     cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
   });
   if (!res.ok) return null;
-
   return (await res.json()) as ShrineData;
 }
 
-export default async function FromPlaceHubPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams?: { from?: string };
-}) {
+
+export default async function FromPlaceHubPage({ params, searchParams }: Props) {
   const { id } = params;
   const backTo = searchParams?.from ?? "/map";
 
   const shrineId = Number(id);
-  if (!Number.isFinite(shrineId) || shrineId <= 0) redirect("/map?toast=invalid_shrine");
+  if (!Number.isFinite(shrineId) || shrineId <= 0) {
+    redirect("/map?toast=invalid_shrine");
+  }
 
   const data = await fetchShrineData(id);
   if (!data) redirect("/map?toast=shrine_not_found");

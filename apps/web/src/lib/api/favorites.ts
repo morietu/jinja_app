@@ -3,8 +3,17 @@ import api from "./client";
 
 export type Favorite = {
   id: number;
+
+  // 旧形式（既存互換）
   shrine_id?: number | null;
   place_id?: string | null;
+
+  // 新形式（現状のAPIレスポンスに合わせる）
+  target_type?: "shrine" | "place" | string;
+  target_id?: number | null;
+
+  // ネストで shrine が返るケース（あなたのプレビューにある）
+  shrine?: { id?: number | null; name_jp?: string | null; address?: string | null } | null;
 };
 
 export async function getFavorites(): Promise<Favorite[]> {
