@@ -81,7 +81,7 @@ export function useFavorite({ shrineId, placeId, initial }: Args) {
     (async () => {
       try {
         const list = await getFavoritesCached(getFavoritesDirect);
-        const hit = list.find((f) => favoriteMatchKey(f, { shrineId, placeId })) ?? null;
+        const hit = list.find((f: Favorite) => favoriteMatchKey(f, { shrineId, placeId })) ?? null;
         setFav(Boolean(hit));
         setFavPk(hit?.id ?? null);
       } catch {
