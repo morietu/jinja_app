@@ -1,25 +1,21 @@
-// apps/web/src/app/mypage/tests/loading.test.tsx
-import { describe, it, vi, expect } from "vitest";
+// src/app/mypage/tests/loading.test.tsx
 import { render, screen } from "@testing-library/react";
-import MyPage from "../page";
-import React from "react";
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(""),
-}));
+import MyPageView from "@/components/views/MyPageView";
 
-vi.mock("@/lib/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, isLoggedIn: false, loading: true, logout: vi.fn() }),
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => ({ get: (k: string) => (k === "tab" ? "profile" : null) }),
 }));
 
 vi.mock("@/lib/api/users", () => ({
-  getCurrentUser: vi.fn(async () => null),
+  getCurrentUser: vi.fn(() => new Promise(() => {})), // 永遠にresolveしない=loading固定
+  updateUser: vi.fn(),
 }));
-
 
 describe("MyPage loading", () => {
   it("Skeletonのみを表示し、tabpanelは出さない", () => {
-    render(<MyPage />);
+    render(<MyPageView initialFavorites={[]} />);
+
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.queryByRole("tabpanel")).toBeNull();
   });
