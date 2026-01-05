@@ -7,6 +7,7 @@ import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 
+import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 
 // ✅ コンポーネントの外でOK
 function getBenefitLabels(shrine: Shrine): string[] {
@@ -58,9 +59,10 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         >
           この神社で御朱印を追加
         </Link>
+        
+        
 
         <div className="rounded-xl border bg-white p-4 text-center text-sm">神社の詳細情報が見つかりませんでした。</div>
-        
       </main>
     );
   }
@@ -84,6 +86,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   return (
     <main className="p-4 max-w-md mx-auto space-y-6">
       <ShrineDetailToast shrineId={numericId} />
+
       {/* ✅ 最優先：経路 */}
       {mapsRouteHref && (
         <a
@@ -103,6 +106,11 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
       >
         この神社で御朱印を追加
       </Link>
+
+      {/* 3番手：保存 */}
+      <ShrineSaveButton shrineId={numericId} nextPath={`/shrines/${numericId}`} />
+
+      
       <section id="goshuins" className="scroll-mt-24" />
       {/* アクションカード */}
       <ShortcutCardGrid>

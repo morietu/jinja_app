@@ -52,24 +52,20 @@ export default function ShrineCard({
       : (shrine as any)?.is_favorite ?? (shrine as any)?.isFavorite ?? false;
 
   // shrineId 正規化（正の整数のみ）
-  const shrineIdNum =
-    typeof shrine.id === "number" &&
-    Number.isInteger(shrine.id) &&
-    shrine.id > 0
-      ? shrine.id
-      : typeof shrine.id === "string" && /^\d+$/.test(shrine.id)
-      ? Number(shrine.id)
-      : undefined;
+  const shrineIdNum = (() => {
+    const v: unknown = (shrine as any)?.id;
+    if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+    if (typeof v === "string") {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    }
+    return undefined;
+  })();
 
+  const canFav = typeof shrineIdNum === "number" && shrineIdNum > 0;
 
-  // ✅ Hook は常にトップレベルで呼ぶ（条件分岐の外）
-  // Hook の API が shrineId のみでも undefined を渡して問題ない実装にしておく
-  const placeId = shrine?.place_id ?? undefined;
-  // フックは常に呼ぶ（IDが無い時は 0 を渡す前提で hook 側が無効判定する）
-  const { fav, busy, toggle, canFav } = useFavorite({
-    shrineId: shrineIdNum ?? 0,
-    placeId,
-    initial: init,
+  const { fav, busy, toggle } = useFavorite({
+    shrineId: shrineIdNum,
   });
 
   if (!shrine) return null;
