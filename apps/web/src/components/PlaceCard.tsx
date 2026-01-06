@@ -16,7 +16,7 @@ type Place = {
 };
 
 export default function PlaceCard({ p }: { p: Place }) {
-  const gm = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  const gm = `https://www.google.com/maps?q=${encodeURIComponent(
     p.name,
   )}&query_place_id=${encodeURIComponent(p.place_id)}`;
 

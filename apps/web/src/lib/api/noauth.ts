@@ -4,8 +4,8 @@ const NOAUTH_PATTERNS: RegExp[] = [
   /^\/places\//, // /api/places/...
   /^\/populars\/?$/, // ✅ /api/populars/
   /^\/concierge\/plan\/?$/, // /api/concierge/plan/
-  /^\/shrines\/search\/?$/, // （あるなら）検索API
-  /^\/shrines\/\d+\/?$/, // 詳細（公開なら）
+  
+  
 ];
 
 export function isNoAuth(url: string) {

@@ -3,7 +3,7 @@ import { ShortcutCard } from "@/components/ShortcutCard";
 import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
 import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
-import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
+
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
@@ -120,8 +120,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         />
       </ShortcutCardGrid>
 
-      {/* 🔎 トグル検索（将来/search廃止なら後でここも/map導線に置換） */}
-      <ShrineSearchToggle />
+      
 
       {/* 写真ギャラリー */}
       <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
