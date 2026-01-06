@@ -1,64 +1,49 @@
-// apps/web/src/features/mypage/components/FavoriteShrineCard.tsx
 "use client";
 
-import Image from "next/image";
-import type { FavoriteShrine } from "./hooks/useFavorites";
+import Link from "next/link";
+import type { Favorite } from "@/lib/api/favorites";
+import { normalizeFavorite } from "@/lib/favorites/normalize";
 
 type Props = {
-  shrine: FavoriteShrine;
-  onToggleFavorite?: (id: number) => void;
+  favorite: Favorite;
+  onUnsave?: () => void;
 };
 
-export function FavoriteShrineCard({ shrine, onToggleFavorite }: Props) {
-  const distance = shrine.distance_km != null ? `${shrine.distance_km.toFixed(1)}km` : null;
+export function FavoriteShrineCard({ favorite, onUnsave }: Props) {
+  const { shrineId, placeId } = normalizeFavorite(favorite);
+
+  const href = shrineId
+    ? `/shrines/${shrineId}`
+    : placeId
+      ? `/shrines/from-place/${encodeURIComponent(placeId)}`
+      : null;
+
+  const title =
+    (favorite.shrine?.name_jp && favorite.shrine.name_jp.trim()) ||
+    (shrineId ? `神社 #${shrineId}` : placeId ? `place_id: ${placeId}` : `id: ${favorite.id}`);
+
+  const sub = (favorite.shrine?.address && favorite.shrine.address.trim()) || null;
 
   return (
-    <div className="flex gap-3 rounded-lg border bg-white p-3 shadow-sm">
-      {/* サムネイル */}
-      <div className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100">
-        {shrine.image_url ? (
-          <Image src={shrine.image_url} alt={shrine.name} fill className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No Image</div>
+    <div className="flex items-start justify-between gap-3 rounded-lg border bg-white p-3 shadow-sm">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-900 truncate">{title}</p>
+        {sub && <p className="mt-0.5 text-xs text-gray-500 truncate">{sub}</p>}
+
+        {href && (
+          <Link href={href} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
+            神社の詳細を見る
+          </Link>
         )}
       </div>
 
-      {/* 本文 */}
-      <div className="flex flex-1 flex-col gap-1">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{shrine.name}</p>
-            <p className="text-xs text-gray-500">
-              {shrine.area}
-              {distance && ` / 自宅から${distance}`}
-            </p>
-          </div>
-
-          {/* お気に入りトグル */}
-          <button
-            type="button"
-            onClick={() => onToggleFavorite?.(shrine.id)}
-            className="text-yellow-400 transition hover:scale-110"
-            aria-label="お気に入りから外す"
-          >
-            {/* 固定で塗りつぶしスター（お気に入り済み想定） */}★
-          </button>
-        </div>
-
-        {/* タグ群 */}
-        <div className="flex flex-wrap gap-1">
-          {shrine.tags.map((t) => (
-            <span key={t} className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] text-orange-700">
-              #{t}
-            </span>
-          ))}
-        </div>
-
-        {/* 最終お参り情報 */}
-        {shrine.last_visited_at && (
-          <p className="mt-1 text-[11px] text-gray-500">最近のお参り: {shrine.last_visited_at}</p>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onUnsave}
+        className="shrink-0 rounded-md border px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+      >
+        保存解除
+      </button>
     </div>
   );
 }

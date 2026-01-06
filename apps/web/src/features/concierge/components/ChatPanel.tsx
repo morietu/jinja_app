@@ -11,7 +11,7 @@ type Props = {
   error?: string | null;
   onRetry?: () => void;
   onSend: (text: string) => void | Promise<void>;
-  canSend?: boolean;
+  canSend: boolean;
 };
 
 export default function ChatPanel({
@@ -83,6 +83,8 @@ export default function ChatPanel({
     e.preventDefault();
     void handleSend();
   };
+
+  console.log("[ChatPanel]", { canSend, sending, loading, inputLen: input.length });
 
   return (
     <div className="flex h-[calc(100vh-180px)] flex-col rounded-2xl border bg-white shadow-sm">
@@ -167,7 +169,7 @@ export default function ChatPanel({
             onKeyDown={handleKeyDown}
             onCompositionStart={handleCompositionStart}
             onCompositionEnd={handleCompositionEnd}
-            disabled={sending || loading || !canSend}
+            disabled={sending || loading}
           />
 
           {!canSend && (

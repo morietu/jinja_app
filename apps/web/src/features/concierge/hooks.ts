@@ -1,7 +1,11 @@
+// apps/web/src/features/concierge/hooks.ts
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+
 import axios from "axios";
+import type { UnifiedConciergeResponse, StopReason } from "@/features/concierge/types/unified";
 
 import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 import {
@@ -91,6 +95,9 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
+  
+  onUnified?: (u: UnifiedConciergeResponse) => void;
+  
   onUpdated?: (payload: {
     thread: ConciergeThread;
     messages?: ConciergeMessage[];
@@ -109,6 +116,40 @@ export type UseConciergeChatOptions = {
   onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
+
+function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): UnifiedConciergeResponse {
+  const stop: StopReason =
+    raw?.stop_reason === "design" || raw?.stop_reason === "paywall"
+      ? raw.stop_reason
+      : typeof raw?.remaining_free === "number" && raw.remaining_free <= 0
+        ? "paywall"
+        : null;
+
+  const note = typeof raw?.note === "string" ? raw.note : null;
+
+  const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
+  const reply = typeof replyCandidate === "string" ? replyCandidate : null;
+
+  const ok = raw?.ok === false ? false : true;
+  const remaining_free = typeof raw?.remaining_free === "number" ? raw.remaining_free : null;
+
+  const tid = Number(raw?.thread?.id);
+  const thread =
+    raw?.thread && Number.isFinite(tid)
+      ? ({ ...raw.thread, id: tid } as ConciergeThread)
+      : null;
+
+  return {
+    ok,
+    stop_reason: stop,
+    note,
+    reply,
+    remaining_free,
+    thread,
+    data: { recommendations: recs },
+  };
+}
+
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,32 +164,55 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       try {
         const res = await postConciergeChat({ query: message, thread_id: threadId ?? undefined });
 
-        // ✅ recs はここで正規化して統一
-        const recs = normalizeRecommendations(res.data?.recommendations);
+        // ✅ axiosレスポンス判定（payload自身も "data" を持つので "status" で判定）
+        const isAxiosLike =
+          !!res &&
+          typeof res === "object" &&
+          "status" in (res as any) &&
+          "data" in (res as any);
+
+        const payload = isAxiosLike ? (res as any).data : res;
+
+        // ✅ recommendations は payload 起点で統一
+        const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
+
+        // ✅ unified も payload 起点で統一（thread が拾える）
+        const unified = normalizeConciergeResponse(payload, recs);
+        options?.onUnified?.(unified);
+
         options?.onRecommendations?.(recs);
 
-        // paywall は thread の有無に関係なく拾う（UI側で optional で扱える）
         options?.onPaywall?.({
-          remaining_free: res.remaining_free,
-          limit: res.limit,
-          note: res.note,
+          remaining_free: payload?.remaining_free,
+          limit: payload?.limit,
+          note: payload?.note,
         });
 
-        if (res.thread) {
+        if (payload?.thread) {
           options?.onUpdated?.({
-            thread: res.thread,
+            thread: payload.thread,
             recommendations: recs,
-            remaining_free: res.remaining_free,
-            limit: res.limit,
-            note: res.note,
+            remaining_free: payload?.remaining_free,
+            limit: payload?.limit,
+            note: payload?.note,
           });
         }
 
-        const replyTextRaw = res.reply ?? res.data?.reply ?? res.data?.raw;
-        if (replyTextRaw) {
-          options?.onReply?.(replyTextRaw.replace(/^echo:\s*/i, ""));
+        if (unified.reply) {
+          options?.onReply?.(unified.reply.replace(/^echo:\s*/i, ""));
         }
       } catch (err) {
+        const unified: UnifiedConciergeResponse = {
+          ok: false,
+          stop_reason: null,
+          note: "チャット送信に失敗しました",
+          reply: null,
+          data: { recommendations: [] },
+          thread: null,
+          remaining_free: null,
+        };
+        options?.onUnified?.(unified);
+
         let msg = "チャット送信に失敗しました";
         if (axios.isAxiosError(err)) {
           msg = `チャット送信に失敗しました (${err.response?.status ?? "network error"})`;

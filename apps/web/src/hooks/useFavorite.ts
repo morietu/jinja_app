@@ -1,90 +1,135 @@
 // apps/web/src/hooks/useFavorite.ts
-import { useCallback, useMemo, useState } from "react";
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createFavoriteByShrineId,
-  createFavoriteByPlaceId,
   removeFavoriteByPk,
   removeFavoriteByShrineId,
-  removeFavoriteByPlaceId,
   type Favorite,
 } from "@/lib/api/favorites";
 
+import { favoriteMatchKey } from "@/lib/favorites/normalize";
+
+import {
+  peekFavoritesCache,
+  getFavoritesCached,
+  upsertFavorite,
+  removeFavoriteFromCacheByPk,
+  removeFavoriteFromCacheByShrineId,
+  clearFavoritesInFlight,
+} from "@/lib/favoritesCache";
+
 type Args = {
   shrineId?: number;
-  placeId?: string;
-  initial?: boolean;
-  initialFavoritePk?: number | null;
-  disabled?: boolean; // ★ 追加
+  initial?: boolean; // SSRなどで明示したい場合だけ使う
 };
 
-export function useFavorite({
-  shrineId,
-  placeId,
-  initial = false,
-  initialFavoritePk = null,
-  disabled = false,
-}: Args) {
-  const canFav = !disabled && (!!shrineId || !!placeId);
+async function getFavoritesDirect(): Promise<Favorite[]> {
+  const r = await fetch("/api/favorites/", { cache: "no-store" });
+  if (!r.ok) return [];
+  const data = await r.json();
+  return Array.isArray(data) ? data : (data?.results ?? []);
+}
 
-  const [fav, setFav] = useState<boolean>(Boolean(initial));
+export function useFavorite({ shrineId, initial }: Args) {
+  const key = useMemo(() => {
+    if (typeof shrineId === "number") return `shrine:${shrineId}`;
+    return null;
+  }, [shrineId]);
+
+  // ① cache が既にあるなら即反映
+  const cached = useMemo(() => {
+    if (typeof shrineId !== "number") return null;
+    const c = peekFavoritesCache();
+    if (!c) return null;
+    const hit = c.find((f) => favoriteMatchKey(f, { shrineId })) ?? null;
+    return hit ? { fav: true, pk: hit.id } : { fav: false, pk: null };
+  }, [shrineId]);
+
+  const [fav, setFav] = useState<boolean>(() => {
+    if (typeof initial === "boolean") return initial;
+    if (cached) return cached.fav;
+    return false;
+  });
+  const [favPk, setFavPk] = useState<number | null>(() => (cached ? cached.pk : null));
   const [busy, setBusy] = useState(false);
-  const [favoritePk, setFavoritePk] = useState<number | null>(
-    initialFavoritePk ?? null
-  );
 
-  const add = useCallback(async (): Promise<Favorite | null> => {
-    if (!canFav) {
-      // ここで止める（コンソール騒がせない）
-      return null;
+  const hydratedRef = useRef(false);
+
+  // ② cache が無い/不確実なら一度だけ取得して復元
+  useEffect(() => {
+    if (!key) return;
+    if (hydratedRef.current) return;
+
+    // initial が明示されてる場合は fetch しない
+    if (typeof initial === "boolean") {
+      hydratedRef.current = true;
+      return;
     }
-    setBusy(true);
-    try {
-      if (shrineId) {
-        const f = await createFavoriteByShrineId(shrineId);
-        setFavoritePk(f.id ?? null);
-        setFav(true);
-        return f;
-      } else if (placeId) {
-        const f = await createFavoriteByPlaceId(placeId);
-        setFavoritePk(f.id ?? null);
-        setFav(true);
-        return f;
+
+    hydratedRef.current = true;
+
+    (async () => {
+      try {
+        const list = await getFavoritesCached(getFavoritesDirect);
+        const hit = list.find((f) => favoriteMatchKey(f, { shrineId })) ?? null;
+        setFav(Boolean(hit));
+        setFavPk(hit?.id ?? null);
+      } catch {
+        // noop
       }
-      return null;
+    })();
+  }, [key, shrineId, initial]);
+
+  async function toggle() {
+    if (!key || busy) return;
+    if (typeof shrineId !== "number") return;
+
+    setBusy(true);
+    const prev = fav;
+    setFav(!prev);
+
+    try {
+      if (!prev) {
+        // add
+        const createdRaw = await createFavoriteByShrineId(shrineId);
+
+        // backend が id/created_at だけ返しても cache/normalize が成立するよう補完
+        const created: Favorite = {
+          ...createdRaw,
+          shrine_id: shrineId as any,
+          target_type: "shrine" as any,
+          target_id: shrineId as any,
+          shrine: { id: shrineId } as any,
+        } as any;
+
+        setFavPk(created.id);
+        upsertFavorite(created);
+        clearFavoritesInFlight();
+        return;
+      }
+
+      // remove
+      if (favPk != null) {
+        await removeFavoriteByPk(favPk);
+        removeFavoriteFromCacheByPk(favPk);
+        setFavPk(null);
+        clearFavoritesInFlight();
+        return;
+      }
+
+      // pk不明フォールバック
+      await removeFavoriteByShrineId(shrineId);
+      removeFavoriteFromCacheByShrineId(shrineId);
+      clearFavoritesInFlight();
+    } catch (e) {
+      setFav(prev);
+      throw e;
     } finally {
       setBusy(false);
     }
-  }, [canFav, shrineId, placeId]);
+  }
 
-  const remove = useCallback(async () => {
-    if (!canFav && !favoritePk) return;
-    setBusy(true);
-    try {
-      if (favoritePk) {
-        await removeFavoriteByPk(favoritePk);
-      } else if (shrineId) {
-        await removeFavoriteByShrineId(shrineId);
-      } else if (placeId) {
-        await removeFavoriteByPlaceId(placeId);
-      }
-      setFav(false);
-      setFavoritePk(null);
-    } finally {
-      setBusy(false);
-    }
-  }, [canFav, favoritePk, shrineId, placeId]);
-
-  const toggle = useCallback(async () => {
-    if (!canFav) return;
-    if (fav) {
-      await remove();
-    } else {
-      await add();
-    }
-  }, [canFav, fav, add, remove]);
-
-  return useMemo(
-    () => ({ fav, busy, toggle, add, remove, canFav, favoritePk }),
-    [fav, busy, toggle, add, remove, canFav, favoritePk]
-  );
+  return { fav, busy, toggle };
 }

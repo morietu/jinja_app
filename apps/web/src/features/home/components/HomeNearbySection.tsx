@@ -1,15 +1,16 @@
 // apps/web/src/features/home/components/HomeNearbySection.tsx
 "use client";
-import axios from "axios";
-import Link from "next/link";
+
+
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiGet } from "@/lib/api/http";
-import type { NearbyListState, ShrineListItem } from "@/components/nearby/NearbyList";
+import type { NearbyListState } from "@/components/nearby/NearbyList";
+import type { NearbyItem } from "@/components/nearby/types";
+import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
+import { toast } from "sonner";
 
-// NearbyList は dynamic import（前と同じ）
 const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((m) => m.NearbyList), {
   ssr: false,
   loading: () => (
@@ -21,122 +22,147 @@ const NearbyList = dynamic(() => import("@/components/nearby/NearbyList").then((
   ),
 });
 
-const LIMIT = 10;
+const FETCH_LIMIT = 10; // APIに取りに行く数（精度確保）
+const DISPLAY_LIMIT = 3; // トップで見せる数（UX）
+const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅
 
-// TODO: 実際の API レスポンスに合わせて型を調整する
-type NearbyApiResponse = {
-  results: any[];
-};
+function toNearbyItem(p: PlacesNearbyResponse["results"][number]): NearbyItem {
+  return {
+    kind: "place",
+    place_id: p.place_id,
+    title: p.name,
+    subtitle: p.address ?? undefined,
+    lat: p.lat,
+    lng: p.lng,
+    distance_m: p.distance_m ?? null,
+    rating: p.rating ?? null,
+    user_ratings_total: p.user_ratings_total ?? null,
+    icon: p.icon ?? null,
+  };
+}
+
+async function fetchNearbyViaBFF(lat: number, lng: number, limit: number) {
+  const r = await fetch(`/api/places/nearby?lat=${lat}&lng=${lng}&limit=${limit}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(`nearby bff failed: ${r.status}`);
+  return (await r.json()) as PlacesNearbyResponse;
+}
 
 export function HomeNearbySection() {
-  const [lat, setLat] = useState<number | undefined>();
-  const [lng, setLng] = useState<number | undefined>();
+  const [lat, setLat] = useState<number>();
+  const [lng, setLng] = useState<number>();
   const [state, setState] = useState<NearbyListState>("loading");
-  const [items, setItems] = useState<ShrineListItem[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [items, setItems] = useState<NearbyItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>();
+  const [usingFallback, setUsingFallback] = useState(false);
 
-  // 近くの神社API呼び出し
-  const fetchNearby = useCallback(async (lat: number, lng: number) => {
+  // このマウントで「座標を確定したら」二度と決めない
+  const decidedRef = useRef(false);
+  // fetch中の二重実行を防ぐ（連打/再マウント/多重イベント）
+  const inflightRef = useRef(false);
+  // geolocation起動を一回にする（StrictMode対策）
+  const requestedGeoRef = useRef(false);
+
+  const runFetch = useCallback(async (la: number, ln: number, opts?: { fallbackUsed?: boolean; msg?: string }) => {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+
+    setState("loading");
+    setErrorMessage(opts?.msg);
+    setUsingFallback(!!opts?.fallbackUsed);
+
+    if (opts?.fallbackUsed && opts?.msg) toast(opts.msg);
+
     try {
-      setState("loading");
-      setErrorMessage(undefined);
+      const data = await fetchNearbyViaBFF(la, ln, FETCH_LIMIT);
+      const mapped = (data.results ?? []).map(toNearbyItem);
+      const sliced = mapped.slice(0, DISPLAY_LIMIT);
 
-      // TODO: 実際のAPIエンドポイントが決まったらここを更新
-      const data = await apiGet<NearbyApiResponse>(`/places/nearby/?lat=${lat}&lng=${lng}&limit=${LIMIT}`);
+      setLat(la);
+      setLng(ln);
 
-      const results = data?.results ?? [];
-
-      if (!results.length) {
+      if (!sliced.length) {
         setItems([]);
         setState("empty");
+        toast("近くに神社が見つかりませんでした");
         return;
       }
 
-      const mapped = results as unknown as ShrineListItem[];
-      setItems(mapped);
+      setItems(sliced);
       setState("success");
-    } catch (err) {
-      // 🔽 ここを追加
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        // まだ API 未実装 or パス違い → ひとまず「データなし」として扱う
-        setItems([]);
-        setErrorMessage(undefined);
-        setState("empty");
-        if (process.env.NODE_ENV === "development") {
-          console.info("[HomeNearbySection] nearby API not found (404). Treat as empty.");
-        }
-        return;
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to fetch nearby shrines", err);
-      }
-      setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
+    } catch {
+      setItems([]);
       setState("error");
+      setErrorMessage("近くの神社の取得に失敗しました。時間をおいて再度お試しください。");
+      toast("近くの神社の取得に失敗しました");
+    } finally {
+      inflightRef.current = false;
     }
   }, []);
 
-  // 位置情報の取得
-  const requestLocation = useCallback(() => {
+  const decideAndFetchFallbackOnce = useCallback(() => {
+    if (decidedRef.current) return;
+    decidedRef.current = true;
+
+    void runFetch(FALLBACK.lat, FALLBACK.lng, {
+      fallbackUsed: true,
+      msg: "位置情報が利用できないため、東京駅周辺を表示しています。",
+    });
+  }, [runFetch]);
+
+  const requestLocationOnce = useCallback(() => {
+    if (requestedGeoRef.current) return;
+    requestedGeoRef.current = true;
+
+    // geolocation 未対応 → fallback で確定
     if (!("geolocation" in navigator)) {
-      setErrorMessage("この端末では位置情報が利用できません。");
-      setState("error");
+      decideAndFetchFallbackOnce();
       return;
     }
 
-    setState("loading");
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+        if (decidedRef.current) return; // 既に fallback 等で決定済みなら何もしない
+        decidedRef.current = true;
 
-        setLat(lat);
-        setLng(lng);
-
-        fetchNearby(lat, lng);
+        void runFetch(pos.coords.latitude, pos.coords.longitude, { fallbackUsed: false, msg: undefined });
       },
-      // エラーコールバック部分だけ差し替え
+      (e) => {
+        // 失敗したら fallback で確定（このマウントで1回だけ）
+        if (decidedRef.current) return;
+        decidedRef.current = true;
 
-      (err) => {
-        if (process.env.NODE_ENV === "development") {
-          console.info("Failed to get location", err);
-        }
-
-        setErrorMessage("位置情報の取得に失敗しました。ブラウザの設定を確認し、再度お試しください。");
-        setState("error");
+        void runFetch(FALLBACK.lat, FALLBACK.lng, {
+          fallbackUsed: true,
+          msg: `位置情報の取得に失敗したため、東京駅周辺を表示しています。(code=${e.code})`,
+        });
       },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
-  }, [fetchNearby]);
+  }, [decideAndFetchFallbackOnce, runFetch]);
 
-  // 初回マウント時に位置情報を取得
+  // 「coordsが取れたらそれで1回だけ」「取れなければfallbackで1回だけ」
   useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
+    requestLocationOnce();
+  }, [requestLocationOnce]);
 
-  // NearbyList からの「再検索」
   const handleRefetch = () => {
+    // 手動の「再検索」は “もう一度決める” なのでリセットしてからやる
+    decidedRef.current = false;
+    requestedGeoRef.current = false;
+
     if (typeof lat === "number" && typeof lng === "number") {
-      fetchNearby(lat, lng);
+      void runFetch(lat, lng, { fallbackUsed: usingFallback, msg: errorMessage });
+      decidedRef.current = true; // 既存座標で決め打ち
+      requestedGeoRef.current = true;
     } else {
-      requestLocation();
+      requestLocationOnce();
     }
   };
 
-  // エラー状態からの「再試行」
-  const handleRetry = () => {
-    requestLocation();
-  };
-  // 一覧に結果があるかどうか
   const hasResults = state === "success" && items.length > 0;
 
   return (
     <div className="space-y-3">
-      {/* ヘッダーの文言は SectionCard 側に移したので、ここは再検索ボタンだけ */}
       <div className="flex justify-end">
         {hasResults && (
           <Button
@@ -155,18 +181,17 @@ export function HomeNearbySection() {
         <NearbyList
           lat={lat}
           lng={lng}
-          limit={LIMIT}
+          limit={DISPLAY_LIMIT}
           state={state}
           items={items}
           errorMessage={errorMessage}
           onRefetch={handleRefetch}
-          onRetry={handleRetry}
-          itemHref={(p: any) => {
-            const placeId = p.place_id;
-            if (!placeId) return null;
+          onRetry={handleRefetch}
+          itemHref={(item) => {
+            if (item.kind !== "place") return null;
 
             const usp = new URLSearchParams();
-            usp.set("place_id", String(placeId));
+            usp.set("place_id", item.place_id);
 
             if (typeof lat === "number" && typeof lng === "number") {
               usp.set("locationbias", `circle:1500@${lat},${lng}`);
@@ -176,6 +201,8 @@ export function HomeNearbySection() {
           }}
         />
       </div>
+
+      {usingFallback ? <div className="text-xs text-slate-500">※ 現在地の代わりに東京駅周辺を表示中</div> : null}
     </div>
   );
 }

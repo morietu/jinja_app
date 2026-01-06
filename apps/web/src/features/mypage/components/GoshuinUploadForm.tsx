@@ -8,6 +8,7 @@ import { uploadMyGoshuin } from "@/lib/api/goshuin";
 type Props = { onUploaded?: (g: any) => void };
 
 export default function GoshuinUploadForm({ onUploaded }: Props) {
+  
   const sp = useSearchParams();
 
   const shrineId = useMemo(() => {

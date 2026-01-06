@@ -29,6 +29,8 @@ from temples.llm.backfill import fill_locations
 from temples.recommendation.llm_adapter import get_llm_adapter
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
+from temples.services.concierge_history import append_chat
+from temples.models import ConciergeThread
 
 from .models import ConciergeUsage
 
@@ -587,11 +589,14 @@ class ConciergeChatView(APIView):
             if isinstance(c, dict) and c.get("name") and c.get("formatted_address"):
                 cand_addr[(c["name"] or "").strip()] = c["formatted_address"]
 
+        # --- location 補完 ---
         for r in recs.get("recommendations", []) or []:
             if not isinstance(r, dict):
                 continue
+
             if r.get("location"):
                 continue
+
             nm = (r.get("name") or "").strip()
             if nm in cand_addr:
                 addr = cand_addr[nm]
@@ -612,7 +617,23 @@ class ConciergeChatView(APIView):
                 except Exception:
                     r["location"] = addr
 
+        # --- 最後に1回だけ：表示名と reason を全件確定 ---
+        for r in recs.get("recommendations", []) or []:
+            if not isinstance(r, dict):
+                continue
+
+            if r.get("name"):
+                cleaned = _clean_display_name(r["name"])
+                r["display_name"] = cleaned
+                r["name"] = cleaned
+
+            try:
+                r["reason"] = _normalize_reason(r, query=query)
+            except Exception:
+                r["reason"] = "静かに手を合わせたい社"
+
         body = {"ok": True, "intent": intent, "data": recs}
+
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
         if user is not None and not is_premium:
@@ -632,7 +653,37 @@ class ConciergeChatView(APIView):
             if not candidates:
                 body["reply"] = None
 
+        # --- thread 保存（認証ユーザーのみ）---
+
+        thread_obj = None
+        if user is not None and getattr(user, "is_authenticated", False):
+            # ✅ thread_id / threadId 両対応
+            thread_id_raw = data.get("thread_id") or data.get("threadId")
+
+            # ✅ int 変換 + 0/"" は None 扱い
+            try:
+                thread_id = int(thread_id_raw) if thread_id_raw not in (None, "", 0, "0") else None
+            except Exception:
+                thread_id = None
+
+            # ✅ 保存したい返信文（無ければ None）
+            reply_text = body.get("reply")
+            if not isinstance(reply_text, str):
+                reply_text = None
+
+            try:
+                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=thread_id)
+                thread_obj = saved.thread
+            except ConciergeThread.DoesNotExist:
+                # 不正な thread_id が来たら新規で作る
+                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
+                thread_obj = saved.thread
+
+        if thread_obj is not None:
+            body["thread"] = {"id": thread_obj.id}
+
         return Response(body, status=status.HTTP_200_OK)
+        
 
 
 class ConciergeChatViewLegacy(ConciergeChatView):

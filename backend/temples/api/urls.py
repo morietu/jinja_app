@@ -6,10 +6,13 @@ from rest_framework.routers import DefaultRouter
 from .views.create_superuser import create_superuser
 
 from temples.api.views.public_profile import public_profile
+from temples.api.views.search import places_find
 
-from temples.api.views.places_find_lite import PlacesFindLiteView
+
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
+from temples.api.views.shrine_from_place import shrine_from_place
 
+from temples.api_views import FavoriteViewSet
 
 
 # Concierge の互換シム
@@ -98,6 +101,7 @@ router = DefaultRouter()
 router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuins")
 router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
 urlpatterns = router.urls
 
 # ★ MyGoshuinViewSet のエイリアス（単数形パス用）
@@ -142,6 +146,10 @@ urlpatterns = [
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
+
+    path("shrines/from-place/", shrine_from_place, name="shrines-from-place"),
+
+    
     # --- My Goshuin（単数形 /api/my/goshuin/... 互換） ---
     path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
     path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),
@@ -206,8 +214,11 @@ urlpatterns = [
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
-    path("places/find/", PlacesFindLiteView.as_view(), name="places-find-lite"),
+    
+    path("places/find/", places_find, name="places-find-lite"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
+
+
     
     # --- Geocodes (複数形: 正規) ---
     path("geocodes/search/", geocode_search, name="geocodes-search"),

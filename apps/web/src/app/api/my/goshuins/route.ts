@@ -4,6 +4,9 @@ import { djFetch } from "@/lib/server/backend";
 
 export const dynamic = "force-dynamic";
 
+
+
+
 async function refreshAccessToken(req: NextRequest): Promise<string | null> {
   const refresh = req.cookies.get("refresh_token")?.value ?? null;
   if (!refresh) return null;

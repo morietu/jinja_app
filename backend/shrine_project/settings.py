@@ -195,9 +195,8 @@ if engine.endswith("sqlite3"):
     # どちらか一方でOK
     DATABASES["default"].pop("OPTIONS", None)
 # ---- NoGIS固定（テスト/CIで使う）: DB決定後に一度だけ適用 ----
-if DISABLE_GIS_FOR_TESTS and not USE_SQLITE:
+if IS_PYTEST and DISABLE_GIS_FOR_TESTS and not USE_SQLITE:
     USE_GIS = False
-    # DBエンジンは通常のPostgreSQLへ（PostGISを外す）
     DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
     MIGRATION_MODULES = {**globals().get("MIGRATION_MODULES", {})}
     MIGRATION_MODULES["temples"] = "temples.migrations_nogis"
@@ -396,6 +395,8 @@ CACHES = {
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
+
+print("[settings] GOOGLE_PLACES_API_KEY set =", bool(GOOGLE_PLACES_API_KEY), file=sys.stderr)
 
 
 # --- Hosts / CORS ---

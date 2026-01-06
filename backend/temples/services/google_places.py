@@ -276,6 +276,7 @@ class GooglePlacesClient:
         results = [self._normalize_result(r) for r in data.get("results", [])]
         return {"results": results, "status": status}, data.get("next_page_token")
 
+    
     def place_details(
         self,
         place_id: str,
@@ -477,48 +478,47 @@ def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
 
 
 def nearby_search(
-    self,
     *,
-    location: str,
+    location=None,
     radius: int,
     keyword: Optional[str] = None,
     language: str = "ja",
     pagetoken: Optional[str] = None,
     type_: Optional[str] = None,
     opennow: Optional[bool] = None,
-) -> Tuple[Dict[str, Any], Optional[str]]:
-    params: Dict[str, Any] = {"language": language}
-    if pagetoken:
-        params["pagetoken"] = pagetoken
-    else:
-        params.update({"location": location, "radius": radius})
-    if keyword:
-        params["keyword"] = keyword
-    if type_:
-        params["type"] = type_
-    if opennow is True:
-        params["opennow"] = "true"
+    **kwargs,
+) -> Dict[str, Any]:
+    """
+    モジュール関数ラッパ（self は不要）
+    - location: "lat,lng" 文字列 or (lat, lng) タプル どちらも許容
+    - lat/lng が来た場合も許容
+    - type / type_ どちらでも受ける
+    戻り値は data(dict) のみ（既存呼び出し側が data["results"] を期待するため）
+    """
 
-    data = self._get("nearbysearch", params).json()
-    status = data.get("status")
+    # location 正規化
+    if location is None and kwargs.get("lat") is not None and kwargs.get("lng") is not None:
+        location = f"{kwargs.pop('lat')},{kwargs.pop('lng')}"
+    if isinstance(location, (tuple, list)) and len(location) == 2:
+        location = f"{location[0]},{location[1]}"
+    if location is None:
+        raise TypeError("location is required")
 
-    # ★ INVALID_REQUEST は pagetoken の有無に関わらず 1 回だけ再試行（仕様上の一時無効対策）
-    if status == "INVALID_REQUEST":
-        logger.warning("Places nearby_search transient INVALID_REQUEST; retrying once")
-        time.sleep(1.2)  # トークン活性化・整合待ち
-        data = self._get("nearbysearch", params).json()
-        status = data.get("status")
-        if status == "INVALID_REQUEST":
-            logger.warning("Places nearby_search still INVALID_REQUEST; giving up.")
-            return {"results": [], "status": status}, None
+    # type 正規化（type と type_ を統合）
+    if type_ is None:
+        type_ = kwargs.pop("type", None)
 
-    # ここから通常のエラーハンドリング
-    if status not in ("OK", "ZERO_RESULTS"):
-        logger.error("Places nearby_search error: %s, msg=%s", status, data.get("error_message"))
-        self._ensure_ok(data)
-
-    results = [self._normalize_result(r) for r in data.get("results", [])]
-    return {"results": results, "status": status}, data.get("next_page_token")
+    data, _next = _client().nearby_search(
+        location=str(location),
+        radius=int(radius),
+        keyword=keyword,
+        language=language,
+        pagetoken=pagetoken,
+        type_=type_,
+        opennow=opennow,
+        **kwargs,
+    )
+    return data
 
 
 def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
@@ -527,6 +527,88 @@ def place_details(place_id: str, **kwargs) -> Dict[str, Any]:
 
 def photo(photo_reference: str, **kwargs) -> Tuple[bytes, str]:
     return _client().photo(photo_reference, **kwargs)
+
+def nearby_search_new(
+    *,
+    lat: float,
+    lng: float,
+    radius: int,
+    limit: int = 10,
+    keyword: str | None = None,
+) -> dict:
+    # ガード：神社検索以外は New API を使わない（安全策）
+    if keyword not in (None, "神社"):
+        raise RuntimeError("nearby_search_new is shrine-only")
+
+    api_key = _resolve_api_key()
+    if not api_key:
+        raise RuntimeError("Google Places API key is not set.")
+
+    url = "https://places.googleapis.com/v1/places:searchText"
+    headers = {
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": ",".join([
+            "places.id",
+            "places.displayName",
+            "places.formattedAddress",
+            "places.location",
+            "places.types",
+            "places.rating",
+            "places.userRatingCount",
+            "places.photos",
+            "places.currentOpeningHours",
+        ]),
+    }
+
+    body = {
+        "textQuery": "神社",
+        "maxResultCount": int(limit),
+        "locationBias": {
+            "circle": {
+                "center": {"latitude": float(lat), "longitude": float(lng)},
+                "radius": float(radius),
+            }
+        },
+        "rankPreference": "DISTANCE",
+        "languageCode": "ja",
+        "regionCode": "JP",
+
+        
+    }
+
+    resp = requests.post(url, headers=headers, json=body, timeout=8)
+    if not resp.ok:
+        raise RuntimeError(f"Places(New) searchText error: {resp.status_code} {resp.text[:300]}")
+
+    raw = resp.json() or {}
+    results = []
+    for p in raw.get("places", []) or []:
+        loc = p.get("location") or {}
+
+        # photos: 1枚目だけ拾って legacy の photo_reference に合わせる
+        photos = p.get("photos") or []
+        first_photo = photos[0] if photos else None
+        photo_ref = (first_photo or {}).get("name")  # ※ New API は photo_reference じゃなく name になりがち
+
+        # opening hours: open_now 相当
+        coh = p.get("currentOpeningHours") or {}
+        open_now = coh.get("openNow")
+
+        results.append({
+            "place_id": p.get("id"),
+            "name": (p.get("displayName") or {}).get("text"),
+            "address": p.get("formattedAddress"),
+            "lat": loc.get("latitude"),
+            "lng": loc.get("longitude"),
+            "types": p.get("types") or [],
+            "rating": p.get("rating"),
+            "user_ratings_total": p.get("userRatingCount"),
+            "photo_reference": photo_ref,  # 互換キー名で返す
+            "open_now": open_now,
+            "icon": None,  # New API では旧 icon が無いことが多いので null でOK
+        })
+
+    return {"results": results, "status": "OK" if results else "ZERO_RESULTS"}
 
 
 __all__ = [

@@ -1,4 +1,6 @@
 // apps/web/src/features/mypage/components/MyGoshuinList.tsx
+"use client";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
@@ -10,15 +12,22 @@ type Props = {
   error: string | null;
   onDelete?: (id: number) => void | Promise<void>;
   onToggleVisibility?: (id: number, next: boolean) => void | Promise<void>;
+  navigateOnCardClick?: boolean;
 };
 
-export default function MyGoshuinList({ items, loading, error, onDelete, onToggleVisibility }: Props) {
+export default function MyGoshuinList({
+  items,
+  loading,
+  error,
+  onDelete,
+  onToggleVisibility,
+  navigateOnCardClick = false,
+}: Props) {
+  const router = useRouter();
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
-
-  // --- 状態別レンダー ---
 
   if (loading) {
     return (
@@ -53,9 +62,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     );
   }
 
-  // -----------------
-  // ハンドラ
-  // -----------------
   const handleOpenDetail = (g: Goshuin) => {
     setSelected(g);
     setDetailOpen(true);
@@ -74,7 +80,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     }
   };
 
-  // ★ ここを「id, next をそのまま使う」関数にする
   const handleToggleVisibility = async (id: number, next: boolean) => {
     if (!onToggleVisibility) return;
 
@@ -86,9 +91,6 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
     }
   };
 
-  // -----------------
-  // 本体レンダー
-  // -----------------
   return (
     <>
       <section className="space-y-3 rounded-2xl border bg-white p-6 shadow-sm">
@@ -101,7 +103,18 @@ export default function MyGoshuinList({ items, loading, error, onDelete, onToggl
               item={g}
               isDeleting={deletingId === g.id}
               isToggling={togglingId === g.id}
-              onOpenDetail={handleOpenDetail}
+              onOpenDetail={(item) => {
+                // ✅ デフォルトはテストが期待する「モーダルを開く」
+                if (!navigateOnCardClick) {
+                  handleOpenDetail(item);
+                  return;
+                }
+
+                // ✅ 実機で欲しい「神社詳細へ遷移」
+                const shrineId = Number(item.shrine);
+                if (!Number.isFinite(shrineId) || shrineId <= 0) return;
+                router.push(`/shrines/${shrineId}`);
+              }}
               onDelete={onDelete ? handleDelete : undefined}
               onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
             />

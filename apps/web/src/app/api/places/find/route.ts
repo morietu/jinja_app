@@ -5,6 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
 export async function POST(req: Request) {
   const body = await req.json();
+  console.log("[bff places/find] body=", body);
 
   const upstream = await fetch(`${API_BASE}/api/places/find/`, {
     method: "POST",

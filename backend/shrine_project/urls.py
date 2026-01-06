@@ -2,6 +2,7 @@
 
 
 from django.conf import settings
+from django.db import connection
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
@@ -9,6 +10,7 @@ from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve as media_serve
 from temples.api.views.create_superuser import create_superuser
+from django.contrib.auth import get_user_model
 
 
 
@@ -58,6 +60,28 @@ class JsonSpectacularAPIView(SpectacularAPIView):
 @permission_classes([AllowAny])
 def healthz(request):
     return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
+
+
+@extend_schema(exclude=True) 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def debug_db(request):
+    User = get_user_model()
+    u = User.objects.filter(username="morietsu").first()
+    return JsonResponse(
+        {
+            "ENGINE": settings.DATABASES["default"]["ENGINE"],
+            "NAME": settings.DATABASES["default"].get("NAME"),
+            "HOST": settings.DATABASES["default"].get("HOST"),
+            "PORT": settings.DATABASES["default"].get("PORT"),
+            "USER": settings.DATABASES["default"].get("USER"),
+            "connection_vendor": connection.vendor,
+            "exists": bool(u),
+            "is_active": getattr(u, "is_active", None) if u else None,
+            "is_staff": getattr(u, "is_staff", None) if u else None,
+            "email": getattr(u, "email", None) if u else None,
+        }
+    )
 
 
 @extend_schema(exclude=True)  # スキーマに載せない場合は exclude
@@ -115,10 +139,9 @@ urlpatterns = [
     path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
 
+    path("api/_debug/db/", debug_db, name="debug_db"),
     
-    
-    # favorites エンドポイント（/api/favorites/）
-    path("api/", include("favorites.urls")),
+
 
     # concierge-plan のグローバル alias
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),

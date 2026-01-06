@@ -20,16 +20,16 @@ type Paginated<T> = {
 };
 
 export const metadata = {
-  title: "みんなの公開御朱印 | Jinja",
+  title: "公開御朱印 | Jinja",
   description: "公開されている御朱印だけを一覧で見られます。",
   openGraph: {
-    title: "みんなの公開御朱印 | Jinja",
+    title: "公開御朱印 | Jinja",
     description: "公開されている御朱印だけを一覧で見られます。",
     images: [{ url: "/ogp/goshuin-1200x630.png" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "みんなの公開御朱印 | Jinja",
+    title: "公開御朱印 | Jinja",
     description: "公開されている御朱印だけを一覧で見られます。",
     images: ["/ogp/goshuin-1200x630.png"],
   },
@@ -66,7 +66,7 @@ export default async function PublicGoshuinsPage({
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">みんなの公開御朱印</h1>
+          <h1 className="text-xl font-bold text-slate-900">公開御朱印</h1>
           <p className="mt-1 text-xs text-slate-500">公開されている御朱印だけを表示します。</p>
         </div>
         <div className="text-xs text-slate-500">

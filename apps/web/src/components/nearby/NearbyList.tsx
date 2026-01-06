@@ -1,9 +1,11 @@
 import Link from "next/link";
 import * as React from "react";
-import { NearbyListItem, type ShrineListItem } from "./NearbyList.Item";
+import { NearbyListItem } from "./NearbyList.Item";
 import { NearbyListLoading } from "./NearbyList.Loading";
 import { NearbyListEmpty } from "./NearbyList.Empty";
 import { NearbyListError } from "./NearbyList.Error";
+import { nearbyItemKey, type NearbyItem } from "./types";
+
 
 export type NearbyListState = "loading" | "success" | "empty" | "error";
 
@@ -12,14 +14,14 @@ export type NearbyListProps = {
   lng?: number;
   limit?: number;
   state: NearbyListState;
-  items?: ShrineListItem[];
+  items?: NearbyItem[];
   errorMessage?: string;
   onRefetch?: () => void;
   onRetry?: () => void;
-  onItemClick?: (id: string) => void;
   className?: string;
   "aria-label"?: string;
-  itemHref?: (item: ShrineListItem) => string | null;
+  itemHref?: (item: NearbyItem) => string | null;
+  onItemClick?: (item: NearbyItem) => void;
 };
 
 export function NearbyList({
@@ -31,13 +33,12 @@ export function NearbyList({
   errorMessage,
   onRefetch,
   onRetry,
-  onItemClick,
   className,
   itemHref,
+  onItemClick,
   ...rest
 }: NearbyListProps) {
   const hasCoords = typeof lat === "number" && typeof lng === "number";
-
   const srLabel = hasCoords
     ? `現在地 緯度${lat!.toFixed(4)} 経度${lng!.toFixed(4)}、上限 ${limit} 件`
     : `現在地の取得前です。上限 ${limit} 件`;
@@ -47,29 +48,29 @@ export function NearbyList({
       <span className="sr-only">{srLabel}</span>
 
       {state === "loading" && <NearbyListLoading rows={5} />}
-
       {state === "error" && <NearbyListError message={errorMessage} onRetry={onRetry} />}
-
       {state === "empty" && (
         <NearbyListEmpty onRefetch={onRefetch} suggestion="検索半径を広げるか、キーワードを調整してください。" />
       )}
 
       {state === "success" && (
         <div role="list" aria-label="近隣の神社一覧" className="space-y-3">
-          {items.map((s) => {
-            const href = itemHref?.(s) ?? null;
+          {items.map((x) => {
+            const href = itemHref?.(x);
+            const key = nearbyItemKey(x);
 
-            // id が無い可能性があるなら place_id を fallback
-            const key = (s as any).place_id ?? s.id;
+            if (!href) {
+              return (
+                <div key={key} onClick={() => onItemClick?.(x)} className={onItemClick ? "cursor-pointer" : undefined}>
+                  <NearbyListItem {...x} />
+                </div>
+              );
+            }
 
-            const item = <NearbyListItem {...s} onClick={onItemClick} />;
-
-            return href ? (
+            return (
               <Link key={key} href={href} className="block">
-                {item}
+                <NearbyListItem {...x} />
               </Link>
-            ) : (
-              <div key={key}>{item}</div>
             );
           })}
         </div>
@@ -77,8 +78,3 @@ export function NearbyList({
     </section>
   );
 }
-
-export { NearbyListItem } from "./NearbyList.Item";
-export { NearbyListLoading } from "./NearbyList.Loading";
-export { NearbyListEmpty } from "./NearbyList.Empty";
-export { NearbyListError } from "./NearbyList.Error";

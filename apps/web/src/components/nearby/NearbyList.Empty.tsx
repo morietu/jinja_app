@@ -1,12 +1,17 @@
+"use client";
+
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { SearchX } from "lucide-react";
 
-type Props = {
+export type NearbyListEmptyProps = {
   onRefetch?: () => void;
   suggestion?: string;
 };
 
-export function NearbyListEmpty({ onRefetch, suggestion }: Props) {
+export function NearbyListEmpty(props: NearbyListEmptyProps) {
+  const { onRefetch, suggestion } = props;
+
   return (
     <div role="status" aria-live="polite" className="text-center px-4 py-12">
       <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted">

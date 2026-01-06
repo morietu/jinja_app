@@ -1,7 +1,9 @@
 # backend/temples/api/views/search.py
 
+import os
 import logging
 import time
+import math
 
 from django.conf import settings
 from django.core.cache import cache
@@ -15,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
 from temples import services  # services.google_places を各所で利用
+from temples.services.shrine_rules import is_shrine_like, prefer_explicit_jinja
 from temples.api.serializers.places import (
     NearbySearchResponse,
     PlaceDetailResponse,
@@ -22,8 +25,19 @@ from temples.api.serializers.places import (
     TextSearchResponse,
 )
 from temples.services import google_places as GP
+from temples.services import places as PlacesSvc
 
 logger = logging.getLogger(__name__)
+
+
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> int:
+    R = 6371000.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return int(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 
 def _nearby_ident(request) -> str:
@@ -101,6 +115,7 @@ def _apply_places_nearby_throttle(request):
     responses={200: PlacesSearchResponse},
     tags=["places"],
 )
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
@@ -182,6 +197,7 @@ def _text_search_response(request):
     responses={200: TextSearchResponse},
     tags=["places"],
 )
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @cache_page(60 * 5)
@@ -206,6 +222,7 @@ def text_search_legacy(request):
         OpenApiParameter("radius", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
         OpenApiParameter("keyword", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
         OpenApiParameter("type", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
     ],
     responses={200: NearbySearchResponse},
     tags=["places"],
@@ -214,7 +231,6 @@ def text_search_legacy(request):
 @permission_classes([AllowAny])
 @throttle_classes([ScopedRateThrottle])
 def nearby_search(request):
-    # ★ 手動スロットル（settings の places-nearby レートを尊重）
     throttled = _apply_places_nearby_throttle(request)
     if throttled is not None:
         return throttled
@@ -224,10 +240,9 @@ def nearby_search(request):
         lng = float(request.query_params.get("lng"))
         radius = int(request.query_params.get("radius", 1000))
     except (TypeError, ValueError):
-        return Response(
-            {"detail": "lat,lng は float、radius は int で指定してください"}, status=400
-        )
+        return Response({"detail": "lat,lng は float、radius は int で指定してください"}, status=400)
 
+    limit = int(request.query_params.get("limit", 10))
     keyword = request.query_params.get("keyword")
     place_type = request.query_params.get("type")
 
@@ -235,93 +250,104 @@ def nearby_search(request):
     if not keyword and not place_type:
         keyword = "神社"
 
-    # 「神社モード」では Google に type を渡さない（混入抑制）
-    shrine_mode = keyword == "神社"
+    shrine_mode = keyword in (None, "神社")
     if shrine_mode:
         place_type = None
 
-    # 可変引数（存在するときだけ渡す）
-    def opt_args():
-        d = {}
-        if keyword:
-            d["keyword"] = keyword
-        if place_type:
-            d["type"] = place_type
-        return d
-
-    attempts = [
-        dict(location=(lat, lng), radius=radius, **opt_args()),
-        dict(location=f"{lat},{lng}", radius=radius, **opt_args()),
-        dict(location=(lat, lng), radius=radius),
-        dict(location=f"{lat},{lng}", radius=radius),
-        dict(lat=lat, lng=lng, radius=radius, **opt_args()),
-        dict(lat=lat, lng=lng, radius=radius),
-    ]
-
-    first_err = None
+    use_new = (os.getenv("PLACES_API_NEW") == "1") and shrine_mode
     data = None
-    for kwargs in attempts:
+
+    if use_new:
         try:
-            data = services.google_places.nearby_search(**kwargs)
-            break
-        except TypeError as e:
-            if first_err is None:
-                first_err = e
-            continue
-        except RuntimeError as e:
-            msg = str(e)
-            if "INVALID_REQUEST" in msg:
-                if first_err is None:
-                    first_err = e
-                continue
-            # 例外詳細は返さずログに残す
-            logger.exception("places.nearby_search で RuntimeError が発生しました")
-            return Response(
-                {"detail": "places.nearby_search は内部エラーのため失敗しました"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+            data = GP.nearby_search_new(lat=lat, lng=lng, radius=radius, limit=limit, keyword=keyword)
         except Exception as e:
-            if first_err is None:
-                first_err = e
-            continue
-    else:
-        logger.exception(
-            "places.nearby_search のフォールバックを全て失敗しました: %s",
-            first_err,
-        )
-        return Response(
-            {"detail": "places.nearby_search は内部エラーのため失敗しました"},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
+            logger.warning("nearby_search_new failed; fallback to legacy attempts: %s", e)
+            data = None  # ← 下の attempts に合流
+
+
+    if data is None:
+        def opt_args():
+            d = {}
+            if keyword:
+                d["keyword"] = keyword
+            if place_type:
+                d["type"] = place_type
+            return d
+
+        attempts = [
+            dict(location=(lat, lng), radius=radius, **opt_args()),
+            dict(location=f"{lat},{lng}", radius=radius, **opt_args()),
+            dict(location=(lat, lng), radius=radius),
+            dict(location=f"{lat},{lng}", radius=radius),
+            dict(lat=lat, lng=lng, radius=radius, **opt_args()),
+            dict(lat=lat, lng=lng, radius=radius),
+        ]
+
+        first_err = None
+    
+        for kwargs in attempts:
+            try:
+                data = GP.nearby_search(**kwargs)
+                break
+            except TypeError as e:
+                first_err = first_err or e
+                continue
+            except RuntimeError as e:
+                msg = str(e)
+                if "INVALID_REQUEST" in msg:
+                    first_err = first_err or e
+                    continue
+                logger.exception("places.nearby_search で RuntimeError が発生しました")
+                return Response({"detail": "places.nearby_search は内部エラーのため失敗しました"},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            except Exception as e:
+                first_err = first_err or e
+                continue
+        else:
+            logger.exception("places.nearby_search のフォールバックを全て失敗しました: %s", first_err)
+            return Response({"detail": "places.nearby_search は内部エラーのため失敗しました"},
+                            status=status.HTTP_502_BAD_GATEWAY)
 
     # ② サーバ側フィルタ
     results = data.get("results", [])
 
-    # 神社判定：名前/住所に「神社」 or types に shinto_shrine
-    def is_shrine(r):
-        name = r.get("name") or ""
-        addr = r.get("address") or ""
-        types = set(r.get("types") or [])
-        if "神社" in (name + addr):
-            return True
-        if "shinto_shrine" in types:
-            return True
-        return False
-
-    if shrine_mode:
-        # 神社だけ残す
-        results = [r for r in results if is_shrine(r)]
-        # さらに“神社”を含むものを優先（無ければ全件そのまま）
-        prefer = [r for r in results if "神社" in (r.get("name", "") + r.get("address", ""))]
+    if keyword in (None, "神社"):
+        results = [r for r in results if is_shrine_like(r)]
+        prefer = [r for r in results if prefer_explicit_jinja(r)]
         results = prefer or results
     else:
-        # type パラメータが明示されているときは厳格に types で絞る
         place_type_req = request.query_params.get("type")
         if place_type_req:
-            results = [r for r in results if place_type_req in (r.get("types") or [])]
+            results = [
+                r for r in results
+                if place_type_req in (r.get("types") or [])
+            ]
 
-    data["results"] = results
+    # ③ distance_m 付与（lat/lng が取れるものだけ）
+    out = []
+    for r in results:
+        if r.get("distance_m") is None:
+            try:
+                rlat = float(r.get("lat"))
+                rlng = float(r.get("lng"))
+                r["distance_m"] = _haversine_m(lat, lng, rlat, rlng)
+            except Exception:
+                r["distance_m"] = None
+        out.append(r)
+
+    # 距離があるものを先頭に（保険）
+    out.sort(key=lambda x: x["distance_m"] if isinstance(x.get("distance_m"), int) else 10**12)
+
+    data["results"] = out
     return Response(data)
+
+    
+
+    
+
+
+
+
 
 
 # レガシー入口（/api/places/nearby_search/）
@@ -458,3 +484,60 @@ def detail_short(request, id: str):
         DRFRequest = None
     dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
     return detail(dj_req, id=id)
+
+
+@extend_schema(
+    summary="Places: find (lite)",
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+    tags=["places"],
+)
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def places_find(request):
+    # GET/POST 両方で payload 揺れを吸収
+    if request.method == "GET":
+        q = (request.query_params.get("input") or request.query_params.get("q") or request.query_params.get("query") or "").strip()
+        lat = request.query_params.get("lat")
+        lng = request.query_params.get("lng")
+        radius = request.query_params.get("radius")
+    else:
+        q = (request.data.get("input") or request.data.get("q") or request.data.get("query") or "").strip()
+        lat = request.data.get("lat")
+        lng = request.data.get("lng")
+        radius = request.data.get("radius")
+
+    if not q:
+        return Response({"detail": "input is required"}, status=400)
+
+    locationbias = None
+    try:
+        if lat is not None and lng is not None and radius is not None:
+            locationbias = f"circle:{int(radius)}@{float(lat)},{float(lng)}"
+    except Exception:
+        locationbias = None
+
+    fields = (
+        "place_id,formatted_address,geometry,photos,name,"
+        "rating,user_ratings_total,types,opening_hours,icon"
+    )
+
+    try:
+        data = PlacesSvc.find_place(
+            input=q,
+            language="ja",
+            locationbias=locationbias,
+            fields=fields,
+        )
+
+        # contract: results を必ず返す
+        if "results" in data:
+            return Response(data)
+        if "candidates" in data:
+            return Response({"results": data.get("candidates") or [], "status": data.get("status")})
+        # どちらでもなければ空で返す（壊さない）
+        return Response({"results": [], "status": data.get("status")})
+
+    except Exception:
+        logger.exception("places.find failed")
+        return Response({"detail": "places.find failed due to an internal error"}, status=502)

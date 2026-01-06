@@ -3,6 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { SectionCard } from "@/components/layout/SectionCard";
 import GoshuinUploadForm from "./GoshuinUploadForm";
@@ -15,6 +16,12 @@ export default function MyPageScreen() {
 
   const goshuinEnabled = !loading && isLoggedIn && !!user;
 
+  const router = useRouter();
+  const sp = useSearchParams(); // ✅ これが必要
+
+  const shrineId = Number(sp.get("shrine") ?? "");
+  const hasShrine = Number.isFinite(shrineId) && shrineId > 0;
+
   const {
     items,
     loading: goshuinLoading,
@@ -24,34 +31,14 @@ export default function MyPageScreen() {
     toggleVisibility,
   } = useMyGoshuin({ enabled: goshuinEnabled });
 
-  // --- 読み込み中 ---
   if (loading) {
     return (
-      <main className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-8">
-        <header className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">マイページ</h1>
-          <div className="rounded bg-gray-100 px-3 py-1 text-gray-400">…</div>
-        </header>
-
-        <section className="mt-4 rounded-lg border bg-white p-6" role="status" aria-busy="true" aria-live="polite">
-          <div className="mb-4 flex items-center gap-4">
-            <div className="size-12 animate-pulse rounded-full bg-gray-200" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
-              <div className="h-3 w-1/4 animate-pulse rounded bg-gray-100" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-4 animate-pulse rounded bg-gray-100" />
-            ))}
-          </div>
-        </section>
-      </main>
+      <div role="status" aria-live="polite" className="py-6">
+        読み込み中…
+      </div>
     );
   }
 
-  // --- 未ログイン ---
   if (!isLoggedIn || !user) {
     return (
       <main className="mx-auto max-w-3xl p-6">
@@ -59,8 +46,8 @@ export default function MyPageScreen() {
         <div className="rounded-lg border bg-white p-6">
           <p className="mb-3">御朱印帳を利用するにはログインしてください。</p>
           <Link
-            href="/login?next=/mypage?tab=goshuin"
             className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            href={`/login?next=${encodeURIComponent(hasShrine ? `/mypage?tab=goshuin&shrine=${shrineId}` : `/mypage?tab=goshuin`)}`}
           >
             ログインへ
           </Link>
@@ -69,7 +56,6 @@ export default function MyPageScreen() {
     );
   }
 
-  // --- ログイン時 ---
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
@@ -85,7 +71,14 @@ export default function MyPageScreen() {
             title="御朱印アップロード"
             description="御朱印画像（推奨サイズ：5MB 以下）をアップロードできます。画像とタイトルを選んで登録してください。"
           >
-            <GoshuinUploadForm onUploaded={addItem} />
+            <GoshuinUploadForm
+              onUploaded={(created) => {
+                addItem(created); // ✅ まずローカル反映
+
+                if (hasShrine) router.push(`/shrines/${shrineId}?toast=goshuin_saved#goshuins`);
+                else router.push(`/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`);
+              }}
+            />
           </SectionCard>
         </div>
 
@@ -96,6 +89,7 @@ export default function MyPageScreen() {
             error={goshuinError}
             onDelete={removeItem}
             onToggleVisibility={toggleVisibility}
+            navigateOnCardClick
           />
         </SectionCard>
       </div>

@@ -1,6 +1,9 @@
+// apps/web/src/app/layout.tsx
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
+import { ClientToaster } from "./ClientToaster";
 
 import Link from "next/link";
 
@@ -34,7 +37,8 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "Shrine Map",
   description: "Map preview",
 };
@@ -46,30 +50,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ClientBootstrap />
 
-          {/* 共通ヘッダー */}
           <header className="border-b bg-white">
             <nav className="mx-auto flex max-w-5xl items-center gap-4 p-3">
-              {/* 左：ホーム（Jinja） */}
               <Link href="/" className="text-base font-bold">
                 Jinja
               </Link>
 
               <div className="ml-auto flex items-center gap-4">
-                {/* 検索 */}
                 <Link
-                  href="/search"
+                  href="/map"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm shadow-sm"
                   aria-label="神社を検索"
                 >
                   <span aria-hidden>🔍</span>
                 </Link>
 
-                {/* みんなの公開御朱印 */}
                 <Link href="/goshuins/public" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-                  みんなの御朱印
+                  公開御朱印
                 </Link>
 
-                {/* 認証ボタン（御朱印帳・ログイン） */}
                 <Suspense fallback={null}>
                   <HeaderAuthButtons />
                 </Suspense>
@@ -79,6 +78,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* ページ内容 */}
           <main>{children}</main>
+
+          {/* ここに置く */}
+          <ClientToaster />
         </AuthProvider>
       </body>
     </html>

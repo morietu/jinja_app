@@ -4,30 +4,53 @@ import { useEffect, useMemo, useState } from "react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { getPopularShrines, type Shrine } from "@/lib/api/shrines";
 import { NearbyList } from "@/components/nearby/NearbyList";
-import type { ShrineListItem } from "@/components/nearby/NearbyList.Item";
-import { useRouter } from "next/navigation";
+import type { NearbyItem } from "@/components/nearby/types";
 
 type UIState = "loading" | "success" | "empty" | "error";
 
-const NEARBY_RADIUS_KM = 30; // C: まず30km圏内で検索（必要なら調整）
+const NEARBY_RADIUS_KM = 30;
 
-export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
+export default function NearbyShrines({
+  limit = 10,
+  onSelectPlaceId,
+  selectedPlaceId: _selectedPlaceId,
+}: {
+  limit?: number;
+  onSelectPlaceId?: (placeId: string) => void;
+  selectedPlaceId?: string | null;
+}) {
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
   const [state, setState] = useState<UIState>("loading");
-  const [items, setItems] = useState<ShrineListItem[]>([]);
+  const [items, setItems] = useState<NearbyItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [usedFallback, setUsedFallback] = useState(false);
-  const router = useRouter();
 
   const canFetch = useMemo(() => !!coords && !geoError, [coords, geoError]);
 
-  const toItem = (s: Shrine): ShrineListItem => ({
-    id: String((s as any).id ?? (s as any).shrine_id ?? crypto.randomUUID()),
-    name: (s as any).name_jp ?? (s as any).name ?? "名称未設定",
-    address: (s as any).address ?? undefined,
-    distanceMeters: (s as any).distance_m ?? (s as any).distance ?? 0,
-    durationMinutes: (s as any).walking_minutes ?? undefined,
-  });
+  const toItem = (s: Shrine): NearbyItem | null => {
+    const rawId = (s as any).id ?? (s as any).shrine_id;
+    if (rawId == null) return null;
+
+    const lat = (s as any).lat;
+    const lng = (s as any).lng;
+    const distance = (s as any).distance_m ?? (s as any).distance;
+
+    return {
+      kind: "temple",
+      temple_id: String(rawId),
+
+      title: (s as any).name_jp ?? (s as any).name ?? "名称未設定",
+      subtitle: (s as any).address ?? undefined,
+
+      lat: Number.isFinite(Number(lat)) ? Number(lat) : null,
+      lng: Number.isFinite(Number(lng)) ? Number(lng) : null,
+
+      distance_m: Number.isFinite(Number(distance)) ? Number(distance) : null,
+      duration_min: (s as any).walking_minutes ?? null,
+    };
+  };
+
+  const isNearbyItem = (x: NearbyItem | null): x is NearbyItem => x !== null;
 
   const load = async () => {
     if (!coords) return;
@@ -36,7 +59,6 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     setUsedFallback(false);
 
     try {
-      // --- C: まず「近くの人気神社」を広めの半径で検索 ---
       let results = await getPopularShrines({
         limit,
         nearLat: coords.lat,
@@ -44,14 +66,12 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
         radiusKm: NEARBY_RADIUS_KM,
       });
 
-      // --- B: 0件なら全国人気TOPにフォールバック ---
       if (!results || results.length === 0) {
         results = await getPopularShrines({ limit });
         setUsedFallback(true);
       }
 
-      const mapped = (results ?? []).map(toItem);
-
+      const mapped = (results ?? []).map(toItem).filter(isNearbyItem);
       if (mapped.length === 0) {
         setItems([]);
         setState("empty");
@@ -72,7 +92,6 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canFetch, limit, coords?.lat, coords?.lng]);
 
-  // 位置情報段階のUIも NearbyList へ委譲
   if (geoLoading) {
     return (
       <NearbyList
@@ -101,9 +120,11 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
     );
   }
 
-  // フォールバック時のメッセージを少しだけ足しておく（必要なければ削除）
   const extraMessage =
     usedFallback && !errorMessage ? "近くには見つからなかったため、人気の神社を表示しています。" : undefined;
+
+  const lat = coords?.lat;
+  const lng = coords?.lng;
 
   return (
     <NearbyList
@@ -113,11 +134,33 @@ export default function NearbyShrines({ limit = 10 }: { limit?: number }) {
       state={state}
       items={items}
       errorMessage={errorMessage ?? extraMessage}
-      onRefetch={() => load()}
-      onRetry={() => load()}
-      onItemClick={(id) => router.push(`/shrines/${id}`)}
+      onRefetch={() => void load()}
+      onRetry={() => void load()}
       className="space-y-3"
       aria-label="近くの神社"
+      itemHref={
+        onSelectPlaceId
+          ? () => null
+          : (item) => {
+              // NearbyShrines は kind: "temple" を作っているのでここも合わせる
+              if (item.kind !== "temple") return null;
+
+              const usp = new URLSearchParams();
+              usp.set("focus", item.temple_id);
+
+              if (typeof lat === "number" && typeof lng === "number") {
+                usp.set("lat", String(lat));
+                usp.set("lng", String(lng));
+              }
+
+              return `/map?${usp.toString()}`;
+            }
+      }
+      onItemClick={(item) => {
+        // place のときだけ選択できる（kind が違うなら合わせて調整）
+        if (item.kind !== "place") return;
+        onSelectPlaceId?.(item.place_id);
+      }}
     />
   );
 }

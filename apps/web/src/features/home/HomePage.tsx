@@ -1,10 +1,13 @@
+// apps/web/src/features/home/HomePage.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { SectionCard } from "@/components/layout/SectionCard";
-import MyGoshuinTopSection from "@/features/goshuin/components/MyGoshuinTopSection";
+
 
 type Goshuin = {
   id: number;
@@ -18,11 +21,33 @@ type Paginated<T> = { count: number; next: string | null; previous: string | nul
 
 export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated<Goshuin> | null }) {
   const router = useRouter();
+  const sp = useSearchParams();
+  const shownRef = useRef(false);
+
+  
+
+  useEffect(() => {
+    const t = sp.get("toast");
+    if (!t) return;
+    if (shownRef.current) return;
+    shownRef.current = true;
+
+    const msg =
+      t === "resolve_failed"
+        ? "神社の特定に失敗しました。もう一度お試しください。"
+        : t === "resolve_no_shrine"
+          ? "神社情報が見つかりませんでした。"
+          : t === "resolve_missing_place"
+            ? "リンクが不完全でした。"
+            : "処理に失敗しました。";
+
+    alert(msg);
+    router.replace("/", { scroll: false });
+  }, [sp, router]);
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
-        {/* 神社ナビ（既存） */}
         <SectionCard>
           <button
             className="mt-6 w-full rounded-full bg-amber-500 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
@@ -32,7 +57,6 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
           </button>
         </SectionCard>
 
-        {/* 近くの神社 */}
         <SectionCard
           title="今いる場所の近くの神社"
           description="位置情報をもとに、徒歩圏内の神社を優先して表示します。"
@@ -40,20 +64,17 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
           <HomeNearbySection />
         </SectionCard>
 
-        {/* 御朱印（1ブロック） */}
-        <SectionCard title="御朱印" description="あなたの御朱印と、公開御朱印">
-          {/* 上：あなたの御朱印 */}
-          <MyGoshuinTopSection />
+        <SectionCard title="御朱印" description="公開御朱印">
+          {/* ✅ Homeでは fetch しない：表示はプレースホルダ */}
+          
 
-          {/* 下：公開御朱印（あるときだけ） */}
           {publicGoshuins && publicGoshuins.count > 0 && (
             <>
               <div className="my-6 border-t border-slate-200" />
-
               <div>
                 <header className="mb-3 flex items-end justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-800">みんなの公開御朱印</h3>
+                    <h3 className="text-sm font-semibold text-slate-800">公開御朱印</h3>
                   </div>
                   <Link href="/goshuins/public" className="text-xs text-emerald-700 hover:underline">
                     もっと見る →
@@ -76,7 +97,6 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
                             <img src={g.image_url} alt={g.title ?? "御朱印"} className="h-full w-full object-cover" />
                           ) : null}
                         </div>
-
                         <div className="p-3">
                           <div className="truncate text-sm font-medium text-slate-800">{g.title || "（無題）"}</div>
                           {g.shrine_name ? (
@@ -94,4 +114,4 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
       </div>
     </main>
   );
-} 
+}
