@@ -10,7 +10,8 @@ export type Favorite = {
 
   // 新形式（現状のAPIレスポンスに合わせる）
   target_type?: "shrine" | "place" | string;
-  target_id?: number | null;
+  target_id?: number | string | null;
+  
 
   // ネストで shrine が返るケース（あなたのプレビューにある）
   shrine?: { id?: number | null; name_jp?: string | null; address?: string | null } | null;
@@ -23,12 +24,25 @@ export async function getFavorites(): Promise<Favorite[]> {
 
 export async function createFavoriteByShrineId(shrineId: number): Promise<Favorite> {
   const r = await api.post("/favorites/", { shrine_id: shrineId });
-  return r.data;
+  const raw = r.data as Favorite;
+  return {
+    ...raw,
+    shrine_id: raw.shrine_id ?? shrineId,
+    target_type: raw.target_type ?? "shrine",
+    target_id: raw.target_id ?? shrineId,
+    shrine: raw.shrine ?? ({ id: shrineId } as any),
+  };
 }
 
 export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
   const r = await api.post("/favorites/", { place_id: placeId });
-  return r.data;
+  const raw = r.data as Favorite;
+  return {
+    ...raw,
+    place_id: raw.place_id ?? placeId,
+    target_type: raw.target_type ?? "place",
+    target_id: raw.target_id ?? placeId,
+  };
 }
 
 export async function removeFavoriteByPk(pk: number) {

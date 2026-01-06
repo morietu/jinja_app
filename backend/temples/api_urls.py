@@ -1,52 +1,8 @@
 # backend/temples/api_urls.py
-from django.urls import path
-from rest_framework.routers import DefaultRouter
-from temples.api.views.concierge import ConciergeChatView
-from .api_views_public import PublicGoshuinListView
-
-from .api_views import (
-    ConciergePlanView,
-    FavoriteViewSet,
-    MyGoshuinViewSet,
-    NearbyShrinesView,
-    PlacesDetailView,
-    PlacesFindPlaceView,
-    PlacesNearbySearchView,
-    PlacesPhotoProxyView,
-    PlacesTextSearchPagedView,
-    PublicGoshuinViewSet,
-    RouteAPIView,
-    ShrineViewSet,
-)
-
-router = DefaultRouter()
-router.register(r"goshuin", PublicGoshuinViewSet, basename="goshuin")
-router.register(r"my/goshuin", MyGoshuinViewSet, basename="my-goshuin")
-router.register(r"shrines", ShrineViewSet, basename="shrine")
-router.register(r"favorites", FavoriteViewSet, basename="favorite")
-
+"""
+互換エイリアス:
+過去に `temples.api_urls` を参照していたコードのために残す。
+実体は `temples.api.urls` に一本化。
+"""
+from temples.api.urls import urlpatterns  # noqa: F401
 app_name = "temples"
-
-urlpatterns = [
-    # ✅ 追加：公開御朱印（username）
-    path(
-        "goshuins/public/<str:username>/",
-        PublicGoshuinListView.as_view(),
-        name="public-goshuins",
-    ),
-
-    # APIView 系
-    path("shrines/nearby/", NearbyShrinesView.as_view(), name="shrines-nearby"),
-    path("concierge/plan/", ConciergePlanView.as_view(), name="concierge-plan"),
-    path("concierge/chat/", ConciergeChatView.as_view(), name="concierge-chat"),
-    path("route/", RouteAPIView.as_view(), name="route"),
-
-    # Places 系
-    path("places/find_place/", PlacesFindPlaceView.as_view(), name="places-find"),
-    path("places/text_search/", PlacesTextSearchPagedView.as_view(), name="places-text"),
-    path("places/nearby_search/", PlacesNearbySearchView.as_view(), name="places-nearby"),
-    path("places/photo/", PlacesPhotoProxyView.as_view(), name="places-photo"),
-    path("places/details/<str:place_id>/", PlacesDetailView.as_view(), name="places-detail"),
-]
-
-urlpatterns += router.urls

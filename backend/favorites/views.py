@@ -1,3 +1,5 @@
+# backend/favorites/views.py
+
 from rest_framework import mixins, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response

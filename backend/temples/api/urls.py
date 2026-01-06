@@ -12,6 +12,8 @@ from temples.api.views.search import places_find
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.shrine_from_place import shrine_from_place
 
+from temples.api_views import FavoriteViewSet
+
 
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
@@ -99,6 +101,7 @@ router = DefaultRouter()
 router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuins")
 router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
+router.register(r"favorites", FavoriteViewSet, basename="favorite")
 urlpatterns = router.urls
 
 # ★ MyGoshuinViewSet のエイリアス（単数形パス用）

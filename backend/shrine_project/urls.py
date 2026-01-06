@@ -142,10 +142,6 @@ urlpatterns = [
     path("api/_debug/db/", debug_db, name="debug_db"),
     
 
-    
-    
-    # favorites エンドポイント（/api/favorites/）
-    path("api/", include("favorites.urls")),
 
     # concierge-plan のグローバル alias
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
