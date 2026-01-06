@@ -1,6 +1,6 @@
 // apps/web/src/lib/api/__tests__/shrines.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getShrines, getPopularShrines, getShrine, fetchNearestShrines } from "../shrines";
+import { getShrines, getPopularShrines, fetchNearestShrines } from "../shrines";
 import api from "../client";
 
 beforeEach(() => {
