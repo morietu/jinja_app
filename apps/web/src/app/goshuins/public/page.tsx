@@ -79,7 +79,7 @@ export default async function PublicGoshuinsPage({
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {data.results.map((g) => {
-            const href = g.shrine ? `/shrines/${g.shrine}` : "/search";
+            const href = g.shrine ? `/shrines/${g.shrine}` : "/map";
             return (
               <Link
                 key={g.id}
