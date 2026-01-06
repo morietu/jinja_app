@@ -1,25 +1,51 @@
 // apps/web/src/features/mypage/components/__tests__/GoshuinUploadForm.test.tsx
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
 import GoshuinUploadForm from "../GoshuinUploadForm";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
+import { getShrine } from "@/lib/api/shrines";
+
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", async () => {
+  const actual = await vi.importActual<typeof import("next/navigation")>("next/navigation");
+  return {
+    ...actual,
+    useRouter: () => ({ push: pushMock }),
+    useSearchParams: () =>
+      ({
+        get: (key: string) => {
+          if (key === "shrine") return "3"; // テスト用に固定
+          return null;
+        },
+      }) as any,
+  };
+});
 
 vi.mock("@/lib/api/goshuin", () => ({
   uploadMyGoshuin: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("shrine=1"),
+vi.mock("@/lib/api/shrines", () => ({
+  getShrine: vi.fn(),
 }));
 
 describe("GoshuinUploadForm", () => {
   it("正常アップロード時に API が呼ばれ、成功メッセージが表示される", async () => {
     (uploadMyGoshuin as any).mockResolvedValue({
       id: 1,
-      shrine: 1,
+      shrine_id: 3,
       is_public: true,
       image_url: "/test.png",
       created_at: new Date().toISOString(),
+      // shrine_name が無いケースでも補完できるように
+    });
+
+    (getShrine as any).mockResolvedValue({
+      id: 3,
+      name_jp: "テスト神社",
+      address: "テスト住所",
     });
 
     const onUploaded = vi.fn();

@@ -1,13 +1,49 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import NearbyPlaces from "@/components/NearbyPlaces";
+import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 
 export default function MapScreenLayout() {
+  const router = useRouter();
+  const sp = useSearchParams();
+
+  const pick = sp.get("pick"); // "goshuin" など
+  const returnTo = sp.get("return"); // encode済み
+  const returnHash = sp.get("returnHash"); // "goshuin-upload" など
+
   const { coords } = useGeolocation();
   const center = useMemo(() => coords ?? { lat: 35.681236, lng: 139.767125 }, [coords]);
+
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+
+  const ensureShrine = useCallback(async (placeId: string) => {
+    const r = await fetch("/api/shrines/from-place", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place_id: placeId }),
+    });
+    if (!r.ok) throw new Error("from-place failed");
+    return (await r.json()) as { shrine_id: number };
+  }, []);
+
+  const isPickMode = pick === "goshuin";
+
+  const goPicked = useCallback(async () => {
+    if (!selectedPlaceId) return;
+
+    const { shrine_id } = await ensureShrine(selectedPlaceId);
+
+    const base = returnTo ? decodeURIComponent(returnTo) : "/mypage?tab=goshuin";
+    const sep = base.includes("?") ? "&" : "?";
+
+    const withShrine = `${base}${sep}shrine=${shrine_id}`;
+    const hash = returnHash ? `#${returnHash}` : "";
+
+    router.push(`${withShrine}${hash}`);
+  }, [selectedPlaceId, ensureShrine, router, returnTo, returnHash]);
 
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
 
@@ -19,16 +55,23 @@ export default function MapScreenLayout() {
 
       <div className="flex-1 overflow-hidden">
         <div className="flex h-full flex-col">
-          <div className="flex justify-center py-2">
-            <div className="h-1 w-10 rounded-full bg-gray-200" />
-          </div>
+          <div className="flex items-center justify-between px-4 pb-2 pt-3">
+            <p className="text-xs font-semibold text-gray-700">{isPickMode ? "神社を選択" : "近くの神社"}</p>
 
-          <div className="px-4 pb-2">
-            <p className="text-xs font-semibold text-gray-700">近くの神社</p>
+            {isPickMode && (
+              <button
+                type="button"
+                onClick={goPicked}
+                disabled={!selectedPlaceId}
+                className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+              >
+                この神社で続ける
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 pb-3">
-            <NearbyPlaces />
+            <MapNearbyPicker limit={10} selectedPlaceId={selectedPlaceId} onSelectPlaceId={setSelectedPlaceId} />
           </div>
         </div>
       </div>
