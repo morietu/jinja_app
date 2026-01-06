@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               <div className="ml-auto flex items-center gap-4">
                 <Link
-                  href="/search"
+                  href="/map"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm shadow-sm"
                   aria-label="神社を検索"
                 >

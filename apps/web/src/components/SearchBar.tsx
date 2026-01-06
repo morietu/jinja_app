@@ -43,7 +43,7 @@ export default function SearchBar({
     if (lb) params.set("locationbias", lb);
     else if (initialLocationBias) params.set("locationbias", initialLocationBias);
 
-    router.push(`/search?${params.toString()}`);
+    router.push(`/map?${params.toString()}`);
   };
 
   return (

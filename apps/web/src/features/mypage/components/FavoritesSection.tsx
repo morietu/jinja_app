@@ -44,7 +44,7 @@ export default function FavoritesSection({ initialFavorites }: Props) {
           <p className="font-semibold">保存した神社はまだありません</p>
           <p className="text-xs text-gray-500">神社詳細ページで「保存」をタップすると、ここに一覧で表示されます。</p>
           <Link
-            href="/nearby"
+            href="/map"
             className="mt-2 inline-block rounded-full bg-orange-500 px-4 py-1 text-xs font-medium text-white hover:bg-orange-600"
           >
             近くの神社を探す

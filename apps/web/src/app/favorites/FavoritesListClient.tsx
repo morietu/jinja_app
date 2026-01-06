@@ -85,9 +85,12 @@ export default function FavoritesListClient({ initialFavorites }: Props) {
 
       // ⑥ UIを最新に寄せて、RSCを更新
       const removedIds = new Set(remains.map((y) => y.id));
+      const nextItems = latest.filter((x) => !removedIds.has(x.id));
       setItems(latest.filter((x) => !removedIds.has(x.id)));
 
+      // ⑦ RSC更新 → 空なら /map
       router.refresh();
+      if (nextItems.length === 0) router.push("/map");
     } catch {
       setItems((prev) => [f, ...prev]);
       setErr("保存解除に失敗しました");
@@ -103,7 +106,7 @@ export default function FavoritesListClient({ initialFavorites }: Props) {
           <p className="font-semibold mb-1">お気に入りの神社はまだありません</p>
           <p className="text-xs text-gray-500">神社詳細ページから「保存」をタップすると、ここに一覧で表示されます。</p>
           <Link
-            href="/nearby"
+            href="/map"
             prefetch={false}
             className="mt-3 inline-block rounded-full bg-orange-500 px-4 py-1 text-xs font-medium text-white hover:bg-orange-600"
           >

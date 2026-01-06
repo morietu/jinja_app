@@ -31,7 +31,7 @@ export default function HomeCards() {
       <div className="rounded border p-4">
         <div className="font-semibold mb-1">神社検索</div>
         <div className="text-sm text-gray-500 mb-2">キーワード・タグで探す（暫定）</div>
-        <Link href="/search" className="inline-block px-3 py-1 bg-blue-600 text-white rounded">
+        <Link href="/map" className="inline-block px-3 py-1 bg-blue-600 text-white rounded">
           探す
         </Link>
       </div>
