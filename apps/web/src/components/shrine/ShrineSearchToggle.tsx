@@ -12,7 +12,7 @@ export function ShrineSearchToggle() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyword.trim().length === 0) return;
-    router.push(`/search?q=${encodeURIComponent(keyword)}`);
+    router.push(`/map?q=${encodeURIComponent(keyword)}`);
   };
 
   return (

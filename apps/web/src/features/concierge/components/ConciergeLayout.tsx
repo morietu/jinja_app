@@ -193,7 +193,7 @@ export default function ConciergeLayout({
 
       {primary ? (
         <div className="mt-4 grid gap-2">
-          <Link href="/nearby" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
+          <Link href="/map" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
             近くの神社を探す
           </Link>
 

@@ -26,7 +26,7 @@ export default function Hero() {
             はじめる（AIコンシェルジュ）
           </Link>
           <Link
-            href="/search"
+            href="/map"
             className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 transition hover:bg-gray-50"
           >
             まずは検索
