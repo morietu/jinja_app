@@ -22,7 +22,6 @@ function toProxiedMedia(url: string): string {
     const u = new URL(url);
     if (u.pathname.startsWith("/media/")) return `${u.pathname}${u.search}`;
   } catch (e) {
-    // eslint no-empty 対策：握りつぶすなら意図を明示
     void e;
   }
   return url;
@@ -36,11 +35,10 @@ export default function MyGoshuinCard({
   onDelete,
   onToggleVisibility,
 }: Props) {
-  const { shrine_name, created_at, is_public, image_url } = item;
+  const shrineName = item.shrine_name ?? (item as any)?.shrine?.name_jp ?? null;
+  const { created_at, is_public, image_url } = item;
 
-  const handleClickCard = () => {
-    onOpenDetail?.(item);
-  };
+  const handleClickCard = () => onOpenDetail?.(item);
 
   const handleClickDelete = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -78,7 +76,7 @@ export default function MyGoshuinCard({
         {proxiedImageUrl ? (
           <Image
             src={proxiedImageUrl}
-            alt={shrine_name ?? "御朱印"}
+            alt={shrineName ?? "御朱印"}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
             sizes="(max-width: 640px) 50vw, 33vw"
@@ -145,9 +143,9 @@ export default function MyGoshuinCard({
 
       <div className="flex flex-col gap-1 p-4">
         <h3 className="line-clamp-1 text-sm font-semibold tracking-tight text-foreground">
-          {item.title || shrine_name || "タイトル未設定"}
+          {item.title || shrineName || "タイトル未設定"}
         </h3>
-        <p className="line-clamp-1 text-xs text-muted-foreground">{shrine_name ?? "-"}</p>
+        <p className="line-clamp-1 text-xs text-muted-foreground">{shrineName ?? "-"}</p>
         <p className="text-[11px] text-muted-foreground">
           登録日: <time>{createdAtLabel ?? "-"}</time>
         </p>
