@@ -289,22 +289,22 @@ class Favorite(models.Model):
     class Meta:
         ordering = ("-created_at",)
         constraints = [
-            models.UniqueConstraint(
-                fields=["user", "shrine"],
-                condition=Q(shrine__isnull=False),
-                name="uniq_favorite_user_shrine",
-            ),
-            models.UniqueConstraint(
-                fields=["user", "place_id"],
-                condition=Q(place_id__isnull=False),
-                name="uniq_favorite_user_place",
-            ),
-            models.CheckConstraint(
-                check=(
+            CheckConstraint(
+                name="favorite_exactly_one_target",
+                condition=(
                     (Q(shrine__isnull=False) & Q(place_id__isnull=True))
                     | (Q(shrine__isnull=True) & Q(place_id__isnull=False))
                 ),
-                name="chk_favorite_exactly_one_target",
+            ),
+            UniqueConstraint(
+                fields=["user", "shrine"],
+                name="uq_favorite_user_shrine",
+                condition=Q(shrine__isnull=False),
+            ),
+            UniqueConstraint(
+                fields=["user", "place_id"],
+                name="uq_favorite_user_place",
+                condition=Q(place_id__isnull=False),
             ),
         ]
         indexes = [
