@@ -75,7 +75,7 @@ export default function ConciergeCard({ s, index = 0, showMapButton = false, onR
     ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}${
         s.place_id ? `&destination_place_id=${encodeURIComponent(s.place_id)}` : ""
       }`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([title, addrText].filter(Boolean).join(" "))}`;
+    : `https://www.google.com/maps?q=${encodeURIComponent([title, addrText].filter(Boolean).join(" "))}`;
 
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm min-h-[200px] transition hover:-translate-y-0.5 hover:shadow-md">
