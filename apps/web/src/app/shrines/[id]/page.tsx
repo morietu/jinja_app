@@ -6,7 +6,6 @@ import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
 import { ShrineSearchToggle } from "@/components/shrine/ShrineSearchToggle";
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
-
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 
 // ✅ コンポーネントの外でOK
@@ -29,7 +28,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   const { id } = await props.params;
   const numericId = Number(id);
 
-  // ✅ 追加：NaN / 0 / 負数 を弾く（ここがAの修正）
+  // ✅ 追加：NaN / 0 / 負数 を弾く
   if (!Number.isFinite(numericId) || numericId <= 0) {
     return (
       <main className="p-4 max-w-md mx-auto space-y-4">
@@ -59,18 +58,19 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         >
           この神社で御朱印を追加
         </Link>
-        
-        
 
         <div className="rounded-xl border bg-white p-4 text-center text-sm">神社の詳細情報が見つかりませんでした。</div>
+
+        <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
+          ← 地図に戻る
+        </Link>
       </main>
     );
   }
 
-  // ✅ ここで位置情報をまとめて計算しておく
+  // ✅ 位置情報
   const lat = shrine.lat ?? shrine.latitude ?? null;
   const lng = shrine.lng ?? shrine.longitude ?? null;
-
 
   const latNum = lat == null ? null : Number(lat);
   const lngNum = lng == null ? null : Number(lng);
@@ -78,9 +78,8 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
   const hasLocation = Number.isFinite(latNum) && Number.isFinite(lngNum);
 
   const mapsRouteHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum!, lng: lngNum! }, mode: "walk" }) : null;
-
   const mapHref = hasLocation ? `/map?lat=${latNum}&lng=${lngNum}` : "/map";
-  // ✅ ご利益ラベルも shrine 確定後に計算
+
   const benefitLabels = getBenefitLabels(shrine);
 
   return (
@@ -110,8 +109,6 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
       {/* 3番手：保存 */}
       <ShrineSaveButton shrineId={numericId} nextPath={`/shrines/${numericId}`} />
 
-      
-      <section id="goshuins" className="scroll-mt-24" />
       {/* アクションカード */}
       <ShortcutCardGrid>
         <ShortcutCard
@@ -123,13 +120,12 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         />
       </ShortcutCardGrid>
 
-      {/* 🔎 トグル検索 */}
+      {/* 🔎 トグル検索（将来/search廃止なら後でここも/map導線に置換） */}
       <ShrineSearchToggle />
 
       {/* 写真ギャラリー */}
       <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <ShrinePhotoGallery shrine={shrine} />
-        <section id="goshuins">{/* ここに御朱印一覧 */}</section>
 
         <div className="p-4 space-y-3">
           <header className="space-y-1">
@@ -142,7 +138,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
             <p className="text-sm">{shrine.address}</p>
           </section>
 
-          {/* ご利益（B-2 動的表示） */}
+          {/* ご利益 */}
           <section className="space-y-1 text-sm">
             <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
 

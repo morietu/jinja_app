@@ -1,6 +1,7 @@
 // apps/web/src/features/home/components/HomeNearbySection.tsx
 "use client";
 
+
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,7 @@ export function HomeNearbySection() {
             if (typeof lat === "number" && typeof lng === "number") {
               usp.set("locationbias", `circle:1500@${lat},${lng}`);
             }
+
             return `/shrines/resolve?${usp.toString()}`;
           }}
         />
