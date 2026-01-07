@@ -3,6 +3,8 @@ import { SectionCard } from "@/components/layout/SectionCard";
 import { HomeNearbySection } from "@/features/home/components/HomeNearbySection";
 import { HomeToastClient } from "@/features/home/components/HomeToastClient";
 import { PublicGoshuinsClient } from "@/features/home/components/PublicGoshuinsClient";
+import { HomeConciergeInlineClient } from "@/features/home/components/HomeConciergeInlineClient";
+
 
 type Goshuin = {
   id: number;
@@ -28,13 +30,7 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
         <SectionCard>
-          {/* ここは server なので Link でOK */}
-          <a
-            className="mt-6 block w-full rounded-full bg-amber-500 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
-            href="/concierge"
-          >
-            今の気持ちから神社を探す
-          </a>
+          <HomeConciergeInlineClient />
         </SectionCard>
 
         <SectionCard
