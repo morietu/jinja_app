@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
@@ -12,6 +12,8 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const shrineId = useMemo(() => {
     const q = sp.get("shrine");
     const n = Number(q);
@@ -19,7 +21,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   }, [sp]);
 
   const openMapPicker = () => {
-    // 戻り先は「今のページ（/mypage?tab=goshuin#goshuin-upload）」で固定
     const ret = encodeURIComponent("/mypage?tab=goshuin");
     router.push(`/map?pick=goshuin&return=${ret}&returnHash=goshuin-upload`);
   };
@@ -66,52 +67,26 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    console.log("[GoshuinUploadForm] submit", { shrineId, file, loading });
     if (loading) return;
 
     setError(null);
     setSuccess(null);
 
-    if (!shrineId) {
-      setError("神社が未選択です。「神社を選ぶ（地図）」から選択してください。");
-      return;
-    }
-
-    if (!file) {
-      setError("画像ファイルを選択してください。");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      setError("画像ファイルのみアップロードできます。");
-      return;
-    }
+    if (!shrineId) return setError("神社が未選択です。「神社を選ぶ（地図）」から選択してください。");
+    if (!file) return setError("画像ファイルを選択してください。");
+    if (!file.type.startsWith("image/")) return setError("画像ファイルのみアップロードできます。");
 
     const maxBytes = 5 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      setError("ファイルサイズは 5MB 以下を推奨しています。");
-      return;
-    }
+    if (file.size > maxBytes) return setError("ファイルサイズは 5MB 以下を推奨しています。");
 
     try {
       setLoading(true);
 
-      const created = await uploadMyGoshuin({
-        shrineId,
-        title: "",
-        isPublic,
-        file,
-      });
+      const created = await uploadMyGoshuin({ shrineId, title: "", isPublic, file });
 
-      console.log("[uploadMyGoshuin created]", created);
-      console.log(
-        "[uploadMyGoshuin keys]",
-        created && typeof created === "object" ? Object.keys(created as any) : created,
-      );
-
-      // ✅ 追加：カードで表示できる形に整形
       let patched = created as any;
-
-      // created に shrine_name が無い/空なら補完
       const hasShrineName = typeof patched?.shrine_name === "string" && patched.shrine_name.trim().length > 0;
 
       if (!hasShrineName) {
@@ -124,18 +99,13 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
             shrine: patched.shrine ?? s ?? null,
           };
         } catch {
-          patched = {
-            ...patched,
-            shrine_id: patched.shrine_id ?? shrineId,
-            shrine_name: patched.shrine_name ?? null,
-          };
+          patched = { ...patched, shrine_id: patched.shrine_id ?? shrineId, shrine_name: patched.shrine_name ?? null };
         }
       }
 
       setSuccess("御朱印をアップロードしました。");
       setFile(null);
       setIsPublic(false);
-      // ✅ onUploaded には補完後を渡す
       onUploaded?.(patched);
     } catch {
       setError("アップロードに失敗しました。");
@@ -146,7 +116,10 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* ✅ アップロード対象（常に表示） */}
+      <div className="text-[11px] text-slate-500">
+        debug: shrineId={String(shrineId)} file={file ? file.name : "null"} loading={String(loading)}
+      </div>
+
       <div className="rounded-2xl border bg-white p-4 space-y-2">
         <p className="text-xs font-semibold text-slate-500">アップロード対象</p>
 
@@ -185,20 +158,36 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
         公開する
       </label>
 
-      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border p-4">
-        <span>🖼️ 画像を選択</span>
+      <div className="rounded-xl border p-4">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full rounded-lg border bg-white px-4 py-3 text-sm font-semibold hover:bg-slate-50 disabled:opacity-40"
+          disabled={loading}
+        >
+          🖼️ 画像を選択
+        </button>
+
         <input
+          ref={fileInputRef}
           type="file"
           accept="image/*"
-          className="hidden"
           aria-label="御朱印画像"
+          className="hidden"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-      </label>
+
+        {file ? <p className="mt-2 text-xs text-slate-600">選択中: {file.name}</p> : null}
+      </div>
 
       {previewUrl && <Image src={previewUrl} alt="preview" width={400} height={400} unoptimized />}
 
-      <button disabled={!file || !shrineId || loading} className="bg-orange-500 text-white px-4 py-2 rounded">
+      <button
+        type="button"
+        onClick={(e) => handleSubmit(e as any)} // FormEvent 互換で呼ぶだけ
+        disabled={!file || !shrineId || loading}
+        className="bg-orange-500 text-white px-4 py-2 rounded disabled:opacity-40"
+      >
         {loading ? "アップロード中..." : "アップロード"}
       </button>
 

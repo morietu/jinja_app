@@ -11,20 +11,28 @@ type Goshuin = {
 };
 type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
 
-export default async function Page() {
-  const h = await headers();
+async function pickBaseUrl() {
+  const h = await headers(); // ✅ ここを await
+
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const baseUrl = `${proto}://${host}`;
+  const forwardedProto = h.get("x-forwarded-proto") ?? "http";
+
+  const isLocal = host.includes("localhost") || host.startsWith("127.0.0.1") || host.startsWith("0.0.0.0");
+
+  const proto = isLocal ? "http" : forwardedProto;
+  return `${proto}://${host}`;
+}
+
+export default async function Page() {
+  const baseUrl = await pickBaseUrl(); // ✅ await
 
   let data: Paginated<Goshuin> | null = null;
 
   try {
-    const res = await fetch(`${baseUrl}/api/public/goshuins?limit=4&offset=0`, { cache: "no-store" });
+    const res = await fetch(`${baseUrl}/api/public/goshuins?limit=9&offset=0`, { cache: "no-store" });
     if (res.ok) data = (await res.json()) as Paginated<Goshuin>;
   } catch (e) {
-    // dev のときだけでも良いので「何が落ちたか」見える化
-    console.error("[top] fetch /api/public/goshuins failed:", e);
+    console.error("[top] fetch /api/public/goshuins failed:", e, { baseUrl });
     data = null;
   }
 

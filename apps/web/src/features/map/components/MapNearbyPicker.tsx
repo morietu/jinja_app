@@ -7,7 +7,8 @@ import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 type Props = {
   limit?: number;
   selectedPlaceId: string | null;
-  onSelectPlaceId: (pid: string) => void;
+  onSelectPlaceId: (pid: string | null) => void; // ✅ nullも許容（未選択にできる）
+  // onPickShrineId?: (shrineId: number) => void;
 };
 
 const FALLBACK = { lat: 35.681236, lng: 139.767125 };
@@ -55,7 +56,10 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
           <button
             key={x.place_id}
             type="button"
-            onClick={() => onSelectPlaceId(x.place_id)}
+            onClick={() => {
+              // ✅ x を使う
+              onSelectPlaceId(x.place_id);
+            }}
             className={`w-full rounded-xl border p-3 text-left ${
               active ? "border-emerald-400 bg-emerald-50" : "bg-white"
             }`}

@@ -60,9 +60,7 @@ export default function MyPageScreen() {
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">御朱印帳</h1>
-        <button onClick={logout} className="rounded bg-gray-200 px-3 py-1 hover:bg-gray-300" type="button">
-          ログアウト
-        </button>
+        
       </header>
 
       <div className="space-y-4">
