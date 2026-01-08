@@ -13,13 +13,13 @@ export default function HomeCards() {
         </p>
         <div className="flex gap-2 flex-wrap">
           <Link
-            href="/concierge"
+            href="/map"
             className="px-3 py-1.5 rounded bg-blue-600 text-white"
           >
             地図で開く
           </Link>
           <Link
-            href="/concierge/chat"
+            href="/concierge"
             className="px-3 py-1.5 rounded border border-blue-600 text-blue-700"
           >
             チャットで開く
