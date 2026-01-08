@@ -1,7 +1,9 @@
+// apps/web/src/features/concierge/components/ChatPanel.tsx
 "use client";
 
-import { useEffect, useRef, useState, KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
+import ChatInput from "./ChatInput";
 
 type Props = {
   thread: ConciergeThread | null;
@@ -14,77 +16,53 @@ type Props = {
   canSend: boolean;
 };
 
+function isAuthError(err: string | null) {
+  if (!err) return false;
+  return err.includes("401") || err.toLowerCase().includes("unauthorized");
+}
+
 export default function ChatPanel({
   thread: _thread,
   messages,
   loading = false,
   sending = false,
-  error,
+  error = null,
   onRetry,
   onSend,
   canSend = true,
 }: Props) {
-  const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [isComposing, setIsComposing] = useState(false); // ★ IME 中かどうか
 
-  // メッセージ追加時のスクロール制御
   useEffect(() => {
     const el = listRef.current;
     if (!el || !autoScroll) return;
-
     el.scrollTop = el.scrollHeight;
   }, [messages, autoScroll]);
 
-  // 「ほぼ最下部かどうか」で autoScroll を制御
   const handleScroll = () => {
     const el = listRef.current;
     if (!el) return;
-    const threshold = 80; // px
+    const threshold = 80;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
     setAutoScroll(atBottom);
   };
 
-  const handleSend = async () => {
+  const handleSend = async (text: string) => {
     if (!canSend) return;
-
-    const trimmed = input.trim();
+    const trimmed = text.trim();
     if (!trimmed || sending || loading) return;
 
     await onSend(trimmed);
-    setInput("");
     setAutoScroll(true);
   };
 
-  // IME 変換開始・終了
-  const handleCompositionStart = () => {
-    setIsComposing(true);
+  const authError = isAuthError(error);
+
+  const goLogin = () => {
+    const next = `${location.pathname}${location.search}`;
+    location.href = `/login?next=${encodeURIComponent(next)}`;
   };
-
-  const handleCompositionEnd = () => {
-    setIsComposing(false);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== "Enter") return;
-
-    // IME 変換中は Enter を送信に使わない
-    if (isComposing) {
-      return;
-    }
-
-    // Shift+Enter は改行だけ（デフォルト動作に任せる）
-    if (e.shiftKey) {
-      return;
-    }
-
-    // Enter 単体 → 送信
-    e.preventDefault();
-    void handleSend();
-  };
-
-  console.log("[ChatPanel]", { canSend, sending, loading, inputLen: input.length });
 
   return (
     <div className="flex h-[calc(100vh-180px)] flex-col rounded-2xl border bg-white shadow-sm">
@@ -136,11 +114,22 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* ▼ エラーがあるときだけ表示するバナー */}
+      {/* エラーバナー（401はログイン導線） */}
       {error && (
-        <div className="mt-2 flex items-center justify-between border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <span className="mr-3 line-clamp-2">{error}</span>
-          {onRetry && (
+        <div className="flex items-center justify-between border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <span className="mr-3 line-clamp-2">
+            {authError ? "ログイン期限が切れました。もう一度ログインしてください。" : error}
+          </span>
+
+          {authError ? (
+            <button
+              type="button"
+              onClick={goLogin}
+              className="shrink-0 rounded-full border border-red-400 bg-white px-3 py-1 text-xs font-medium text-red-700"
+            >
+              ログイン
+            </button>
+          ) : onRetry ? (
             <button
               type="button"
               onClick={onRetry}
@@ -148,45 +137,19 @@ export default function ChatPanel({
             >
               もう一度試す
             </button>
-          )}
+          ) : null}
         </div>
       )}
 
-      {/* 入力エリア */}
+      {/* 入力エリア（ChatInput 1個だけ） */}
       <div className="border-t px-3 py-2">
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void handleSend();
-          }}
-        >
-          <textarea
-            className="min-h-[80px] max-h-40 w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50"
-            placeholder="例）今年の仕事運と相性の良い神社を教えてください"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={handleCompositionStart}
-            onCompositionEnd={handleCompositionEnd}
-            disabled={sending || loading}
-          />
+        <ChatInput disabled={sending || loading || !canSend} onSend={handleSend} error={error} />
 
-          {!canSend && (
-            <p className="text-xs text-slate-600">
-              無料枠を使い切りました。続けて利用するにはプレミアムをご確認ください。
-            </p>
-          )}
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="submit"
-              disabled={sending || loading || !canSend || !input.trim()}
-              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white shadow disabled:opacity-60"
-            >
-              {sending || loading ? "送信中…" : "送信"}
-            </button>
-          </div>
-        </form>
+        {!canSend && (
+          <p className="mt-2 text-xs text-slate-600">
+            無料枠を使い切りました。続けて利用するにはプレミアムをご確認ください。
+          </p>
+        )}
       </div>
     </div>
   );

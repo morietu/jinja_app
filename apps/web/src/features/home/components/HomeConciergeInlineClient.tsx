@@ -23,9 +23,9 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
     setOpen(true);
     onToggle?.(true);
 
-    // 任意：開いた瞬間に先頭へ寄せる（ワンクッション無し版）
     requestAnimationFrame(() => {
       topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.dispatchEvent(new Event("concierge:focus-input"));
     });
   };
 
@@ -47,19 +47,20 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
           今の気持ちから神社を探す
         </button>
       ) : (
-        <div className="relative space-y-3">
-          {/* 上部：開始直後の安心用（残す） */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-800">今の気持ちから神社を探す</p>
-            <button type="button" onClick={onClose} className="text-xs text-slate-500 hover:underline">
-              閉じる
-            </button>
+        <div className="relative">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-800">今の気持ちから神社を探す</p>
+              <button type="button" onClick={onClose} className="text-xs text-slate-500 hover:underline">
+                閉じる
+              </button>
+            </div>
+
+            <ConciergeClient embedMode />
           </div>
 
-          <ConciergeClient />
-
-          {/* 下部固定：チャット後も必ず閉じられる */}
-          <div className="sticky bottom-0 -mx-4 mt-4 border-t bg-slate-50/90 px-4 py-3 backdrop-blur">
+          {/* ✅ stickyは“外側”に置く */}
+          <div className="sticky bottom-0 mt-3 border-t bg-slate-50/90 px-4 py-3 backdrop-blur">
             <button
               type="button"
               onClick={onClose}
