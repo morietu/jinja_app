@@ -10,6 +10,8 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
+const DEBUG = process.env.NODE_ENV !== "production" && false;
+
 type Props = {
   embedMode?: boolean;
 };
@@ -100,7 +102,7 @@ export default function ConciergeClient({ embedMode = false }: Props) {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
 
-  const DEBUG = process.env.NODE_ENV !== "production" && false;
+
 
   // ① restore（embedMode ではやらない）
   useEffect(() => {

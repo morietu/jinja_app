@@ -4,13 +4,52 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ChatPanel from "./ChatPanel";
+
 import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason } from "@/features/concierge/types/unified";
+
 import { useBilling } from "@/features/billing/hooks/useBilling";
 import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
 import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
 
-// PaywallCtaはそのまま
+
+function PaywallCta({ note }: { note: string }) {
+  return (
+    <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+      <div className="leading-relaxed">{note}</div>
+      <div className="mt-2 flex gap-2">
+        <Link
+          href="/billing"
+          className="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+        >
+          プレミアムを見る
+        </Link>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+        >
+          ログイン
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+type Props = {
+  thread: ConciergeThread | null;
+  messages: ConciergeMessage[];
+  sending?: boolean;
+  error?: string | null;
+  onSend: (text: string) => void | Promise<void>;
+  onRetry: () => void;
+  onNewThread?: () => void;
+  recommendations?: ConciergeRecommendation[];
+  paywallNote?: string | null;
+  remainingFree?: number | null;
+  stopReason: StopReason;
+  canSend: boolean;
+  embedMode?: boolean;
+};
 
 export default function ConciergeLayout({
   thread,
