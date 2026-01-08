@@ -60,7 +60,15 @@ export default function MyPageScreen() {
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">御朱印帳</h1>
-        <button onClick={logout} className="rounded bg-gray-200 px-3 py-1 hover:bg-gray-300" type="button">
+
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.push("/"); // 好みで /login でもOK
+          }}
+          className="rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
           ログアウト
         </button>
       </header>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
 import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
@@ -10,9 +11,12 @@ export default function MapScreenLayout() {
   const router = useRouter();
   const sp = useSearchParams();
 
-  const pick = sp.get("pick"); // "goshuin" など
-  const returnTo = sp.get("return"); // encode済み
-  const returnHash = sp.get("returnHash"); // "goshuin-upload" など
+  const pick = sp.get("pick"); // "goshuin" のときだけ戻る
+  const isPickMode = pick === "goshuin";
+
+
+  const returnTo = sp.get("return");
+  const returnHash = sp.get("returnHash");
 
   const { coords } = useGeolocation();
   const center = useMemo(() => coords ?? { lat: 35.681236, lng: 139.767125 }, [coords]);
@@ -29,9 +33,10 @@ export default function MapScreenLayout() {
     return (await r.json()) as { shrine_id: number };
   }, []);
 
-  const isPickMode = pick === "goshuin";
+
 
   const goPicked = useCallback(async () => {
+    if (pick !== "goshuin") return;
     if (!selectedPlaceId) return;
 
     const { shrine_id } = await ensureShrine(selectedPlaceId);
@@ -71,7 +76,12 @@ export default function MapScreenLayout() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 pb-3">
-            <MapNearbyPicker limit={10} selectedPlaceId={selectedPlaceId} onSelectPlaceId={setSelectedPlaceId} />
+            <MapNearbyPicker
+              limit={10}
+              selectedPlaceId={selectedPlaceId}
+              onSelectPlaceId={setSelectedPlaceId}
+              
+            />
           </div>
         </div>
       </div>

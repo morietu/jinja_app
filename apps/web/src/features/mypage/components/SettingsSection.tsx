@@ -1,14 +1,13 @@
-// apps/web/src/features/mypage/components/SettingsSection.tsx
 "use client";
 
 import Link from "next/link";
 
 type Props = {
-  // 実際の型は気にせず any でOK（既存の user オブジェクト想定）
   user: any;
+  onLogout?: () => Promise<void> | void;
 };
 
-export default function SettingsSection({ user }: Props) {
+export default function SettingsSection({ user, onLogout }: Props) {
   const profile = user?.profile ?? null;
   const username: string | null = user?.username ?? null;
   const isPublic: boolean = profile?.is_public ?? user?.is_public ?? false;
@@ -27,10 +26,6 @@ export default function SettingsSection({ user }: Props) {
           プロフィールの公開設定や自己紹介、SNS リンクの編集は 「プロフィールを編集する」から行えます。
         </p>
 
-        <div>
-          
-        </div>
-
         {/* 公開中だけ「公開プロフィールページ」へのリンクを出す */}
         {hasPublicPage && (
           <div className="pt-3 border-t border-orange-50">
@@ -43,6 +38,24 @@ export default function SettingsSection({ user }: Props) {
             >
               /users/{username}
             </Link>
+          </div>
+        )}
+
+        {/* ✅ 最下部：ログアウト */}
+        {onLogout && (
+          <div className="pt-4 border-t border-orange-50">
+            <button
+              type="button"
+              onClick={() => {
+                // 誤タップ対策（必要なら）
+                const ok = window.confirm("ログアウトしますか？");
+                if (!ok) return;
+                void onLogout();
+              }}
+              className="w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+            >
+              ログアウト
+            </button>
           </div>
         )}
       </div>

@@ -33,7 +33,7 @@ export default function ConciergeHistoryDetailPage() {
   const recommendations = detail.recommendations ?? [];
 
   const handleContinue = () => {
-    router.push(`/concierge?threadId=${thread.id}`);
+    router.push(`/concierge?tid=${thread.id}`);
   };
 
   return (

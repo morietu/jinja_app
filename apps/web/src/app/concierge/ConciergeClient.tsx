@@ -10,6 +10,10 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
+type Props = {
+  embedMode?: boolean;
+};
+
 
 function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
@@ -74,7 +78,7 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
   return next;
 }
 
-export default function ConciergeClient() {
+export default function ConciergeClient({ embedMode = false }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
@@ -90,56 +94,72 @@ export default function ConciergeClient() {
     setActiveThreadId(tid);
   };
 
-
   const tidFromQuery = useMemo(() => {
     const raw = sp.get("tid");
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
 
-  // ① restore（client mount 後に 1回だけ）
+  const DEBUG = process.env.NODE_ENV !== "production" && false;
+
+  // ① restore（embedMode ではやらない）
   useEffect(() => {
-    
-    console.time("restore");
+    if (embedMode) {
+      setEventsByThread({ 0: [] });
+      setActiveTid(0); // ref/state両方を0に揃える
+      setHydrated(true);
+      return;
+    }
+
+    if (DEBUG) console.time("restore");
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setEventsByThread(JSON.parse(raw) as EventsByThread);
     } catch {
       // ignore
     } finally {
-      console.timeEnd("restore");
+      if (DEBUG) console.timeEnd("restore");
       setHydrated(true);
     }
-  }, []);
+  }, [embedMode]);
 
-  // ② URL tid → activeThreadId（hydrated 後だけ） ← URL同期はここ “だけ”
+
+  // ② URL tid → activeThreadId（embedMode ではやらない）
   useEffect(() => {
     if (!hydrated) return;
+    if (embedMode) return;
 
     if (tidFromQuery === 0 && activeThreadIdRef.current !== 0) return;
-
     setActiveTid(tidFromQuery);
-  }, [tidFromQuery, hydrated]);
+  }, [tidFromQuery, hydrated, embedMode]);
 
-  // ③ save（hydrated 後だけ）
+  // ③ save（embedMode ではやらない）
   useEffect(() => {
     if (!hydrated) return;
+    if (embedMode) return;
+
     const id = window.setTimeout(() => {
-      console.time("save");
+      if (DEBUG) console.time("save");
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
       } catch {
-        // noop: storage が使えない環境（
+        // ignore
+      } finally {
+        if (DEBUG) console.timeEnd("save");
       }
-      console.timeEnd("save");
-    }, 250); // まずは250ms
-    return () => window.clearTimeout(id);
-  }, [eventsByThread, hydrated]);
+    }, 250);
 
+    return () => window.clearTimeout(id);
+  }, [eventsByThread, hydrated, embedMode]);
+
+  
+
+  // dev force（"design" | "paywall"）
   const force = sp.get("force"); // "design" | "paywall" | null
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
-  const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
+  const viewTid = embedMode ? 0 : activeThreadId;
+  const events = useMemo(() => getThreadEvents(eventsByThread, viewTid), [eventsByThread, viewTid]);
 
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -169,7 +189,14 @@ export default function ConciergeClient() {
   }, [events]);
 
   // ✅ useConciergeChat は activeThreadId を正にする（URL依存を消す）
-  const chatThreadId: string | null = activeThreadId !== 0 ? String(activeThreadId) : thread ? String(thread.id) : null;
+  const chatThreadId: string | null =
+    embedMode
+      ? null
+      : (typeof thread?.id === "number" && thread.id > 0
+          ? String(thread.id)
+          : activeThreadId !== 0
+            ? String(activeThreadId)
+            : null);
 
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     onUnified: (u) => {
@@ -177,11 +204,13 @@ export default function ConciergeClient() {
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
       const currentTid = activeThreadIdRef.current;
 
-      console.debug("[onUnified raw]", u);
-      console.debug("[onUnified thread]", u?.thread);
+      if (DEBUG) {
+        console.debug("[onUnified raw]", u);
+        console.debug("[onUnified thread]", u?.thread);
+      }
 
       // 昇格が起きたら state だけ更新（副作用は effect に逃がす）
-      if (currentTid === 0 && nextTid !== 0) {
+      if (!embedMode && currentTid === 0 && nextTid !== 0) {
         setActiveTid(nextTid);
         setPromotedTid(nextTid);
       }
@@ -193,7 +222,8 @@ export default function ConciergeClient() {
           cur = promoteThread(cur, 0, nextTid);
         }
 
-        const tidToWrite = nextTid !== 0 ? nextTid : currentTid;
+        
+        const tidToWrite = embedMode ? 0 : nextTid !== 0 ? nextTid : currentTid;
 
         const nextEvents: ChatEvent[] = [
           { type: "assistant_state", unified: u, at: now },
@@ -226,11 +256,11 @@ export default function ConciergeClient() {
     if (!canSend) return;
 
     const now = new Date().toISOString();
-    const currentTid = activeThreadIdRef.current;
 
-    setEventsByThread((prev) =>
-      appendEvents(prev, currentTid, { type: "user_message", text: trimmed, at: now } as const),
-    );
+    // ✅ state優先（表示と一致させる）
+    const tid = embedMode ? 0 : activeThreadId !== 0 ? activeThreadId : activeThreadIdRef.current;
+
+    setEventsByThread((prev) => appendEvents(prev, tid, { type: "user_message", text: trimmed, at: now } as const));
 
     await send(trimmed);
   };
@@ -247,14 +277,31 @@ export default function ConciergeClient() {
 
   useEffect(() => {
     if (!promotedTid) return;
+    if (embedMode) {
+      setPromotedTid(null);
+      return;
+    } // ここ重要
     router.replace(`/concierge?tid=${promotedTid}`);
     setPromotedTid(null);
-  }, [promotedTid, router]);
+  }, [promotedTid, router, embedMode]);
 
   return (
-    <div className="px-4 py-4">
-      <h1 className="mb-2 text-base font-semibold text-gray-800">AI神社コンシェルジュ</h1>
-      <p className="mb-3 text-xs text-gray-500">今年の運勢や叶えたい願いごとを、自由に送ってみてください。</p>
+    <div className={embedMode ? "" : "px-4 py-4"}>
+      {!embedMode && (
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-base font-semibold text-gray-800">AI神社コンシェルジュ</h1>
+            <p className="mt-1 text-xs text-gray-500">今年の運勢や叶えたい願いごとを、自由に送ってみてください。</p>
+          </div>
+
+          <a
+            href="/"
+            className="shrink-0 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            ホームへ戻る
+          </a>
+        </div>
+      )}
 
       <ConciergeLayout
         thread={thread}
@@ -269,6 +316,7 @@ export default function ConciergeClient() {
         remainingFree={remainingFreeView}
         stopReason={stopReason}
         canSend={canSend}
+        embedMode={embedMode} // ✅ ここ
       />
     </div>
   );
