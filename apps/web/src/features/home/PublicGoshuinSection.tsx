@@ -14,13 +14,6 @@ type Props = {
   items: GoshuinItem[];
 };
 
-function useIsDesktop(): boolean {
-  // 雑でOKなら CSS だけで制御してもいいけど、まずはJSで
-  const [isDesktop, setIsDesktop] = useState(false);
-  // hydrationの細かい差が嫌なら、常に 9 から始めるでもOK
-  // ここは実装コスト優先で省略可能
-  return isDesktop;
-}
 
 export default function PublicGoshuinSection({ items }: Props) {
   // 初期：PC 4 / SP 9 を想定（JSで出し分けが面倒なら「最初から9」で良い）

@@ -48,7 +48,7 @@ export default function MapScreenLayout() {
     const hash = returnHash ? `#${returnHash}` : "";
 
     router.push(`${withShrine}${hash}`);
-  }, [selectedPlaceId, ensureShrine, router, returnTo, returnHash]);
+  }, [pick, selectedPlaceId, ensureShrine, router, returnTo, returnHash]);
 
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
 
