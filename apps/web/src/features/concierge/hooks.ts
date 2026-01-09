@@ -173,6 +173,12 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
         const payload = isAxiosLike ? (res as any).data : res;
 
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[chat] payload keys", Object.keys(payload ?? {}));
+          console.log("[chat] payload", payload);
+          console.log("[chat] payload.data", payload?.data);
+        }
+
         // ✅ recommendations は payload 起点で統一
         const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
 

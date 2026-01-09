@@ -53,7 +53,7 @@ export default function ChatPanel({
     const trimmed = text.trim();
     if (!trimmed || sending || loading) return;
 
-    await onSend(trimmed);
+    onSend(trimmed);
     setAutoScroll(true);
   };
 

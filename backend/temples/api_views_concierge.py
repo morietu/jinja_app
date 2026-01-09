@@ -348,6 +348,39 @@ def _normalize_reason(rec: dict, *, query: str) -> str:
     t = t[:30] if len(t) > 30 else t
     return t or "静かに手を合わせたい社"
 
+def _build_bullets(rec: dict, *, query: str) -> list[str]:
+    """
+    UI表示用の補足。会話文ではなく“評価理由”。
+    依存が少なく、テストでもブレにくい固定優先で組む。
+    """
+    bullets: list[str] = []
+
+    # 1) 既に bullets/highlights があるなら尊重
+    src = rec.get("bullets") or rec.get("highlights")
+    if isinstance(src, list):
+        for x in src:
+            if isinstance(x, str) and x.strip():
+                bullets.append(x.strip())
+    if bullets:
+        return bullets[:3]
+
+    # 2) タグ/人気などから軽い推測（無ければ固定）
+    tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
+    tags = " ".join([t for t in tags_list if isinstance(t, str)])
+
+    if "観音" in tags:
+        bullets.append("心を整えて手を合わせたいときに向く")
+    if any(k in (query or "") for k in ("厄", "厄除", "厄払い")):
+        bullets.append("厄除けの参拝に合わせやすい可能性")
+    if any(k in (query or "") for k in ("縁", "恋", "結")):
+        bullets.append("ご縁を願う参拝に合わせやすい可能性")
+
+    # 3) 最低保証（必ず3つにする）
+    while len(bullets) < 3:
+        bullets.append(["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"][len(bullets)])
+
+    return bullets[:3]
+
 
 def normalize_name_key(name: str) -> str:
     if not name:
@@ -631,6 +664,12 @@ class ConciergeChatView(APIView):
                 r["reason"] = _normalize_reason(r, query=query)
             except Exception:
                 r["reason"] = "静かに手を合わせたい社"
+            
+            # ✅ 追加：補足 bullets を必ず入れる（UIの固定ブロック用）
+            try:
+                r["bullets"] = _build_bullets(r, query=query)
+            except Exception:
+                r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
 
         body = {"ok": True, "intent": intent, "data": recs}
 

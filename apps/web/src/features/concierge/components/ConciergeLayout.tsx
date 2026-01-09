@@ -12,7 +12,6 @@ import { useBilling } from "@/features/billing/hooks/useBilling";
 import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
 import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
 
-
 function PaywallCta({ note }: { note: string }) {
   return (
     <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -68,13 +67,11 @@ export default function ConciergeLayout({
 }: Props) {
   const [primaryIndex, setPrimaryIndex] = useState(0);
 
-  // ✅ Hookは常に呼ぶ（Rule of Hooks）
   const billing = useBilling();
 
   const shown = recommendations;
   const shownLen = shown.length;
 
-  // ✅ embedModeなら paywall 判定自体を潰す（UIも出さない）
   const isPremiumActive =
     !embedMode &&
     !billing.loading &&
@@ -100,6 +97,16 @@ export default function ConciergeLayout({
   const locationText = primary?.display_address ?? "";
 
   const wrapClass = embedMode ? "w-full flex flex-col" : "mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm";
+
+  // ✅ reasonブロック用（primary がないときは表示しないので、ここはシンプルでOK）
+  const title = primary?.display_name ?? primary?.name ?? "おすすめの神社";
+  const reason =
+    (primary as any)?.reason ||
+    (primary as any)?.comment ||
+    "条件に合う神社を候補から選びました。必要なら条件を追加できます。";
+
+  const bullets: string[] = (primary as any)?.bullets ??
+    (primary as any)?.highlights ?? ["落ち着いて参拝しやすい", "人が多すぎない可能性", "境内の雰囲気が合う可能性"];
 
   return (
     <div className={wrapClass}>
@@ -128,21 +135,53 @@ export default function ConciergeLayout({
             </div>
           )}
 
-          <h3 className="mb-2 text-xs font-semibold text-gray-600">今回のおすすめ</h3>
+          <div className="mb-2">
+            <h3 className="text-xs font-semibold text-gray-700">今回のおすすめ（AIの提案）</h3>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+              「理由」を見てピンと来たら、まずはこの神社から。条件を足したい場合は、続けて入力してください。
+            </p>
+          </div>
+
+          {primary && (
+            <div className="rounded-xl border bg-white px-3 py-3 text-xs text-slate-700">
+              <div className="font-semibold text-slate-900">{title}</div>
+              <div className="mt-1">{reason}</div>
+
+              <div className="mt-2 text-[11px] text-slate-500">［補足］</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] text-slate-600">
+                {bullets.slice(0, 3).map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+
+              <div className="mt-2 text-[11px] text-slate-500">
+                条件を追加したい場合は、このまま続けて入力してください。
+              </div>
+            </div>
+          )}
+
           {primary && <PrimaryRecommendationCard rec={primary} primaryIndex={primaryIndex} />}
 
           {!embedMode && (
             <RecommendationSwitchList items={shown} primaryIndex={primaryIndex} onSelect={setPrimaryIndex} />
           )}
 
-          <div className="mt-3 text-[11px] text-slate-600">「地図で見る」でGoogleマップを開いてください。</div>
+          <div className="mt-3 text-[11px] text-slate-600">
+            気になる神社があれば「地図で見る」で場所を確認できます。
+          </div>
+
+          {!embedMode && (
+            <div className="mt-2 text-[11px] text-slate-500">
+              ほかも比較したい場合は、下の「他も見て選ぶ（地図）」から探せます。
+            </div>
+          )}
         </div>
       )}
 
       {!embedMode && primary && (
         <div className="mt-4 grid gap-2">
           <Link href="/map" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
-            近くの神社を探す
+            他も見て選ぶ（地図）
           </Link>
 
           <Link
@@ -150,7 +189,7 @@ export default function ConciergeLayout({
             className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
             onClick={onNewThread}
           >
-            新しい相談をする（履歴へ）
+            条件を追加して絞る（履歴へ）
           </Link>
 
           {locationText ? <p className="mt-2 text-xs text-gray-500">{locationText}</p> : null}
