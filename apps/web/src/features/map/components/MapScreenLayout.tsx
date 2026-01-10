@@ -48,7 +48,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   // ✅ 選択状態（place_idがMapのキー）
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  // ✅ Mapページを /map?place_id=... でも開けるように（ConciergeCardから渡したい）
+  // ✅ /map?place_id=... でも開けるように（ConciergeCardから渡す）
   const qpPlaceId = sp.get("place_id");
   const qpShrineId = parseNum(sp.get("shrine_id"));
   const qpLat = parseNum(sp.get("lat"));
@@ -153,7 +153,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // markers（今は空でOK。selectedPlaceIdがあれば「選択中」をマーカー化しても良い）
+  // markers（最小は空でOK。必要なら「選択中」をマーカー化できる）
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
 
   return (
@@ -180,7 +180,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 pb-3">
-            {/* ✅ initialSelect を渡して「2枚目状態（選択済みの情報を最上段）」を実現 */}
+            {/* ✅ 「2枚目状態」：選択済み情報を最上段に固定表示させるためのデータ */}
             <MapNearbyPicker
               limit={10}
               selectedPlaceId={selectedPlaceId}

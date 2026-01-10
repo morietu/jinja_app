@@ -37,6 +37,7 @@ type Props = {
   }) => void;
 };
 
+  
 export default function ConciergeCard({ s, index = 0, onRouteSelect }: Props) {
   const isPrimary = index === 0;
 

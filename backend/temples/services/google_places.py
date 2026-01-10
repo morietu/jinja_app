@@ -333,7 +333,17 @@ class GooglePlacesClient:
         content_type = resp.headers.get("Content-Type", "image/jpeg")
         return resp.content, content_type
 
-
+def find_place_text(input: str, *, language: str = "ja", locationbias: str | None = None, fields: str | None = None):
+    """
+    temples.services.places.find_place() から呼ばれる薄いラッパー。
+    positional で input が来る設計なので input は positional を許容する。
+    """
+    return findplacefromtext(
+        input=input,
+        language=language,
+        locationbias=locationbias,
+        fields=fields,
+    )
 # ------------------------------------------------------------
 # 低レベル API（tests が直接参照）
 # ------------------------------------------------------------
@@ -624,6 +634,7 @@ __all__ = [
     "findplacefromtext",
     "find_place_from_text",
     "find_place",
+    "find_place_text",
     # テスト用フック
     "req_history",
 ]
