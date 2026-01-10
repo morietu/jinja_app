@@ -1,72 +1,121 @@
 // apps/web/src/app/concierge/ConciergeClientEmbed.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useConciergeChat } from "@/features/concierge/hooks";
-import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
+import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 
-function seedUnified(): UnifiedConciergeResponse {
-  const seedRec: ConciergeRecommendation = {
-    // 既存UIが参照するキーだけ埋める（型が厳しければ as any でOK）
-    name: "近隣の神社",
-    display_name: "近隣の神社",
-    reason: "まずは近くで、落ち着いて手を合わせられる場所から。",
-    bullets: ["落ち着いて参拝しやすい", "移動が少なく続けやすい", "気分転換の入口にしやすい"],
-    display_address: "東京駅周辺",
-    location: { lat: 35.6812, lng: 139.7671 },
-    __dummy: true as any, // 既存のベータ表示ロジックがあるなら活かす
+const SEED_QUERY = "明治神宮";
+
+// 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）
+function buildFallbackRec(): ConciergeRecommendation {
+  return {
+    name: SEED_QUERY,
+    display_name: SEED_QUERY,
+    reason: "まずは代表的な候補を表示しています。条件を追加して絞れます。",
+    // ここは後で find 結果で上書きされる
+    display_address: null,
+    location: null,
   } as any;
+}
 
+function buildSeedUnified(rec: ConciergeRecommendation): UnifiedConciergeResponse {
   return {
     ok: true,
-    data: { recommendations: [seedRec] } as any,
-    stop_reason: null,
-    remaining_free: null,
-    note: null,
+    data: { recommendations: [rec] } as any,
     reply: null,
+    stop_reason: null,
+    note: null,
+    remaining_free: null,
     thread: null,
-    intent: null,
   } as any;
 }
 
 export default function ConciergeClientEmbed() {
-  // ✅ 初期はseedを入れて「2枚目状態」から開始
-  const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse>(() => seedUnified());
-  const [lastQuery, setLastQuery] = useState<string | null>(null);
+  // ✅ 初回から2枚目にする：lastUnified を seed入りで初期化
+  const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse>(() => buildSeedUnified(buildFallbackRec()));
+  const [lastQuery, setLastQuery] = useState<string>(SEED_QUERY);
 
   const { send, sending, error } = useConciergeChat(null, {
     onUnified: (u) => {
       setLastUnified(u);
-      // 直近の入力（条件）を1行残す用：replyじゃなく入力を残したいので別管理
-      // → handleSendで setLastQuery するのが一番ブレない
     },
   });
+
+  // ✅ 初回seed：Placesで place_id/lat/lng/address を埋めて上書き
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/places/find?input=${encodeURIComponent(SEED_QUERY)}`, { cache: "no-store" });
+        if (!res.ok) return;
+
+        const json = await res.json();
+
+        // API差異に耐える “雑取り”
+        const cand = (json?.candidates?.[0] ??
+          json?.data?.candidates?.[0] ??
+          json?.result?.candidates?.[0] ??
+          json?.results?.[0] ??
+          null) as any;
+
+        if (!cand) return;
+
+        const placeId = cand.place_id ?? cand.placeId ?? cand.google_place_id ?? null;
+        const addr = cand.formatted_address ?? cand.formattedAddress ?? cand.address ?? null;
+
+        const loc = cand.geometry?.location ?? cand.location ?? null;
+        const lat = loc?.lat ?? cand.lat ?? null;
+        const lng = loc?.lng ?? cand.lng ?? null;
+
+        const nextRec: ConciergeRecommendation = {
+          // fallbackベースで上書きしていく
+          ...buildFallbackRec(),
+          name: cand.name ?? SEED_QUERY,
+          display_name: cand.name ?? SEED_QUERY,
+          ...(placeId ? { place_id: String(placeId) } : {}),
+          ...(addr ? { display_address: String(addr) } : {}),
+          ...(lat != null && lng != null ? { location: { lat: Number(lat), lng: Number(lng) } } : {}),
+          reason: "まずは代表的な候補を表示しています。条件を追加して絞れます。",
+        } as any;
+
+        if (!alive) return;
+
+        // ✅ ここで lastUnified を seed更新（2枚目の内容が“精密化”される）
+        setLastUnified(buildSeedUnified(nextRec));
+      } catch {
+        // seed失敗でもOK：fallbackがあるのでUIは2枚目のまま
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const recommendations = useMemo(() => {
     const recs = lastUnified?.data?.recommendations;
     return Array.isArray(recs) ? recs : [];
   }, [lastUnified]);
 
-  const stopReason: StopReason = (lastUnified?.stop_reason ?? null) as any;
+  const stopReason: StopReason = lastUnified?.stop_reason ?? null;
   const canSend = stopReason === null;
 
   const handleSend = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    if (!canSend) return;
+    if (!trimmed || !canSend) return;
 
-    setLastQuery(trimmed); // ✅ “直近の入力（条件）”を保持
-    void send(trimmed).catch((e) => {
-      if (process.env.NODE_ENV !== "production") console.error("[embed] send failed", e);
-    });
+    setLastQuery(trimmed);
+    void send(trimmed);
   };
 
   return (
     <ConciergeLayout
       thread={null}
-      messages={[]} // embedは会話ログを持たない
+      messages={[]}
       sending={sending}
       error={error}
       onSend={handleSend}
@@ -77,7 +126,7 @@ export default function ConciergeClientEmbed() {
       stopReason={stopReason}
       canSend={canSend}
       embedMode
-      lastQuery={lastQuery} // ✅ 条件：〇〇 の1行表示に使う
+      lastQuery={lastQuery}
     />
   );
 }
