@@ -7,9 +7,10 @@ type Props = {
   disabled: boolean;
   onSend: (text: string) => Promise<unknown> | void;
   error?: string | null;
+  embedMode?: boolean; // ✅ 追加
 };
 
-export default function ChatInput({ disabled, onSend, error = null }: Props) {
+export default function ChatInput({ disabled, onSend, error = null, embedMode = false }: Props) {
   const [value, setValue] = useState("");
   const [flash, setFlash] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
@@ -67,6 +68,12 @@ export default function ChatInput({ disabled, onSend, error = null }: Props) {
     void submit();
   };
 
+  const placeholder = embedMode
+    ? "条件を追加して絞り込み（例：静か／縁結び／駅近／ひとりで行きたい など）"
+    : "神社の相談内容を入力してください（例：仕事・恋愛・健康・お礼参りなど）";
+
+  const buttonLabel = embedMode ? "更新する" : "送信";
+
   return (
     <form
       onSubmit={(e) => {
@@ -82,7 +89,7 @@ export default function ChatInput({ disabled, onSend, error = null }: Props) {
         onKeyDown={handleKeyDown}
         onCompositionStart={() => setIsComposing(true)}
         onCompositionEnd={() => setIsComposing(false)}
-        placeholder="神社の相談内容を入力してください（例：仕事・恋愛・健康・お礼参りなど）"
+        placeholder={placeholder}
         rows={2}
         disabled={disabled}
         className={[
@@ -95,7 +102,7 @@ export default function ChatInput({ disabled, onSend, error = null }: Props) {
         disabled={disabled || !value.trim()}
         className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
       >
-        送信
+        {buttonLabel}
       </button>
     </form>
   );
