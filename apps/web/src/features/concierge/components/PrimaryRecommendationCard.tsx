@@ -28,7 +28,6 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex }: Props) 
           duration_min: typeof (rec as any).duration_min === "number" ? (rec as any).duration_min : null,
         }}
         index={0}
-        showMapButton
       />
     </div>
   );

@@ -15,7 +15,6 @@ function buildFallbackRec(): ConciergeRecommendation {
     name: SEED_QUERY,
     display_name: SEED_QUERY,
     reason: "まずは代表的な候補を表示しています。条件を追加して絞れます。",
-    // ここは後で find 結果で上書きされる
     display_address: null,
     location: null,
   } as any;
@@ -39,20 +38,23 @@ export default function ConciergeClientEmbed() {
   const [lastQuery, setLastQuery] = useState<string>(SEED_QUERY);
 
   const { send, sending, error } = useConciergeChat(null, {
-    onUnified: (u) => {
-      setLastUnified(u);
-    },
+    onUnified: (u) => setLastUnified(u),
   });
 
-  // ✅ 初回seed：Placesで place_id/lat/lng/address を埋めて上書き
+  // ✅ 初回seed：Placesで place_id/lat/lng/address を埋めて上書き（失敗してもUI維持）
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        const res = await fetch(`/api/places/find?input=${encodeURIComponent(SEED_QUERY)}`, { cache: "no-store" });
-        if (!res.ok) return;
+        const res = await fetch("/api/places/find", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: SEED_QUERY }),
+          cache: "no-store",
+        });
 
+        if (!res.ok) return;
         const json = await res.json();
 
         // API差異に耐える “雑取り”
@@ -72,7 +74,6 @@ export default function ConciergeClientEmbed() {
         const lng = loc?.lng ?? cand.lng ?? null;
 
         const nextRec: ConciergeRecommendation = {
-          // fallbackベースで上書きしていく
           ...buildFallbackRec(),
           name: cand.name ?? SEED_QUERY,
           display_name: cand.name ?? SEED_QUERY,
@@ -83,8 +84,6 @@ export default function ConciergeClientEmbed() {
         } as any;
 
         if (!alive) return;
-
-        // ✅ ここで lastUnified を seed更新（2枚目の内容が“精密化”される）
         setLastUnified(buildSeedUnified(nextRec));
       } catch {
         // seed失敗でもOK：fallbackがあるのでUIは2枚目のまま
@@ -107,7 +106,6 @@ export default function ConciergeClientEmbed() {
   const handleSend = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || !canSend) return;
-
     setLastQuery(trimmed);
     void send(trimmed);
   };

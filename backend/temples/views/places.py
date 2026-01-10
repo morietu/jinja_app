@@ -8,8 +8,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from temples import services
-from temples.services.places import find_place, PlacesError
-from temples.api.serializers.places import PlaceLiteResponseSerializer  # ★追加
+from temples.services.places import PlacesError
 
 
 # ---------- helpers ----------
@@ -38,17 +37,7 @@ def _to_int(v: Optional[str]) -> Optional[int]:
         return None
 
 
-def _to_place_lite(r: dict) -> dict:
-    geom = (r.get("geometry") or {}).get("location") or {}
-    addr = r.get("formatted_address") or r.get("vicinity")
-    return {
-        "place_id": r.get("place_id"),
-        "name": r.get("name") or "",
-        "address": addr,
-        "lat": geom.get("lat"),
-        "lng": geom.get("lng"),
-        "types": r.get("types") or [],
-    }
+
 
 class DualScopedThrottleView(APIView):
     """
@@ -68,36 +57,6 @@ class DualScopedThrottleView(APIView):
         return t1 + t2
 
 
-class PlacesFindLiteView(DualScopedThrottleView):
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        q = (request.query_params.get("input") or "").strip()
-        if not q:
-            return Response({"detail": "input is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            data = find_place(
-                input=q,
-                inputtype="textquery",
-                language="ja",
-                fields=["place_id", "name", "geometry", "formatted_address", "types"],
-            )
-        except PlacesError as e:
-            return Response(
-                {"detail": str(e)},
-                status=e.status or status.HTTP_502_BAD_GATEWAY,
-            )
-
-        candidates = data.get("candidates") or []
-        results = [_to_place_lite(r) for r in candidates if r.get("place_id")]
-
-        payload = {"results": results}
-        ser = PlaceLiteResponseSerializer(data=payload)
-        ser.is_valid(raise_exception=True)
-
-        return Response(ser.validated_data, status=status.HTTP_200_OK)
 
 class PlacesNearbySearchView(DualScopedThrottleView):
     def get(self, request):
