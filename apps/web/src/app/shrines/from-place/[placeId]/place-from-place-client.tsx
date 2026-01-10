@@ -94,12 +94,17 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
     if (!shrineId) return;
 
     let alive = true;
-    (async () => {
+
+    const run = async () => {
+      if (!alive) return;
       setLoadingGoshuins(true);
+
       try {
-        // 既存APIが shrine フィルタをサポートしていなくても、後段でfilterするのでOK
-        const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, { cache: "no-store" });
+        const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, {
+          cache: "no-store",
+        });
         if (!r.ok) throw new Error("public goshuins failed");
+
         const json = await r.json();
         const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
 
@@ -108,11 +113,14 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
       } catch {
         if (!alive) return;
         setPublicGoshuins([]);
-      } finally {
-        if (!alive) return;
-        setLoadingGoshuins(false);
       }
-    })();
+
+      // finally 相当をここに集約
+      if (!alive) return;
+      setLoadingGoshuins(false);
+    };
+
+    run();
 
     return () => {
       alive = false;
