@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+
 
 type Props = { placeId: string };
 
@@ -46,6 +48,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
     (async () => {
       setResolveState("loading");
+
       try {
         const r = await fetch("/api/shrines/from-place", {
           method: "POST",
@@ -59,24 +62,21 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
         if (r.status === 401 || r.status === 403) {
           setResolveState("unauth");
           setShrineId(null);
-          return;
-        }
-        if (!r.ok) {
+        } else if (!r.ok) {
           setResolveState("error");
           setShrineId(null);
-          return;
-        }
+        } else {
+          const data = (await r.json()) as { shrine_id: number };
+          const sid = typeof data?.shrine_id === "number" ? data.shrine_id : Number(data?.shrine_id ?? NaN);
 
-        const data = (await r.json()) as { shrine_id: number };
-        const sid = typeof data?.shrine_id === "number" ? data.shrine_id : Number(data?.shrine_id ?? NaN);
-        if (!Number.isFinite(sid)) {
-          setResolveState("error");
-          setShrineId(null);
-          return;
+          if (!Number.isFinite(sid)) {
+            setResolveState("error");
+            setShrineId(null);
+          } else {
+            setShrineId(sid);
+            setResolveState("ok");
+          }
         }
-
-        setShrineId(sid);
-        setResolveState("ok");
       } catch {
         if (!alive) return;
         setResolveState("error");
@@ -91,36 +91,29 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
   // --- 2) shrine_id が取れたら public goshuins を引いて一致分だけ表示 ---
   useEffect(() => {
-    if (!shrineId) return;
-
     let alive = true;
 
-    const run = async () => {
-      if (!alive) return;
+    (async () => {
       setLoadingGoshuins(true);
 
       try {
-        const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, {
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error("public goshuins failed");
+        if (shrineId == null) {
+          if (alive) setPublicGoshuins([]);
+        } else {
+          const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, { cache: "no-store" });
+          if (!r.ok) throw new Error("public goshuins failed");
 
-        const json = await r.json();
-        const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
+          const json = await r.json();
+          const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
 
-        if (!alive) return;
-        setPublicGoshuins(results);
+          if (alive) setPublicGoshuins(results);
+        }
       } catch {
-        if (!alive) return;
-        setPublicGoshuins([]);
+        if (alive) setPublicGoshuins([]);
+      } finally {
+        if (alive) setLoadingGoshuins(false);
       }
-
-      // finally 相当をここに集約
-      if (!alive) return;
-      setLoadingGoshuins(false);
-    };
-
-    run();
+    })();
 
     return () => {
       alive = false;
@@ -128,7 +121,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
   }, [shrineId]);
 
   const matched = useMemo(() => {
-    if (!shrineId) return [];
+    if (shrineId == null) return [];
     return publicGoshuins.filter((g) => g?.shrine === shrineId);
   }, [publicGoshuins, shrineId]);
 
@@ -211,9 +204,14 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
                   <div className="mt-1 text-sm font-semibold">{g.title?.trim() || "（タイトルなし）"}</div>
 
                   {!!g.image_url && (
-                    // next/image に寄せてもいいが、既存警告があるので一旦素直に表示
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={g.image_url} alt={g.title ?? "goshuin"} className="mt-2 w-full rounded-lg border" />
+                    <Image
+                      src={g.image_url}
+                      alt={g.title ?? "goshuin"}
+                      width={800}
+                      height={600}
+                      className="mt-2 w-full rounded-lg border"
+                      style={{ height: "auto" }}
+                    />
                   )}
                 </div>
               ))}
