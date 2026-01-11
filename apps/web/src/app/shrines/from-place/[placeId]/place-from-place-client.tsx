@@ -37,6 +37,12 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
 
 
+  const gmapsRouteLink = useMemo(() => {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+      "place_id:" + placeId,
+    )}&destination_place_id=${encodeURIComponent(placeId)}`;
+  }, [placeId]);
+  
   const internalMapHref = useMemo(() => `/map?place_id=${encodeURIComponent(placeId)}`, [placeId]);
 
   // --- 1) place_id -> shrine_id（ログインしていれば解決） ---
@@ -130,16 +136,16 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
         <p className="mt-1 text-xs text-slate-500">place_id: {placeId}</p>
 
         <div className="mt-3 flex flex-col gap-2">
-          <a
-            href={gmapsRouteLink}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Googleマップでルートを見る
-          </a>
-
-          
+          {resolveState === "unauth" && (
+            <a
+              href={gmapsRouteLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Googleマップでルートを見る
+            </a>
+          )}
 
           <Link
             href={internalMapHref}
