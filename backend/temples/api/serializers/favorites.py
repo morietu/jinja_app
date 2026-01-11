@@ -9,20 +9,16 @@ from temples.services.places import get_or_sync_place
 PLACE_ID_RE = re.compile(r"^[A-Za-z0-9._=-]{10,200}$")
 
 
-class ShrineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Shrine
-        fields = ["id", "name_jp", "address", "latitude", "longitude"]
-
+class ShrineLiteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
 
 class FavoriteSerializer(serializers.ModelSerializer):
-    shrine = ShrineSerializer(read_only=True)
+    shrine = ShrineLiteSerializer(read_only=True)
     place = serializers.SerializerMethodField()
 
     class Meta:
         model = Favorite
-        fields = ["id", "shrine", "place", "place_id", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "shrine", "place_id", "place", "created_at"]  # 実フィールドに合わせて調整
 
     def get_place(self, obj):
         if not obj.place_id:
