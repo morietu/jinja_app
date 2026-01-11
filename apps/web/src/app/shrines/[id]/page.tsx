@@ -1,9 +1,9 @@
+// apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
 import { ShortcutCard } from "@/components/ShortcutCard";
 import { ShortcutCardGrid } from "@/components/ShortcutCardGrid";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
 import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
-
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
@@ -13,25 +13,21 @@ function getBenefitLabels(shrine: Shrine): string[] {
   if (Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0) {
     return shrine.goriyaku_tags.map((t) => t?.name?.trim()).filter((name): name is string => Boolean(name));
   }
-
   if (typeof shrine.goriyaku === "string" && shrine.goriyaku.trim().length > 0) {
     return shrine.goriyaku
       .split(/[、,／/]/)
       .map((s) => s.trim())
       .filter(Boolean);
   }
-
   return [];
 }
 
-export default async function ShrineDetailPage(props: { params: Promise<{ id: string }> }) {
-  const { id } = await props.params;
-  const numericId = Number(id);
+export default async function Page({ params }: { params: { id: string } }) {
+  const numericId = Number(params.id);
 
-  // ✅ 追加：NaN / 0 / 負数 を弾く
   if (!Number.isFinite(numericId) || numericId <= 0) {
     return (
-      <main className="p-4 max-w-md mx-auto space-y-4">
+      <main className="mx-auto max-w-md space-y-4 p-4">
         <div className="rounded-xl border bg-white p-4 text-center text-sm">不正な神社IDです。</div>
         <Link href="/map" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
           ← 地図に戻る
@@ -51,7 +47,7 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
 
   if (!shrine) {
     return (
-      <main className="p-4 max-w-md mx-auto space-y-4">
+      <main className="mx-auto max-w-md space-y-4 p-4">
         <Link
           href={addGoshuinHref}
           className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
@@ -68,37 +64,48 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
     );
   }
 
-  // ✅ 位置情報
-  const lat = shrine.lat ?? shrine.latitude ?? null;
-  const lng = shrine.lng ?? shrine.longitude ?? null;
 
-  const latNum = lat == null ? null : Number(lat);
-  const lngNum = lng == null ? null : Number(lng);
 
-  const hasLocation = Number.isFinite(latNum) && Number.isFinite(lngNum);
+  const latNum = Number(shrine.lat ?? shrine.latitude ?? NaN);
+  const lngNum = Number(shrine.lng ?? shrine.longitude ?? NaN);
 
-  const mapsRouteHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum!, lng: lngNum! }, mode: "walk" }) : null;
+  const hasLocation =
+    Number.isFinite(latNum) &&
+    Number.isFinite(lngNum) &&
+    latNum >= -90 &&
+    latNum <= 90 &&
+    lngNum >= -180 &&
+    lngNum <= 180;
+
+  const mapsRouteHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
+
   const mapHref = hasLocation ? `/map?lat=${latNum}&lng=${lngNum}` : "/map";
 
   const benefitLabels = getBenefitLabels(shrine);
 
   return (
-    <main className="p-4 max-w-md mx-auto space-y-6">
+    <main className="mx-auto max-w-md space-y-6 p-4">
       <ShrineDetailToast shrineId={numericId} />
 
-      {/* ✅ 最優先：経路 */}
+      {/* ✅ 1) ルート（唯一） */}
       {mapsRouteHref && (
         <a
           href={mapsRouteHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
         >
-          経路を開く（徒歩）
+          Googleマップでルートを見る
         </a>
       )}
 
-      {/* 2番手：御朱印 */}
+      {!mapsRouteHref && (
+        <div className="rounded-xl border bg-white p-3 text-xs text-slate-500">
+          位置情報が未登録のためルートを表示できません。
+        </div>
+      )}
+
+      {/* 2) 御朱印 */}
       <Link
         href={addGoshuinHref}
         className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
@@ -106,10 +113,10 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         この神社で御朱印を追加
       </Link>
 
-      {/* 3番手：保存 */}
+      {/* 3) 保存 */}
       <ShrineSaveButton shrineId={numericId} nextPath={`/shrines/${numericId}`} />
 
-      {/* アクションカード */}
+      {/* 4) 周辺 */}
       <ShortcutCardGrid>
         <ShortcutCard
           href={mapHref}
@@ -120,27 +127,21 @@ export default async function ShrineDetailPage(props: { params: Promise<{ id: st
         />
       </ShortcutCardGrid>
 
-      
-
-      {/* 写真ギャラリー */}
-      <article className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      <article className="overflow-hidden rounded-2xl border bg-white shadow-sm">
         <ShrinePhotoGallery shrine={shrine} />
 
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-4">
           <header className="space-y-1">
             <h1 className="text-lg font-bold">{shrine.name_jp}</h1>
           </header>
 
-          {/* 住所 */}
           <section>
-            <h2 className="text-xs text-gray-500 font-semibold">住所</h2>
+            <h2 className="text-xs font-semibold text-gray-500">住所</h2>
             <p className="text-sm">{shrine.address}</p>
           </section>
 
-          {/* ご利益 */}
           <section className="space-y-1 text-sm">
             <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
-
             {benefitLabels.length === 0 ? (
               <p className="text-xs text-gray-400">ご利益情報は準備中です。</p>
             ) : (

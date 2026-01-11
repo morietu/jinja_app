@@ -1,4 +1,4 @@
-// apps/web/src/app/shrines/from-place/[id]/page.tsx
+// apps/web/src/app/shrines/hub/[id]/page.tsx
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -7,7 +7,6 @@ type Props = {
   params: { id: string };
   searchParams?: { from?: string };
 };
-
 
 type ShrineData = {
   id: number;
@@ -31,8 +30,7 @@ async function fetchShrineData(id: string): Promise<ShrineData | null> {
   return (await res.json()) as ShrineData;
 }
 
-
-export default async function FromPlaceHubPage({ params, searchParams }: Props) {
+export default async function ShrineHubPage({ params, searchParams }: Props) {
   const { id } = params;
   const backTo = searchParams?.from ?? "/map";
 

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-
+import { useRouter } from "next/navigation";
 
 type Props = { placeId: string };
 
@@ -20,25 +20,22 @@ type PublicGoshuin = {
 };
 
 export default function PlaceFromPlaceClient({ placeId }: Props) {
+  const router = useRouter(); // ★追加
+
   const [shrineId, setShrineId] = useState<number | null>(null);
   const [resolveState, setResolveState] = useState<"idle" | "loading" | "ok" | "unauth" | "error">("idle");
 
   const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuin[]>([]);
   const [loadingGoshuins, setLoadingGoshuins] = useState(false);
 
-  // --- 外部導線（ログイン不要で出せる） ---
-  const gmapsOpenLink = useMemo(() => {
-    // “place_id:” クエリは比較的通りやすい（ダメでも Google検索に近い動き）
-    const q = `place_id:${placeId}`;
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-  }, [placeId]);
+  // ★追加：解決できたらブリッジ終了（A案の肝）
+  useEffect(() => {
+    if (resolveState === "ok" && shrineId != null) {
+      router.replace(`/shrines/hub/${shrineId}`, { scroll: false });
+    }
+  }, [resolveState, shrineId, router]);
 
-  const gmapsRouteLink = useMemo(() => {
-    // destination_place_id が効く場合は強い（効かない環境でも検索にフォールバックしやすい）
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent("place_id:" + placeId)}&destination_place_id=${encodeURIComponent(
-      placeId,
-    )}`;
-  }, [placeId]);
+
 
   const internalMapHref = useMemo(() => `/map?place_id=${encodeURIComponent(placeId)}`, [placeId]);
 
@@ -90,6 +87,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
   }, [placeId]);
 
   // --- 2) shrine_id が取れたら public goshuins を引いて一致分だけ表示 ---
+  // A案では「リダイレクトされる」ので基本ここは実行されない（残してもOK）
   useEffect(() => {
     let alive = true;
 
@@ -141,14 +139,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
             Googleマップでルートを見る
           </a>
 
-          <a
-            href={gmapsOpenLink}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
-          >
-            Googleマップで開く
-          </a>
+          
 
           <Link
             href={internalMapHref}
@@ -160,11 +151,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
         <div className="mt-3 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600">
           {resolveState === "loading" && "御朱印との紐づけ（shrine_id）を確認中…"}
-          {resolveState === "ok" && shrineId != null && (
-            <>
-              shrine_id: <span className="font-semibold">{shrineId}</span>（ログイン中のため解決できました）
-            </>
-          )}
+          {resolveState === "ok" && shrineId != null && "神社詳細へ移動中…"}
           {resolveState === "unauth" && (
             <>ログインしていないため shrine_id を解決できませんでした。御朱印の表示・追加はログイン後に利用できます。</>
           )}
@@ -183,7 +170,6 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
         )}
       </div>
 
-      {/* --- 御朱印一覧（shrine_id がある時だけ） --- */}
       {shrineId != null && (
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="text-sm font-semibold">御朱印一覧</h2>
@@ -191,9 +177,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
           {loadingGoshuins ? (
             <div className="mt-2 text-xs text-slate-500">読み込み中…</div>
           ) : matched.length === 0 ? (
-            <div className="mt-2 text-xs text-slate-500">
-              この神社に紐づく公開御朱印はまだありません。（正常：いまはテスト神社しか無い想定）
-            </div>
+            <div className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</div>
           ) : (
             <div className="mt-3 space-y-3">
               {matched.map((g) => (
