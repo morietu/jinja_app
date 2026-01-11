@@ -539,9 +539,9 @@ def places_find(request):
         # どちらでもなければ空で返す（壊さない）
         return Response({"results": [], "status": data.get("status")})
 
-    except Exception as e:
-            logger.exception("places.find failed")
-            return Response(
-                {"detail": "places.find failed due to an internal error", "error": str(e)},
-                status=502,
-            )
+    except Exception:
+        logger.exception("places.find failed")
+        return Response(
+            {"detail": "places.find は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
