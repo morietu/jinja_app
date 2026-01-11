@@ -38,8 +38,9 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
 
   const gmapsRouteLink = useMemo(() => {
+    // destination は検索クエリっぽくして、destination_place_id に本命を入れる
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-      "place_id:" + placeId,
+      placeId,
     )}&destination_place_id=${encodeURIComponent(placeId)}`;
   }, [placeId]);
   
@@ -129,6 +130,8 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
     return publicGoshuins.filter((g) => g?.shrine === shrineId);
   }, [publicGoshuins, shrineId]);
 
+  const showExternalRoute = resolveState === "unauth" || resolveState === "error";
+
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 px-4 py-5">
       <div className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -136,7 +139,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
         <p className="mt-1 text-xs text-slate-500">place_id: {placeId}</p>
 
         <div className="mt-3 flex flex-col gap-2">
-          {resolveState === "unauth" && (
+          {showExternalRoute && (
             <a
               href={gmapsRouteLink}
               target="_blank"
