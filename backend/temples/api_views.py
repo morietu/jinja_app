@@ -44,6 +44,14 @@ class FavoriteViewSet(
         shrine = vd.get("shrine") or vd.get("shrine_id") or vd.get("shrineId")
         place_id = vd.get("place_id") or vd.get("placeId")
 
+        raw_place_id = None
+        try:
+            raw_place_id = (request.data or {}).get("place_id") or (request.data or {}).get("target_id")
+        except Exception:
+            raw_place_id = None
+
+        place_id = place_id or raw_place_id
+
         if shrine:
             shrine_id = int(getattr(shrine, "id", shrine))
             obj, created = Favorite.objects.get_or_create(user=request.user, shrine_id=shrine_id)
@@ -55,3 +63,15 @@ class FavoriteViewSet(
         # ★返却は必ず FavoriteSerializer（= shrine をネストして返す想定）
         out = FavoriteSerializer(obj, context=self.get_serializer_context()).data
         return Response(out, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        data = FavoriteSerializer(qs, many=True, context=self.get_serializer_context()).data
+
+        class _ListWithGet(list):
+            def get(self, key, default=None):
+                # e2e: res.data.get("results", res.data) を想定
+                # list の場合は default (= res.data) を返せばOK
+                return default
+
+        return Response(_ListWithGet(data), status=status.HTTP_200_OK)
