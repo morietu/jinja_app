@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicGoshuinHeader from "./PublicGoshuinHeader";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 
 type Props = {
@@ -43,8 +44,13 @@ function Card({ g }: { g: Goshuin }) {
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="aspect-[4/5] bg-slate-100">
         {g.image_url ? (
-          
-          <img src={g.image_url} alt={g.title ?? "御朱印"} className="h-full w-full object-cover" />
+          <Image
+            src={g.image_url}
+            alt={g.title ?? "御朱印"}
+            width={800}
+            height={1000}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-500">画像なし</div>
         )}

@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+
 
 type Goshuin = {
   id: number;
@@ -23,12 +25,14 @@ function PublicGoshuinCard({ g }: { g: Goshuin }) {
     <Link href={href} className="block overflow-hidden rounded-2xl border bg-white shadow-sm hover:opacity-95">
       <div className="relative aspect-[4/5] bg-slate-100">
         {g.image_url ? (
-          <img src={g.image_url} alt={g.title ?? "御朱印"} className="h-full w-full object-cover" />
+          <Image
+            src={g.image_url}
+            alt={g.title ?? "御朱印"}
+            width={800}
+            height={1000}
+            className="h-full w-full object-cover"
+          />
         ) : null}
-      </div>
-      <div className="p-3">
-        <div className="truncate text-sm font-medium text-slate-800">{g.title || "（無題）"}</div>
-        {g.shrine_name ? <div className="truncate text-[11px] text-slate-500">{g.shrine_name}</div> : null}
       </div>
     </Link>
   );
