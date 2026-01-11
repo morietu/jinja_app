@@ -3,6 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 type Goshuin = {
   id: number;
@@ -32,7 +33,13 @@ function GoshuinCardMini({
     <>
       <div className="aspect-[4/5] bg-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={title ?? "御朱印"} className="h-full w-full object-cover" />
+          <Image
+            src={imageUrl}
+            alt={title ?? "御朱印"}
+            width={800}
+            height={1000}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">画像なし</div>
         )}

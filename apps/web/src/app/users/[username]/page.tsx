@@ -1,7 +1,8 @@
 // apps/web/src/app/users/[username]/page.tsx
 import { notFound } from "next/navigation";
 import { fetchPublicProfile } from "@/lib/api/publicProfile";
-// import Image from "next/image"; // ちゃんとアイコンをやるならこれを使う手もあり
+import Image from "next/image";
+
 
 type Props = {
   params: {
@@ -62,10 +63,11 @@ export default async function PublicProfilePage({ params }: Props) {
       {/* ヘッダー：アイコン＋名前＋@username ＋ 公開バッジ */}
       <header className="flex items-center gap-4">
         {profile.icon_url ? (
-
-          <img
+          <Image
             src={profile.icon_url}
             alt={`${nickname} のアイコン`}
+            width={64}
+            height={64}
             className="size-16 rounded-full border object-cover"
           />
         ) : (
