@@ -91,36 +91,30 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
   // --- 2) shrine_id が取れたら public goshuins を引いて一致分だけ表示 ---
   useEffect(() => {
-    if (!shrineId) return;
-
     let alive = true;
 
-    const run = async () => {
-      if (!alive) return;
+    (async () => {
       setLoadingGoshuins(true);
 
       try {
-        const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, {
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error("public goshuins failed");
+        if (!shrineId) {
+          // return しない
+          if (alive) setPublicGoshuins([]);
+        } else {
+          const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, { cache: "no-store" });
+          if (!r.ok) throw new Error("public goshuins failed");
 
-        const json = await r.json();
-        const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
+          const json = await r.json();
+          const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
 
-        if (!alive) return;
-        setPublicGoshuins(results);
+          if (alive) setPublicGoshuins(results);
+        }
       } catch {
-        if (!alive) return;
-        setPublicGoshuins([]);
+        if (alive) setPublicGoshuins([]);
+      } finally {
+        if (alive) setLoadingGoshuins(false);
       }
-
-      // finally 相当をここに集約
-      if (!alive) return;
-      setLoadingGoshuins(false);
-    };
-
-    run();
+    })();
 
     return () => {
       alive = false;
