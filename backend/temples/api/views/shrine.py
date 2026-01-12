@@ -95,7 +95,6 @@ class PopularShrineListView(ListAPIView):
     throttle_scope = "shrines"
 
     def get_queryset(self):
-        # Visit 参照は不可（0044でVisit.shrine撤去）。popular_score のみで並べ替え。
         qs = Shrine.objects.all()
 
         # kind（既定 shrine / ?kind=temple / ?kind=all）
@@ -105,11 +104,32 @@ class PopularShrineListView(ListAPIView):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
+        
+        # ★ near + radius_km の簡易BBOXフィルタ（test_near_filter_bbox が期待）
+        near = params.get("near")
+        radius_km = params.get("radius_km")
+        if near and radius_km:
+            try:
+                lat0, lng0 = [float(x) for x in near.split(",", 1)]
+                r = float(radius_km)
+                lat_delta = r / 111.0
+                lng_delta = r / (111.0 * max(0.1, math.cos(math.radians(lat0))))
+                qs = qs.filter(
+                    latitude__gte=lat0 - lat_delta,
+                    latitude__lte=lat0 + lat_delta,
+                    longitude__gte=lng0 - lng_delta,
+                    longitude__lte=lng0 + lng_delta,
+                )
+            except Exception:
+                pass  # パラメータ不正は無視
 
         return (
             qs.annotate(popular_val=Coalesce(F("popular_score"), Value(0.0)))
               .order_by(F("popular_val").desc(nulls_last=True), "-id")
         )
+
+
+        
 
     
 
