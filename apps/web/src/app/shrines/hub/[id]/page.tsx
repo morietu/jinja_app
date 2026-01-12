@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 type Props = {
   params: { id: string };
-  searchParams?: { from?: string };
+  searchParams?: Promise<{ from?: string }>;
 };
 
 type ShrineData = {
@@ -31,12 +31,13 @@ async function fetchShrineData(id: string): Promise<ShrineData | null> {
 }
 
 export default async function ShrineHubPage({ params, searchParams }: Props) {
-  const { id } = params;
-  const backTo = searchParams?.from ?? "/map";
+  const { id } = await params;
+  const sp = (searchParams ? await searchParams : undefined) ?? {};
+  const backTo = sp.from ?? "/map";
 
   const shrineId = Number(id);
   if (!Number.isFinite(shrineId) || shrineId <= 0) {
-    redirect("/map?toast=invalid_shrine");
+    return redirect("/map?toast=invalid_shrine");
   }
 
   const data = await fetchShrineData(id);

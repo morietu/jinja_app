@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-type Props = { placeId: string };
+type Props = { placeId: string; from?: string | null };
 
 type PublicGoshuin = {
   id: number;
@@ -19,7 +19,7 @@ type PublicGoshuin = {
   image_url?: string | null;
 };
 
-export default function PlaceFromPlaceClient({ placeId }: Props) {
+export default function PlaceFromPlaceClient({ placeId, from }: Props) {
   const router = useRouter(); // ★追加
 
   const [shrineId, setShrineId] = useState<number | null>(null);
@@ -38,11 +38,11 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
   // ★追加：解決できたらブリッジ終了（A案の肝）
   useEffect(() => {
     if (resolveState === "ok" && shrineId != null) {
-      router.replace(`/shrines/hub/${shrineId}`, { scroll: false });
+      const hubHref = from ? `/shrines/hub/${shrineId}?from=${encodeURIComponent(from)}` : `/shrines/hub/${shrineId}`;
+
+      router.replace(hubHref, { scroll: false });
     }
-  }, [resolveState, shrineId, router]);
-
-
+  }, [resolveState, shrineId, router, from]);
 
   const gmapsRouteLink = useMemo(() => {
     // destination は検索クエリっぽくして、destination_place_id に本命を入れる
@@ -50,7 +50,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
       placeId,
     )}&destination_place_id=${encodeURIComponent(placeId)}`;
   }, [placeId]);
-  
+
   const internalMapHref = useMemo(() => `/map?place_id=${encodeURIComponent(placeId)}`, [placeId]);
 
   // --- 1) place_id -> shrine_id（ログインしていれば解決） ---
@@ -137,8 +137,6 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
     return publicGoshuins.filter((g) => g?.shrine === shrineId);
   }, [publicGoshuins, shrineId]);
 
-  
-
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 px-4 py-5">
       <div className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -184,11 +182,17 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
               アプリ内マップで周辺を見る
             </Link>
           )}
-
-          
-
-          
         </div>
+
+        {from ? (
+          <Link href={from} className="block text-center text-xs text-slate-500 hover:underline">
+            元の画面に戻る
+          </Link>
+        ) : (
+          <Link href="/concierge?tid=0" className="block text-center text-xs text-slate-500 hover:underline">
+            コンシェルジュに戻る
+          </Link>
+        )}
 
         <div className="mt-3 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600">
           {resolveState === "loading" && "御朱印との紐づけ（shrine_id）を確認中…"}

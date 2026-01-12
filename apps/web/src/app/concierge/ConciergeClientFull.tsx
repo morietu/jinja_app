@@ -170,7 +170,7 @@ export default function ConciergeClientFull() {
 
     return [
       {
-        id: 9001,
+        id: null,
         name: "（ダミー）明治神宮",
         display_name: "（ダミー）明治神宮",
         display_address: "東京都渋谷区代々木神園町1-1",
@@ -181,7 +181,7 @@ export default function ConciergeClientFull() {
         place_id: "dummy-place-1",
       },
       {
-        id: 9002,
+        id: null,
         name: "（ダミー）伏見稲荷大社",
         display_name: "（ダミー）伏見稲荷大社",
         display_address: "京都府京都市伏見区深草薮之内町68",
@@ -192,7 +192,7 @@ export default function ConciergeClientFull() {
         place_id: "dummy-place-2",
       },
       {
-        id: 9003,
+        id: null,
         name: "（ダミー）鶴岡八幡宮",
         display_name: "（ダミー）鶴岡八幡宮",
         display_address: "神奈川県鎌倉市雪ノ下2-1-31",
