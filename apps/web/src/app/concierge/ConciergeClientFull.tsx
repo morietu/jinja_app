@@ -10,6 +10,9 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
+
+
+
 const DEBUG = process.env.NODE_ENV !== "production" && false;
 
 function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {

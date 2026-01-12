@@ -27,6 +27,13 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
 
   const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuin[]>([]);
   const [loadingGoshuins, setLoadingGoshuins] = useState(false);
+  const [routeMode, setRouteMode] = useState<"google" | "app">("app");
+
+  useEffect(() => {
+    if (resolveState === "unauth" || resolveState === "error") {
+      setRouteMode("google");
+    }
+  }, [resolveState]);
 
   // ★追加：解決できたらブリッジ終了（A案の肝）
   useEffect(() => {
@@ -130,7 +137,7 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
     return publicGoshuins.filter((g) => g?.shrine === shrineId);
   }, [publicGoshuins, shrineId]);
 
-  const showExternalRoute = resolveState === "unauth" || resolveState === "error";
+  
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 px-4 py-5">
@@ -138,24 +145,49 @@ export default function PlaceFromPlaceClient({ placeId }: Props) {
         <h1 className="text-base font-semibold">神社の詳細</h1>
         <p className="mt-1 text-xs text-slate-500">place_id: {placeId}</p>
 
-        <div className="mt-3 flex flex-col gap-2">
-          {showExternalRoute && (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 overflow-hidden rounded-lg border bg-slate-50 p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setRouteMode("app")}
+              className={`rounded-md px-3 py-2 ${
+                routeMode === "app" ? "bg-white shadow-sm font-semibold" : "text-slate-600 hover:bg-white/60"
+              }`}
+            >
+              アプリ内
+            </button>
+            <button
+              type="button"
+              onClick={() => setRouteMode("google")}
+              className={`rounded-md px-3 py-2 ${
+                routeMode === "google" ? "bg-white shadow-sm font-semibold" : "text-slate-600 hover:bg-white/60"
+              }`}
+            >
+              Google
+            </button>
+          </div>
+
+          {routeMode === "google" ? (
             <a
               href={gmapsRouteLink}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Googleマップでルートを見る
             </a>
+          ) : (
+            <Link
+              href={internalMapHref}
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              アプリ内マップで周辺を見る
+            </Link>
           )}
 
-          <Link
-            href={internalMapHref}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
-          >
-            アプリ内マップで周辺を見る
-          </Link>
+          
+
+          
         </div>
 
         <div className="mt-3 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600">

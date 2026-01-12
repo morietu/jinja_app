@@ -2,8 +2,20 @@
 import webConfig from "./apps/web/eslint.config.mjs";
 
 export default [
-  ...webConfig,
+  // ✅ まず全体を止める（ここが先頭）
   {
-    ignores: ["apps/**/.next/**", "apps/**/dist/**", "apps/**/out/**", "**/node_modules/**"],
+    ignores: [
+      "**/.venv/**",
+      "**/staticfiles/**",
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/coverage/**",
+      "**/storybook-static/**",
+      "backend/**",
+      "apps/mobile/**",
+    ],
   },
+
+  // ✅ web だけ lint したいなら、webConfig を後ろに
+  ...webConfig,
 ];
