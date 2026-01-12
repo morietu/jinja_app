@@ -158,13 +158,6 @@ urlpatterns = [
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
     path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
-    
-
-    path("route/", RouteAPIView.as_view(), name="route-legacy"),
-    path("routes/health/", route_health, name="route_health"),
-    path("", include(router.urls)),
-    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
-    
 
     # ---- Concierge（複数形: 正規） ---------------------------------------
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
@@ -229,6 +222,9 @@ urlpatterns = [
     # --- Route (単数形: レガシー) ---
     path("route/", RouteAPIView.as_view(), name="route-legacy"),
     path("routes/health/", route_health, name="route_health"),
+
+    # router は最後に1回だけ
     path("", include(router.urls)),
+    
     
 ]
