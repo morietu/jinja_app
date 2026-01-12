@@ -9,8 +9,7 @@ import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from 
 import type { StopReason } from "@/features/concierge/types/unified";
 
 import { useBilling } from "@/features/billing/hooks/useBilling";
-import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
-import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
+import RecommendationUnit from "@/components/concierge/RecommendationUnit";
 
 function PaywallCta({ note }: { note: string }) {
   return (
@@ -110,6 +109,9 @@ export default function ConciergeLayout({
     if (primaryIndex > shownLen - 1) setPrimaryIndex(0);
   }, [shownLen, primaryIndex]);
 
+
+  const first = recommendations?.[0] ?? null;
+
   const primary = shownLen > 0 ? (shown[primaryIndex] ?? shown[0]) : null;
 
   const isDummy = !!(primary as any)?.__dummy;
@@ -144,12 +146,10 @@ export default function ConciergeLayout({
 
   const lastQueryView = (lastQuery ?? "").trim();
 
-  return (
+    return (
     <div className={wrapClass}>
-      {/* ✅ render側：非embedの時だけ BillingGate を描画（=embedでは useBilling が走らない） */}
       {!embedMode && <BillingGate stopReason={stopReason} paywallNote={paywallNote} remainingFree={remainingFree} />}
 
-      {/* 入力（embedはここが主役） */}
       <div className="flex-1">
         <ChatPanel
           thread={thread}
@@ -164,19 +164,11 @@ export default function ConciergeLayout({
         />
       </div>
 
-      {/* おすすめ */}
-      {shownLen > 0 && (
+      {recommendations.length > 0 && (
         <div className="mt-4">
-          {!embedMode && isDummy && (
-            <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              ※ 現在テスト中の回答（ベータ版）です。
-            </div>
-          )}
-
           <div className="mb-2">
             <h3 className="text-xs font-semibold text-gray-700">今回のおすすめ</h3>
 
-            {/* ✅ embedだけ「条件：」を1行残す */}
             {embedMode && lastQueryView && (
               <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
                 条件：<span className="text-slate-700">{lastQueryView}</span>
@@ -185,68 +177,42 @@ export default function ConciergeLayout({
 
             {!embedMode && (
               <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                「理由」を見てピンと来たら、まずはこの神社から。条件を足したい場合は、続けて入力してください。
+                気になる候補があれば「神社の詳細を見る」から確認できます。条件を足したい場合は、続けて入力してください。
               </p>
             )}
           </div>
 
-          {primary && (
-            <div className="rounded-xl border bg-white px-3 py-3 text-xs text-slate-700">
-              <div className="font-semibold text-slate-900">
-                {detailHref ? (
-                  <Link href={detailHref} className="underline underline-offset-2">
-                    {title}
-                  </Link>
-                ) : (
-                  title
-                )}
-              </div>
-
-              <div className="mt-1">{reason}</div>
-
-              <div className="mt-2 text-[11px] text-slate-500">［補足］</div>
-              <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] text-slate-600">
-                {bullets.slice(0, 3).map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {primary && <PrimaryRecommendationCard rec={primary} primaryIndex={primaryIndex} />}
-
-          {!embedMode && (
-            <RecommendationSwitchList items={shown} primaryIndex={primaryIndex} onSelect={setPrimaryIndex} />
-          )}
+          <section className="space-y-3">
+            {recommendations.slice(0, 3).map((rec, idx) => (
+              <RecommendationUnit key={rec.id ?? rec.place_id ?? idx} rec={rec} index={idx} />
+            ))}
+          </section>
 
           <div className="mt-3 text-[11px] text-slate-600">
             気になる神社があれば「地図で見る」で場所を確認できます。
           </div>
 
           {!embedMode && (
-            <div className="mt-2 text-[11px] text-slate-500">
-              ほかも比較したい場合は、下の「他も見て選ぶ（地図）」から探せます。
-            </div>
+            <>
+              <div className="mt-2 text-[11px] text-slate-500">
+                ほかも比較したい場合は、下の「他も見て選ぶ（地図）」から探せます。
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                <Link href="/map" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
+                  他も見て選ぶ（地図）
+                </Link>
+
+                <Link
+                  href="/concierge/history"
+                  className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+                  onClick={onNewThread}
+                >
+                  条件を追加して絞る（履歴へ）
+                </Link>
+              </div>
+            </>
           )}
-        </div>
-      )}
-
-      {/* 非embedの導線 */}
-      {!embedMode && primary && (
-        <div className="mt-4 grid gap-2">
-          <Link href="/map" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
-            他も見て選ぶ（地図）
-          </Link>
-
-          <Link
-            href="/concierge/history"
-            className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-            onClick={onNewThread}
-          >
-            条件を追加して絞る（履歴へ）
-          </Link>
-
-          {locationText ? <p className="mt-2 text-xs text-gray-500">{locationText}</p> : null}
         </div>
       )}
     </div>

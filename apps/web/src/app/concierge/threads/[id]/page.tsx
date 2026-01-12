@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchThreadDetail, type ConciergeThreadDetail } from "@/lib/api/concierge";
+import RecommendationUnit from "@/components/concierge/RecommendationUnit";
+
 
 type PageProps = {
   params: { id: string };
@@ -57,14 +59,11 @@ export default async function ConciergeThreadDetailPage({ params }: PageProps) {
       {recommendations && recommendations.length > 0 && (
         <section className="rounded-lg border bg-white px-4 py-4">
           <h2 className="mb-2 text-sm font-semibold">おすすめ候補</h2>
-          <ul className="space-y-2">
+          <div className="space-y-3">
             {recommendations.map((r, idx) => (
-              <li key={r.id ?? idx} className="text-sm">
-                <p className="font-medium">{r.display_name || r.name}</p>
-                {r.reason && <p className="text-xs text-gray-500">{r.reason}</p>}
-              </li>
+              <RecommendationUnit key={r.id ?? r.place_id ?? idx} rec={r as any} index={idx} />
             ))}
-          </ul>
+          </div>
         </section>
       )}
 
