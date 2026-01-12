@@ -6,13 +6,13 @@ import RecommendationUnit from "@/components/concierge/RecommendationUnit";
 
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function ConciergeThreadDetailPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
 
   // バックエンドの shape に合わせて必要なら ConciergeThreadDetail を調整する
   const data: ConciergeThreadDetail | null = await fetchThreadDetail(id);
@@ -44,11 +44,21 @@ export default async function ConciergeThreadDetailPage({ params }: PageProps) {
         ) : (
           <ul className="flex flex-col gap-3 px-4 py-4">
             {messages.map((m) => (
-              <li key={m.id} className="flex flex-col gap-1 text-sm">
-                <p className="text-[11px] text-gray-400">
-                  {m.role === "user" ? "あなた" : "コンシェルジュ"} / {m.created_at}
-                </p>
-                <p className="whitespace-pre-wrap">{m.content}</p>
+              <li key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className="max-w-[80%]">
+                  <div
+                    className={`whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      m.role === "user"
+                        ? "rounded-br-sm bg-emerald-600 text-white"
+                        : "rounded-bl-sm bg-gray-100 text-gray-900"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  <p className={`mt-0.5 text-[10px] text-gray-400 ${m.role === "user" ? "text-right" : "text-left"}`}>
+                    {new Date(m.created_at).toLocaleString("ja-JP")}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>

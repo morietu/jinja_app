@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrineBack";
 
 type Props = {
-  params: { id: string };
-  searchParams?: Promise<{ from?: string }>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ ctx?: string }>;
 };
 
 type ShrineData = {
@@ -21,7 +22,6 @@ async function fetchShrineData(id: string): Promise<ShrineData | null> {
   const baseUrl = `${proto}://${host}`;
 
   const cookie = h.get("cookie") ?? "";
-
   const res = await fetch(`${baseUrl}/api/shrines/${encodeURIComponent(id)}/data/`, {
     cache: "no-store",
     headers: cookie ? { cookie } : undefined,
@@ -33,7 +33,9 @@ async function fetchShrineData(id: string): Promise<ShrineData | null> {
 export default async function ShrineHubPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (searchParams ? await searchParams : undefined) ?? {};
-  const backTo = sp.from ?? "/map";
+
+  const ctx = parseShrineBackContext(sp.ctx);
+  const back = shrineBackConfig(ctx);
 
   const shrineId = Number(id);
   if (!Number.isFinite(shrineId) || shrineId <= 0) {
@@ -69,8 +71,8 @@ export default async function ShrineHubPage({ params, searchParams }: Props) {
           御朱印を登録する
         </Link>
 
-        <Link href={backTo} className="block text-center text-xs text-slate-500 hover:underline">
-          マップに戻る
+        <Link href={back.href} className="block text-center text-xs text-slate-500 hover:underline">
+          {back.label}
         </Link>
       </section>
     </main>
