@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrineBack";
 
 
-type Props = { placeId: string; ctx?: string | null };
+
+type Props = { placeId: string; ctx?: string | null; tid?: string | null };
 
 type PublicGoshuin = {
   id: number;
@@ -21,7 +22,7 @@ type PublicGoshuin = {
   image_url?: string | null;
 };
 
-export default function PlaceFromPlaceClient({ placeId, ctx }: Props) {
+export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const router = useRouter(); // ★追加
 
   const back = shrineBackConfig(parseShrineBackContext(ctx));
@@ -41,12 +42,23 @@ export default function PlaceFromPlaceClient({ placeId, ctx }: Props) {
 
   // ★追加：解決できたらブリッジ終了（A案の肝）
   useEffect(() => {
-    if (resolveState === "ok" && shrineId != null) {
-      const hubHref = ctx ? `/shrines/hub/${shrineId}?ctx=${encodeURIComponent(ctx)}` : `/shrines/hub/${shrineId}`;
+    if (resolveState !== "ok") return;
+    if (shrineId == null) return;
 
-      router.replace(hubHref, { scroll: false });
+    // ✅ クライアント遷移が既に走っている/URLが目的地っぽいなら何もしない（保険）
+    // ここは厳密でなくてOK。二重replaceを抑えたい意図。
+    if (typeof window !== "undefined") {
+      const p = window.location.pathname;
+      if (p.startsWith(`/shrines/${shrineId}`)) return;
     }
-  }, [resolveState, shrineId, router, ctx]);
+
+    const q = new URLSearchParams();
+    if (ctx) q.set("ctx", ctx);
+    if (tid) q.set("tid", tid);
+
+    const dest = q.toString() ? `/shrines/${shrineId}?${q.toString()}` : `/shrines/${shrineId}`;
+    router.replace(dest, { scroll: false });
+  }, [resolveState, shrineId, router, ctx, tid]);
 
   const gmapsRouteLink = useMemo(() => {
     // destination は検索クエリっぽくして、destination_place_id に本命を入れる
@@ -55,7 +67,13 @@ export default function PlaceFromPlaceClient({ placeId, ctx }: Props) {
     )}&destination_place_id=${encodeURIComponent(placeId)}`;
   }, [placeId]);
 
-  const internalMapHref = useMemo(() => `/map?place_id=${encodeURIComponent(placeId)}`, [placeId]);
+  const internalMapHref = useMemo(() => {
+    const q = new URLSearchParams();
+    q.set("place_id", placeId);
+    if (ctx) q.set("ctx", ctx);
+    if (tid) q.set("tid", tid);
+    return `/map?${q.toString()}`;
+  }, [placeId, ctx, tid]);
 
   // --- 1) place_id -> shrine_id（ログインしていれば解決） ---
   useEffect(() => {

@@ -57,29 +57,32 @@ export default function RankingCarousel({ items }: { items: Shrine[] }) {
             <Pressable
               key={s.id}
               onPress={() => router.push(`/shrines/${s.id}`)}
-              style={[
-                styles.card,
-                { marginRight: i === items.length - 1 ? 0 : 12 },
-                favored && styles.cardFav
-              ]}
+              style={[styles.card, { marginRight: i === items.length - 1 ? 0 : 12 }, favored && styles.cardFav]}
             >
               {/* ハートの小ボタン（カード右上・タップでトグル／ナビは発火させない） */}
               <Pressable
-                onPress={(e) => { e.stopPropagation(); onToggleFav(s.id); }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onToggleFav(s.id);
+                }}
                 style={[styles.heartFab, favored && styles.heartFabFav]}
                 hitSlop={8}
               >
-                <Text style={[styles.heartFabText, favored && styles.heartFabTextFav]}>
-                  {favored ? "♡" : "♡"}
-                </Text>
+                <Text style={[styles.heartFabText, favored && styles.heartFabTextFav]}>{favored ? "♡" : "♡"}</Text>
               </Pressable>
 
               <Image source={{ uri: s.imageUrl }} style={styles.img} />
               <View style={{ padding: 12 }}>
-                <Text numberOfLines={1} style={styles.name}>{s.name}</Text>
+                <Text numberOfLines={1} style={styles.name}>
+                  {s.name}
+                </Text>
                 <View style={styles.tagRow}>
                   {s.tags.slice(0, 3).map((t) => (
-                    <View key={t} style={styles.tag}><Text style={styles.tagText}>{t}</Text></View>
+                    <React.Fragment key={t}>
+                      <View style={styles.tag}>
+                        <Text style={styles.tagText}>{t}</Text>
+                      </View>
+                    </React.Fragment>
                   ))}
                 </View>
                 <View style={styles.rowSpace}>

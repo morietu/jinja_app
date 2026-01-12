@@ -15,12 +15,15 @@ export type Shrine = {
 };
 
 export type ShrineSummary = {
-  id: number;                  // 一覧用は number に寄せる（mock は後述で吸収）
+  id: number;
   name: string;
   address?: string | null;
   lat?: number | null;
   lng?: number | null;
-  popularity?: number | null;  // popular_score をここにマップ
+  popularity?: number | null;
   is_favorite?: boolean;
   goriyaku_tags?: { id: number; name: string }[];
+
+  rating?: number | null;
+  photo_url?: string | null;
 };

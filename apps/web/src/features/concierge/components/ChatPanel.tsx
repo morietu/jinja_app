@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 import ChatInput from "./ChatInput";
 import RecommendationUnit from "@/components/concierge/RecommendationUnit";
+import { useSearchParams } from "next/navigation";
 
 type Props = {
   thread: ConciergeThread | null;
@@ -92,6 +93,14 @@ export default function ChatPanel({
     const next = `${location.pathname}${location.search}`;
     location.href = `/login?next=${encodeURIComponent(next)}`;
   };
+
+  const sp = useSearchParams();
+  const tid = sp.get("tid");
+
+  const q = new URLSearchParams();
+  if (tid) q.set("tid", tid);
+
+  const mapBrowseHref = q.toString() ? `/map?${q.toString()}` : "/map";
 
   // ✅ embedMode: 入力パネルだけ
   if (embedMode) {
@@ -207,7 +216,10 @@ export default function ChatPanel({
             </div>
 
             <div className="mt-4 grid gap-2">
-              <Link href="/map" className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900">
+              <Link
+                href={mapBrowseHref}
+                className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
+              >
                 他も見て選ぶ（地図）
               </Link>
 

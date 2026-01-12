@@ -7,8 +7,10 @@ export function parseShrineBackContext(v: string | null | undefined): ShrineBack
 
 export function shrineBackConfig(ctx: ShrineBackContext, tid?: string | null) {
   switch (ctx) {
-    case "concierge":
-      return { href: tid ? `/concierge?tid=${encodeURIComponent(tid)}` : "/concierge?tid=0", label: "コンシェルジュに戻る" };
+    case "concierge": {
+      const t = tid && tid.trim() ? tid : "0";
+      return { href: `/concierge?tid=${encodeURIComponent(t)}`, label: "コンシェルジュに戻る" };
+    }
     case "history":
       return { href: "/concierge/history", label: "履歴に戻る" };
     case "map":

@@ -1,4 +1,4 @@
-// apps/mobile/app/mypage/index.tsx
+// apps/mobile/app/profile/index.tsx
 import * as React from "react";
 import {
   View,
@@ -56,9 +56,7 @@ export default function MyPage() {
   return (
     <ScrollView
       contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {/* ヘッダー */}
       <Text style={styles.h1}>マイページ</Text>
@@ -85,19 +83,13 @@ export default function MyPage() {
         {items?.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>まだ閲覧履歴がありません</Text>
-            <Text style={styles.emptyText}>
-              ホームや検索から神社を見てみましょう
-            </Text>
+            <Text style={styles.emptyText}>ホームや検索から神社を見てみましょう</Text>
           </View>
         )}
 
         {/* 横スクロールリスト */}
         {items && items.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
             {items.map((s) => (
               <PopularShrineCard
                 key={String(s.id)}

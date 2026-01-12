@@ -19,12 +19,17 @@ export default function Concierge() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex:1, backgroundColor:"#F6F3EE" }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={{ padding:16, paddingBottom:96 }}>
-        {messages.map(m => (
-          <View key={m.id} style={[styles.bubble, m.role === "user" ? styles.user : styles.assistant]}>
-            <Text style={{ color: m.role === "user" ? "#fff" : "#111" }}>{m.content}</Text>
-          </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#F6F3EE" }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }}>
+        {messages.map((m) => (
+          <React.Fragment key={m.id}>
+            <View style={[styles.bubble, m.role === "user" ? styles.user : styles.assistant]}>
+              <Text style={{ color: m.role === "user" ? "#fff" : "#111" }}>{m.content}</Text>
+            </View>
+          </React.Fragment>
         ))}
       </ScrollView>
 
@@ -37,7 +42,7 @@ export default function Concierge() {
           multiline
         />
         <Pressable onPress={send} style={styles.sendBtn}>
-          <Text style={{ color:"#111", fontWeight:"700" }}>送信</Text>
+          <Text style={{ color: "#111", fontWeight: "700" }}>送信</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

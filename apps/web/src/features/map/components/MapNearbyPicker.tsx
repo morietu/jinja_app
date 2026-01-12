@@ -150,11 +150,7 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
           }
 
           return (
-            <Link
-              href={href}
-              className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
-              onClick={() => onSelectPlaceId(pid)}
-            >
+            <Link href={href} className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left">
               <div className="text-[11px] font-semibold text-emerald-700">おすすめ（起点）</div>
               <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
               <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
@@ -192,6 +188,7 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
           );
         }
 
+        // 通常モード：Link で詳細へ（onClick で selectedPlaceId を触らない）
         return (
           <Link
             key={x.place_id}
@@ -199,7 +196,6 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
             className={`block w-full rounded-xl border p-3 text-left ${
               active ? "border-emerald-400 bg-emerald-50" : "bg-white"
             }`}
-            onClick={() => onSelectPlaceId(x.place_id)}
           >
             <div className="text-sm font-semibold">{x.name}</div>
             <div className="mt-1 text-xs text-slate-600">{x.address}</div>

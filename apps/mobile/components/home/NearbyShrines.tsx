@@ -30,13 +30,23 @@ export default function NearbyShrines() {
         const loc = await Location.getCurrentPositionAsync({});
         const { latitude, longitude } = loc.coords;
 
-        const withDist = SHRINES
-          .map(s => ({
+        const withDist = SHRINES.map((s) => {
+          const lat = (s as any).latitude ?? (s as any).lat;
+          const lng = (s as any).longitude ?? (s as any).lng;
+
+          // 座標が無いデータは超遠い扱いにして下へ
+          const distance =
+            typeof lat === "number" && typeof lng === "number"
+              ? haversine(latitude, longitude, lat, lng)
+              : Number.POSITIVE_INFINITY;
+
+          return {
             ...s,
-            distance: haversine(latitude, longitude, s.latitude, s.longitude),
-          }))
-          .sort((a,b)=> a.distance - b.distance)
-          .slice(0,5);
+            distance,
+          };
+        })
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5);
 
         setState({ loading:false, items: withDist });
       } catch (e:any) {

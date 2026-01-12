@@ -162,11 +162,7 @@ function CardWithFavorite(props: BaseProps) {
 // ---- エクスポート：フラグで切り替え（フックを条件呼出ししない） ----
 export default function PopularShrineCard(props: WithFavProps) {
   const { enableFavorite = false, ...base } = props;
-  return enableFavorite ? (
-    <CardWithFavorite {...base} />
-  ) : (
-    <BaseCard {...base} />
-  );
+  return enableFavorite ? <CardWithFavorite {...base} /> : <BaseCard {...base} />;
 }
 
 const styles = StyleSheet.create({
