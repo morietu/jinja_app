@@ -60,6 +60,15 @@ jobs:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show git ref & SHA
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          git status --porcelain=v1 || true
+          git rev-parse HEAD
+          git log -1 --oneline
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -98,6 +107,18 @@ jobs:
         if: always()
         working-directory: backend
         run: python manage.py migrate --plan
+
+      - name: Show shrine.py around RankingAPIView
+        run: |
+          python - <<'PY'
+          import inspect
+          import temples.api.views.shrine as m
+          print("shrine module file:", inspect.getsourcefile(m))
+          PY
+          echo "---- grep RankingAPIView / Visit references ----"
+          rg -n "class RankingAPIView|class PopularShrineListView|temples_visit|Visit" temples/api/views/shrine.py || true
+          echo "---- shrine.py (first 220 lines, with line numbers) ----"
+          nl -ba temples/api/views/shrine.py | sed -n '1,220p'
       
       - name: Run pytest (unit, sqlite)
         env:
@@ -156,6 +177,15 @@ jobs:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show git ref & SHA
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          git rev-parse HEAD
+          git log -1 --oneline
+
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -236,6 +266,19 @@ jobs:
         if: always()
         working-directory: backend
         run: python manage.py migrate --plan
+
+      - name: Show shrine.py around RankingAPIView
+        if: failure()
+        run: |
+          python - <<'PY'
+          import inspect
+          import temples.api.views.shrine as m
+          print("shrine module file:", inspect.getsourcefile(m))
+          PY
+          echo "---- grep RankingAPIView / Visit references ----"
+          rg -n "class RankingAPIView|class PopularShrineListView|temples_visit|Visit" temples/api/views/shrine.py || true
+          echo "---- shrine.py (first 220 lines, with line numbers) ----"
+          nl -ba temples/api/views/shrine.py | sed -n '1,220p'
       
       
       - name: Run pytest (integration, postgis)
