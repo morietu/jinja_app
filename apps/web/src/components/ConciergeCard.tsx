@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
-import { usePathname, useSearchParams } from "next/navigation";
+
 
 type Shrine = {
   name: string;
@@ -37,9 +37,6 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "まずは代表的な候補から表示しています。";
   const tag = benefitLabel(pickBenefitTagFromRec(s as any));
 
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentUrl = `${pathname}?${searchParams.toString()}`;
 
   // --- アプリ内 /map（補助導線：primaryのみ） ---
   const mapHref = (() => {
@@ -54,9 +51,9 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   // --- 詳細（DBがあれば hub、なければ from-place ブリッジへ） ---
   const detailHref =
     s.id != null
-      ? `/shrines/hub/${s.id}?from=${encodeURIComponent(currentUrl)}`
+      ? `/shrines/hub/${s.id}?ctx=concierge`
       : s.place_id
-        ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?from=${encodeURIComponent(currentUrl)}`
+        ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?ctx=concierge`
         : null;
 
 

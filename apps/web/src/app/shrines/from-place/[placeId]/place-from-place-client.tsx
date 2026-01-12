@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrineBack";
 
-type Props = { placeId: string; from?: string | null };
+
+type Props = { placeId: string; ctx?: string | null };
 
 type PublicGoshuin = {
   id: number;
@@ -19,8 +21,10 @@ type PublicGoshuin = {
   image_url?: string | null;
 };
 
-export default function PlaceFromPlaceClient({ placeId, from }: Props) {
+export default function PlaceFromPlaceClient({ placeId, ctx }: Props) {
   const router = useRouter(); // ★追加
+
+  const back = shrineBackConfig(parseShrineBackContext(ctx));
 
   const [shrineId, setShrineId] = useState<number | null>(null);
   const [resolveState, setResolveState] = useState<"idle" | "loading" | "ok" | "unauth" | "error">("idle");
@@ -38,11 +42,11 @@ export default function PlaceFromPlaceClient({ placeId, from }: Props) {
   // ★追加：解決できたらブリッジ終了（A案の肝）
   useEffect(() => {
     if (resolveState === "ok" && shrineId != null) {
-      const hubHref = from ? `/shrines/hub/${shrineId}?from=${encodeURIComponent(from)}` : `/shrines/hub/${shrineId}`;
+      const hubHref = ctx ? `/shrines/hub/${shrineId}?ctx=${encodeURIComponent(ctx)}` : `/shrines/hub/${shrineId}`;
 
       router.replace(hubHref, { scroll: false });
     }
-  }, [resolveState, shrineId, router, from]);
+  }, [resolveState, shrineId, router, ctx]);
 
   const gmapsRouteLink = useMemo(() => {
     // destination は検索クエリっぽくして、destination_place_id に本命を入れる
@@ -184,15 +188,9 @@ export default function PlaceFromPlaceClient({ placeId, from }: Props) {
           )}
         </div>
 
-        {from ? (
-          <Link href={from} className="block text-center text-xs text-slate-500 hover:underline">
-            元の画面に戻る
-          </Link>
-        ) : (
-          <Link href="/concierge?tid=0" className="block text-center text-xs text-slate-500 hover:underline">
-            コンシェルジュに戻る
-          </Link>
-        )}
+        <Link href={back.href} className="block text-center text-xs text-slate-500 hover:underline">
+          {back.label}
+        </Link>
 
         <div className="mt-3 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600">
           {resolveState === "loading" && "御朱印との紐づけ（shrine_id）を確認中…"}
