@@ -9,7 +9,7 @@ import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from 
 import type { StopReason } from "@/features/concierge/types/unified";
 
 import { useBilling } from "@/features/billing/hooks/useBilling";
-import RecommendationUnit from "@/components/concierge/RecommendationUnit";
+
 
 function PaywallCta({ note }: { note: string }) {
   return (
@@ -92,7 +92,7 @@ export default function ConciergeLayout({
   stopReason,
   canSend,
   embedMode = false,
-  lastQuery = null,
+
 }: Props) {
   const [primaryIndex, setPrimaryIndex] = useState(0);
 
@@ -111,7 +111,7 @@ export default function ConciergeLayout({
 
   const wrapClass = embedMode ? "w-full flex flex-col" : "mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm";
 
-  const lastQueryView = (lastQuery ?? "").trim();
+
 
     return (
       <div className={wrapClass}>
@@ -128,63 +128,10 @@ export default function ConciergeLayout({
             onSend={onSend}
             canSend={canSend}
             embedMode={embedMode}
+            recommendations={recommendations}
+            onNewThread={onNewThread}
           />
         </div>
-
-        {recommendations.length > 0 && (
-          <div className="mt-4">
-            <div className="mb-2">
-              <h3 className="text-xs font-semibold text-gray-700">今回のおすすめ</h3>
-
-              {embedMode && lastQueryView && (
-                <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  条件：<span className="text-slate-700">{lastQueryView}</span>
-                </div>
-              )}
-
-              {!embedMode && (
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                  気になる候補があれば「神社の詳細を見る」から確認できます。条件を足したい場合は、続けて入力してください。
-                </p>
-              )}
-            </div>
-
-            <section className="space-y-3">
-              {recommendations.slice(0, 3).map((rec, idx) => (
-                <RecommendationUnit key={rec.id ?? rec.place_id ?? idx} rec={rec} index={idx} />
-              ))}
-            </section>
-
-            <div className="mt-3 text-[11px] text-slate-600">
-              気になる神社があれば「地図で見る」で場所を確認できます。
-            </div>
-
-            {!embedMode && (
-              <>
-                <div className="mt-2 text-[11px] text-slate-500">
-                  ほかも比較したい場合は、下の「他も見て選ぶ（地図）」から探せます。
-                </div>
-
-                <div className="mt-4 grid gap-2">
-                  <Link
-                    href="/map"
-                    className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-                  >
-                    他も見て選ぶ（地図）
-                  </Link>
-
-                  <Link
-                    href="/concierge/history"
-                    className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-                    onClick={onNewThread}
-                  >
-                    条件を追加して絞る（履歴へ）
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
     );
 }
