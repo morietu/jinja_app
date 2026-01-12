@@ -109,40 +109,7 @@ export default function ConciergeLayout({
     if (primaryIndex > shownLen - 1) setPrimaryIndex(0);
   }, [shownLen, primaryIndex]);
 
-
-  const first = recommendations?.[0] ?? null;
-
-  const primary = shownLen > 0 ? (shown[primaryIndex] ?? shown[0]) : null;
-
-  const isDummy = !!(primary as any)?.__dummy;
-  const locationText = (primary as any)?.display_address ?? "";
-
   const wrapClass = embedMode ? "w-full flex flex-col" : "mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm";
-
-  // --- 詳細リンク解決（shrine_id > place_id の順）---
-  const rawPlaceId =
-    (primary as any)?.place_id ?? (primary as any)?.placeId ?? (primary as any)?.google_place_id ?? null;
-  const placeId = rawPlaceId != null ? String(rawPlaceId) : null;
-
-  const rawShrineId = (primary as any)?.shrine_id ?? (primary as any)?.id ?? null;
-  const shrineId = typeof rawShrineId === "number" ? rawShrineId : rawShrineId != null ? Number(rawShrineId) : null;
-
-  const detailHref =
-    typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0
-      ? `/shrines/${shrineId}`
-      : placeId
-        ? `/shrines/from-place/${placeId}`
-        : null;
-
-  // --- 表示用テキスト ---
-  const title = (primary as any)?.display_name ?? (primary as any)?.name ?? "おすすめの神社";
-  const reason =
-    (primary as any)?.reason ||
-    (primary as any)?.comment ||
-    "条件に合う神社を候補から選びました。必要なら条件を追加できます。";
-
-  const bullets: string[] = (primary as any)?.bullets ??
-    (primary as any)?.highlights ?? ["落ち着いて参拝しやすい", "人が多すぎない可能性", "境内の雰囲気が合う可能性"];
 
   const lastQueryView = (lastQuery ?? "").trim();
 
