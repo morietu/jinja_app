@@ -47,6 +47,8 @@ export default function ShrineDetail() {
 
   const [fav, setFav] = React.useState(false);
 
+  const tags = shrine.tags ?? [];
+
   // 参拝カウント（初回フォーカス時のみ）
   const countedRef = React.useRef(false);
   useFocusEffect(
@@ -152,10 +154,7 @@ export default function ShrineDetail() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#F6F3EE" }}>
       {shrine.imageUrl ? (
-        <Image
-          source={{ uri: shrine.imageUrl }}
-          style={{ width: "100%", aspectRatio: 16 / 10 }}
-        />
+        <Image source={{ uri: shrine.imageUrl }} style={{ width: "100%", aspectRatio: 16 / 10 }} />
       ) : (
         <View
           style={{
@@ -173,14 +172,8 @@ export default function ShrineDetail() {
       <View style={{ padding: 16 }}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1, paddingRight: 8 }}>
-            <Text style={{ fontSize: 22, fontWeight: "700" }}>
-              {shrine.name}
-            </Text>
-            {!!shrine.prefecture && (
-              <Text style={{ color: "#555", marginTop: 6 }}>
-                {shrine.prefecture}
-              </Text>
-            )}
+            <Text style={{ fontSize: 22, fontWeight: "700" }}>{shrine.name}</Text>
+            {!!shrine.prefecture && <Text style={{ color: "#555", marginTop: 6 }}>{shrine.prefecture}</Text>}
           </View>
           <Pressable
             onPress={onToggleFav}
@@ -188,29 +181,22 @@ export default function ShrineDetail() {
             accessibilityRole="button"
             accessibilityLabel="お気に入りの切り替え"
           >
-            <Text style={{ fontSize: 16 }}>
-              {fav ? "♡ 解除" : "♡ お気に入り"}
-            </Text>
+            <Text style={{ fontSize: 16 }}>{fav ? "♡ 解除" : "♡ お気に入り"}</Text>
           </Pressable>
         </View>
 
         {!!shrine.tags?.length && (
-          <View
-            style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}
-          >
-            {shrine.tags.map((t) => (
-              <View key={t} style={styles.tag}>
-                <Text style={{ fontSize: 12 }}>{t}</Text>
-              </View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+            {tags.map((t) => (
+              <React.Fragment key={t}>
+                <View style={styles.tag}>...</View>
+              </React.Fragment>
             ))}
           </View>
         )}
 
         <View style={{ flexDirection: "row", marginTop: 12 }}>
-          <Pressable
-            onPress={openMapSearch}
-            style={[styles.navBtn, { marginRight: 8 }]}
-          >
+          <Pressable onPress={openMapSearch} style={[styles.navBtn, { marginRight: 8 }]}>
             <Text style={{ fontWeight: "700" }}>地図で見る</Text>
           </Pressable>
           <Pressable onPress={openDirections} style={styles.navBtnPrimary}>
@@ -219,14 +205,10 @@ export default function ShrineDetail() {
         </View>
 
         <Text style={{ color: "#444", marginTop: 12, lineHeight: 20 }}>
-          {shrine.description ??
-            "ご利益や混雑、アクセス、御朱印情報などをここに表示します。"}
+          {shrine.description ?? "ご利益や混雑、アクセス、御朱印情報などをここに表示します。"}
         </Text>
 
-        <Pressable
-          onPress={() => router.back()}
-          style={[styles.back, { marginTop: 16 }]}
-        >
+        <Pressable onPress={() => router.back()} style={[styles.back, { marginTop: 16 }]}>
           <Text style={{ fontWeight: "600" }}>← ランキングに戻る</Text>
         </Pressable>
       </View>

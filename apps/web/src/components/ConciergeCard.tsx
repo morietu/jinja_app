@@ -3,7 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
+import { useSearchParams } from "next/navigation";
 
+type Props = {
+  s: Shrine;
+  index?: number;
+};
 
 type Shrine = {
   name: string;
@@ -15,18 +20,13 @@ type Shrine = {
   lng?: number | null;
   location?: { lat?: number | null; lng?: number | null } | string | null;
 
-  id?: number | null; // shrine_id（DB）
-  place_id?: string | null; // Google place id
+  id?: number | null;
+  place_id?: string | null;
   reason?: string | null;
   photo_url?: string | null;
 
   distance_m?: number | null;
   duration_min?: number | null;
-};
-
-type Props = {
-  s: Shrine;
-  index?: number; // primary 判定
 };
 
 export default function ConciergeCard({ s, index = 0 }: Props) {
@@ -36,7 +36,6 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   const addrText = (s.display_address ?? s.address ?? null)?.toString().trim() || null;
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "まずは代表的な候補から表示しています。";
   const tag = benefitLabel(pickBenefitTagFromRec(s as any));
-
 
   // --- アプリ内 /map（補助導線：primaryのみ） ---
   const mapHref = (() => {
@@ -48,14 +47,22 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
     return `/map?${sp.toString()}`;
   })();
 
+  // tid を拾う（concierge?tid=... を維持）
+  const sp = useSearchParams();
+  const tid = sp.get("tid");
+
+  // ctx + tid を運ぶ
+  const qs = new URLSearchParams();
+  qs.set("ctx", "concierge");
+  if (tid) qs.set("tid", tid);
+
   // --- 詳細（DBがあれば hub、なければ from-place ブリッジへ） ---
   const detailHref =
     s.id != null
-      ? `/shrines/hub/${s.id}?ctx=concierge`
+      ? `/shrines/hub/${s.id}?${qs.toString()}`
       : s.place_id
-        ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?ctx=concierge`
+        ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?${qs.toString()}`
         : null;
-
 
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -81,7 +88,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
           <h3 className="font-semibold">{title}</h3>
           {addrText && <p className="mt-1 truncate text-sm text-gray-600">{addrText}</p>}
 
-          <p className="mt-2 text-sm text-gray-800 line-clamp-3">
+          <p className="mt-2 line-clamp-3 text-sm text-gray-800">
             {tag && (
               <span className="mr-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                 {tag}

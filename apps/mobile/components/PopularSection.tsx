@@ -2,8 +2,10 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import PopularShrineCard from "./PopularShrineCard";
 import { CardSkeleton } from "./Skeletons";
 import { usePopularShrines } from "../hooks/usePopularShrines";
+import { useRouter } from "expo-router";
 
 export default function PopularSection() {
+  const router = useRouter();
   const { state, reload } = usePopularShrines(10);
 
   const goMap = () =>
@@ -14,22 +16,26 @@ export default function PopularSection() {
   return (
     <View style={styles.box}>
       <View style={styles.header}>
-        <Text style={styles.title}>
-          {state.status === "ready" && state.nearby ? "近場の人気" : "人気の神社"}
-        </Text>
-        <Pressable onPress={goMap}><Text style={styles.link}>地図で見る</Text></Pressable>
+        <Text style={styles.title}>{state.status === "ready" && state.nearby ? "近場の人気" : "人気の神社"}</Text>
+        <Pressable onPress={goMap}>
+          <Text style={styles.link}>地図で見る</Text>
+        </Pressable>
       </View>
 
       {state.status === "loading" && (
         <View style={{ gap: 10 }}>
-          <CardSkeleton /><CardSkeleton /><CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
         </View>
       )}
 
       {state.status === "error" && (
         <View style={styles.error}>
           <Text style={styles.errorText}>読み込みに失敗しました</Text>
-          <Pressable onPress={reload}><Text style={styles.retry}>再試行</Text></Pressable>
+          <Pressable onPress={reload}>
+            <Text style={styles.retry}>再試行</Text>
+          </Pressable>
         </View>
       )}
 
@@ -45,12 +51,9 @@ export default function PopularSection() {
               id={s.id}
               name={s.name}
               address={s.address}
+              popularity={s.popularity}
               rating={s.rating}
               photo_url={s.photo_url}
-              popularity={s.popularity}
-              // PopularShrineCard 側が Link で遷移する実装なので onPress は不要
-              // onPress を使いたい場合は以下のように：
-              // onPress={() => router.push({ pathname: "/shrines/[id]", params: { id: String(s.id) } })}
             />
           ))}
         </ScrollView>

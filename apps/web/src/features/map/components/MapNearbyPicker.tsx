@@ -1,10 +1,14 @@
 // apps/web/src/features/map/components/MapNearbyPicker.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
+import Link from "next/link";
+
+
 
 type Props = {
   limit?: number;
@@ -23,7 +27,7 @@ type Props = {
 const FALLBACK = { lat: 35.681236, lng: 139.767125 };
 
 export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectPlaceId, initialSelectedPlace }: Props) {
-  const router = useRouter();
+
   const sp = useSearchParams();
 
   // ✅ pick=goshuin のときだけ「選択して戻る」モード
@@ -34,7 +38,8 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
   const [loading, setLoading] = useState(true);
 
   // ✅ 行ref（place_id -> button）
-  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  
+  const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const la = coords?.lat ?? FALLBACK.lat;
   const ln = coords?.lng ?? FALLBACK.lng;
@@ -61,26 +66,6 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
     };
   }, [la, ln, limit]);
 
-  // ✅ 通常モード：place_id から神社詳細へ遷移（/shrines/from-place/[placeId]）
-  const goDetail = useCallback(
-    (placeId: string) => {
-      // “見た目の即時反映”が欲しいならここで query を付けてもOKだが、
-      // まずは素直に placeId だけで遷移する
-      router.push(`/shrines/from-place/${encodeURIComponent(placeId)}`);
-    },
-    [router],
-  );
-
-  const handleClick = useCallback(
-    (placeId: string) => {
-      if (isPickMode) {
-        onSelectPlaceId(placeId);
-        return;
-      }
-      goDetail(placeId);
-    },
-    [isPickMode, onSelectPlaceId, goDetail],
-  );
 
   // ✅ 選択中が近隣候補にいるか？
   const hasSelectedInList = useMemo(() => {
@@ -131,55 +116,91 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
 
   return (
     <div className="space-y-2">
-      {/* ✅ pickモード時のみ：選択中が近隣候補にいない場合の違和感ケア */}
       {isPickMode && !!selectedPlaceId && !hasSelectedInList && (
         <div className="rounded-xl border bg-amber-50 p-3 text-xs text-amber-900">
           選択中の神社は「近くの候補」に見つかりませんでした（場所が離れている可能性）。地図上で確認できます。
         </div>
       )}
 
-      {/* ✅ 2枚目状態の核：選択中（固定）カードを最上段に表示 */}
-      {showPinnedSelected && (
-        <button
-          type="button"
-          onClick={() => {
-            const pid = initialSelectedPlace?.place_id;
-            if (!pid) return;
-            // pick無し：詳細へ / pickあり：選択に戻る
-            handleClick(pid);
-          }}
-          className="w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
-        >
-          <div className="text-[11px] font-semibold text-emerald-700">{isPickMode ? "選択中" : "おすすめ（起点）"}</div>
-          <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
-          <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
-          <div className="mt-2 text-[11px] text-slate-600">
-            {isPickMode ? "この神社を選択中です" : "タップで神社の詳細へ"}
-          </div>
-        </button>
-      )}
+      {showPinnedSelected &&
+        (() => {
+          const pid = initialSelectedPlace?.place_id;
+          if (!pid) return null;
 
-      {/* 近隣候補リスト */}
+          const tid = sp.get("tid");
+          const hrefSp = new URLSearchParams();
+          hrefSp.set("ctx", "map");
+          if (tid) hrefSp.set("tid", tid);
+
+          const href = `/shrines/from-place/${encodeURIComponent(pid)}?${hrefSp.toString()}`;
+
+          if (isPickMode) {
+            return (
+              <button
+                type="button"
+                onClick={() => onSelectPlaceId(pid)}
+                className="w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
+              >
+                <div className="text-[11px] font-semibold text-emerald-700">選択中</div>
+                <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
+                <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
+                <div className="mt-2 text-[11px] text-slate-600">この神社を選択中です</div>
+              </button>
+            );
+          }
+
+          return (
+            <Link href={href} className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left">
+              <div className="text-[11px] font-semibold text-emerald-700">おすすめ（起点）</div>
+              <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
+              <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
+              <div className="mt-2 text-[11px] text-slate-600">タップで神社の詳細へ</div>
+            </Link>
+          );
+        })()}
+
       {items.map((x) => {
         const active = x.place_id === selectedPlaceId;
 
+        const tid = sp.get("tid");
+        const hrefSp = new URLSearchParams();
+        hrefSp.set("ctx", "map");
+        if (tid) hrefSp.set("tid", tid);
+
+        const href = `/shrines/from-place/${encodeURIComponent(x.place_id)}?${hrefSp.toString()}`;
+
+        if (isPickMode) {
+          return (
+            <button
+              key={x.place_id}
+              ref={(node) => {
+                rowRefs.current[x.place_id] = node;
+              }}
+              type="button"
+              onClick={() => onSelectPlaceId(x.place_id)}
+              className={`w-full rounded-xl border p-3 text-left ${
+                active ? "border-emerald-400 bg-emerald-50" : "bg-white"
+              }`}
+            >
+              <div className="text-sm font-semibold">{x.name}</div>
+              <div className="mt-1 text-xs text-slate-600">{x.address}</div>
+            </button>
+          );
+        }
+
+        // 通常モード：Link で詳細へ（onClick で selectedPlaceId を触らない）
         return (
-          <button
+          <Link
             key={x.place_id}
-            ref={(node) => {
-              rowRefs.current[x.place_id] = node;
-            }}
-            type="button"
-            onClick={() => handleClick(x.place_id)}
-            className={`w-full rounded-xl border p-3 text-left ${
-              // pick無しは遷移するのでアクティブ強調は薄めでも良いが、いまは共通のまま
+            href={href}
+            className={`block w-full rounded-xl border p-3 text-left ${
               active ? "border-emerald-400 bg-emerald-50" : "bg-white"
             }`}
           >
             <div className="text-sm font-semibold">{x.name}</div>
             <div className="mt-1 text-xs text-slate-600">{x.address}</div>
-            {!isPickMode && <div className="mt-2 text-[11px] text-slate-500">タップで詳細へ</div>}
-          </button>
+            <div className="mt-2 text-[11px] text-slate-500">タップで詳細へ</div>
+          </Link>
         );
       })}
     </div>

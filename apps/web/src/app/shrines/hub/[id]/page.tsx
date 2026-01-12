@@ -6,8 +6,10 @@ import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrin
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ ctx?: string }>;
+  searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
+
+
 
 type ShrineData = {
   id: number;
