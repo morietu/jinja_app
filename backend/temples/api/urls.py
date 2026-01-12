@@ -7,10 +7,12 @@ from .views.create_superuser import create_superuser
 
 from temples.api.views.public_profile import public_profile
 from temples.api.views.search import places_find
-
+from temples.api.views.shrine import PopularShrineListView
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.shrine_from_place import shrine_from_place
+
+
 
 from temples.api_views import FavoriteViewSet
 
@@ -43,7 +45,6 @@ from temples.api.views.search import (
 )
 from temples.api.views.shrine import (
     NearestShrinesAPIView,
-    RankingAPIView,
     ShrineViewSet,
 )
 from temples.api.views.goshuin import (
@@ -154,10 +155,9 @@ urlpatterns = [
     path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
     path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),
 
-    # ---- Shrines（ViewSet の読み取り用に名前を固定） ------------------------
     # ---- Popular（複数形に） ------------------------------------------------
     # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
-    path("populars/", RankingAPIView.as_view(), name="popular-shrines"),
+    path("populars/", PopularShrineListView.as_view(), name="popular-shrines"),
 
     # ---- Concierge（複数形: 正規） ---------------------------------------
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
