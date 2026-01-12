@@ -74,7 +74,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
           <h3 className="font-semibold">{title}</h3>
           {addrText && <p className="mt-1 truncate text-sm text-gray-600">{addrText}</p>}
 
-          <p className="mt-2 text-sm text-gray-800">
+          <p className="mt-2 text-sm text-gray-800 line-clamp-3">
             {tag && (
               <span className="mr-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                 {tag}
