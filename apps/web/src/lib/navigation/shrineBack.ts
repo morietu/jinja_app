@@ -5,10 +5,10 @@ export function parseShrineBackContext(v: string | null | undefined): ShrineBack
   return shrineBackContexts.includes(v as any) ? (v as ShrineBackContext) : "map";
 }
 
-export function shrineBackConfig(ctx: ShrineBackContext) {
+export function shrineBackConfig(ctx: ShrineBackContext, tid?: string | null) {
   switch (ctx) {
     case "concierge":
-      return { href: "/concierge?tid=0", label: "コンシェルジュに戻る" };
+      return { href: tid ? `/concierge?tid=${encodeURIComponent(tid)}` : "/concierge?tid=0", label: "コンシェルジュに戻る" };
     case "history":
       return { href: "/concierge/history", label: "履歴に戻る" };
     case "map":
