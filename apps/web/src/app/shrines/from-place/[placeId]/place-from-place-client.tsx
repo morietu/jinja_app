@@ -6,6 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrineBack";
+import { useSearchParams } from "next/navigation";
+import type { Shrine } from "@/lib/api/shrines";
+
 
 
 
@@ -23,7 +26,11 @@ type PublicGoshuin = {
 };
 
 export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
-  const router = useRouter(); // ★追加
+  const router = useRouter();
+
+  const sp = useSearchParams();
+  const bridge = sp.get("bridge") === "1";
+
 
   const back = shrineBackConfig(parseShrineBackContext(ctx));
 
@@ -34,6 +41,9 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const [loadingGoshuins, setLoadingGoshuins] = useState(false);
   const [routeMode, setRouteMode] = useState<"google" | "app">("app");
 
+  const [shrine, setShrine] = useState<Shrine | null>(null);
+  const [loadingShrine, setLoadingShrine] = useState(false);
+
   useEffect(() => {
     if (resolveState === "unauth" || resolveState === "error") {
       setRouteMode("google");
@@ -42,6 +52,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
   // ★追加：解決できたらブリッジ終了（A案の肝）
   useEffect(() => {
+    if (!bridge) return;
     if (resolveState !== "ok") return;
     if (shrineId == null) return;
 
@@ -58,7 +69,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
     const dest = q.toString() ? `/shrines/${shrineId}?${q.toString()}` : `/shrines/${shrineId}`;
     router.replace(dest, { scroll: false });
-  }, [resolveState, shrineId, router, ctx, tid]);
+  }, [bridge, resolveState, shrineId, router, ctx, tid]);
 
   const gmapsRouteLink = useMemo(() => {
     // destination は検索クエリっぽくして、destination_place_id に本命を入れる
@@ -159,6 +170,33 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     return publicGoshuins.filter((g) => g?.shrine === shrineId);
   }, [publicGoshuins, shrineId]);
 
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      if (resolveState !== "ok" || shrineId == null) {
+        if (alive) setShrine(null);
+        return;
+      }
+
+      setLoadingShrine(true);
+      try {
+        const r = await fetch(`/api/shrines/${shrineId}`, { cache: "no-store" });
+        if (!r.ok) throw new Error("shrine fetch failed");
+        const data = (await r.json()) as Shrine;
+        if (alive) setShrine(data);
+      } catch {
+        if (alive) setShrine(null);
+      } finally {
+        if (alive) setLoadingShrine(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [resolveState, shrineId]);
+
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 px-4 py-5">
       <div className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -212,7 +250,9 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
         <div className="mt-3 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600">
           {resolveState === "loading" && "御朱印との紐づけ（shrine_id）を確認中…"}
-          {resolveState === "ok" && shrineId != null && "神社詳細へ移動中…"}
+          {resolveState === "ok" &&
+            shrineId != null &&
+            (bridge ? "神社詳細へ移動中…" : "紐づけ済み（神社情報を表示します）")}
           {resolveState === "unauth" && (
             <>ログインしていないため shrine_id を解決できませんでした。御朱印の表示・追加はログイン後に利用できます。</>
           )}
@@ -230,6 +270,15 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
           </div>
         )}
       </div>
+
+      {loadingShrine ? (
+        <div className="mt-3 text-xs text-slate-500">神社情報を読み込み中…</div>
+      ) : shrine ? (
+        <div className="mt-3 rounded-xl border bg-white p-3">
+          <div className="text-sm font-semibold">{shrine.name_jp}</div>
+          {!!shrine.address && <div className="mt-1 text-xs text-slate-600">{shrine.address}</div>}
+        </div>
+      ) : null}
 
       {shrineId != null && (
         <div className="rounded-2xl border bg-white p-4 shadow-sm">

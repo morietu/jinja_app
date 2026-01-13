@@ -37,15 +37,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "まずは代表的な候補から表示しています。";
   const tag = benefitLabel(pickBenefitTagFromRec(s as any));
 
-  // --- アプリ内 /map（補助導線：primaryのみ） ---
-  const mapHref = (() => {
-    const sp = new URLSearchParams();
-    if (s.id != null) sp.set("shrine_id", String(s.id));
-    if (s.place_id) sp.set("place_id", s.place_id);
-    if (title) sp.set("name", title);
-    if (addrText) sp.set("addr", addrText);
-    return `/map?${sp.toString()}`;
-  })();
+  
 
   // tid を拾う（concierge?tid=... を維持）
   const sp = useSearchParams();
@@ -56,13 +48,25 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   qs.set("ctx", "concierge");
   if (tid) qs.set("tid", tid);
 
+  const sid = typeof s.id === "number" ? s.id : Number(s.id ?? NaN);
+  const hasDbId = Number.isFinite(sid) && sid > 0;
+
   // --- 詳細（DBがあれば hub、なければ from-place ブリッジへ） ---
-  const detailHref =
-    s.id != null
-      ? `/shrines/hub/${s.id}?${qs.toString()}`
-      : s.place_id
-        ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?${qs.toString()}`
-        : null;
+  const mapHref = (() => {
+    const sp = new URLSearchParams();
+    if (hasDbId) sp.set("shrine_id", String(sid));
+    if (s.place_id) sp.set("place_id", s.place_id);
+    if (title) sp.set("name", title);
+    if (addrText) sp.set("addr", addrText);
+    return `/map?${sp.toString()}`;
+  })();
+
+  // --- 詳細（DBがあれば hub、なければ from-place） ---
+  const detailHref = hasDbId
+    ? `/shrines/hub/${sid}?${qs.toString()}`
+    : s.place_id
+      ? `/shrines/from-place/${encodeURIComponent(s.place_id)}?${qs.toString()}`
+      : null;
 
   return (
     <div className="rounded-xl border bg-white px-3 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">

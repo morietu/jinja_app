@@ -39,9 +39,18 @@ export default async function ShrineHubPage({ params, searchParams }: Props) {
   const ctx = parseShrineBackContext(sp.ctx);
   const back = shrineBackConfig(ctx);
 
+  const qs = new URLSearchParams();
+  if (sp.ctx) qs.set("ctx", sp.ctx);
+  if (sp.tid) qs.set("tid", sp.tid);
+
   const shrineId = Number(id);
+
+  // ✅ 数値じゃない = place_id とみなして from-place へ逃がす
   if (!Number.isFinite(shrineId) || shrineId <= 0) {
-    return redirect("/map?toast=invalid_shrine");
+    const dest = qs.toString()
+      ? `/shrines/from-place/${encodeURIComponent(id)}?${qs.toString()}`
+      : `/shrines/from-place/${encodeURIComponent(id)}`;
+    return redirect(dest);
   }
 
   const data = await fetchShrineData(id);
