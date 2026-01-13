@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
 import { useSearchParams } from "next/navigation";
+import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
 
 type Props = {
   s: Shrine;
@@ -37,9 +37,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   const reasonText = (typeof s.reason === "string" ? s.reason.trim() : "") || "まずは代表的な候補から表示しています。";
   const tag = benefitLabel(pickBenefitTagFromRec(s as any));
 
-  
-
-  // tid を拾う（concierge?tid=... を維持）
+  // tid を拾う（/concierge?tid=... を維持）
   const sp = useSearchParams();
   const tid = sp.get("tid");
 
@@ -51,17 +49,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
   const sid = typeof s.id === "number" ? s.id : Number(s.id ?? NaN);
   const hasDbId = Number.isFinite(sid) && sid > 0;
 
-  // --- 詳細（DBがあれば hub、なければ from-place ブリッジへ） ---
-  const mapHref = (() => {
-    const sp = new URLSearchParams();
-    if (hasDbId) sp.set("shrine_id", String(sid));
-    if (s.place_id) sp.set("place_id", s.place_id);
-    if (title) sp.set("name", title);
-    if (addrText) sp.set("addr", addrText);
-    return `/map?${sp.toString()}`;
-  })();
-
-  // --- 詳細（DBがあれば hub、なければ from-place） ---
+  // ✅ 詳細導線はここだけ：DBなら hub、なければ from-place
   const detailHref = hasDbId
     ? `/shrines/hub/${sid}?${qs.toString()}`
     : s.place_id
@@ -118,16 +106,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
             </div>
           )}
 
-          {isPrimary && (
-            <div className="mt-2 text-right">
-              <Link
-                href={mapHref}
-                className="text-[11px] text-slate-500 underline underline-offset-2 hover:text-slate-700"
-              >
-                アプリ内マップで周辺も確認する
-              </Link>
-            </div>
-          )}
+          {/* ✅ /map への導線はこのカードから完全排除 */}
         </div>
       </div>
     </div>
