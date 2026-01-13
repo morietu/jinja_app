@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Favorite } from "@/lib/api/favorites";
 import { normalizeFavorite } from "@/lib/favorites/normalize";
 import { removeFavoriteFromCacheByPk, clearFavoritesInFlight } from "@/lib/favoritesCache";
-import { FavoriteShrineCard } from "@/features/mypage/components/FavoriteShrineCard";
+
 
 type Props = { initialFavorites: Favorite[] };
 
@@ -24,42 +24,9 @@ export default function FavoritesListClient({ initialFavorites }: Props) {
   const [err, setErr] = useState<string | null>(null);
 
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [busyKind, setBusyKind] = useState<"unsave" | "add" | null>(null);
+  const [busyKind, setBusyKind] = useState<"unsave" | null>(null);
 
-  async function goGoshuinUpload(f: Favorite) {
-    if (busyId != null) return;
-    setBusyId(f.id);
-    setBusyKind("add");
-    setErr(null);
-
-    try {
-      const n = normalizeFavorite(f);
-
-      if (n.shrineId) {
-        router.push(`/mypage?tab=goshuin&shrine=${n.shrineId}#goshuin-upload`);
-        return;
-      }
-
-      if (n.placeId) {
-        const r = await fetch("/api/shrines/from-place", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ place_id: n.placeId }),
-        });
-        if (!r.ok) throw new Error("from-place failed");
-        const data = (await r.json()) as { shrine_id: number };
-        router.push(`/mypage?tab=goshuin&shrine=${data.shrine_id}#goshuin-upload`);
-        return;
-      }
-
-      // shrineId/placeIdどっちも無い
-      throw new Error("missing shrineId/placeId");
-    } catch {
-      setErr("御朱印追加の遷移に失敗しました");
-      setBusyId(null);
-      setBusyKind(null);
-    }
-  }
+  
 
   async function unSave(f: Favorite) {
     if (busyId != null) return;
@@ -140,10 +107,8 @@ export default function FavoritesListClient({ initialFavorites }: Props) {
             <FavoriteShrineCard
               key={f.id}
               favorite={f}
-              onAddGoshuin={() => goGoshuinUpload(f)}
               onUnsave={() => unSave(f)}
               disabled={busyId === f.id}
-              addLoading={busyId === f.id && busyKind === "add"}
               unsaveLoading={busyId === f.id && busyKind === "unsave"}
             />
           ))}
