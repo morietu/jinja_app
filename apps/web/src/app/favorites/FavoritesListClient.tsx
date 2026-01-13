@@ -10,6 +10,7 @@ import { removeFavoriteFromCacheByPk, clearFavoritesInFlight } from "@/lib/favor
 import { FavoriteShrineCard } from "@/features/mypage/components/FavoriteShrineCard";
 
 
+
 type Props = { initialFavorites: Favorite[] };
 
 async function fetchFavoritesDirect(): Promise<Favorite[]> {

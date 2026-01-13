@@ -48,7 +48,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   // ✅ 選択状態（place_idがMapのキー）
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  // ✅ /map?place_id=... でも開けるように（ConciergeCardから渡す）
+  // ✅ /map?place_id=... でも開けるように（過去互換・デバッグ用）
   const qpPlaceId = sp.get("place_id");
   const qpShrineId = parseNum(sp.get("shrine_id"));
   const qpLat = parseNum(sp.get("lat"));
