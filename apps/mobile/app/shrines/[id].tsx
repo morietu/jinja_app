@@ -1,25 +1,10 @@
 // apps/mobile/app/shrines/[id].tsx
 import * as React from "react";
-import {
-  View,
-  Text,
-  Image,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Linking,
-  Platform,
-} from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ScrollView, Linking, Platform } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { SHRINES } from "../../data/shrines";
-import {
-  incVisits,
-  isFavorite,
-  toggleFavorite,
-  pushRecent,
-} from "../../lib/storage";
+import { incVisits, isFavorite, toggleFavorite, pushRecent } from "../../lib/storage";
 
-type LatLng = { lat: number; lng: number };
 type Shrine = {
   id: string | number;
   name: string;
@@ -42,12 +27,11 @@ export default function ShrineDetail() {
   const router = useRouter();
   const shrine: Shrine | undefined = React.useMemo(
     () => SHRINES.find((x: Shrine) => String(x.id) === String(shrineId)),
-    [shrineId]
+    [shrineId],
   );
 
   const [fav, setFav] = React.useState(false);
-
-  const tags = shrine.tags ?? [];
+  const tags = shrine?.tags ?? [];
 
   // 参拝カウント（初回フォーカス時のみ）
   const countedRef = React.useRef(false);
@@ -55,11 +39,10 @@ export default function ShrineDetail() {
     React.useCallback(() => {
       if (!countedRef.current) {
         countedRef.current = true;
-        // NOTE: もし incVisits が「対象IDのカウント」関数なら incVisits(String(shrineId)) に変更
         incVisits(1).catch(() => {});
       }
       return () => {};
-    }, [shrineId])
+    }, [shrineId]),
   );
 
   // お気に入り状態・最近見た保存
@@ -77,56 +60,41 @@ export default function ShrineDetail() {
     setFav(now);
   };
 
-  const openMapSearch = React.useCallback(() => {
-    if (!shrine) return;
-    // 座標が取れるなら座標を優先
-    if (
-      typeof shrine.latitude === "number" &&
-      typeof shrine.longitude === "number"
-    ) {
-      const ll = `${shrine.latitude},${shrine.longitude}`;
-      const url = Platform.select({
-        ios: `maps://?q=${encodeURIComponent(shrine.name)}&ll=${ll}`,
-        android: `geo:${ll}?q=${encodeURIComponent(shrine.name)}`,
-        default: `https://www.google.com/maps/search/?api=1&query=${ll}`,
-      })!;
-      Linking.openURL(url).catch(() => {});
-      return;
-    }
-    // 名前検索にフォールバック
-    const q = encodeURIComponent(shrine.name);
-    const url = Platform.select({
-      ios: `maps://?q=${q}`,
-      android: `geo:0,0?q=${q}`,
-      default: `https://www.google.com/maps/search/?api=1&query=${q}`,
-    })!;
-    Linking.openURL(url).catch(() => {});
-  }, [shrine]);
-
+  // ✅ 残すのは「経路案内」だけ（= ルート動線だけ）
   const openDirections = React.useCallback(() => {
     if (!shrine) return;
+
     // 座標が取れるなら座標を優先
-    if (
-      typeof shrine.latitude === "number" &&
-      typeof shrine.longitude === "number"
-    ) {
-      const ll = `${shrine.latitude},${shrine.longitude}`;
-      const url = Platform.select({
-        ios: `maps://?daddr=${ll}`,
-        android: `google.navigation:q=${ll}`,
-        default: `https://www.google.com/maps/dir/?api=1&destination=${ll}`,
-      })!;
-      Linking.openURL(url).catch(() => {});
+    const hasLatLng = typeof shrine.latitude === "number" && typeof shrine.longitude === "number";
+
+    const destination = hasLatLng ? `${shrine.latitude},${shrine.longitude}` : encodeURIComponent(shrine.name);
+
+    // ✅ iOSでも Google Maps を優先
+    const googleMapsAppUrl = hasLatLng
+      ? `comgooglemaps://?daddr=${destination}&directionsmode=walking`
+      : `comgooglemaps://?daddr=${encodeURIComponent(shrine.name)}`;
+
+    const googleMapsWebUrl = hasLatLng
+      ? `https://www.google.com/maps/dir/?api=1&destination=${destination}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(shrine.name)}`;
+
+    if (Platform.OS === "ios") {
+      // Google Maps アプリ → なければ Web
+      Linking.openURL(googleMapsAppUrl).catch(() => {
+        Linking.openURL(googleMapsWebUrl).catch(() => {});
+      });
       return;
     }
-    // 名前指定にフォールバック
-    const q = encodeURIComponent(shrine.name);
-    const url = Platform.select({
-      ios: `maps://?daddr=${q}`,
-      android: `google.navigation:q=${q}`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${q}`,
-    })!;
-    Linking.openURL(url).catch(() => {});
+
+    if (Platform.OS === "android") {
+      Linking.openURL(`google.navigation:q=${destination}`).catch(() => {
+        Linking.openURL(googleMapsWebUrl).catch(() => {});
+      });
+      return;
+    }
+
+    // web / その他
+    Linking.openURL(googleMapsWebUrl).catch(() => {});
   }, [shrine]);
 
   if (!shrineId) {
@@ -175,6 +143,7 @@ export default function ShrineDetail() {
             <Text style={{ fontSize: 22, fontWeight: "700" }}>{shrine.name}</Text>
             {!!shrine.prefecture && <Text style={{ color: "#555", marginTop: 6 }}>{shrine.prefecture}</Text>}
           </View>
+
           <Pressable
             onPress={onToggleFav}
             style={styles.favBtn}
@@ -185,22 +154,22 @@ export default function ShrineDetail() {
           </Pressable>
         </View>
 
-        {!!shrine.tags?.length && (
+        {!!tags.length && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
             {tags.map((t) => (
               <React.Fragment key={t}>
-                <View style={styles.tag}>...</View>
+                <View style={styles.tag}>
+                  <Text>{t}</Text>
+                </View>
               </React.Fragment>
             ))}
           </View>
         )}
 
-        <View style={{ flexDirection: "row", marginTop: 12 }}>
-          <Pressable onPress={openMapSearch} style={[styles.navBtn, { marginRight: 8 }]}>
-            <Text style={{ fontWeight: "700" }}>地図で見る</Text>
-          </Pressable>
+        {/* ✅ 「地図で見る」を削除し、「経路案内」のみ */}
+        <View style={{ marginTop: 12 }}>
           <Pressable onPress={openDirections} style={styles.navBtnPrimary}>
-            <Text style={{ fontWeight: "700", color: "#111" }}>経路案内</Text>
+            <Text style={{ fontWeight: "700", color: "#111" }}>経路案内（Google/マップアプリ）</Text>
           </Pressable>
         </View>
 
@@ -252,16 +221,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 8,
     marginBottom: 8,
-  },
-  navBtn: {
-    height: 44,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e6e6e6",
-    backgroundColor: "#F2F2F2",
   },
   navBtnPrimary: {
     height: 44,
