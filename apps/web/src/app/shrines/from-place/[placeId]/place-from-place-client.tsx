@@ -261,12 +261,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
         {shrineId != null && (
           <div className="mt-3">
-            <Link
-              href={`/mypage?tab=goshuin&shrine=${shrineId}#goshuin-upload`}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              この神社で御朱印を追加
-            </Link>
+            
           </div>
         )}
       </div>

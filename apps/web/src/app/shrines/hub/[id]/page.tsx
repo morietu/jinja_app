@@ -75,12 +75,7 @@ export default async function ShrineHubPage({ params, searchParams }: Props) {
           神社ページを見る
         </Link>
 
-        <Link
-          href={`/mypage?tab=goshuin&shrine=${shrineId}#goshuin-upload`}
-          className="block rounded-2xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
-        >
-          御朱印を登録する
-        </Link>
+        
 
         <Link href={back.href} className="block text-center text-xs text-slate-500 hover:underline">
           {back.label}

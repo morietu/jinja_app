@@ -2,40 +2,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { Favorite } from "@/lib/api/favorites";
-import { normalizeFavorite } from "@/lib/favorites/normalize";
 import { useFavorites } from "./hooks/useFavorites";
 import { FavoriteShrineCard } from "./FavoriteShrineCard";
 
 type Props = { initialFavorites: Favorite[] };
 
 export default function FavoritesSection({ initialFavorites }: Props) {
-  const router = useRouter();
   const { items, count, unSave, error } = useFavorites({ initialFavorites });
 
   const hasData = count > 0;
   const visible = items.slice(0, 3);
 
-  async function goGoshuinUpload(f: Favorite) {
-    const n = normalizeFavorite(f);
 
-    if (n.shrineId) {
-      router.push(`/mypage?tab=goshuin&shrine=${n.shrineId}#goshuin-upload`);
-      return;
-    }
-
-    if (n.placeId) {
-      const r = await fetch("/api/shrines/from-place", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ place_id: n.placeId }),
-      });
-      if (!r.ok) return;
-      const data = (await r.json()) as { shrine_id: number };
-      router.push(`/mypage?tab=goshuin&shrine=${data.shrine_id}#goshuin-upload`);
-    }
-  }
+  
 
   return (
     <section className="space-y-3 pt-1 pb-2">
@@ -73,12 +53,7 @@ export default function FavoritesSection({ initialFavorites }: Props) {
       ) : (
         <div className="space-y-3">
           {visible.map((f) => (
-            <FavoriteShrineCard
-              key={f.id}
-              favorite={f}
-              onUnsave={() => unSave(f)}
-              onAddGoshuin={() => goGoshuinUpload(f)}
-            />
+            <FavoriteShrineCard key={f.id} favorite={f} onUnsave={() => unSave(f)} />
           ))}
         </div>
       )}
