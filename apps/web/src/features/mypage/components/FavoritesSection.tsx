@@ -2,20 +2,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { Favorite } from "@/lib/api/favorites";
-import { normalizeFavorite } from "@/lib/favorites/normalize";
 import { useFavorites } from "./hooks/useFavorites";
 import { FavoriteShrineCard } from "./FavoriteShrineCard";
 
 type Props = { initialFavorites: Favorite[] };
 
 export default function FavoritesSection({ initialFavorites }: Props) {
-  const router = useRouter();
   const { items, count, unSave, error } = useFavorites({ initialFavorites });
 
   const hasData = count > 0;
   const visible = items.slice(0, 3);
+
 
   
 

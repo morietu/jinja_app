@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Favorite } from "@/lib/api/favorites";
 import { normalizeFavorite } from "@/lib/favorites/normalize";
 import { removeFavoriteFromCacheByPk, clearFavoritesInFlight } from "@/lib/favoritesCache";
+import { FavoriteShrineCard } from "@/features/mypage/components/FavoriteShrineCard";
 
 
 type Props = { initialFavorites: Favorite[] };
