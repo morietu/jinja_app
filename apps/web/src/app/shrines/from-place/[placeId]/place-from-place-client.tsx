@@ -8,6 +8,8 @@ import type { Shrine } from "@/lib/api/shrines";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import { LABELS } from "@/lib/ui/labels";
+
 
 
 type Props = { placeId: string; ctx?: "concierge" | "map" | null; tid?: string | null };
@@ -245,7 +247,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
                   href={detailHref}
                   className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                 >
-                  詳細を見る
+                  {LABELS.shrineDetail} {/* ✅ 置換 */}
                 </Link>
               ) : null}
 

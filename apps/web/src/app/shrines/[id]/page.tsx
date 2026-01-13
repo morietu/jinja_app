@@ -8,6 +8,10 @@ import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 
+function normalizeCtx(v?: string | null): "map" | "concierge" | null {
+  return v === "map" || v === "concierge" ? v : null;
+}
+
 function getBenefitLabels(shrine: Shrine): string[] {
   if (Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0) {
     return shrine.goriyaku_tags.map((t) => t?.name?.trim()).filter((name): name is string => Boolean(name));
@@ -29,7 +33,10 @@ type Props = {
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
-  const close = buildShrineClose({ ctx: (sp.ctx ?? null) as any, tid: sp.tid ?? null }); // ctx型を厳密にするなら normalizeCtx を噛ませてOK
+  const ctx = normalizeCtx(sp.ctx ?? null);
+  const tid = sp.tid ?? null;
+
+  const close = buildShrineClose({ ctx, tid });
 
   const numericId = Number(id);
   if (!Number.isFinite(numericId) || numericId <= 0) {
@@ -70,8 +77,11 @@ export default async function Page({ params, searchParams }: Props) {
     );
   }
 
-  // ✅ ここで non-null に確定（TSが理解できる形にする）
+  // ✅ ここで non-null 確定
   const s = shrine;
+
+  // ✅ title を必ず string に落とす（null/undefined 対策）
+  const title = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
 
   const latNum = Number(s.lat ?? s.latitude ?? NaN);
   const lngNum = Number(s.lng ?? s.longitude ?? NaN);
@@ -91,17 +101,17 @@ export default async function Page({ params, searchParams }: Props) {
       <ShrineDetailToast shrineId={numericId} />
 
       <ShrineDetailShell
-        title={s.name_jp}
+        title={title}
         subtitle={null}
         close={close}
         addGoshuinHref={addGoshuinHref}
-        saveAction={{
-          shrineId: numericId,
-          nextPath: `/shrines/${numericId}`,
-          node: <ShrineSaveButton shrineId={numericId} nextPath={`/shrines/${numericId}`} />,
-        }}
         googleDirHref={googleDirHref}
         googleDirLabel="Googleマップで経路案内"
+        saveAction={{
+          shrineId: numericId,
+          nextPath: `/shrines/${numericId}${ctx ? `?ctx=${ctx}${tid ? `&tid=${encodeURIComponent(tid)}` : ""}` : ""}`,
+          node: <ShrineSaveButton shrineId={numericId} nextPath={`/shrines/${numericId}`} />,
+        }}
       >
         <article className="overflow-hidden rounded-2xl border bg-white shadow-sm">
           <ShrinePhotoGallery shrine={s} />

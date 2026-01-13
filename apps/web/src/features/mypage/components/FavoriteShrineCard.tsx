@@ -4,6 +4,7 @@
 import Link from "next/link";
 import type { Favorite } from "@/lib/api/favorites";
 import { normalizeFavorite } from "@/lib/favorites/normalize";
+import { LABELS } from "@/lib/ui/labels";
 
 type Props = {
   favorite: Favorite;
@@ -50,7 +51,7 @@ export function FavoriteShrineCard({
 
         {href && (
           <Link href={href} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
-            神社の詳細を見る
+            {LABELS.shrineDetail}
           </Link>
         )}
       </div>
@@ -63,7 +64,7 @@ export function FavoriteShrineCard({
             disabled={disabled || addLoading || !allowAdd}
             className="rounded-md border px-3 py-1 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40"
           >
-            {addLoading ? "移動中…" : "御朱印を追加"}
+            {addLoading ? LABELS.moving : LABELS.addGoshuin}
           </button>
         )}
 
@@ -74,7 +75,7 @@ export function FavoriteShrineCard({
             disabled={disabled || unsaveLoading}
             className="rounded-md border px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
           >
-            {unsaveLoading ? "解除中…" : "保存解除"}
+            {unsaveLoading ? LABELS.removing : LABELS.unsave}
           </button>
         )}
       </div>

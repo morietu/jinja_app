@@ -1,79 +1,87 @@
 // apps/web/src/components/shrine/ShrineDetailShell.tsx
-import Link from "next/link";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import type { Close } from "@/lib/navigation/shrineClose";
 import ShrineCloseLink from "@/components/shrine/ShrineCloseLink";
+import { LABELS } from "@/lib/ui/labels";
 
 type SaveAction = {
   shrineId: number;
   nextPath: string;
-  node: ReactNode;
+  node: ReactNode; // 例: <ShrineSaveButton ... />
 };
 
 type Props = {
   title: string;
-  subtitle: string | null;
+  subtitle?: string | null;
   close: Close;
 
-  addGoshuinHref: string | null;
-  saveAction: SaveAction | null;
-
-  googleDirHref: string | null;
-  googleDirLabel?: string;
+  // CTA
+  addGoshuinHref?: string | null;
+  googleDirHref?: string | null;
+  googleDirLabel?: string; // 任意で上書き可
   googleDirFallbackText?: string;
 
-  children: ReactNode;
+  saveAction?: SaveAction | null;
+
+  children?: ReactNode;
 };
 
 export default function ShrineDetailShell({
   title,
-  subtitle,
+  subtitle = null,
   close,
-  addGoshuinHref,
-  saveAction,
-  googleDirHref,
-  googleDirLabel = "Googleマップで経路案内",
+  addGoshuinHref = null,
+  googleDirHref = null,
+  googleDirLabel = LABELS.googleDirections,
   googleDirFallbackText = "位置情報が未登録のため、経路案内を表示できません。",
+  saveAction = null,
   children,
 }: Props) {
   return (
-    <main className="mx-auto max-w-md space-y-6 p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-bold">{title}</h1>
-        {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
+    <main className="mx-auto min-h-[calc(100vh-64px)] max-w-md space-y-4 p-4">
+      {/* ✅ Close をヘッダー左固定 */}
+      <header className="flex items-center justify-between">
+        <div className="shrink-0">
+          <ShrineCloseLink close={close} />
+        </div>
+
+        <div className="min-w-0 flex-1 px-2 text-center">
+          <div className="truncate text-sm font-semibold text-slate-900">{title}</div>
+          {subtitle ? <div className="truncate text-[11px] text-slate-500">{subtitle}</div> : null}
+        </div>
+
+        {/* 右側はレイアウト固定のため空 */}
+        <div className="w-[64px]" />
       </header>
 
-      {/* CTA群 */}
-      <div className="space-y-2">
-        {addGoshuinHref ? (
-          <Link
-            href={addGoshuinHref}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
-          >
-            この神社で御朱印を追加
-          </Link>
-        ) : null}
+      {/* ✅ CTAの順番はここで強制（御朱印 → 経路案内 → 保存） */}
+      {addGoshuinHref ? (
+        <Link
+          href={addGoshuinHref}
+          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
+        >
+          {LABELS.addGoshuin}
+        </Link>
+      ) : null}
 
-        {saveAction ? saveAction.node : null}
+      {googleDirHref ? (
+        <a
+          href={googleDirHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+        >
+          {googleDirLabel}
+        </a>
+      ) : (
+        <div className="rounded-xl border bg-white p-3 text-xs text-slate-500">{googleDirFallbackText}</div>
+      )}
 
-        {googleDirHref ? (
-          <a
-            href={googleDirHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            {googleDirLabel}
-          </a>
-        ) : (
-          <div className="rounded-xl border bg-white p-3 text-xs text-slate-500">{googleDirFallbackText}</div>
-        )}
-      </div>
+      {saveAction?.node ? <div>{saveAction.node}</div> : null}
 
+      {/* 本文 */}
       {children}
-
-      {/* ✅ Close は Shell が一箇所で責務を持つ */}
-      <ShrineCloseLink close={close} />
     </main>
   );
 }

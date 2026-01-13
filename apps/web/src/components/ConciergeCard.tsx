@@ -1,9 +1,11 @@
+// apps/web/src/components/ConciergeCard.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { pickBenefitTagFromRec, benefitLabel } from "@/lib/concierge/benefitTag";
+import { LABELS } from "@/lib/ui/labels";
 
 type Props = {
   s: Shrine;
@@ -101,7 +103,7 @@ export default function ConciergeCard({ s, index = 0 }: Props) {
                 href={detailHref}
                 className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                神社の詳細を見る
+                {LABELS.shrineDetail}
               </Link>
             </div>
           )}
