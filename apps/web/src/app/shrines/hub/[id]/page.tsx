@@ -1,86 +1,29 @@
 // apps/web/src/app/shrines/hub/[id]/page.tsx
-import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { parseShrineBackContext, shrineBackConfig } from "@/lib/navigation/shrineBack";
 
 type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
 
-
-
-type ShrineData = {
-  id: number;
-  name_jp?: string | null;
-  address?: string | null;
-};
-
-async function fetchShrineData(id: string): Promise<ShrineData | null> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const baseUrl = `${proto}://${host}`;
-
-  const cookie = h.get("cookie") ?? "";
-  const res = await fetch(`${baseUrl}/api/shrines/${encodeURIComponent(id)}/data/`, {
-    cache: "no-store",
-    headers: cookie ? { cookie } : undefined,
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as ShrineData;
-}
-
-export default async function ShrineHubPage({ params, searchParams }: Props) {
+export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
-  const sp = (searchParams ? await searchParams : undefined) ?? {};
+  const sp = (await searchParams) ?? {};
 
-  const ctx = parseShrineBackContext(sp.ctx);
-  const back = shrineBackConfig(ctx);
+  const q = new URLSearchParams();
+  if (sp.ctx) q.set("ctx", sp.ctx);
+  if (sp.tid) q.set("tid", sp.tid);
 
-  const qs = new URLSearchParams();
-  if (sp.ctx) qs.set("ctx", sp.ctx);
-  if (sp.tid) qs.set("tid", sp.tid);
-
-  const shrineId = Number(id);
-
-  // ✅ 数値じゃない = place_id とみなして from-place へ逃がす
-  if (!Number.isFinite(shrineId) || shrineId <= 0) {
-    const dest = qs.toString()
-      ? `/shrines/from-place/${encodeURIComponent(id)}?${qs.toString()}`
-      : `/shrines/from-place/${encodeURIComponent(id)}`;
-    return redirect(dest);
+  // 数値IDなら /shrines/:id へ
+  const numericId = Number(id);
+  if (Number.isFinite(numericId) && numericId > 0) {
+    const dest = q.toString() ? `/shrines/${numericId}?${q.toString()}` : `/shrines/${numericId}`;
+    redirect(dest);
   }
 
-  const data = await fetchShrineData(id);
-  if (!data) redirect("/map?toast=shrine_not_found");
-
-  const title = data.name_jp ?? `神社 #${shrineId}`;
-  const address = data.address ?? "";
-
-  return (
-    <main className="mx-auto min-h-[calc(100vh-64px)] max-w-md p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-bold text-slate-900">{title}</h1>
-        {address ? <p className="text-xs text-slate-500">{address}</p> : null}
-        <p className="text-xs text-slate-500">次に何をしますか？</p>
-      </header>
-
-      <section className="mt-4 space-y-3">
-        <Link
-          href={`/shrines/${shrineId}`}
-          className="block rounded-2xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:opacity-95"
-        >
-          神社ページを見る
-        </Link>
-
-        
-
-        <Link href={back.href} className="block text-center text-xs text-slate-500 hover:underline">
-          {back.label}
-        </Link>
-      </section>
-    </main>
-  );
+  // 数値じゃなければ place_id とみなして from-place へ
+  const dest = q.toString()
+    ? `/shrines/from-place/${encodeURIComponent(id)}?${q.toString()}`
+    : `/shrines/from-place/${encodeURIComponent(id)}`;
+  redirect(dest);
 }

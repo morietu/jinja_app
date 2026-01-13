@@ -6,7 +6,6 @@ import Link from "next/link";
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 import ChatInput from "./ChatInput";
 import RecommendationUnit from "@/components/concierge/RecommendationUnit";
-import { useSearchParams } from "next/navigation";
 
 type Props = {
   thread: ConciergeThread | null;
@@ -53,7 +52,7 @@ export default function ChatPanel({
     el.scrollTop = el.scrollHeight;
   }, [messages, autoScroll, embedMode]);
 
-  // ✅ おすすめが出たタイミングでも下へ寄せる（四角枠だけ見えて「下に出る」を減らす）
+  // ✅ おすすめが出たタイミングでも下へ寄せる
   useEffect(() => {
     if (embedMode) return;
     if (!recommendations.length) return;
@@ -93,14 +92,6 @@ export default function ChatPanel({
     const next = `${location.pathname}${location.search}`;
     location.href = `/login?next=${encodeURIComponent(next)}`;
   };
-
-  const sp = useSearchParams();
-  const tid = sp.get("tid");
-
-  const q = new URLSearchParams();
-  if (tid) q.set("tid", tid);
-
-  const mapBrowseHref = q.toString() ? `/map?${q.toString()}` : "/map";
 
   // ✅ embedMode: 入力パネルだけ
   if (embedMode) {
@@ -148,7 +139,7 @@ export default function ChatPanel({
     );
   }
 
-  // ---- ここから下は非embedの従来表示（会話UI + 枠内おすすめ） ----
+  // ---- 非embed（会話UI + 枠内おすすめ） ----
   return (
     <div className="flex h-[calc(100vh-180px)] flex-col rounded-2xl border bg-white shadow-sm">
       {/* メッセージ一覧 */}
@@ -198,7 +189,7 @@ export default function ChatPanel({
           </div>
         )}
 
-        {/* ✅ 枠内おすすめ */}
+        {/* ✅ 枠内おすすめ（/map 導線なし） */}
         {recommendations.length > 0 && (
           <div className="mt-4 border-t pt-3 pb-2">
             <div className="mb-2">
@@ -211,18 +202,7 @@ export default function ChatPanel({
               ))}
             </section>
 
-            <div className="mt-3 text-[11px] text-slate-600">
-              気になる神社があれば「地図で見る」で場所を確認できます。
-            </div>
-
             <div className="mt-4 grid gap-2">
-              <Link
-                href={mapBrowseHref}
-                className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-              >
-                他も見て選ぶ（地図）
-              </Link>
-
               <Link
                 href="/concierge/history"
                 className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900"
@@ -235,7 +215,7 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* エラーバナー（401はログイン導線） */}
+      {/* エラーバナー */}
       {error && (
         <div className="flex items-center justify-between border-t border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
           <span className="mr-3 line-clamp-2">
