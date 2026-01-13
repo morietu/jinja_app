@@ -24,15 +24,15 @@ function getBenefitLabels(shrine: Shrine): string[] {
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ ctx?: string; tid?: string }>;
+  
 };
 
 
 
-export default async function Page({ params, searchParams }: Props) {
+export default async function Page({ params}: Props) {
   
   const { id } = await params;
-  const sp = (searchParams ? await searchParams : undefined) ?? {};
+  
 
   const numericId = Number(id);
 
