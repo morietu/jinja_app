@@ -36,7 +36,8 @@ def test_concierge_view_fallback_when_llm_empty(monkeypatch, client):
     # monkeypatch で orchestrator の suggest を差し替える（ビュー側のフォールバックを誘発）
     from temples.api_views_concierge import ConciergePlanView
 
-    monkeypatch.setattr("temples.api_views_concierge.ConciergeOrchestrator", DummyOrch)
+    
+    monkeypatch.setattr("temples.llm.orchestrator.ConciergeOrchestrator", DummyOrch)
 
     payload = {"query": "神社", "candidates": [{"name": "神社A"}], "bias": None}
     resp = client.post(
