@@ -14,13 +14,13 @@
     "test:cov": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=dot",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:contract": "vitest run --reporter=dot",
     "lint:openapi": "pnpm -w lint:openapi",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:contract": "vitest run --reporter=dot --pool=threads"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
