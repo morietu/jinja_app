@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
-
+from temples.domain.astrology import sun_sign_and_element, element_priority
 from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
@@ -31,6 +31,8 @@ from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
 from temples.services.concierge_history import append_chat
 from temples.models import ConciergeThread
+from temples.models import Shrine
+
 
 from .models import ConciergeUsage
 
@@ -523,6 +525,59 @@ def _resolve_user_and_token(request):
 LIMIT_MSG = "無料で利用できる回数を使い切りました。"
 
 
+def _attach_astro_elements_to_recs(recs: dict) -> dict:
+    """
+    recに astro_elements を埋める（無ければ空）
+    ※まずはDBに入ってるものだけ使う。無いなら空でOK。
+    """
+    items = recs.get("recommendations") or []
+    for r in items:
+        if not isinstance(r, dict):
+            continue
+        if r.get("astro_elements") is not None:
+            continue
+        name = (r.get("name") or "").strip()
+        if not name:
+            r["astro_elements"] = []
+            continue
+        try:
+            s = Shrine.objects.filter(name_jp__icontains=name).only("astro_elements").first()
+            r["astro_elements"] = (s.astro_elements or []) if s else []
+        except Exception:
+            r["astro_elements"] = []
+    return recs
+
+
+def _pick_by_astrology(recs: dict, *, birthdate: str | None) -> dict:
+    prof = sun_sign_and_element(birthdate)
+    if not prof:
+        return recs  # 入力無しなら何もしない
+
+    items = [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
+    if not items:
+        return recs
+
+    # 優先度でグルーピング（2→1→0）
+    buckets = {2: [], 1: [], 0: []}
+    for r in items:
+        pri = element_priority(prof.element, r.get("astro_elements"))
+        buckets[pri].append(r)
+
+    picked = []
+    for pri in (2, 1, 0):
+        for r in buckets[pri]:
+            if len(picked) >= 3:
+                break
+            picked.append(r)
+        if len(picked) >= 3:
+            break
+
+    recs["recommendations"] = picked
+    # 表示用に付けておく（LLMなしで理由に混ぜられる）
+    recs["_astro"] = {"sun_sign": prof.sign, "element": prof.element}
+    return recs
+
+
 class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = [JWTAuthentication, SessionAuthentication]
@@ -649,6 +704,24 @@ class ConciergeChatView(APIView):
                     r["location"] = bf._shorten_japanese_address(addr) or addr
                 except Exception:
                     r["location"] = addr
+
+        birthdate = (data.get("birthdate") or "").strip() or None
+
+        try:
+            recs = _attach_astro_elements_to_recs(recs)
+        except Exception:
+            pass
+
+        try:
+            recs = _pick_by_astrology(recs, birthdate=birthdate)
+        except Exception:
+            pass
+
+        # ✅ chatは3件固定にしたいなら、最後に必ず丸める
+        try:
+            recs["recommendations"] = (recs.get("recommendations") or [])[:3]
+        except Exception:
+            pass
 
         # --- 最後に1回だけ：表示名と reason を全件確定 ---
         for r in recs.get("recommendations", []) or []:
