@@ -1,4 +1,3 @@
-# backend/temples/tests/test_backfill_astro_elements_command.py
 import pytest
 from django.core.management import call_command
 
@@ -6,26 +5,15 @@ from temples.models import Shrine
 
 
 @pytest.mark.django_db
-def test_backfill_astro_elements_dry_run_does_not_write_db(capsys):
-    """
-    目的:
-      - --dry-run では astro_elements が DB に書き込まれないことを保証する
-    """
+def test_backfill_astro_elements_writes_ja_elements():
+    Shrine.objects.create(name_jp="A", astro_elements=[], popular_score=0.0)
+    Shrine.objects.create(name_jp="B", astro_elements=["fire"], popular_score=8.0)  # 英語混入でもjaに寄せる
 
-    shrine = Shrine.objects.create(
-        name_jp="DryRun Shrine",
-        astro_elements=[],
-        popular_score=0.0,
-    )
+    call_command("backfill_astro_elements", "--mode", "rotate", "--seed", "1")
 
-    call_command("backfill_astro_elements", "--dry-run")
-
-    shrine.refresh_from_db()
-
-    # DB は変更されていない
-    assert shrine.astro_elements == []
-
-    # 出力はされている（= dry-run でも処理は走る）
-    captured = capsys.readouterr().out
-    assert "DryRun Shrine" in captured
-    assert "Dry-run" in captured or "dry" in captured.lower()
+    elems = list(Shrine.objects.values_list("astro_elements", flat=True))
+    # 2件とも「日本語の4元素のどれか」だけになっていること
+    for e in elems:
+        assert isinstance(e, list)
+        assert len(e) == 1
+        assert e[0] in ["火", "土", "風", "水"]

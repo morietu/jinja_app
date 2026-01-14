@@ -2,128 +2,156 @@
 from __future__ import annotations
 
 import random
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Q
 
 from temples.models import Shrine
 
-# 4元素（文字列は domain.astrology 側の想定に合わせて "fire/water/earth/air"）
-ELEMENTS = ["fire", "water", "earth", "air"]
+JA_ELEMENTS = ["火", "土", "風", "水"]
 
+# 英語/日本語混在しても必ず日本語に寄せる
+TO_JA = {
+    "fire": "火",
+    "water": "水",
+    "earth": "土",
+    "air": "風",
+    "火": "火",
+    "水": "水",
+    "土": "土",
+    "風": "風",
+    # 旧表記/揺れの吸収（必要なら増やす）
+    "地": "土",
+}
 
-def _pick_element_by_popularity(popular_score: float) -> str:
+def normalize_elements_to_ja(elems: Iterable[object] | None) -> List[str]:
+    if not elems:
+        return []
+    out: List[str] = []
+    for e in elems:
+        k = str(e).strip()
+        if not k:
+            continue
+        out.append(TO_JA.get(k, k))
+
+    # 重複除去（順序維持）
+    seen = set()
+    dedup: List[str] = []
+    for e in out:
+        if e in seen:
+            continue
+        seen.add(e)
+        dedup.append(e)
+
+    # 許可値以外は落とす（DBを固める）
+    dedup = [e for e in dedup if e in JA_ELEMENTS]
+    return dedup
+
+def is_valid_ja_elems(elems: Optional[Iterable[object]]) -> bool:
     """
-    popular_score に応じて元素を偏らせる（ざっくりでOK）
-    - 高い: fire/air を少し多め
-    - 中: 均等に近い
-    - 低い: earth/water を少し多め
+    DBの生値が「火土風水（1要素）」として正しいかだけを見る。
+    normalize して正しく見える（fire→火 など）は valid 扱いにしない。
     """
-    p = float(popular_score or 0.0)
+    if not elems:
+        return False
+    raw = [str(x).strip() for x in elems if str(x).strip()]
+    return len(raw) == 1 and raw[0] in JA_ELEMENTS
 
-    # weights は相対値。合計は何でも良い。
-    if p >= 7.0:
-        weights = {"fire": 4, "air": 3, "earth": 2, "water": 2}
-    elif p >= 4.0:
-        weights = {"fire": 3, "air": 3, "earth": 3, "water": 3}
+def pick_element_rotate(index: int) -> str:
+    return JA_ELEMENTS[index % len(JA_ELEMENTS)]
+
+def pick_element_popular(rng: random.Random, popular: float) -> str:
+    p = float(popular or 0.0)
+    if p >= 7:
+        weights = [3, 2, 2, 1]  # 火/土/風/水
+    elif p >= 4:
+        weights = [2, 2, 2, 2]
     else:
-        weights = {"fire": 2, "air": 2, "earth": 4, "water": 3}
-
-    bag: List[str] = []
-    for e, w in weights.items():
-        bag.extend([e] * int(w))
-    return random.choice(bag) if bag else random.choice(ELEMENTS)
-
+        weights = [1, 1, 2, 3]  # 静けさ寄り = 水/風寄り
+    return rng.choices(JA_ELEMENTS, weights=weights, k=1)[0]
 
 class Command(BaseCommand):
-    help = "Backfill Shrine.astro_elements for existing rows."
+    help = "Backfill Shrine.astro_elements with Japanese 4 elements (火土風水)."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Print what would change, but do not write to DB.",
-        )
+        parser.add_argument("--dry-run", action="store_true", help="Print changes without writing to DB.")
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Overwrite existing astro_elements even if non-empty.",
-        )
-        parser.add_argument(
-            "--seed",
-            type=int,
-            default=42,
-            help="Random seed for reproducible results (default: 42).",
+            help="Repair-only: normalize invalid values; DO NOT reshuffle already-valid 火土風水 rows.",
         )
         parser.add_argument(
             "--mode",
             choices=["popular", "rotate"],
             default="popular",
-            help="How to assign elements: 'popular' (weighted by popular_score) or 'rotate' (round-robin).",
+            help="Assignment strategy (still outputs JA elements only).",
         )
-        parser.add_argument(
-            "--limit",
-            type=int,
-            default=0,
-            help="Limit number of rows to process (0 = no limit).",
-        )
+        parser.add_argument("--seed", type=int, default=42, help="Random seed for deterministic assignment.")
 
+    @transaction.atomic
     def handle(self, *args, **opts):
-        dry_run: bool = opts["dry_run"]
-        force: bool = opts["force"]
-        seed: int = int(opts["seed"])
+        dry_run: bool = bool(opts["dry_run"])
+        force: bool = bool(opts["force"])
         mode: str = str(opts["mode"])
-        limit: int = int(opts["limit"])
+        seed: int = int(opts["seed"])
 
-        random.seed(seed)
+        rng = random.Random(seed)
 
-        qs = Shrine.objects.all().only("id", "name_jp", "popular_score", "astro_elements").order_by("id")
+        qs = Shrine.objects.all().order_by("id")
 
-        if not force:
-            # 空だけ対象（NULL と [] 両方を見る）
-            qs = qs.filter(Q(astro_elements__isnull=True) | Q(astro_elements=[]))
+        # ✅ ループ対象をここで確定（以後 rows のみを見る）
+        if force:
+            rows = list(qs)  # 全件（修復対象の拾い漏れ防止）
+        else:
+            rows = list(qs.filter(astro_elements=[]))  # 空だけ
 
-        if limit and limit > 0:
-            qs = qs[:limit]
+        self.stdout.write(f"mode={mode} force={force} dry_run={dry_run} seed={seed} count={len(rows)}")
 
-        targets = list(qs)
-        if not targets:
-            self.stdout.write(self.style.SUCCESS("No rows to update."))
-            return
+        updated = 0
 
-        # rotate 用
-        it = iter(ELEMENTS)
+        for i, s in enumerate(rows):
+            raw_before = list(s.astro_elements or [])
+            before_norm = normalize_elements_to_ja(raw_before)
 
-        planned = []
-        for s in targets:
-            if mode == "rotate":
-                try:
-                    e = next(it)
-                except StopIteration:
-                    it = iter(ELEMENTS)
-                    e = next(it)
+            # ----------------------------
+            # 方針A: --force は “修復専用”
+            #  - すでに正規（火土風水で1要素）なら何もしない（再抽選しない）
+            #  - 英語/地/未知が混ざっていたら正規化して修復
+            #  - 空になったら pick で付与
+            # ----------------------------
+            if force:
+                if is_valid_ja_elems(raw_before):
+                    continue  # ✅ ここが「再抽選しない」
+
+                if before_norm:
+                    after = before_norm[:1]
+                else:
+                    popular = float(getattr(s, "popular_score", 0.0) or 0.0)
+                    chosen = pick_element_rotate(i) if mode == "rotate" else pick_element_popular(rng, popular)
+                    after = [chosen]
             else:
-                e = _pick_element_by_popularity(getattr(s, "popular_score", 0.0))
+                # force=False は rows が空だけなので pick
+                popular = float(getattr(s, "popular_score", 0.0) or 0.0)
+                chosen = pick_element_rotate(i) if mode == "rotate" else pick_element_popular(rng, popular)
+                after = [chosen]
 
-            new_val = [e]
-            old_val = getattr(s, "astro_elements", None) or []
-            planned.append((s, old_val, new_val))
+            after = normalize_elements_to_ja(after)
 
-        # dry-run 出力
-        self.stdout.write(f"mode={mode} force={force} dry_run={dry_run} seed={seed} count={len(planned)}")
-        for s, old_val, new_val in planned:
-            self.stdout.write(f"- id={s.id} name={s.name_jp!r} popular={getattr(s,'popular_score',0)} {old_val} -> {new_val}")
+            # after は正規化済みなので、rawと一致しているときだけスキップ
+            if raw_before == after:
+                continue
 
-        if dry_run:
-            self.stdout.write(self.style.WARNING("Dry-run: no changes written."))
-            return
+            name = getattr(s, "name_jp", "") or ""
+            pop = float(getattr(s, "popular_score", 0.0) or 0.0)
+            self.stdout.write(f"- id={s.id} name={name!r} popular={pop} {raw_before} -> {after}")
 
-        # 書き込み
-        with transaction.atomic():
-            for s, _old_val, new_val in planned:
-                s.astro_elements = new_val
+            updated += 1
+            if not dry_run:
+                s.astro_elements = after
                 s.save(update_fields=["astro_elements"])
 
-        self.stdout.write(self.style.SUCCESS(f"Updated {len(planned)} rows."))
+        if dry_run:
+            self.stdout.write("Dry-run: no changes written.")
+        else:
+            self.stdout.write(f"Updated {updated} rows.")
