@@ -169,7 +169,7 @@ def _topup_recommendations_with_candidates(
     items = _dedupe_by_name(items)
 
     if len(items) >= limit:
-        recs["recommendations"] = items[:limit]
+        recs["recommendations"] = items
         return recs
 
     # candidatesから不足分を補充
@@ -361,9 +361,9 @@ def build_chat_recommendations(
     except Exception:
         pass
 
-    # ✅ chatは3件固定
+    # ✅ 最後に slice で 3件固定
     try:
-        recs["recommendations"] = (recs.get("recommendations") or [])[:3]
+        recs["recommendations"] = recs["recommendations"][:3]
     except Exception:
         pass
 
