@@ -21,9 +21,10 @@ TO_JA = {
     "水": "水",
     "土": "土",
     "風": "風",
-    # 旧表記/揺れの吸収（必要なら増やす）
+    # 旧表記/揺れ
     "地": "土",
 }
+
 
 def normalize_elements_to_ja(elems: Iterable[object] | None) -> List[str]:
     if not elems:
@@ -45,8 +46,8 @@ def normalize_elements_to_ja(elems: Iterable[object] | None) -> List[str]:
         dedup.append(e)
 
     # 許可値以外は落とす（DBを固める）
-    dedup = [e for e in dedup if e in JA_ELEMENTS]
-    return dedup
+    return [e for e in dedup if e in JA_ELEMENTS]
+
 
 def is_valid_ja_elems(elems: Optional[Iterable[object]]) -> bool:
     """
@@ -58,8 +59,10 @@ def is_valid_ja_elems(elems: Optional[Iterable[object]]) -> bool:
     raw = [str(x).strip() for x in elems if str(x).strip()]
     return len(raw) == 1 and raw[0] in JA_ELEMENTS
 
+
 def pick_element_rotate(index: int) -> str:
     return JA_ELEMENTS[index % len(JA_ELEMENTS)]
+
 
 def pick_element_popular(rng: random.Random, popular: float) -> str:
     p = float(popular or 0.0)
@@ -70,6 +73,7 @@ def pick_element_popular(rng: random.Random, popular: float) -> str:
     else:
         weights = [1, 1, 2, 3]  # 静けさ寄り = 水/風寄り
     return rng.choices(JA_ELEMENTS, weights=weights, k=1)[0]
+
 
 class Command(BaseCommand):
     help = "Backfill Shrine.astro_elements with Japanese 4 elements (火土風水)."
@@ -98,14 +102,7 @@ class Command(BaseCommand):
 
         rng = random.Random(seed)
 
-        qs = Shrine.objects.all().order_by("id")
-
-        # ✅ ループ対象をここで確定（以後 rows のみを見る）
-        if force:
-            rows = list(qs)  # 全件（修復対象の拾い漏れ防止）
-        else:
-            rows = list(qs.filter(astro_elements=[]))  # 空だけ
-
+        rows = list(Shrine.objects.all().order_by("id"))
         self.stdout.write(f"mode={mode} force={force} dry_run={dry_run} seed={seed} count={len(rows)}")
 
         updated = 0
@@ -114,31 +111,23 @@ class Command(BaseCommand):
             raw_before = list(s.astro_elements or [])
             before_norm = normalize_elements_to_ja(raw_before)
 
-            # ----------------------------
-            # 方針A: --force は “修復専用”
-            #  - すでに正規（火土風水で1要素）なら何もしない（再抽選しない）
-            #  - 英語/地/未知が混ざっていたら正規化して修復
-            #  - 空になったら pick で付与
-            # ----------------------------
-            if force:
-                if is_valid_ja_elems(raw_before):
-                    continue  # ✅ ここが「再抽選しない」
+            # すでに正規（火土風水 1要素）なら触らない（forceでも同じ：修復専用）
+            if is_valid_ja_elems(raw_before):
+                continue
 
-                if before_norm:
-                    after = before_norm[:1]
-                else:
-                    popular = float(getattr(s, "popular_score", 0.0) or 0.0)
-                    chosen = pick_element_rotate(i) if mode == "rotate" else pick_element_popular(rng, popular)
-                    after = [chosen]
+            # force でも force無しでも：
+            #  - 英語/地/混在 → before_norm が取れれば修復
+            #  - 空/未知 → pick で付与
+            if before_norm:
+                after = before_norm[:1]
             else:
-                # force=False は rows が空だけなので pick
                 popular = float(getattr(s, "popular_score", 0.0) or 0.0)
                 chosen = pick_element_rotate(i) if mode == "rotate" else pick_element_popular(rng, popular)
                 after = [chosen]
 
             after = normalize_elements_to_ja(after)
 
-            # after は正規化済みなので、rawと一致しているときだけスキップ
+            # raw が fire でも after は 火 なので保存される（ここが重要）
             if raw_before == after:
                 continue
 
