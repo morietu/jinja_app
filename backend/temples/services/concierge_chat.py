@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from temples.domain.astrology import sun_sign_and_element, element_priority
 from temples.llm import backfill as bf
-from temples.models import Shrine
 
 
 def _clean_display_name(name: Any) -> str:
@@ -79,24 +77,33 @@ def _generic_by_popular(popular: float) -> str:
 
 
 def normalize_reason_for_chat(rec: dict, *, query: str) -> str:
-    """短文の“推し文”を最終整形。chat用（api_views の挙動と合わせる）"""
+    """
+    短文の“推し文”を最終整形。chat用（api_views の挙動と合わせる）
+    - タグ/クエリからヒント
+    - ノイズ除去
+    - popular_score による汎用文
+    """
     name = (rec.get("name") or "").strip()
     raw = rec.get("reason")
     t = raw.strip() if isinstance(raw, str) else ""
+
     tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
     tags = set(tags_list)
     popular = float(rec.get("popular_score") or 0)
 
+    # ノイズ除去／キー直接一致置換
     if t and t in TAG_DEITY_HINTS:
         t = TAG_DEITY_HINTS[t]
     if _is_noise_reason(t, name, "".join(tags_list)):
         t = ""
 
+    # タグ→クエリ
     if not t:
         t = _hint_from_tags(tags) or ""
     if not t:
         t = _hint_from_query(query) or ""
 
+    # 人気スコア汎用文
     if not t:
         t = _generic_by_popular(popular)
 
@@ -105,6 +112,12 @@ def normalize_reason_for_chat(rec: dict, *, query: str) -> str:
 
 
 def build_bullets_for_chat(rec: dict, *, query: str) -> list[str]:
+    """
+    UI表示用の補足 bullets（会話文ではなく“評価理由”）
+    - rec.bullets / rec.highlights を最優先
+    - 無ければ query/tags から軽く推測
+    - 最低3つ保証
+    """
     bullets: list[str] = []
 
     src = rec.get("bullets") or rec.get("highlights")
@@ -132,12 +145,30 @@ def build_bullets_for_chat(rec: dict, *, query: str) -> list[str]:
     return bullets[:3]
 
 
-def attach_astro_elements_to_recs(recs: dict) -> dict:
+def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) -> Dict[str, Any]:
     """
-    recに astro_elements を埋める（無ければ空）
-    ※まずはDBに入ってるものだけ使う。無いなら空でOK。
+    占星術フィルタ（軽量化のため lazy import + birthdate がある時だけ）
+    - import が重い/失敗する環境でも chat 全体は落とさない
+    - Shrine 参照もここに閉じ込める
     """
+    if not birthdate:
+        return recs
+
+    try:
+        from temples.domain.astrology import sun_sign_and_element, element_priority
+        from temples.models import Shrine
+    except Exception:
+        return recs
+
+    prof = sun_sign_and_element(birthdate)
+    if not prof:
+        return recs
+
     items = recs.get("recommendations") or []
+    if not isinstance(items, list) or not items:
+        return recs
+
+    # astro_elements を埋める（無ければ空）
     for r in items:
         if not isinstance(r, dict):
             continue
@@ -152,24 +183,15 @@ def attach_astro_elements_to_recs(recs: dict) -> dict:
             r["astro_elements"] = (s.astro_elements or []) if s else []
         except Exception:
             r["astro_elements"] = []
-    return recs
 
-
-def pick_by_astrology(recs: dict, *, birthdate: str | None) -> dict:
-    prof = sun_sign_and_element(birthdate)
-    if not prof:
-        return recs
-
-    items = [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
-    if not items:
-        return recs
-
-    buckets = {2: [], 1: [], 0: []}
-    for r in items:
+    # 優先度で最大3件に絞る（2→1→0）
+    only_dicts = [r for r in items if isinstance(r, dict)]
+    buckets: Dict[int, List[dict]] = {2: [], 1: [], 0: []}
+    for r in only_dicts:
         pri = element_priority(prof.element, r.get("astro_elements"))
         buckets[pri].append(r)
 
-    picked: list[dict] = []
+    picked: List[dict] = []
     for pri in (2, 1, 0):
         for r in buckets[pri]:
             if len(picked) >= 3:
@@ -192,17 +214,18 @@ def build_chat_recommendations(
     birthdate: Optional[str],
 ) -> Dict[str, Any]:
     """
-    /api/concierge/chat の本流推薦パイプライン（挙動維持・リファクタ用）
+    /api/concierge/chat の推薦パイプライン（APIViewを薄く保つための service）
     - Orchestratorで候補生成（失敗時はfallback）
-    - location補完
-    - astro_elements付与 → astrologyで最大3件に絞り
+    - candidates formatted_address を最優先で location に入れる → それでも無いなら backfill lookup
+    - birthdate があれば占星術フィルタ（lazy import）
+    - 3件固定
     - display_name / reason / bullets を確定
     """
-    # ---- recommendations 生成（monkeypatchが効く import を使う）----
+    # ---- recommendations 生成（tests monkeypatch が効く import を使う）----
     try:
         from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
 
-        recs = Orchestrator().suggest(query=query, candidates=candidates)
+        recs: Any = Orchestrator().suggest(query=query, candidates=candidates)
     except Exception:
         recs = {"recommendations": []}
 
@@ -235,6 +258,7 @@ def build_chat_recommendations(
             continue
 
         nm = (r.get("name") or "").strip()
+
         if nm in cand_addr:
             addr = cand_addr[nm]
             try:
@@ -243,6 +267,7 @@ def build_chat_recommendations(
                 r["location"] = addr
             continue
 
+        # fallback: lookup
         try:
             addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
         except Exception:
@@ -253,13 +278,9 @@ def build_chat_recommendations(
             except Exception:
                 r["location"] = addr
 
-    # --- astrology filter ---
+    # --- astrology filter（birthdateがある時だけ）---
     try:
-        recs = attach_astro_elements_to_recs(recs)
-    except Exception:
-        pass
-    try:
-        recs = pick_by_astrology(recs, birthdate=birthdate)
+        recs = _maybe_apply_astrology(recs, birthdate=birthdate)
     except Exception:
         pass
 
@@ -269,7 +290,7 @@ def build_chat_recommendations(
     except Exception:
         pass
 
-    # --- 最後に1回だけ：表示名と reason を全件確定 ---
+    # --- 最後に1回だけ：表示名と reason / bullets を全件確定 ---
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue

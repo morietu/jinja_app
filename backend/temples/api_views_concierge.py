@@ -1,7 +1,8 @@
+
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import logging
 import os
@@ -18,23 +19,25 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
-from temples.domain.astrology import sun_sign_and_element, element_priority
+from temples.llm import extract_intent
+from temples.services.concierge_chat import build_chat_recommendations
 from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
-from temples.llm import extract_intent
+
 from temples.llm import orchestrator as orch
 from temples.llm.backfill import fill_locations
-from temples.recommendation.llm_adapter import get_llm_adapter
+
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services import google_places as GP
 from temples.services.concierge_history import append_chat
 from temples.models import ConciergeThread
-from temples.models import Shrine
+
 
 
 from .models import ConciergeUsage
+
 
 log = logging.getLogger(__name__)
 
@@ -50,20 +53,7 @@ except Exception:  # pragma: no cover
         return {"recommendations": []}
 
 
-llm = get_llm_adapter(
-    provider=getattr(dj_settings, "LLM_PROVIDER", "openai"),
-    model=getattr(dj_settings, "LLM_MODEL", "gpt-4.1-mini"),
-    timeout_ms=getattr(dj_settings, "LLM_TIMEOUT_MS", 15_000),
-    prompts_dir=getattr(dj_settings, "LLM_PROMPTS_DIR", "prompts"),
-    enabled=getattr(dj_settings, "USE_LLM_CONCIERGE", False),
-    temperature=getattr(dj_settings, "LLM_TEMPERATURE", 0.3),
-    max_tokens=getattr(dj_settings, "LLM_MAX_TOKENS", 512),
-    base_url=getattr(dj_settings, "LLM_BASE_URL", None),
-    force_chat=getattr(dj_settings, "LLM_FORCE_CHAT", False),
-    force_json=getattr(dj_settings, "LLM_FORCE_JSON", True),
-    retries=getattr(dj_settings, "LLM_RETRIES", 2),
-    backoff_s=getattr(dj_settings, "LLM_BACKOFF_S", 0.5),
-)
+
 
 # ===== 推し文生成用の定数 =====
 WISH_HINTS = [
@@ -86,12 +76,7 @@ TAG_DEITY_HINTS: Dict[str, str] = {
     "金運": "金運上昇を願う参拝に",
     "商売繁盛": "商売繁盛を祈る参拝に",
 }
-WISH_SYNONYMS: Dict[str, List[str]] = {
-    "縁結び": ["良縁成就を願う参拝に", "恋愛成就の祈りに", "ご縁を結ぶ祈願に"],
-    "学業": ["学業成就・合格祈願に", "学力向上を願う参拝に"],
-    "金運": ["金運上昇を願う参拝に", "商売繁盛を祈る参拝に"],
-    "厄除": ["厄除け・心身清めの参拝に", "災難除けの祈りに", "厄払いの祈りに"],
-}
+
 
 
 def _parse_radius(data: Dict[str, Any]) -> int:
@@ -350,38 +335,6 @@ def _normalize_reason(rec: dict, *, query: str) -> str:
     t = t[:30] if len(t) > 30 else t
     return t or "静かに手を合わせたい社"
 
-def _build_bullets(rec: dict, *, query: str) -> list[str]:
-    """
-    UI表示用の補足。会話文ではなく“評価理由”。
-    依存が少なく、テストでもブレにくい固定優先で組む。
-    """
-    bullets: list[str] = []
-
-    # 1) 既に bullets/highlights があるなら尊重
-    src = rec.get("bullets") or rec.get("highlights")
-    if isinstance(src, list):
-        for x in src:
-            if isinstance(x, str) and x.strip():
-                bullets.append(x.strip())
-    if bullets:
-        return bullets[:3]
-
-    # 2) タグ/人気などから軽い推測（無ければ固定）
-    tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
-    tags = " ".join([t for t in tags_list if isinstance(t, str)])
-
-    if "観音" in tags:
-        bullets.append("心を整えて手を合わせたいときに向く")
-    if any(k in (query or "") for k in ("厄", "厄除", "厄払い")):
-        bullets.append("厄除けの参拝に合わせやすい可能性")
-    if any(k in (query or "") for k in ("縁", "恋", "結")):
-        bullets.append("ご縁を願う参拝に合わせやすい可能性")
-
-    # 3) 最低保証（必ず3つにする）
-    while len(bullets) < 3:
-        bullets.append(["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"][len(bullets)])
-
-    return bullets[:3]
 
 
 def normalize_name_key(name: str) -> str:
@@ -525,57 +478,9 @@ def _resolve_user_and_token(request):
 LIMIT_MSG = "無料で利用できる回数を使い切りました。"
 
 
-def _attach_astro_elements_to_recs(recs: dict) -> dict:
-    """
-    recに astro_elements を埋める（無ければ空）
-    ※まずはDBに入ってるものだけ使う。無いなら空でOK。
-    """
-    items = recs.get("recommendations") or []
-    for r in items:
-        if not isinstance(r, dict):
-            continue
-        if r.get("astro_elements") is not None:
-            continue
-        name = (r.get("name") or "").strip()
-        if not name:
-            r["astro_elements"] = []
-            continue
-        try:
-            s = Shrine.objects.filter(name_jp__icontains=name).only("astro_elements").first()
-            r["astro_elements"] = (s.astro_elements or []) if s else []
-        except Exception:
-            r["astro_elements"] = []
-    return recs
 
 
-def _pick_by_astrology(recs: dict, *, birthdate: str | None) -> dict:
-    prof = sun_sign_and_element(birthdate)
-    if not prof:
-        return recs  # 入力無しなら何もしない
 
-    items = [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
-    if not items:
-        return recs
-
-    # 優先度でグルーピング（2→1→0）
-    buckets = {2: [], 1: [], 0: []}
-    for r in items:
-        pri = element_priority(prof.element, r.get("astro_elements"))
-        buckets[pri].append(r)
-
-    picked = []
-    for pri in (2, 1, 0):
-        for r in buckets[pri]:
-            if len(picked) >= 3:
-                break
-            picked.append(r)
-        if len(picked) >= 3:
-            break
-
-    recs["recommendations"] = picked
-    # 表示用に付けておく（LLMなしで理由に混ぜられる）
-    recs["_astro"] = {"sun_sign": prof.sign, "element": prof.element}
-    return recs
 
 
 class ConciergeChatView(APIView):
@@ -648,103 +553,21 @@ class ConciergeChatView(APIView):
             usage.save(update_fields=["count"])
             remaining = max(daily_limit - usage.count, 0)
 
-        # ---- recommendations 生成（monkeypatchが効く import を使う）----
-        try:
-            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
-
-            recs = Orchestrator().suggest(query=query, candidates=candidates)
-        except Exception:
-            recs = {"recommendations": []}
-
-        # 正規化
-        if isinstance(recs, list):
-            recs = {"recommendations": recs}
-        if not isinstance(recs, dict):
-            recs = {"recommendations": []}
-        if "recommendations" not in recs or recs["recommendations"] is None:
-            recs["recommendations"] = []
-
-        # 空なら fallback 1件（テストで IndexError を起こさない）
-        if not recs["recommendations"]:
-            if candidates and isinstance(candidates[0], dict) and candidates[0].get("name"):
-                recs["recommendations"] = [{"name": candidates[0]["name"], "reason": ""}]
-            else:
-                recs["recommendations"] = [{"name": "近隣の神社", "reason": ""}]
-
-        # candidates の formatted_address を最優先で location に入れる
-        cand_addr = {}
-        for c in candidates or []:
-            if isinstance(c, dict) and c.get("name") and c.get("formatted_address"):
-                cand_addr[(c["name"] or "").strip()] = c["formatted_address"]
-
-        # --- location 補完 ---
-        for r in recs.get("recommendations", []) or []:
-            if not isinstance(r, dict):
-                continue
-
-            if r.get("location"):
-                continue
-
-            nm = (r.get("name") or "").strip()
-            if nm in cand_addr:
-                addr = cand_addr[nm]
-                try:
-                    r["location"] = bf._shorten_japanese_address(addr) or addr
-                except Exception:
-                    r["location"] = addr
-                continue
-
-            # fallback: lookup（bias passthrough）
-            try:
-                addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
-            except Exception:
-                addr = None
-            if addr:
-                try:
-                    r["location"] = bf._shorten_japanese_address(addr) or addr
-                except Exception:
-                    r["location"] = addr
+        
 
         birthdate = (data.get("birthdate") or "").strip() or None
 
-        try:
-            recs = _attach_astro_elements_to_recs(recs)
-        except Exception:
-            pass
-
-        try:
-            recs = _pick_by_astrology(recs, birthdate=birthdate)
-        except Exception:
-            pass
-
-        # ✅ chatは3件固定にしたいなら、最後に必ず丸める
-        try:
-            recs["recommendations"] = (recs.get("recommendations") or [])[:3]
-        except Exception:
-            pass
-
-        # --- 最後に1回だけ：表示名と reason を全件確定 ---
-        for r in recs.get("recommendations", []) or []:
-            if not isinstance(r, dict):
-                continue
-
-            if r.get("name"):
-                cleaned = _clean_display_name(r["name"])
-                r["display_name"] = cleaned
-                r["name"] = cleaned
-
-            try:
-                r["reason"] = _normalize_reason(r, query=query)
-            except Exception:
-                r["reason"] = "静かに手を合わせたい社"
-            
-            # ✅ 追加：補足 bullets を必ず入れる（UIの固定ブロック用）
-            try:
-                r["bullets"] = _build_bullets(r, query=query)
-            except Exception:
-                r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
+        recs = build_chat_recommendations(
+            query=query,
+            language=language,
+            candidates=candidates,
+            bias=bias,
+            birthdate=birthdate,
+        )
 
         body = {"ok": True, "intent": intent, "data": recs}
+
+        
 
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
