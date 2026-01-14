@@ -3,13 +3,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import logging
 from typing import Optional, Literal
+
+log = logging.getLogger(__name__)
+
 
 Element = Literal["火", "土", "風", "水"]
 
 # 星座境界（トロピカル固定）
-# 牡羊座: 3/21-4/19 ... 魚座: 2/19-3/20
+# 星座境界（開始日）: 1月→12月の昇順にする
 _ZODIAC = [
+    ((1, 20), "水瓶座", "風"),
+    ((2, 19), "魚座", "水"),
     ((3, 21), "牡羊座", "火"),
     ((4, 20), "牡牛座", "土"),
     ((5, 21), "双子座", "風"),
@@ -20,8 +26,6 @@ _ZODIAC = [
     ((10, 23), "蠍座", "水"),
     ((11, 22), "射手座", "火"),
     ((12, 22), "山羊座", "土"),
-    ((1, 20), "水瓶座", "風"),
-    ((2, 19), "魚座", "水"),
 ]
 
 @dataclass(frozen=True)
@@ -70,17 +74,34 @@ _COMPAT: dict[Element, list[Element]] = {
     "土": ["土", "水"],
 }
 
+_EN_TO_JA: dict[str, Element] = {
+    "fire": "火",
+    "earth": "土",
+    "air": "風",
+    "water": "水",
+    "火": "火",
+    "土": "土",
+    "風": "風",
+    "水": "水",
+}
+
 def element_priority(user_elem: Element, shrine_elems: list[str] | None) -> int:
-    """
-    2: 同エレメント
-    1: 相性ペア
-    0: それ以外 / 不明
-    """
     if not shrine_elems:
         return 0
-    shrine_set = {str(x).strip() for x in shrine_elems if str(x).strip()}
-    if user_elem in shrine_set:
+
+    # ★ 正規化（英語→日本語）
+    norm: set[Element] = set()
+    for x in shrine_elems:
+        k = str(x).strip().lower()
+        ja = _EN_TO_JA.get(k)
+        if ja:
+            norm.add(ja)
+
+    if not norm:
+        return 0
+
+    if user_elem in norm:
         return 2
-    if any(e in shrine_set for e in _COMPAT[user_elem]):
+    if any(e in norm for e in _COMPAT[user_elem]):
         return 1
     return 0
