@@ -1,7 +1,7 @@
 # backend/temples/services/concierge_chat.py
 from __future__ import annotations
-
 from typing import Any, Dict, List, Optional
+
 
 from temples.llm import backfill as bf
 
@@ -278,6 +278,177 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
 
 
 
+# ---- Need tags / scoring ----
+def _clamp01(x: float) -> float:
+    try:
+        v = float(x)
+    except Exception:
+        v = 0.0
+    if v < 0.0:
+        return 0.0
+    if v > 1.0:
+        return 1.0
+    return v
+
+
+def _extract_need(query: str) -> Dict[str, Any]:
+    """
+    contract固定:
+      return {"tags": [...], "hits": {...}} を必ず返す（例外時も空）
+    """
+    try:
+        from temples.domain.need_tags import extract_need_tags
+    except Exception:
+        return {"tags": [], "hits": {}}
+
+    try:
+        ex = extract_need_tags(query, max_tags=3)
+        tags = getattr(ex, "tags", []) or []
+        hits = getattr(ex, "hits", {}) or {}
+        if not isinstance(tags, list):
+            tags = []
+        tags = [t for t in tags if isinstance(t, str) and t.strip()]
+        if not isinstance(hits, dict):
+            hits = {}
+        # hits の value は list[str] を想定（壊れてても落とさない）
+        normalized_hits: Dict[str, List[str]] = {}
+        for k, v in hits.items():
+            if not isinstance(k, str) or not k.strip():
+                continue
+            if isinstance(v, list):
+                vv = [str(x) for x in v if str(x)]
+            else:
+                vv = [str(v)] if v is not None else []
+            normalized_hits[k] = vv
+        return {"tags": tags[:3], "hits": normalized_hits}
+    except Exception:
+        return {"tags": [], "hits": {}}
+
+
+def _clamp01(x: float) -> float:
+    if x < 0:
+        return 0.0
+    if x > 1:
+        return 1.0
+    return float(x)
+
+
+def _attach_breakdown(
+    rec: Dict[str, Any],
+    *,
+    birthdate: Optional[str],
+    need_tags: List[str],
+    weights: Dict[str, float],
+) -> None:
+    """
+    contract固定:
+      rec["breakdown"] = {
+        score_element: int(0/1/2),
+        score_need: int,
+        score_popular: float(0..1),
+        score_total: float,
+        weights: {element, need, popular},
+        matched_need_tags: [..],
+      }
+    """
+    # 1) score_element
+    score_element = 0
+    try:
+        # birthdate が無い/不正なら element_priority の評価は 0 に寄せる
+        if birthdate:
+            from temples.domain.astrology import sun_sign_and_element, element_priority
+            prof = sun_sign_and_element(birthdate)
+            if prof:
+                shrine_elems = rec.get("astro_elements") or []
+                score_element = int(element_priority(prof.element, shrine_elems))
+    except Exception:
+        score_element = int(rec.get("astro_priority") or 0) if isinstance(rec.get("astro_priority"), int) else 0
+
+    # 2) score_need / matched_need_tags
+    shrine_tags = rec.get("astro_tags") or []
+    if not isinstance(shrine_tags, list):
+        shrine_tags = []
+    shrine_tags = [t for t in shrine_tags if isinstance(t, str) and t.strip()]
+
+    # need_tags 側も安全化
+    if not isinstance(need_tags, list):
+        need_tags = []
+    need_tags = [t for t in need_tags if isinstance(t, str) and t.strip()]
+
+    matched = [t for t in need_tags if t in set(shrine_tags)]
+    score_need = int(len(matched))
+
+    # 3) score_popular
+    popular = rec.get("popular_score")
+    try:
+        popular_f = float(popular) if popular is not None else 0.0
+    except Exception:
+        popular_f = 0.0
+    score_popular = _clamp01(popular_f / 10.0)
+
+    # 4) total
+    w1 = float(weights.get("element", 0.0))
+    w2 = float(weights.get("need", 0.0))
+    w3 = float(weights.get("popular", 0.0))
+    score_total = score_element * w1 + score_need * w2 + score_popular * w3
+
+    rec["breakdown"] = {
+        "score_element": int(score_element),
+        "score_need": int(score_need),
+        "score_popular": float(score_popular),
+        "score_total": float(score_total),
+        "weights": {"element": w1, "need": w2, "popular": w3},
+        "matched_need_tags": matched,
+    }
+
+
+def _need_score_and_matches(need_tags: list[str], shrine_tags: list[str] | None) -> tuple[int, list[str]]:
+    """
+    最小構成:
+      - score_need = 交差の件数
+      - matched_need_tags = 交差タグ（need_tags順を維持）
+    """
+    if not need_tags:
+        return 0, []
+    st = shrine_tags or []
+    st_set = {str(x).strip() for x in st if str(x).strip()}
+    matched = [t for t in need_tags if t in st_set]
+    return len(matched), matched
+
+
+def _element_score_from_rec(rec: dict, *, birthdate: str | None) -> int:
+    """
+    contract固定:
+      score_element = element_priority(user_elem, rec.astro_elements) => 0/1/2
+    """
+    if not birthdate:
+        return 0
+    try:
+        from temples.domain.astrology import sun_sign_and_element, element_priority
+    except Exception:
+        return 0
+    prof = sun_sign_and_element(birthdate)
+    if not prof:
+        return 0
+    try:
+        return int(element_priority(prof.element, rec.get("astro_elements")))
+    except Exception:
+        return 0
+
+
+def _popular_score_norm(rec: dict) -> float:
+    """
+    contract固定:
+      score_popular = clamp(popular_score/10)
+    """
+    try:
+        p = float(rec.get("popular_score") or 0.0)
+    except Exception:
+        p = 0.0
+    return _clamp01(p / 10.0)
+
+
+
 
 def build_chat_recommendations(
     *,
@@ -310,6 +481,12 @@ def build_chat_recommendations(
         recs = {"recommendations": []}
     if "recommendations" not in recs or recs["recommendations"] is None:
         recs["recommendations"] = []
+
+    # ---- need extraction（contract用：常に dict を返せたら _need を載せる）----
+    _need = _extract_need(query)
+    if isinstance(_need, dict):
+        recs["_need"] = _need
+        
 
     # 空なら fallback 1件（IndexError 回避）
     if not recs["recommendations"]:
@@ -366,6 +543,31 @@ def build_chat_recommendations(
         recs["recommendations"] = recs["recommendations"][:3]
     except Exception:
         pass
+
+
+    # ---- breakdown（contract用）----
+    # Wはcontractで固定（後で調整するときはテストも一緒に更新）
+    WEIGHTS = {"element": 0.6, "need": 0.3, "popular": 0.1}
+    need_tags = list((recs.get("_need") or {}).get("tags") or [])
+    if not isinstance(need_tags, list):
+        need_tags = []
+    need_tags = [t for t in need_tags if isinstance(t, str) and t.strip()]
+
+    for r in recs.get("recommendations", []) or []:
+        if not isinstance(r, dict):
+            continue
+        try:
+            _attach_breakdown(r, birthdate=birthdate, need_tags=need_tags, weights=WEIGHTS)
+        except Exception:
+            # breakdown は“無いよりマシ”なので、最悪でも空で入れる
+            r["breakdown"] = {
+                "score_element": 0,
+                "score_need": 0,
+                "score_popular": 0.0,
+                "score_total": 0.0,
+                "weights": dict(WEIGHTS),
+                "matched_need_tags": [],
+            }
 
     # --- 最後に1回だけ：表示名と reason / bullets を全件確定 ---
     for r in recs.get("recommendations", []) or []:
