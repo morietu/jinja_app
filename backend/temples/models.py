@@ -6,6 +6,7 @@ from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 
 
+
 # GeoDjangoを使うのは USE_GIS が真 かつ テスト無効化フラグが立っていないときだけ
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
@@ -92,7 +93,7 @@ KYUSEI_CHOICES = [
 ]
 
 
-class PlaceRef(models.Model):
+class PlaceRef(dj_models.Model):
     place_id = models.CharField(max_length=128, primary_key=True)
     name = models.CharField(max_length=255, blank=True, default="")
     address = models.CharField(max_length=255, blank=True, default="")
@@ -134,7 +135,7 @@ class GoriyakuTag(models.Model):
 # ここでの Point は上のブロックで既に import/None 設定済み
 
 
-class Shrine(models.Model):
+class Shrine(dj_models.Model):
     KIND_CHOICES = [("shrine", "神社"), ("temple", "寺院")]
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="shrine", db_index=True)
     # 基本情報
@@ -182,6 +183,7 @@ class Shrine(models.Model):
     favorites_30d = models.PositiveIntegerField(default=0)
     popular_score = models.FloatField(default=0.0)
     last_popular_calc_at = models.DateTimeField(null=True, blank=True)
+    astro_elements = models.JSONField(default=list, blank=True, help_text="西洋占星術エレメント: ['火','土','風','水']")
 
     def __str__(self) -> str:
         return self.name_jp
