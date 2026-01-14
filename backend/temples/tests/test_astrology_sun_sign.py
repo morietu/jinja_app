@@ -5,7 +5,7 @@ from temples.domain.astrology import sun_sign_and_element
     "birthdate, sign, element",
     [
         ("2000-03-21", "牡羊座", "火"),
-        ("1984-05-15", "牡牛座", "地"),
+        ("1984-05-15", "牡牛座", "土"),
         ("2000-02-19", "魚座", "水"),  # 魚座の開始側も1点置く
     ],
 )
