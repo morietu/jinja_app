@@ -144,6 +144,50 @@ def build_bullets_for_chat(rec: dict, *, query: str) -> list[str]:
         )
     return bullets[:3]
 
+def _dedupe_by_name(items: list[dict]) -> list[dict]:
+    seen = set()
+    out = []
+    for r in items:
+        name = (r.get("name") or "").strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(r)
+    return out
+
+
+
+def _topup_recommendations_with_candidates(
+    recs: Dict[str, Any], *, candidates: List[Dict[str, Any]], limit: int = 3
+) -> Dict[str, Any]:
+    items = recs.get("recommendations") or []
+    if not isinstance(items, list):
+        items = []
+
+    # dict以外を除去しつつ正規化
+    items = [x for x in items if isinstance(x, dict)]
+    items = _dedupe_by_name(items)
+
+    if len(items) >= limit:
+        recs["recommendations"] = items[:limit]
+        return recs
+
+    # candidatesから不足分を補充
+    for c in candidates or []:
+        if not isinstance(c, dict):
+            continue
+        nm = (c.get("name") or "").strip()
+        if not nm:
+            continue
+        if any((r.get("name") or "").strip() == nm for r in items):
+            continue
+        items.append({"name": nm, "reason": ""})
+        if len(items) >= limit:
+            break
+
+    recs["recommendations"] = items[:limit]
+    return recs
+
 
 def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) -> Dict[str, Any]:
     """
@@ -163,6 +207,13 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     prof = sun_sign_and_element(birthdate)
     if not prof:
         return recs
+
+    ELEMENT_LABEL_JA = {
+        "fire": "火",
+        "water": "水",
+        "earth": "地",
+        "air": "風",
+    }
 
     items = recs.get("recommendations") or []
     if not isinstance(items, list) or not items:
@@ -189,6 +240,9 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     buckets: Dict[int, List[dict]] = {2: [], 1: [], 0: []}
     for r in only_dicts:
         pri = element_priority(prof.element, r.get("astro_elements"))
+
+        r["astro_priority"] = int(pri)
+        r["astro_matched"] = bool(pri == 2)
         buckets[pri].append(r)
 
     picked: List[dict] = []
@@ -201,8 +255,28 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
             break
 
     recs["recommendations"] = picked
-    recs["_astro"] = {"sun_sign": prof.sign, "element": prof.element}
+
+    # --- 追加: contract固定用の _astro 拡張（既存キーは残す）---
+    picked_names = [
+        (x.get("name") if isinstance(x, dict) else None) for x in picked
+    ]
+    picked_names = [n for n in picked_names if isinstance(n, str) and n.strip()]
+
+    element = prof.element
+    label_ja = ELEMENT_LABEL_JA.get(element, element)
+
+    recs["_astro"] = {
+        "sun_sign": prof.sign,
+        "element": element,
+        "label_ja": label_ja,
+        "matched_count": len(picked_names),
+        "picked": picked_names,
+        "reason": f"{label_ja}の気質に寄せて上位を選びました",
+    }
+
     return recs
+
+
 
 
 def build_chat_recommendations(
@@ -243,6 +317,9 @@ def build_chat_recommendations(
             recs["recommendations"] = [{"name": candidates[0]["name"], "reason": ""}]
         else:
             recs["recommendations"] = [{"name": "近隣の神社", "reason": ""}]
+
+    # ✅ Orchestrator が少数しか返さない時でも、candidates で最大3件まで補充（比較できる状態にする）
+    recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=3)
 
     # candidates の formatted_address を最優先で location に入れる
     cand_addr: dict[str, str] = {}
