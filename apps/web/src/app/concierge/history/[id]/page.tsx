@@ -48,7 +48,7 @@ export default function ConciergeHistoryDetailPage() {
       <p className="text-xs text-gray-500">過去の相談内容と、当時のおすすめ候補です。</p>
 
       <ConciergeLayout
-        thread={thread}
+        
         messages={messages}
         sending={false}
         error={null}

@@ -61,12 +61,14 @@ function BillingGate({
 }
 
 type Props = {
+  // ✅ 互換のため残す（現状使わない）
   
+  onRetry: () => void;
+
   messages: ConciergeMessage[];
   sending?: boolean;
   error?: string | null;
   onSend: (text: string) => void | Promise<void>;
-  
   onNewThread?: () => void;
   recommendations?: ConciergeRecommendation[];
   needTags?: string[];
@@ -80,22 +82,22 @@ type Props = {
   lastQuery?: string | null;
 };
 
-export default function ConciergeLayout({
-  
-  messages,
-  sending = false,
-  error = null,
-  onSend,
-  
-  onNewThread,
-  recommendations = [],
-  needTags = [],
-  paywallNote = null,
-  remainingFree = null,
-  stopReason,
-  canSend,
-  embedMode = false,
-}: Props) {
+export default function ConciergeLayout(props: Props) {
+  const {
+    // ✅ ここで必要なものだけ取り出す（thread/onRetryは触らない）
+    messages,
+    sending = false,
+    error = null,
+    onSend,
+    onNewThread,
+    recommendations = [],
+    needTags = [],
+    paywallNote = null,
+    remainingFree = null,
+    stopReason,
+    canSend,
+    embedMode = false,
+  } = props;
   const [primaryIndex, setPrimaryIndex] = useState(0);
 
   const shown = recommendations;
@@ -127,15 +129,12 @@ export default function ConciergeLayout({
       {/* ✅ min-h-0 を付けて、子のoverflowが効くようにする */}
       <div className="flex-1 min-h-0 px-3 pb-3">
         <ChatPanel
-          
           messages={messages}
           loading={sending}
           sending={sending}
           error={error}
-          
           onSend={onSend}
           canSend={canSend}
-          
           recommendations={recommendations}
           needTags={needTags}
           onNewThread={onNewThread}

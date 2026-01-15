@@ -292,7 +292,7 @@ export default function ConciergeClientFull() {
   return (
     <div className="px-4 py-4">
       <ConciergeLayout
-        thread={thread}
+        
         messages={messages}
         sending={sending}
         error={error}

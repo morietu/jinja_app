@@ -112,7 +112,7 @@ export default function ConciergeClientEmbed() {
 
   return (
     <ConciergeLayout
-      thread={null}
+      
       messages={[]}
       sending={sending}
       error={error}
