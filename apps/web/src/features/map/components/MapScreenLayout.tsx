@@ -1,7 +1,8 @@
 // apps/web/src/features/map/components/MapScreenLayout.tsx
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import GoogleMap from "@/components/map/providers/GoogleMap";
@@ -116,8 +117,13 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     }
   }, []);
 
+  const didInitRef = useRef(false);
+
   // ✅ initialSelect or URL query を「初回だけ」反映
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
     // 優先順位：props(initialSelect) > URL query
     const init: InitialSelect | null =
       initialSelect ??
@@ -134,23 +140,20 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
     if (!init) return;
 
-    // 1) placeId があれば即選択＆センター寄せ
     if (init.placeId) {
       loadByPlaceId(init.placeId, { lat: init.lat, lng: init.lng });
       return;
     }
 
-    // 2) shrineId があれば詳細から placeId を引く
     if (init.shrineId) {
       void loadByShrineId(init.shrineId);
       return;
     }
 
-    // 3) lat/lng だけでもセンター寄せ
     if (typeof init.lat === "number" && typeof init.lng === "number") {
       setCenterOverride({ lat: init.lat, lng: init.lng });
     }
-  }, []);
+  }, [initialSelect, loadByPlaceId, loadByShrineId, qpAddr, qpLat, qpLng, qpName, qpPlaceId, qpShrineId]);
 
   // markers（最小は空でOK。必要なら「選択中」をマーカー化できる）
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
