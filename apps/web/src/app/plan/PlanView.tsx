@@ -51,7 +51,7 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
   // 初回に q があれば自動検索（好みで）
   useEffect(() => {
     if ((initialQuery.q ?? "").trim()) void runSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   const primary = recs[0] ?? null;

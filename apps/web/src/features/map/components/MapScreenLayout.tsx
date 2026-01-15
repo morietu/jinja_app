@@ -150,7 +150,6 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     if (typeof init.lat === "number" && typeof init.lng === "number") {
       setCenterOverride({ lat: init.lat, lng: init.lng });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // markers（最小は空でOK。必要なら「選択中」をマーカー化できる）
