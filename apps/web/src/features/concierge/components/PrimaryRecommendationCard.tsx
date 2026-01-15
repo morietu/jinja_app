@@ -3,13 +3,15 @@
 
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
+import NeedChips from "./NeedChips";
 
 type Props = {
   rec: ConciergeRecommendation;
   primaryIndex: number;
+  needTags?: string[];
 };
 
-export default function PrimaryRecommendationCard({ rec, primaryIndex }: Props) {
+export default function PrimaryRecommendationCard({ rec, primaryIndex, needTags = [] }: Props) {
   const rawPlaceId = (rec as any).place_id ?? (rec as any).placeId ?? (rec as any).google_place_id ?? null;
   const placeId = rawPlaceId != null ? String(rawPlaceId) : null;
 
@@ -18,6 +20,8 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex }: Props) 
 
   return (
     <div className="mt-3">
+      <NeedChips tags={needTags} />
+
       <ConciergeCard
         key={shrineId ?? placeId ?? primaryIndex}
         s={{

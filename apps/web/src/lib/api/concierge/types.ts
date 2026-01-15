@@ -41,6 +41,7 @@ export type ConciergeRecommendation = {
   duration_min?: number | null;
   score?: number | null;
   popular_score?: number | null;
+  breakdown?: ConciergeBreakdown | null;
 
   tags?: string[];
   deities?: string[];
@@ -60,6 +61,9 @@ export type ConciergeChatData = {
   recommendations?: ConciergeRecommendation[];
   raw?: string;
   reply?: string;
+
+  _need?: ConciergeNeed;
+  _astro?: any; // まずは緩めでOK（後で型にする）
 };
 
 export type ConciergeChatResponse = {
@@ -78,4 +82,22 @@ export type ConciergeThreadDetail = {
   thread: ConciergeThread;
   messages: ConciergeMessage[];
   recommendations?: ConciergeRecommendation[];
+};
+
+export type ConciergeNeed = {
+  tags?: string[];
+  hits?: Record<string, string[]>;
+};
+
+export type ConciergeBreakdown = {
+  score_element: number; // 0/1/2
+  score_need: number;
+  score_popular: number; // 0..1
+  score_total: number;
+  weights: {
+    element: number;
+    need: number;
+    popular: number;
+  };
+  matched_need_tags: string[];
 };

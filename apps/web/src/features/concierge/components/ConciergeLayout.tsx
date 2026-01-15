@@ -10,7 +10,6 @@ import type { StopReason } from "@/features/concierge/types/unified";
 
 import { useBilling } from "@/features/billing/hooks/useBilling";
 
-
 function PaywallCta({ note }: { note: string }) {
   return (
     <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -68,6 +67,7 @@ type Props = {
   onRetry: () => void;
   onNewThread?: () => void;
   recommendations?: ConciergeRecommendation[];
+  needTags?: string[];
   paywallNote?: string | null;
   remainingFree?: number | null;
   stopReason: StopReason;
@@ -87,12 +87,12 @@ export default function ConciergeLayout({
   onRetry,
   onNewThread,
   recommendations = [],
+  needTags = [],
   paywallNote = null,
   remainingFree = null,
   stopReason,
   canSend,
   embedMode = false,
-
 }: Props) {
   const [primaryIndex, setPrimaryIndex] = useState(0);
 
@@ -109,29 +109,34 @@ export default function ConciergeLayout({
     if (primaryIndex > shownLen - 1) setPrimaryIndex(0);
   }, [shownLen, primaryIndex]);
 
-  const wrapClass = embedMode ? "w-full flex flex-col" : "mx-auto mt-4 flex w-full max-w-xs flex-col md:max-w-sm";
+  // ✅ 非embed: 幅も高さも100%（max-w を消す）
+  const wrapClass = embedMode ? "w-full flex flex-col" : "w-full h-dvh flex flex-col";
 
-
-
-    return (
-      <div className={wrapClass}>
-        {!embedMode && <BillingGate stopReason={stopReason} paywallNote={paywallNote} remainingFree={remainingFree} />}
-
-        <div className="flex-1">
-          <ChatPanel
-            thread={thread}
-            messages={messages}
-            loading={sending}
-            sending={sending}
-            error={error}
-            onRetry={onRetry}
-            onSend={onSend}
-            canSend={canSend}
-            embedMode={embedMode}
-            recommendations={recommendations}
-            onNewThread={onNewThread}
-          />
+  return (
+    <div className={wrapClass}>
+      {!embedMode && (
+        <div className="px-3 pt-3">
+          <BillingGate stopReason={stopReason} paywallNote={paywallNote} remainingFree={remainingFree} />
         </div>
+      )}
+
+      {/* ✅ min-h-0 を付けて、子のoverflowが効くようにする */}
+      <div className="flex-1 min-h-0 px-3 pb-3">
+        <ChatPanel
+          thread={thread}
+          messages={messages}
+          loading={sending}
+          sending={sending}
+          error={error}
+          onRetry={onRetry}
+          onSend={onSend}
+          canSend={canSend}
+          embedMode={embedMode}
+          recommendations={recommendations}
+          needTags={needTags}
+          onNewThread={onNewThread}
+        />
       </div>
-    );
+    </div>
+  );
 }
