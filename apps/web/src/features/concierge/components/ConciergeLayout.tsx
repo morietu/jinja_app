@@ -53,6 +53,8 @@ function BillingGate({
   const hitPaywall = (typeof remainingFree === "number" && remainingFree <= 0) || !!paywallNote;
   const showPaywallHint = stopReason === "paywall" || (hitPaywall && !isPremiumActive);
 
+  
+
   if (!showPaywallHint) return null;
 
   return <PaywallCta note={paywallNote ?? "無料で利用できる回数を使い切りました。プレミアムで制限解除できます。"} />;
@@ -109,8 +111,10 @@ export default function ConciergeLayout({
     if (primaryIndex > shownLen - 1) setPrimaryIndex(0);
   }, [shownLen, primaryIndex]);
 
-  // ✅ 非embed: 幅も高さも100%（max-w を消す）
-  const wrapClass = embedMode ? "w-full flex flex-col" : "w-full h-dvh flex flex-col";
+  // 例：非embedは「画面高固定 + overflow-hidden」で “listRefだけスクロール” を強制
+  const wrapClass = embedMode
+    ? "w-full flex flex-col"
+    : "mx-auto h-dvh w-full max-w-xs overflow-hidden flex flex-col md:max-w-sm";
 
   return (
     <div className={wrapClass}>
