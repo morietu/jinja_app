@@ -3,6 +3,28 @@ import axios from "axios";
 import api from "./client";
 import { apiPost } from "./http";
 
+export type ConciergeNeed = {
+  tags?: string[];
+  hits?: Record<string, string[]>;
+};
+
+export type ConciergeBreakdown = {
+  score_element: number; // 0/1/2
+  score_need: number;
+  score_popular: number; // 0..1
+  score_total: number;
+  weights: {
+    element: number;
+    need: number;
+    popular: number;
+  };
+  matched_need_tags: string[];
+};
+
+
+
+
+
 export type {
   ConciergeThread,
   ConciergeMessage,

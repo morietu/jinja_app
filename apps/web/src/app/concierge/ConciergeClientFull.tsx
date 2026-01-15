@@ -219,6 +219,11 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
+  const needTags = useMemo(() => {
+    const tags = lastUnified?.data?._need?.tags;
+    return Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
+  }, [lastUnified]);
+
   const thread: ConciergeThread | null = useMemo(() => {
     const t = lastUnified?.thread;
     return t && typeof t.id === "number" ? t : null;
@@ -295,6 +300,7 @@ export default function ConciergeClientFull() {
         onRetry={() => {}}
         onNewThread={() => setActiveTid(0)}
         recommendations={recommendationsView}
+        needTags={needTags}
         paywallNote={lastUnified?.note ?? null}
         remainingFree={lastUnified?.remaining_free ?? null}
         stopReason={stopReason}

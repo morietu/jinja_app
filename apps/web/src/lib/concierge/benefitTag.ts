@@ -1,5 +1,5 @@
 // apps/web/src/lib/concierge/benefitTag.ts
-
+import type { ConciergeRecommendation } from "@/lib/api/concierge";
 
 // 目的：カード表示用に「ご利益タグ」を1つだけ推定する（暫定ルール）
 //
@@ -66,9 +66,11 @@ export function benefitLabel(key: BenefitKey): string | null {
   return key === "不明" ? null : key;
 }
 
-
-
-export function pickBenefitTagFromRec(r: any): BenefitKey {
+export function pickBenefitTagFromRec(
+  r: Pick<ConciergeRecommendation, "name" | "display_name" | "reason" | "tags" | "deities"> & {
+    benefits?: unknown;
+  },
+): BenefitKey {
   return pickBenefitTag({
     name: r?.name,
     display_name: r?.display_name,
