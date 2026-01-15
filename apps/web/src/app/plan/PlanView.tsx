@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type InitialQuery = { q?: string; tab?: string; page?: number };
 
@@ -22,7 +22,7 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
   const [error, setError] = useState<string | null>(null);
   const [recs, setRecs] = useState<Rec[]>([]);
 
-  const runSearch = async () => {
+  const runSearch = useCallback(async () => {
     const query = q.trim();
     if (!query) return;
 
@@ -38,7 +38,6 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
 
       const json = await res.json();
       const list = (json?.data?.recommendations ?? []) as Rec[];
-
       setRecs(Array.isArray(list) ? list : []);
     } catch {
       setError("通信に失敗しました");
@@ -46,13 +45,12 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
     } finally {
       setLoading(false);
     }
-  };
+  }, [q]);
 
   // 初回に q があれば自動検索（好みで）
   useEffect(() => {
     if ((initialQuery.q ?? "").trim()) void runSearch();
-    
-  }, []);
+  }, [initialQuery.q, runSearch]);
 
   const primary = recs[0] ?? null;
   const title = primary?.display_name ?? primary?.name ?? "おすすめの神社";
@@ -69,7 +67,7 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
       <div className="mb-4 flex gap-2">
         <input
           value={q}
-          onChange={() => setQ("")}
+          onChange={(e) => setQ(e.target.value)}
           placeholder="キーワード"
           className="border p-2 rounded w-full"
           onKeyDown={(e) => {
@@ -81,6 +79,7 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
         </button>
       </div>
 
+      {/* ...以下そのまま... */}
       <div className="mb-4 flex gap-2">
         <button
           className={`px-3 py-1 rounded ${tab === "overview" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
@@ -113,7 +112,6 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
       {loading && <div className="text-sm text-slate-600">読み込み中…</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {/* ✅ A案：返答ではなく“評価理由”を固定ブロックで表示 */}
       {primary && (
         <section className="rounded-xl border bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">今回のおすすめ（理由）</h2>
@@ -128,8 +126,6 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
           </ul>
         </section>
       )}
-
-      {/* ここに recs の一覧や地図などを追加していく */}
     </main>
   );
 }

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import ChatPanel from "./ChatPanel";
 
-import type { ConciergeRecommendation, ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
+import type { ConciergeRecommendation, ConciergeMessage } from "@/lib/api/concierge";
 import type { StopReason } from "@/features/concierge/types/unified";
 
 import { useBilling } from "@/features/billing/hooks/useBilling";
@@ -61,12 +61,12 @@ function BillingGate({
 }
 
 type Props = {
-  thread: ConciergeThread | null;
+  
   messages: ConciergeMessage[];
   sending?: boolean;
   error?: string | null;
   onSend: (text: string) => void | Promise<void>;
-  onRetry: () => void;
+  
   onNewThread?: () => void;
   recommendations?: ConciergeRecommendation[];
   needTags?: string[];
@@ -81,12 +81,12 @@ type Props = {
 };
 
 export default function ConciergeLayout({
-  thread,
+  
   messages,
   sending = false,
   error = null,
   onSend,
-  onRetry,
+  
   onNewThread,
   recommendations = [],
   needTags = [],
@@ -127,15 +127,15 @@ export default function ConciergeLayout({
       {/* ✅ min-h-0 を付けて、子のoverflowが効くようにする */}
       <div className="flex-1 min-h-0 px-3 pb-3">
         <ChatPanel
-          thread={thread}
+          
           messages={messages}
           loading={sending}
           sending={sending}
           error={error}
-          onRetry={onRetry}
+          
           onSend={onSend}
           canSend={canSend}
-          embedMode={embedMode}
+          
           recommendations={recommendations}
           needTags={needTags}
           onNewThread={onNewThread}
