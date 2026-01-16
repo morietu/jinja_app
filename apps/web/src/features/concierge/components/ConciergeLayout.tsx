@@ -40,37 +40,29 @@ export default function ConciergeLayout(props: Props) {
     embedMode = false,
   } = props;
 
-  // ✅ 画面設計の責任者
-  // - 非embed: 画面高固定 + overflow-hidden（内部スクロールに寄せる）
-  // - embed: 高さ固定しない（ページの流れに従う）、ただし最低限の高さを確保
-  const rootClass = embedMode ? "w-full" : "h-full min-h-0 w-full bg-neutral-50 flex flex-col overflow-hidden";
+  const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
 
-  // ✅ ChatPanel には「親が決めた高さ」を渡す
-  const mainClass = embedMode ? "w-full" : "flex-1 min-h-0";
-  
-  const chatWrapClass = embedMode ? "w-full" : "flex-1 min-h-0 w-full";
+  const rootClass = embedMode
+    ? `${baseRootClass} min-h-[400px]`
+    : `${baseRootClass} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
 
-  
+  const mainClass = embedMode ? "flex flex-col w-full" : "flex flex-col flex-1 min-h-0 w-full h-full";
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
-        <div className={chatWrapClass}>
-          <div className={embedMode ? "w-full" : "w-full max-w-sm h-full min-h-0"}>
-            <ChatPanel
-              messages={messages}
-              loading={sending}
-              sending={sending}
-              error={error}
-              onSend={onSend}
-              canSend={canSend}
-              recommendations={recommendations}
-              needTags={needTags}
-              onNewThread={onNewThread}
-              embedMode={embedMode}
-            />
-          </div>
-        </div>
+        <ChatPanel
+          messages={messages}
+          loading={sending}
+          sending={sending}
+          error={error}
+          onSend={onSend}
+          canSend={canSend}
+          recommendations={recommendations}
+          needTags={needTags}
+          onNewThread={onNewThread}
+          embedMode={embedMode}
+        />
       </main>
     </div>
   );

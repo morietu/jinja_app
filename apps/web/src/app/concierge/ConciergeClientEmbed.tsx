@@ -1,7 +1,8 @@
 // apps/web/src/app/concierge/ConciergeClientEmbed.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
@@ -34,12 +35,21 @@ function buildSeedUnified(rec: ConciergeRecommendation): UnifiedConciergeRespons
 }
 
 export default function ConciergeClientEmbed() {
+  const router = useRouter();
   // ✅ 初回から2枚目にする：lastUnified を seed入りで初期化
   const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse>(() => buildSeedUnified(buildFallbackRec()));
   const [lastQuery, setLastQuery] = useState<string>(SEED_QUERY);
+  const redirectedRef = useRef(false);
 
   const { send, sending, error } = useConciergeChat(null, {
-    onUnified: (u) => setLastUnified(u),
+    onUnified: (u) => {
+      setLastUnified(u);
+      const tid = typeof u.thread?.id === "number" ? u.thread.id : null;
+      if (tid && tid > 0 && !redirectedRef.current) {
+        redirectedRef.current = true;
+        router.push(`/concierge?tid=${tid}`);
+      }
+    },
   });
 
   // ✅ 初回seed：Placesで place_id/lat/lng/address を埋めて上書き（失敗してもUI維持）
