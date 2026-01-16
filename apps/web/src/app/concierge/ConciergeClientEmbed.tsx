@@ -11,6 +11,17 @@ import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 
 const SEED_QUERY = "明治神宮";
 
+type UnifiedSnapshot = {
+  ok: boolean;
+  reply: string | null;
+  stop_reason: StopReason;
+  note: string | null;
+  remaining_free: number | null;
+  thread_id: number | null;
+  recommendations: ConciergeRecommendation[];
+  needTags: string[];
+};
+
 // 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）
 function buildFallbackRec(): ConciergeRecommendation {
   return {
@@ -36,7 +47,7 @@ function buildSeedUnified(rec: ConciergeRecommendation): UnifiedConciergeRespons
 
 export default function ConciergeClientEmbed() {
   const router = useRouter();
-  // ✅ 初回から2枚目にする：lastUnified を seed入りで初期化
+
   const [lastUnified, setLastUnified] = useState<UnifiedConciergeResponse>(() => buildSeedUnified(buildFallbackRec()));
   const [lastQuery, setLastQuery] = useState<string>(SEED_QUERY);
   const redirectedRef = useRef(false);
@@ -52,7 +63,6 @@ export default function ConciergeClientEmbed() {
     },
   });
 
-  // ✅ 初回seed：Placesで place_id/lat/lng/address を埋めて上書き（失敗してもUI維持）
   useEffect(() => {
     let alive = true;
 
@@ -64,11 +74,9 @@ export default function ConciergeClientEmbed() {
           body: JSON.stringify({ input: SEED_QUERY }),
           cache: "no-store",
         });
-
         if (!res.ok) return;
-        const json = await res.json();
 
-        // API差異に耐える “雑取り”
+        const json = await res.json();
         const cand = (json?.candidates?.[0] ??
           json?.data?.candidates?.[0] ??
           json?.result?.candidates?.[0] ??
@@ -97,7 +105,7 @@ export default function ConciergeClientEmbed() {
         if (!alive) return;
         setLastUnified(buildSeedUnified(nextRec));
       } catch {
-        // seed失敗でもOK：fallbackがあるのでUIは2枚目のまま
+        // fallbackで表示維持
       }
     })();
 
@@ -106,13 +114,19 @@ export default function ConciergeClientEmbed() {
     };
   }, []);
 
+  // ✅ ここを lastUnified ベースに修正
   const recommendations = useMemo(() => {
-    const recs = lastUnified?.data?.recommendations;
+    const recs = (lastUnified?.data as any)?.recommendations;
     return Array.isArray(recs) ? recs : [];
   }, [lastUnified]);
 
   const stopReason: StopReason = lastUnified?.stop_reason ?? null;
   const canSend = stopReason === null;
+
+  const needTags = useMemo(() => {
+    const rawTags = (lastUnified?.data as any)?._need?.tags;
+    return Array.isArray(rawTags) ? rawTags.filter((t) => typeof t === "string") : [];
+  }, [lastUnified]);
 
   const handleSend = (text: string) => {
     const trimmed = text.trim();
@@ -123,13 +137,13 @@ export default function ConciergeClientEmbed() {
 
   return (
     <ConciergeLayout
-      
       messages={[]}
       sending={sending}
       error={error}
       onSend={handleSend}
       onRetry={() => {}}
       recommendations={recommendations}
+      needTags={needTags} // ✅ 忘れず渡す
       paywallNote={lastUnified?.note ?? null}
       remainingFree={lastUnified?.remaining_free ?? null}
       stopReason={stopReason}
