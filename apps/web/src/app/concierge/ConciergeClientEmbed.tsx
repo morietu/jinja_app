@@ -6,7 +6,7 @@ import { useConciergeChat } from "@/features/concierge/hooks";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
-import ChatPanel from "@/features/concierge/components/ChatPanel";
+
 
 const SEED_QUERY = "明治神宮";
 
