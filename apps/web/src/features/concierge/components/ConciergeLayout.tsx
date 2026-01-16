@@ -24,6 +24,7 @@ type Props = {
 
   // ✅ 互換用（呼び出し側に残ってても落とさない）
   onRetry?: () => void;
+  lastQuery?: string;
 };
 
 export default function ConciergeLayout(props: Props) {
