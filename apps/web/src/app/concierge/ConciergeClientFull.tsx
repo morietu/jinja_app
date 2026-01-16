@@ -10,12 +10,7 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
-
-
-
 const DEBUG = process.env.NODE_ENV !== "production" && false;
-
-
 
 function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
@@ -126,7 +121,7 @@ export default function ConciergeClientFull() {
     const id = window.setTimeout(() => {
       if (DEBUG) console.time("save");
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeEventsByThread(eventsByThread)));
       } catch {
         // ignore
       } finally {
@@ -305,4 +300,32 @@ export default function ConciergeClientFull() {
       embedMode={false}
     />
   );
+}
+
+function sanitizeUnified(u: UnifiedConciergeResponse): UnifiedConciergeResponse {
+  return {
+    ok: u.ok,
+    reply: u.reply ?? null,
+    stop_reason: u.stop_reason ?? null,
+    note: u.note ?? null,
+    remaining_free: u.remaining_free ?? null,
+    thread: u.thread ? ({ id: (u.thread as any).id } as any) : null,
+    data: {
+      recommendations: (u.data as any)?.recommendations ?? [],
+      _need: { tags: (u.data as any)?._need?.tags ?? [] },
+    } as any,
+  } as any;
+}
+
+function sanitizeEventsByThread(map: EventsByThread): EventsByThread {
+  const next: EventsByThread = {};
+  for (const [k, events] of Object.entries(map)) {
+    const tid = Number(k);
+    next[tid] = events.map((e) => {
+      if (e.type !== "assistant_state") return e;
+      if (!e.unified) return e;
+      return { ...e, unified: sanitizeUnified(e.unified as any) } as any;
+    });
+  }
+  return next;
 }

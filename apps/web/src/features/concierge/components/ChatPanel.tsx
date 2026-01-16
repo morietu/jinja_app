@@ -131,6 +131,8 @@ export default function ChatPanel({
           <div className="h-2" />
         </div>
 
+        <div className="px-3 py-1 text-[11px] text-gray-400">recs: {recommendations.length}</div>
+
         {/* ② 推薦（通常フローで表示） */}
         {!embedMode && recommendations.length > 0 && (
           <div className="shrink-0 border-t border-neutral-200 bg-white px-3 py-2">
