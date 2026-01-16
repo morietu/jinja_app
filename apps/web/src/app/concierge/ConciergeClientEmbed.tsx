@@ -7,6 +7,7 @@ import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 
+
 const SEED_QUERY = "明治神宮";
 
 // 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）

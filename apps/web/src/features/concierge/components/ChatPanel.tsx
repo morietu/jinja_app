@@ -19,6 +19,7 @@ type Props = {
   onNewThread?: () => void;
   needTags?: string[];
   embedMode?: boolean; // ✅ 追加（今はクラス調整に使うだけ）
+  lastQuery?: string;
 };
 
 function pad2(n: number) {
