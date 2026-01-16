@@ -11,16 +11,7 @@ import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 
 const SEED_QUERY = "明治神宮";
 
-type UnifiedSnapshot = {
-  ok: boolean;
-  reply: string | null;
-  stop_reason: StopReason;
-  note: string | null;
-  remaining_free: number | null;
-  thread_id: number | null;
-  recommendations: ConciergeRecommendation[];
-  needTags: string[];
-};
+
 
 // 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）
 function buildFallbackRec(): ConciergeRecommendation {
