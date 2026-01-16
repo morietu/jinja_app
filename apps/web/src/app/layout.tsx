@@ -46,11 +46,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-      <body>
+      <body className="min-h-dvh flex flex-col">
         <AuthProvider>
           <ClientBootstrap />
 
-          <header className="border-b bg-white">
+          <header className="shrink-0 border-b bg-white">
             <nav className="mx-auto flex max-w-5xl items-center gap-4 p-3">
               <Link href="/" className="text-base font-bold">
                 Jinja
@@ -77,7 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
 
           {/* ページ内容 */}
-          <main>{children}</main>
+          <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
 
           {/* ここに置く */}
           <ClientToaster />

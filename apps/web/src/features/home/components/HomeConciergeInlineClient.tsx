@@ -29,11 +29,6 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
     });
   };
 
-  const onClose = () => {
-    setOpen(false);
-    onToggle?.(false);
-  };
-
   return (
     <div className={className}>
       <div ref={topRef} />
@@ -51,23 +46,9 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-800">今の気持ちから神社を探す</p>
-              <button type="button" onClick={onClose} className="text-xs text-slate-500 hover:underline">
-                閉じる
-              </button>
             </div>
 
             <ConciergeClient embedMode />
-          </div>
-
-          {/* ✅ stickyは“外側”に置く */}
-          <div className="sticky bottom-0 mt-3 border-t bg-slate-50/90 px-4 py-3 backdrop-blur">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full rounded-full border bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              閉じる
-            </button>
           </div>
         </div>
       )}

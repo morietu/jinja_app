@@ -15,6 +15,8 @@ type Props = {
   s: ConciergeRecommendation;
   index?: number;
   toneTexts?: string[];
+  showClose?: boolean;
+  onClose?: () => void;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -52,7 +54,7 @@ function fmtDistanceDuration(distance_m?: number | null, duration_min?: number |
   return null;
 }
 
-export default function ConciergeCard({ s, index = 0, toneTexts }: Props) {
+export default function ConciergeCard({ s, index = 0, toneTexts, showClose = false, onClose }: Props) {
   const isPrimary = index === 0;
   const [open, setOpen] = React.useState(false);
 
@@ -94,6 +96,25 @@ export default function ConciergeCard({ s, index = 0, toneTexts }: Props) {
     <div className="rounded-xl border border-neutral-200 bg-white">
       {!!s.photo_url && (
         <div className="relative h-36 w-full">
+          {showClose && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-2 top-2 rounded-full p-1 text-gray-500 hover:bg-gray-100"
+              aria-label="閉じる"
+            >
+              {/* ← ここに例の SVG */}
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M15 5L5 15M5 5L15 15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
           <Image
             src={s.photo_url}
             alt={title}

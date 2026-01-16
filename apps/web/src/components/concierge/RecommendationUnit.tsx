@@ -45,7 +45,7 @@ export default function RecommendationUnit({ rec, index, needTags = [] }: Props)
   return (
     <div className="space-y-2">
       {index === 0 && needTags.length > 0 && <NeedChips tags={needTags} />}
-      <ConciergeCard s={safe} index={index} toneTexts={index === 0 ? [...toneTexts] : undefined} />
+      <ConciergeCard s={safe} index={index} toneTexts={index === 0 ? [...toneTexts] : undefined} showClose={false} />
     </div>
   );
 }

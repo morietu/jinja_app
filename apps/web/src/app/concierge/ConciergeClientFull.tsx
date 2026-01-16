@@ -290,23 +290,19 @@ export default function ConciergeClientFull() {
   }, [promotedTid, router]);
 
   return (
-    <div className="px-4 py-4">
-      <ConciergeLayout
-        
-        messages={messages}
-        sending={sending}
-        error={error}
-        onSend={handleSend}
-        onRetry={() => {}}
-        onNewThread={() => setActiveTid(0)}
-        recommendations={recommendationsView}
-        needTags={needTags}
-        paywallNote={lastUnified?.note ?? null}
-        remainingFree={lastUnified?.remaining_free ?? null}
-        stopReason={stopReason}
-        canSend={canSend}
-        embedMode={false}
-      />
-    </div>
+    <ConciergeLayout
+      messages={messages}
+      sending={sending}
+      error={error}
+      onSend={handleSend}
+      onNewThread={() => setActiveTid(0)}
+      recommendations={recommendationsView}
+      needTags={needTags}
+      paywallNote={lastUnified?.note ?? null}
+      remainingFree={lastUnified?.remaining_free ?? null}
+      stopReason={stopReason}
+      canSend={canSend}
+      embedMode={false}
+    />
   );
 }

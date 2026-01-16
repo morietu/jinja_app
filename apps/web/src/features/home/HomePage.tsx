@@ -15,11 +15,11 @@ export default function HomePage({ publicGoshuins }: { publicGoshuins: Paginated
   const topResults = results.slice(0, 9);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <div className="h-full min-h-0 bg-slate-50">
       <HomeToastClient />
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
         <HomeMainClient publicResults={topResults} />
       </div>
-    </main>
+    </div>
   );
 }
