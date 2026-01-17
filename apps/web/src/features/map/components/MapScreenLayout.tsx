@@ -1,7 +1,6 @@
 // apps/web/src/features/map/components/MapScreenLayout.tsx
 "use client";
 
-
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -26,19 +25,83 @@ function parseNum(v: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+type UrlSnap = {
+  pathname: string;
+  search: string;
+  pick: string | null;
+  returnTo: string | null;
+  returnHash: string | null;
+  place_id: string | null;
+  shrine_id: string | null;
+  tid: string | null;
+};
+
+// sp を受け取らず、spKey（= querystring）から再構築する
+function makeSnapFromKey(spKey: string): UrlSnap {
+  const params = new URLSearchParams(spKey);
+
+  return {
+    pathname: window.location.pathname,
+    search: window.location.search,
+
+    pick: params.get("pick"),
+    returnTo: params.get("return"),
+    returnHash: params.get("returnHash"),
+    place_id: params.get("place_id"),
+    shrine_id: params.get("shrine_id"),
+    tid: params.get("tid"),
+  };
+}
+
 export default function MapScreenLayout({ initialSelect }: { initialSelect?: InitialSelect }) {
   const router = useRouter();
   const sp = useSearchParams();
+  const spKey = sp.toString();
 
-  const pick = sp.get("pick"); // "goshuin" のときだけ戻る
+  // =========================
+  // ✅ Debug: remount 判定ログ
+  // =========================
+  const mountIdRef = useRef<string | null>(null);
+  if (mountIdRef.current == null) {
+    mountIdRef.current = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  const lastSnapRef = useRef<UrlSnap | null>(null);
+
+  useEffect(() => {
+    console.log("[MapScreenLayout] MOUNT", {
+      mountId: mountIdRef.current,
+      snap: null,
+    });
+
+    return () => {
+      console.log("[MapScreenLayout] UNMOUNT", {
+        mountId: mountIdRef.current,
+        snap: lastSnapRef.current,
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    lastSnapRef.current = makeSnapFromKey(spKey);
+
+    console.log("[MapScreenLayout] URL_CHANGED", {
+      mountId: mountIdRef.current,
+      snap: lastSnapRef.current,
+    });
+  }, [spKey]);
+
+  // =========================
+  // 通常ロジック
+  // =========================
+
+  const pick = sp.get("pick");
   const isPickMode = pick === "goshuin";
 
-  const returnTo = sp.get("return");
-  const returnHash = sp.get("returnHash");
+  const tid = useMemo(() => new URLSearchParams(spKey).get("tid"), [spKey]);
 
   const { coords } = useGeolocation();
 
-  // ✅ 初期選択がある場合は center を優先する（1回だけ）
   const [centerOverride, setCenterOverride] = useState<{ lat: number; lng: number } | null>(null);
 
   const center = useMemo(() => {
@@ -46,10 +109,8 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     return coords ?? FALLBACK_CENTER;
   }, [coords, centerOverride]);
 
-  // ✅ 選択状態（place_idがMapのキー）
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  // ✅ /map?place_id=... でも開けるように（過去互換・デバッグ用）
   const qpPlaceId = sp.get("place_id");
   const qpShrineId = parseNum(sp.get("shrine_id"));
   const qpLat = parseNum(sp.get("lat"));
@@ -73,17 +134,12 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
     const { shrine_id } = await ensureShrine(selectedPlaceId);
 
-    const base = returnTo ? decodeURIComponent(returnTo) : "/mypage?tab=goshuin";
-    const sep = base.includes("?") ? "&" : "?";
-    const withShrine = `${base}${sep}shrine=${shrine_id}`;
-    const hash = returnHash ? `#${returnHash}` : "";
+    const qs = new URLSearchParams();
+    qs.set("ctx", "map");
+    if (tid) qs.set("tid", tid);
 
-    router.push(`${withShrine}${hash}`);
-  }, [pick, selectedPlaceId, ensureShrine, router, returnTo, returnHash]);
-
-  // -----------------------------------------
-  // ✅ 初期選択処理（place_id優先、なければshrine_id）
-  // -----------------------------------------
+    router.push(`/shrines/${shrine_id}?${qs.toString()}`);
+  }, [pick, selectedPlaceId, ensureShrine, router, tid]);
 
   const loadByPlaceId = useCallback((placeId: string, fallback?: { lat?: number | null; lng?: number | null }) => {
     setSelectedPlaceId(placeId);
@@ -96,7 +152,6 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   }, []);
 
   const loadByShrineId = useCallback(async (shrineId: number) => {
-    // ✅ 既存の /api/shrines/[id] を利用（BFF）
     const r = await fetch(`/api/shrines/${shrineId}`, { cache: "no-store" });
     if (!r.ok) return;
 
@@ -119,12 +174,10 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
   const didInitRef = useRef(false);
 
-  // ✅ initialSelect or URL query を「初回だけ」反映
   useEffect(() => {
     if (didInitRef.current) return;
     didInitRef.current = true;
 
-    // 優先順位：props(initialSelect) > URL query
     const init: InitialSelect | null =
       initialSelect ??
       (qpPlaceId || qpShrineId || (qpLat != null && qpLng != null)
@@ -155,45 +208,45 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     }
   }, [initialSelect, loadByPlaceId, loadByShrineId, qpAddr, qpLat, qpLng, qpName, qpPlaceId, qpShrineId]);
 
-  // markers（最小は空でOK。必要なら「選択中」をマーカー化できる）
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
 
   return (
-    <div className="flex h-[calc(100vh-160px)] flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="h-1/2 min-h-[220px] border-b">
+    <div className="flex flex-col rounded-2xl border bg-white shadow-sm">
+      <div className="relative z-0 h-[48vh] min-h-[260px] w-full overflow-hidden rounded-t-2xl border-b pointer-events-none">
         <GoogleMap center={center} zoom={13} markers={markers} className="h-full w-full" />
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between px-4 pb-2 pt-3">
-            <p className="text-xs font-semibold text-gray-700">{isPickMode ? "神社を選択" : "近くの神社"}</p>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between px-4 pb-2 pt-3">
+          <p className="text-xs font-semibold text-gray-700">{isPickMode ? "神社を選択" : "近くの神社"}</p>
 
-            {isPickMode && (
-              <button
-                type="button"
-                onClick={goPicked}
-                disabled={!selectedPlaceId}
-                className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
-              >
-                この神社で続ける
-              </button>
-            )}
-          </div>
+          {isPickMode && (
+            <button
+              type="button"
+              onClick={goPicked}
+              disabled={!selectedPlaceId}
+              className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+            >
+              この神社で続ける
+            </button>
+          )}
+        </div>
 
-          <div className="flex-1 overflow-y-auto px-2 pb-3">
-            {/* ✅ 「2枚目状態」：選択済み情報を最上段に固定表示させるためのデータ */}
-            <MapNearbyPicker
-              limit={10}
-              selectedPlaceId={selectedPlaceId}
-              onSelectPlaceId={setSelectedPlaceId}
-              initialSelectedPlace={{
-                place_id: qpPlaceId ?? initialSelect?.placeId ?? null,
-                name: qpName ?? initialSelect?.name ?? null,
-                address: qpAddr ?? initialSelect?.addr ?? null,
-              }}
-            />
-          </div>
+        {isPickMode && (
+          <p className="px-4 pb-2 text-[11px] text-slate-400">debug selectedPlaceId: {String(selectedPlaceId)}</p>
+        )}
+
+        <div className="relative z-20 px-2 pb-3 pointer-events-auto">
+          <MapNearbyPicker
+            limit={10}
+            selectedPlaceId={selectedPlaceId}
+            onSelectPlaceId={setSelectedPlaceId}
+            initialSelectedPlace={{
+              place_id: qpPlaceId ?? initialSelect?.placeId ?? null,
+              name: qpName ?? initialSelect?.name ?? null,
+              address: qpAddr ?? initialSelect?.addr ?? null,
+            }}
+          />
         </div>
       </div>
     </div>

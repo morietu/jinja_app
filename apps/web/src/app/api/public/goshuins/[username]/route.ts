@@ -1,3 +1,4 @@
+// apps/web/src/app/api/public/goshuins/[username]/route.ts
 import { NextResponse } from "next/server";
 
 type Goshuin = {
@@ -15,18 +16,25 @@ type Paginated<T> = {
   results: T[];
 };
 
+function normalizeBase(raw: string) {
+  const s = (raw ?? "").trim();
+  if (!s) return "";
+  return s.endsWith("/") ? s.slice(0, -1) : s;
+}
+
 export async function GET(req: Request) {
-  const base = (process.env.DJANGO_API_BASE_URL ?? "").replace(/\/$/, "");
+  const base = normalizeBase(process.env.DJANGO_API_BASE_URL ?? "");
   if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
   const { searchParams } = new URL(req.url);
   const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
   const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
 
-  const upstream = `${base}/goshuins/?is_public=true`;
+  // ✅ upstream 修正（usernameで絞れないなら、いったん全件からslice）
+  const upstream = `${base}/api/goshuins/?is_public=true`;
 
   try {
-    const res = await fetch(upstream, { cache: "no-store" });
+    const res = await fetch(upstream, { cache: "no-store", headers: { Accept: "application/json" } });
     const contentType = res.headers.get("content-type") ?? "application/json";
 
     if (!res.ok) {
@@ -35,7 +43,6 @@ export async function GET(req: Request) {
     }
 
     const data = (await res.json()) as unknown;
-
     const all = Array.isArray(data) ? (data as Goshuin[]) : [];
     const results = all.slice(offset, offset + limit);
 

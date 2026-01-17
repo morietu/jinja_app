@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
@@ -9,7 +9,7 @@ import { getShrine, type Shrine } from "@/lib/api/shrines";
 type Props = { onUploaded?: (g: any) => void };
 
 export default function GoshuinUploadForm({ onUploaded }: Props) {
-  const router = useRouter();
+  
   const sp = useSearchParams();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -20,10 +20,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [sp]);
 
-  const openMapPicker = () => {
-    const ret = encodeURIComponent("/mypage?tab=goshuin");
-    router.push(`/map?pick=goshuin&return=${ret}&returnHash=goshuin-upload`);
-  };
+  
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -127,13 +124,9 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
           <>
             <p className="text-sm font-bold text-slate-900">未選択</p>
             <p className="text-xs text-slate-600">先に神社を選んでください。</p>
-            <button
-              type="button"
-              onClick={openMapPicker}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-            >
-              神社を選ぶ（地図）
-            </button>
+            <p className="text-xs text-slate-600">
+              神社が未選択です。御朱印登録は神社詳細ページ（/shrines/[id]）から行ってください。
+            </p>
           </>
         ) : (
           <>
@@ -142,13 +135,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
             </p>
             {shrine?.address ? <p className="text-xs text-slate-600">{shrine.address}</p> : null}
 
-            <button
-              type="button"
-              onClick={openMapPicker}
-              className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold hover:bg-slate-50"
-            >
-              神社を変更（地図）
-            </button>
+            
           </>
         )}
       </div>

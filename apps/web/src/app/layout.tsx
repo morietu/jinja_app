@@ -65,9 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <span aria-hidden>🔍</span>
                 </Link>
 
-                <Link href="/goshuins/public" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-                  公開御朱印
-                </Link>
+                
 
                 <Suspense fallback={null}>
                   <HeaderAuthButtons />
@@ -77,7 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
 
           {/* ページ内容 */}
-          <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+          <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
 
           {/* ここに置く */}
           <ClientToaster />

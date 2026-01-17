@@ -158,7 +158,8 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
       setLoadingGoshuins(true);
       try {
-        const r = await fetch(`/api/public/goshuins?limit=50&offset=0`, { cache: "no-store" });
+        const r = await fetch(`/api/public/goshuins?limit=50&offset=0&shrine=${shrineId}`, { cache: "no-store" });
+        
         if (!r.ok) throw new Error("public goshuins failed");
         const json = await r.json();
         const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
@@ -181,14 +182,28 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   }, [publicGoshuins, shrineId]);
 
   // --- 共通UIに流し込む値 ---
+
   const title = shrine?.name_jp ? shrine.name_jp : "神社の詳細";
   const subtitle = `place_id: ${placeId}`;
 
-  // 御朱印追加は「解決できたときだけ」
-  const addGoshuinHref =
-    resolveState === "ok" && shrineId != null ? `/mypage?tab=goshuin&shrine=${shrineId}#goshuin-upload` : null;
+  // selfPath（このページ自身。戻り先の唯一の正解）
+  // ctx/tid を含んだ「このページ自身」のURL（ログイン誘導の戻り先もこれ）
+  const qs = new URLSearchParams();
+  if (ctx) qs.set("ctx", ctx);
+  if (tidEffective) qs.set("tid", String(tidEffective));
 
-  // 詳細を見る（確定IDへ）も解決できたときだけ
+  const selfPath = `/shrines/from-place/${encodeURIComponent(placeId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
+
+  
+  
+  // ✅ 御朱印登録の入口は /shrines/[id] に統一するため、この画面では出さない
+  const addGoshuinHref = null;
+
+  // 保存ボタン（ログイン後も selfPath に戻す）
+  const saveNode =
+    resolveState === "ok" && shrineId != null ? <ShrineSaveButton shrineId={shrineId} nextPath={selfPath} /> : null;
+
+  // 詳細ページ（確定ID）へ進む導線
   const detailHref =
     resolveState === "ok" && shrineId != null
       ? `/shrines/${shrineId}?${new URLSearchParams({
@@ -198,10 +213,6 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
       : null;
 
   // 保存ボタンも解決できたときだけ
-  const saveNode =
-    resolveState === "ok" && shrineId != null ? (
-      <ShrineSaveButton shrineId={shrineId} nextPath={`/shrines/${shrineId}`} />
-    ) : null;
 
   // 状況説明
   const statusText =
@@ -217,74 +228,72 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
   const showFull = resolveState === "ok" && shrineId != null;
 
-    return (
-      <ShrineDetailShell
-        title={title}
-        subtitle={subtitle}
-        close={close}
-        addGoshuinHref={addGoshuinHref}
-        saveAction={
-          showFull && saveNode ? { shrineId: shrineId!, nextPath: `/shrines/${shrineId}`, node: saveNode } : null
-        }
-        googleDirHref={googleDirHref}
-        googleDirLabel="Googleマップで経路案内"
-        googleDirFallbackText="経路案内を準備できませんでした。"
-      >
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          {statusText ? <div className="text-xs text-slate-600">{statusText}</div> : null}
+  return (
+    <ShrineDetailShell
+      title={title}
+      subtitle={subtitle}
+      close={close}
+      addGoshuinHref={addGoshuinHref}
+      saveAction={showFull && saveNode ? { shrineId: shrineId!, nextPath: selfPath, node: saveNode } : null}
+      googleDirHref={googleDirHref}
+      googleDirLabel="Googleマップで経路案内"
+      googleDirFallbackText="経路案内を準備できませんでした。"
+    >
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        {statusText ? <div className="text-xs text-slate-600">{statusText}</div> : null}
 
-          {loadingShrine ? <div className="mt-2 text-xs text-slate-500">神社情報を読み込み中…</div> : null}
+        {loadingShrine ? <div className="mt-2 text-xs text-slate-500">神社情報を読み込み中…</div> : null}
 
-          {showFull && shrine ? (
-            <div className="mt-3 space-y-2">
-              <div className="rounded-xl border bg-white p-3">
-                <div className="text-sm font-semibold">{shrine.name_jp}</div>
-                {!!shrine.address && <div className="mt-1 text-xs text-slate-600">{shrine.address}</div>}
-              </div>
-
-              {detailHref ? (
-                <Link
-                  href={detailHref}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                >
-                  {LABELS.shrineDetail} {/* ✅ 置換 */}
-                </Link>
-              ) : null}
-
-              <div className="rounded-xl border bg-white p-3">
-                <div className="text-sm font-semibold">公開御朱印</div>
-
-                {loadingGoshuins ? (
-                  <div className="mt-2 text-xs text-slate-500">読み込み中…</div>
-                ) : matched.length === 0 ? (
-                  <div className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</div>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {matched.map((g) => (
-                      <div key={g.id} className="rounded-xl border p-3">
-                        <div className="text-xs text-slate-500">
-                          #{g.id} / {g.created_at}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold">{g.title?.trim() || "（タイトルなし）"}</div>
-
-                        {!!g.image_url && (
-                          <Image
-                            src={g.image_url}
-                            alt={g.title ?? "goshuin"}
-                            width={800}
-                            height={600}
-                            className="mt-2 w-full rounded-lg border"
-                            style={{ height: "auto" }}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {showFull && shrine ? (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-xl border bg-white p-3">
+              <div className="text-sm font-semibold">{shrine.name_jp}</div>
+              {!!shrine.address && <div className="mt-1 text-xs text-slate-600">{shrine.address}</div>}
             </div>
-          ) : null}
-        </div>
-      </ShrineDetailShell>
-    );
+
+            {detailHref ? (
+              <Link
+                href={detailHref}
+                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                {LABELS.shrineDetail} {/* ✅ 置換 */}
+              </Link>
+            ) : null}
+
+            <div className="rounded-xl border bg-white p-3">
+              <div className="text-sm font-semibold">公開御朱印</div>
+
+              {loadingGoshuins ? (
+                <div className="mt-2 text-xs text-slate-500">読み込み中…</div>
+              ) : matched.length === 0 ? (
+                <div className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</div>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {matched.map((g) => (
+                    <div key={g.id} className="rounded-xl border p-3">
+                      <div className="text-xs text-slate-500">
+                        #{g.id} / {g.created_at}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold">{g.title?.trim() || "（タイトルなし）"}</div>
+
+                      {!!g.image_url && (
+                        <Image
+                          src={g.image_url}
+                          alt={g.title ?? "goshuin"}
+                          width={800}
+                          height={600}
+                          className="mt-2 w-full rounded-lg border"
+                          style={{ height: "auto" }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </ShrineDetailShell>
+  );
 }
