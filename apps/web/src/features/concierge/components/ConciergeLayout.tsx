@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import ChatPanel from "./ChatPanel";
-import type { ConciergeMessage } from "@/lib/api/concierge";
+import type { ConciergeMessage, ConciergeRecommendation } from "@/lib/api/concierge";
 
 type Props = {
   messages: ConciergeMessage[];
@@ -12,38 +12,55 @@ type Props = {
   onSend: (text: string) => void | Promise<void>;
   onNewThread?: () => void;
 
-  canSend: boolean;
-  embedMode?: boolean;
-
-  /** 下に差し込む UI（ConciergeSections 用） */
-  children?: React.ReactNode;
-
-  // 互換用（既存呼び出しを壊さない）
+  // ✅ 互換用（呼び出し側に残っていても落とさない）
+  recommendations?: ConciergeRecommendation[];
+  needTags?: string[];
   onRetry?: () => void;
   lastQuery?: string;
+
+  paywallNote?: string | null;
+  remainingFree?: number | null;
+  stopReason?: string | null;
+  canSend: boolean;
+
+  embedMode?: boolean;
+
+  // ✅ 下にセクションUIを差し込むスロット
+  children?: React.ReactNode;
 };
 
-export default function ConciergeLayout({
-  messages,
-  sending = false,
-  error = null,
-  onSend,
-  onNewThread,
-  canSend,
-  embedMode = false,
-  children,
-}: Props) {
-  const baseRoot = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
+export default function ConciergeLayout(props: Props) {
+  const {
+    messages,
+    sending = false,
+    error = null,
+    onSend,
+    onNewThread,
+    canSend,
+    embedMode = false,
+    children,
+
+    // eslint 対策：受け取るだけ（使わない）
+    recommendations: _recommendations,
+    needTags: _needTags,
+    onRetry: _onRetry,
+    lastQuery: _lastQuery,
+    paywallNote: _paywallNote,
+    remainingFree: _remainingFree,
+    stopReason: _stopReason,
+  } = props;
+
+  const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
   const rootClass = embedMode
-    ? `${baseRoot} min-h-[400px]`
-    : `${baseRoot} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
+    ? `${baseRootClass} min-h-[400px]`
+    : `${baseRootClass} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
 
   const mainClass = embedMode ? "flex flex-col w-full" : "flex flex-col flex-1 min-h-0 w-full h-full";
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
-        {/* 会話専用 */}
+        {/* 上：会話 */}
         <ChatPanel
           messages={messages}
           loading={sending}
@@ -55,8 +72,8 @@ export default function ConciergeLayout({
           embedMode={embedMode}
         />
 
-        {/* 結果セクション */}
-        {children}
+        {/* 下：おすすめ/内訳/次アクション（差し込み） */}
+        {children ? <div className="shrink-0">{children}</div> : null}
       </main>
     </div>
   );

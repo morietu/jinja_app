@@ -1,37 +1,30 @@
-import type { ConciergeSection } from "./types";
+// apps/web/src/features/concierge/sections/fromUnified.ts
 import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
+import type { ConciergeRecommendation } from "@/lib/api/concierge";
+import type { ConciergeSection } from "@/features/concierge/types/sections";
 
-export function buildSectionsFromUnified(unified: UnifiedConciergeResponse | null): ConciergeSection[] {
-  if (!unified) return [];
+/**
+ * UnifiedConciergeResponse から sections を作る（最小）
+ * - summary 等の未定義フィールドは参照しない
+ * - need は data._need を参照する
+ */
+export function sectionsFromUnified(unified: UnifiedConciergeResponse | null): ConciergeSection[] {
+  if (!unified?.ok) return [];
 
-  const sections: ConciergeSection[] = [];
+  const recs = ((unified.data as any)?.recommendations ?? []) as ConciergeRecommendation[];
+  const needTags = (((unified.data as any)?._need?.tags ?? []) as unknown[]).filter(
+    (t): t is string => typeof t === "string" && t.trim().length > 0,
+  );
 
-  // 1. サマリー（将来拡張用）
-  if (typeof unified.summary === "string" && unified.summary.trim()) {
-    sections.push({
-      type: "summary",
-      text: unified.summary,
-    });
-  }
+  if (!Array.isArray(recs) || recs.length === 0) return [];
 
-  // 2. レコメンド（今の主役）
-  const recs = unified.data?.recommendations ?? [];
-  if (recs.length > 0) {
-    sections.push({
-      type: "recommendations",
-      items: recs,
-      primaryIndex: 0,
-      needTags: unified.data?.need?.tags ?? [],
-    });
-  }
-
-  // 3. fallback
-  if (sections.length === 0) {
-    sections.push({
-      type: "dev",
-      raw: unified,
-    });
-  }
-
-  return sections;
+  // 最小：primary 1セクションだけ（3件まで）
+  return [
+    {
+      kind: "primary",
+      title: "おすすめ",
+      items: recs.slice(0, 3),
+      needTags,
+    },
+  ];
 }

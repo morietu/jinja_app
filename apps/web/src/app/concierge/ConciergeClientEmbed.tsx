@@ -129,14 +129,11 @@ export default function ConciergeClientEmbed() {
     return buildConciergeSections(recommendations);
   }, [recommendations]);
 
-  // ✅ messages が定義されていないので追加
-  const messages = useMemo(() => {
-    return [];
-  }, []);
+  
 
   return (
     <ConciergeLayout
-      messages={[]}
+      messages={[]} // ← Embed は空でOK
       sending={sending}
       error={error}
       onSend={handleSend}
