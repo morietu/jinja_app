@@ -126,23 +126,17 @@ export default function ConciergeClientEmbed() {
   };
 
   const sections = useMemo(() => {
-    return buildConciergeSections(recommendations);
-  }, [recommendations]);
-
+    return buildConciergeSections(recommendations as any, needTags);
+  }, [recommendations, needTags]);
   
 
   return (
     <ConciergeLayout
-      messages={[]} // ← Embed は空でOK
+      messages={[]} // ✅ これで unused 変数を作らない
       sending={sending}
       error={error}
       onSend={handleSend}
       onRetry={() => {}}
-      recommendations={recommendations}
-      needTags={needTags}
-      paywallNote={lastUnified?.note ?? null}
-      remainingFree={lastUnified?.remaining_free ?? null}
-      stopReason={stopReason}
       canSend={canSend}
       embedMode
       lastQuery={lastQuery}

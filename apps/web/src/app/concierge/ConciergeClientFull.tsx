@@ -210,10 +210,7 @@ export default function ConciergeClientFull() {
   }, [recommendations, devDummyRecs, debugRecN]);
 
 
-  const sections = useMemo(() => {
-    return buildConciergeSections(recommendations);
-  }, [recommendations]);
-
+  
 
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -229,6 +226,11 @@ export default function ConciergeClientFull() {
     const tags = lastUnified?.data?._need?.tags;
     return Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
   }, [lastUnified]);
+
+  const sections = useMemo(() => {
+    return buildConciergeSections(recommendationsView as any, needTags);
+  }, [recommendationsView, needTags]);
+
 
   const thread: ConciergeThread | null = useMemo(() => {
     const t = lastUnified?.thread;
@@ -295,24 +297,19 @@ export default function ConciergeClientFull() {
     setPromotedTid(null);
   }, [promotedTid, router]);
 
-  return (
-    <ConciergeLayout
-      messages={messages}
-      sending={sending}
-      error={error}
-      onSend={handleSend}
-      onNewThread={() => setActiveTid(0)}
-      recommendations={recommendationsView}
-      needTags={needTags}
-      paywallNote={lastUnified?.note ?? null}
-      remainingFree={lastUnified?.remaining_free ?? null}
-      stopReason={stopReason}
-      canSend={canSend}
-      embedMode={false}
-    >
-      <ConciergeSections sections={sections} />
-    </ConciergeLayout>
-  );
+    return (
+      <ConciergeLayout
+        messages={messages}
+        sending={sending}
+        error={error}
+        onSend={handleSend}
+        onNewThread={() => setActiveTid(0)}
+        canSend={canSend}
+        embedMode={false}
+      >
+        <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} />
+      </ConciergeLayout>
+    );
 }
 
 function sanitizeUnified(u: UnifiedConciergeResponse): UnifiedConciergeResponse {

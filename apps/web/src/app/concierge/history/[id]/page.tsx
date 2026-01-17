@@ -6,6 +6,8 @@ import { useConciergeThreadDetail } from "@/features/concierge/hooks";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import Link from "next/link";
+import ConciergeSections from "@/features/concierge/components/ConciergeSections";
+import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
 
 export default function ConciergeHistoryDetailPage() {
   const params = useParams();
@@ -31,6 +33,7 @@ export default function ConciergeHistoryDetailPage() {
   const thread: ConciergeThread = detail.thread;
   const messages: ConciergeMessage[] = detail.messages;
   const recommendations = detail.recommendations ?? [];
+  const sections = buildConciergeSections(recommendations as any, []);
 
   const handleContinue = () => {
     router.push(`/concierge?tid=${thread.id}`);
@@ -48,18 +51,15 @@ export default function ConciergeHistoryDetailPage() {
       <p className="text-xs text-gray-500">過去の相談内容と、当時のおすすめ候補です。</p>
 
       <ConciergeLayout
-        
         messages={messages}
         sending={false}
         error={null}
         onSend={() => {}}
-        onRetry={() => {}}
-        recommendations={recommendations}
-        paywallNote={null}
-        remainingFree={null}
-        stopReason={"design"}
         canSend={false}
-      />
+        embedMode={false}
+      >
+        <ConciergeSections sections={sections} />
+      </ConciergeLayout>
       <button
         type="button"
         onClick={handleContinue}
