@@ -4,6 +4,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import ConciergeSections from "@/features/concierge/components/ConciergeSections";
+import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
+
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
@@ -206,6 +209,12 @@ export default function ConciergeClientFull() {
     return base.slice(0, debugRecN);
   }, [recommendations, devDummyRecs, debugRecN]);
 
+
+  const sections = useMemo(() => {
+    return buildConciergeSections(recommendations);
+  }, [recommendations]);
+
+
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
@@ -213,6 +222,8 @@ export default function ConciergeClientFull() {
     }
     return null;
   }, [events]);
+
+
 
   const needTags = useMemo(() => {
     const tags = lastUnified?.data?._need?.tags;
@@ -298,7 +309,9 @@ export default function ConciergeClientFull() {
       stopReason={stopReason}
       canSend={canSend}
       embedMode={false}
-    />
+    >
+      <ConciergeSections sections={sections} />
+    </ConciergeLayout>
   );
 }
 
