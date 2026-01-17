@@ -1,3 +1,4 @@
+apps/web/src/features/concierge/sectionsBuilder.ts
 // apps/web/src/features/concierge/sectionsBuilder.ts
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import type { ConciergeSection } from "@/features/concierge/types/sections";
