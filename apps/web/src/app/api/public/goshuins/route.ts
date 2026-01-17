@@ -8,6 +8,8 @@ type Goshuin = {
   image_url?: string | null;
   shrine_name?: string | null;
   is_public: boolean;
+  likes?: number;
+  created_at?: string;
 };
 
 type Paginated<T> = {
@@ -19,32 +21,32 @@ type Paginated<T> = {
 
 function normalizeBase(raw: string) {
   const s = (raw ?? "").trim();
-  if (!s) return "";
-  return s.endsWith("/") ? s.slice(0, -1) : s; // ←これをやめる
+  return s;
 }
 
 export async function GET(req: Request) {
-  const rawBase = process.env.DJANGO_API_BASE_URL ?? "";
-  const base = normalizeBase(rawBase);
+  const base = normalizeBase(process.env.DJANGO_API_BASE_URL ?? "");
+  if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
-  if (!base) {
-    return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
+  const { searchParams } = new URL(req.url);
+  const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
+  const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
+  const shrine = Number(searchParams.get("shrine") ?? "") || null;
+
+  // ✅ shrine 必須（「みんなの公開御朱印」を防ぐ）
+  if (!shrine) {
+    return NextResponse.json({ error: "shrine is required" }, { status: 400 });
   }
 
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
-    const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
-    const shrine = Number(searchParams.get("shrine") ?? "") || null;
+  // ✅ upstream（Django/DRF）は /api/goshuins/ が正
+  const upstream = `${base}/api/goshuins/?is_public=true&shrine=${shrine}`;
 
-    // upstream（Django）へ
-    const upstream = `${base}/goshuins/?is_public=true`;
+  try {
     const res = await fetch(upstream, { cache: "no-store" });
     const contentType = res.headers.get("content-type") ?? "application/json";
 
     if (!res.ok) {
       const text = await res.text();
-      // デバッグに upstream も返す（開発中だけ役立つ）
       return NextResponse.json(
         { error: "upstream not ok", upstream, status: res.status, body: text.slice(0, 300) },
         { status: 502 },
@@ -53,21 +55,17 @@ export async function GET(req: Request) {
 
     const data = (await res.json()) as unknown;
     const allRaw = Array.isArray(data) ? (data as Goshuin[]) : [];
-
-    const filtered = shrine ? allRaw.filter((g) => g.shrine === shrine) : allRaw;
-    const results = filtered.slice(offset, offset + limit);
+    const results = allRaw.slice(offset, offset + limit);
 
     const body: Paginated<Goshuin> = {
-      count: filtered.length,
+      count: allRaw.length,
       previous:
         offset > 0
-          ? `/api/public/goshuins?limit=${limit}&offset=${Math.max(0, offset - limit)}${
-              shrine ? `&shrine=${shrine}` : ""
-            }`
+          ? `/api/public/goshuins?limit=${limit}&offset=${Math.max(0, offset - limit)}&shrine=${shrine}`
           : null,
       next:
-        offset + limit < filtered.length
-          ? `/api/public/goshuins?limit=${limit}&offset=${offset + limit}${shrine ? `&shrine=${shrine}` : ""}`
+        offset + limit < allRaw.length
+          ? `/api/public/goshuins?limit=${limit}&offset=${offset + limit}&shrine=${shrine}`
           : null,
       results,
     };
