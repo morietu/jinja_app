@@ -7,11 +7,10 @@ import { useConciergeChat } from "@/features/concierge/hooks";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
-
+import ConciergeSections from "@/features/concierge/components/ConciergeSections";
+import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
 
 const SEED_QUERY = "明治神宮";
-
-
 
 // 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）
 function buildFallbackRec(): ConciergeRecommendation {
@@ -126,6 +125,15 @@ export default function ConciergeClientEmbed() {
     void send(trimmed);
   };
 
+  const sections = useMemo(() => {
+    return buildConciergeSections(recommendations);
+  }, [recommendations]);
+
+  // ✅ messages が定義されていないので追加
+  const messages = useMemo(() => {
+    return [];
+  }, []);
+
   return (
     <ConciergeLayout
       messages={[]}
@@ -134,13 +142,15 @@ export default function ConciergeClientEmbed() {
       onSend={handleSend}
       onRetry={() => {}}
       recommendations={recommendations}
-      needTags={needTags} // ✅ 忘れず渡す
+      needTags={needTags}
       paywallNote={lastUnified?.note ?? null}
       remainingFree={lastUnified?.remaining_free ?? null}
       stopReason={stopReason}
       canSend={canSend}
       embedMode
       lastQuery={lastQuery}
-    />
+    >
+      <ConciergeSections sections={sections} />
+    </ConciergeLayout>
   );
 }
