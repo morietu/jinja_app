@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { getShrines, type Shrine } from "@/lib/api/shrines";
-import ShrineCard from "@/components/ShrineCard";
+import ShrineCard from "@/components/shrine/ShrineCard";
+import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 
 export default function ShrinesPage() {
   const [shrines, setShrines] = useState<Shrine[]>([]);
@@ -28,7 +29,7 @@ export default function ShrinesPage() {
       <ul className="grid gap-4">
         {shrines.map((shrine) => (
           <li key={shrine.id}>
-            <ShrineCard shrine={shrine} />
+            <ShrineCard {...buildShrineCardProps(shrine).cardProps} />
           </li>
         ))}
       </ul>

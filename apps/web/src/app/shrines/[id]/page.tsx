@@ -2,7 +2,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getShrine, type Shrine } from "@/lib/api/shrines";
-import ShrinePhotoGallery from "@/components/shrine/ShrinePhotoGallery";
+import ShrineCard from "@/components/shrine/ShrineCard";
+import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
@@ -132,6 +133,9 @@ export default async function Page({ params, searchParams }: Props) {
 
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
+  // ✅ ShrineCard用のpropsを構築
+  const { cardProps } = buildShrineCardProps(s);
+
   return (
     <>
       <ShrineDetailToast shrineId={numericId} />
@@ -149,70 +153,68 @@ export default async function Page({ params, searchParams }: Props) {
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
       >
-        <article className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-          <ShrinePhotoGallery shrine={s} />
+        <article className="space-y-4">
+          {/* ✅ ShrineCardを使用 */}
+          <ShrineCard {...cardProps} />
 
-          <div className="space-y-4 p-4">
-            <section>
-              <h2 className="text-xs font-semibold text-gray-500">住所</h2>
-              <p className="text-sm">{s.address}</p>
-            </section>
+          {/* 以下は既存のsectionをそのまま */}
+          <section className="rounded-2xl border bg-white p-4">
+            <h2 className="text-xs font-semibold text-gray-500">住所</h2>
+            <p className="text-sm">{s.address}</p>
+          </section>
 
-            <section className="space-y-1 text-sm">
-              <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
-              {benefitLabels.length === 0 ? (
-                <p className="text-xs text-gray-400">ご利益情報は準備中です。</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {benefitLabels.map((label) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* ✅ その神社の公開御朱印（みんなの一覧ではない） */}
-            <section className="rounded-2xl border bg-white p-4">
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-sm font-semibold text-slate-900">公開御朱印</h2>
-                <p className="text-[11px] text-slate-500">この神社の公開分のみ</p>
+          <section className="space-y-1 rounded-2xl border bg-white p-4 text-sm">
+            <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
+            {benefitLabels.length === 0 ? (
+              <p className="text-xs text-gray-400">ご利益情報は準備中です。</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {benefitLabels.map((label) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
+                  >
+                    {label}
+                  </span>
+                ))}
               </div>
+            )}
+          </section>
 
-              {publicGoshuins.length === 0 ? (
-                <p className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
-              ) : (
-                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {publicGoshuins.map((g) => (
-                    <div key={g.id} className="overflow-hidden rounded-xl border bg-white">
-                      <div className="aspect-[4/5] bg-slate-100">
-                        {g.image_url ? (
-                          <Image
-                            src={g.image_url}
-                            alt={g.title ?? "goshuin"}
-                            width={600}
-                            height={750}
-                            className="h-full w-full object-cover"
-                            unoptimized
-                          />
-                        ) : null}
-                      </div>
-                      <div className="p-2">
-                        <p className="truncate text-xs text-slate-700">
-                          {(g.title ?? "").trim() || "（タイトルなし）"}
-                        </p>
-                        {g.created_at ? <p className="truncate text-[11px] text-slate-500">{g.created_at}</p> : null}
-                      </div>
+          {/* ✅ その神社の公開御朱印（みんなの一覧ではない） */}
+          <section className="rounded-2xl border bg-white p-4">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">公開御朱印</h2>
+              <p className="text-[11px] text-slate-500">この神社の公開分のみ</p>
+            </div>
+
+            {publicGoshuins.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
+            ) : (
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {publicGoshuins.map((g) => (
+                  <div key={g.id} className="overflow-hidden rounded-xl border bg-white">
+                    <div className="aspect-[4/5] bg-slate-100">
+                      {g.image_url ? (
+                        <Image
+                          src={g.image_url}
+                          alt={g.title ?? "goshuin"}
+                          width={600}
+                          height={750}
+                          className="h-full w-full object-cover"
+                          unoptimized
+                        />
+                      ) : null}
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+                    <div className="p-2">
+                      <p className="truncate text-xs text-slate-700">{(g.title ?? "").trim() || "（タイトルなし）"}</p>
+                      {g.created_at ? <p className="truncate text-[11px] text-slate-500">{g.created_at}</p> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </article>
       </ShrineDetailShell>
     </>

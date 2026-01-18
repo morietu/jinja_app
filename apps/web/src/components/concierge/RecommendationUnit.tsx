@@ -42,10 +42,41 @@ export default function RecommendationUnit({ rec, index, needTags = [] }: Props)
   const tone = pickTone(safe);
   const toneTexts = TONE_TEXT[tone];
 
+  const title = (safe.display_name || safe.name || "").trim() || "（名称不明）";
+  const address = (safe.display_address || safe.address || "")?.toString().trim() || null;
+  const description = (typeof safe.reason === "string" && safe.reason.trim()) || "候補として表示しています。";
+  const imageUrl = (safe.photo_url || "")?.toString().trim() || null;
+
+  const rawShrineId = (safe as any).shrine_id ?? null;
+  const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
+  const placeId = (safe.place_id ?? null)?.toString() || null;
+
+  const detailHref =
+    typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0
+      ? `/shrines/${shrineId}`
+      : placeId
+        ? `/shrines/from-place/${encodeURIComponent(placeId)}`
+        : undefined;
+
+  const badges = [
+    ...(Array.isArray(safe.tags) ? safe.tags : []),
+    ...(Array.isArray(needTags) ? needTags : []),
+  ].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+
   return (
     <div className="space-y-2">
       {index === 0 && needTags.length > 0 && <NeedChips tags={needTags} />}
-      <ConciergeCard s={safe} index={index} toneTexts={index === 0 ? [...toneTexts] : undefined} showClose={false} />
+      <ConciergeCard
+        title={title}
+        address={address}
+        imageUrl={imageUrl}
+        description={description}
+        isPrimary={index === 0}
+        badges={badges}
+        detailHref={detailHref}
+        disclosureTitle={toneTexts ? "おすすめの理由" : undefined}
+        disclosureBody={toneTexts ? toneTexts.join(" / ") : undefined}
+      />
     </div>
   );
 }
