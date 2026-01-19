@@ -18,15 +18,13 @@ import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilte
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
 import { DUMMY_SECTIONS } from "@/features/concierge/sections/dummy";
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
+import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
 import { getGoriyakuTags } from "@/lib/api/tags";
 
-/* ========================================
- * flags
- * ====================================== */
 
-const CONCIERGE_RENDERER = process.env.NEXT_PUBLIC_CONCIERGE_RENDERER ?? "old";
-const SHOW_NEW_RENDERER = CONCIERGE_RENDERER === "new";
+
+
 
 /* ========================================
  * types / consts

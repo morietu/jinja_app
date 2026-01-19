@@ -9,8 +9,10 @@ import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
 import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
+import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
 const SEED_QUERY = "明治神宮";
+
 
 // 2枚目を「初回レンダーから」出すための暫定rec（最低限の形）
 function buildFallbackRec(): ConciergeRecommendation {
@@ -125,9 +127,10 @@ export default function ConciergeClientEmbed() {
     void send(trimmed);
   };
 
-  const sections = useMemo(() => {
-    return buildConciergeSections(recommendations as any, needTags);
-  }, [recommendations, needTags]);
+    const sections = useMemo(() => {
+      if (SHOW_NEW_RENDERER) return [];
+      return buildConciergeSections(recommendations as any, needTags);
+    }, [recommendations, needTags]);
   
 
   return (
