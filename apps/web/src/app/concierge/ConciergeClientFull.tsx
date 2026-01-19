@@ -22,9 +22,7 @@ import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
 import { getGoriyakuTags } from "@/lib/api/tags";
 
-/* ========================================
- * flags
- * ====================================== */
+
 
 
 
