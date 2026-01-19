@@ -1,6 +1,7 @@
 // apps/web/src/components/shrine/ShrineCard.tsx
 "use client";
 
+import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -30,6 +31,9 @@ type Props = {
 
   /** concierge のおすすめ内訳（任意） */
   breakdown?: ConciergeBreakdown | null;
+
+  /** disclosure内に「ご利益」を出すか（/shrines/[id] では false 推奨） */
+  showDisclosureBenefits?: boolean;
 };
 
 function toNum(n: unknown) {
@@ -53,16 +57,14 @@ function pickReasonLabel(b?: ConciergeBreakdown | null): string | null {
   const [topKey, topVal] = entries[0] ?? [null, 0];
   if (!topKey || topVal <= 0) return null;
 
-  if (topKey === "need") {
-    return (b.matched_need_tags?.length ?? 0) > 0 ? "ご利益が一致" : "希望条件に合う";
-  }
+  if (topKey === "need") return (b.matched_need_tags?.length ?? 0) > 0 ? "ご利益が一致" : "希望条件に合う";
   if (topKey === "element") return "雰囲気が合う";
   if (topKey === "popular") return "人気の傾向を考慮";
-
   return null;
 }
 
-function renderBreakdown(b?: ConciergeBreakdown | null) {
+/** ✅ “中で枠を作らない” = DisclosureSectionに任せる */
+function renderBreakdownBody(b?: ConciergeBreakdown | null) {
   if (!b) return null;
 
   const se = toNum(b.score_element);
@@ -73,34 +75,47 @@ function renderBreakdown(b?: ConciergeBreakdown | null) {
   const matched = Array.isArray(b.matched_need_tags) ? b.matched_need_tags.filter(Boolean) : [];
   const shownTags = matched.slice(0, 2);
 
+  if (!hasAny) {
+    return <div className="text-xs text-slate-600">条件情報が少ないため、複数要素を総合して表示しています。</div>;
+  }
+
   return (
-    <div className="rounded-lg border bg-slate-50 p-2">
-      <div className="text-xs font-semibold text-slate-700">おすすめ理由（内訳）</div>
+    <ul className="space-y-1 text-xs text-slate-700">
+      {sn > 0 ? (
+        <li className="flex flex-wrap items-center gap-1">
+          <span className="text-slate-600">ご利益：</span>
+          {shownTags.length > 0 ? (
+            shownTags.map((t) => (
+              <span key={t} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px]">
+                {t}
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-700">希望条件に合致</span>
+          )}
+          {matched.length > shownTags.length ? <span className="text-slate-500">ほか</span> : null}
+        </li>
+      ) : null}
 
-      {!hasAny ? (
-        <div className="mt-1 text-xs text-slate-600">条件情報が少ないため、複数要素を総合して表示しています。</div>
-      ) : (
-        <ul className="mt-1 space-y-1 text-xs text-slate-700">
-          {sn > 0 ? (
-            <li className="flex flex-wrap items-center gap-1">
-              <span>ご利益：</span>
-              {shownTags.length > 0 ? (
-                shownTags.map((t) => (
-                  <span key={t} className="rounded-full bg-white px-2 py-0.5 text-[11px]">
-                    {t}
-                  </span>
-                ))
-              ) : (
-                <span className="text-slate-600">希望条件に合致</span>
-              )}
-              {matched.length > shownTags.length ? <span className="text-slate-500">ほか</span> : null}
-            </li>
-          ) : null}
+      {se > 0 ? (
+        <li>
+          <span className="text-slate-600">雰囲気・属性：</span>一致
+        </li>
+      ) : null}
+      {sp > 0 ? (
+        <li>
+          <span className="text-slate-600">人気：</span>考慮
+        </li>
+      ) : null}
+    </ul>
+  );
+}
 
-          {se > 0 ? <li>雰囲気・属性：一致</li> : null}
-          {sp > 0 ? <li>人気：考慮</li> : null}
-        </ul>
-      )}
+function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="text-xs font-semibold text-slate-500">{title}</div>
+      <div className="mt-2 text-sm leading-6 text-slate-700">{children}</div>
     </div>
   );
 }
@@ -117,11 +132,9 @@ export default function ShrineCard({
   readOnly = false,
   detailHref,
   breakdown,
+  showDisclosureBenefits = true,
 }: Props) {
-  const { fav, busy, toggle } = useFavorite({
-    shrineId,
-    initial: initialFav,
-  });
+  const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
   const favButton = !showFavorite ? null : (
     <button
@@ -136,17 +149,16 @@ export default function ShrineCard({
     </button>
   );
 
-  // NaN対策：detailHrefが渡されていればそれを優先。なければ shrineId ベース。
   const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
 
+  // ✅ バッジは “要約” に寄せる（重複感を減らす）
   const reasonLabel = pickReasonLabel(breakdown);
   const badges = [
-    reasonLabel ? `おすすめ理由：${reasonLabel}` : "おすすめ理由：条件との相性が高い",
     "正式登録",
-    ...goriyakuTags.map((t) => t.name),
-  ];
-
-  const breakdownSection = renderBreakdown(breakdown);
+    reasonLabel ? `おすすめ理由：${reasonLabel}` : null,
+    // ご利益をバッジに出すなら最大1個だけ（重複感対策）
+    goriyakuTags[0]?.name ?? null,
+  ].filter(Boolean) as string[];
 
   return (
     <ConciergeCard
@@ -160,23 +172,26 @@ export default function ShrineCard({
       headerRight={favButton}
       disclosureTitle="この神社について"
       disclosureBody={
-        <div className="space-y-2">
-          {/* ✅ おすすめ理由（内訳） */}
-          {breakdownSection}
+        <div className="space-y-3">
+          {breakdown ? (
+            <DisclosureSection title="おすすめ理由（内訳）">{renderBreakdownBody(breakdown)}</DisclosureSection>
+          ) : null}
 
-          {/* 既存：説明 */}
-          <p>{description}</p>
+          <DisclosureSection title="説明">
+            <p className="text-sm text-slate-700">{description}</p>
+          </DisclosureSection>
 
-          {/* 既存：ご利益タグ */}
-          {goriyakuTags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {goriyakuTags.map((t) => (
-                <span key={t.id} className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs">
-                  {t.name}
-                </span>
-              ))}
-            </div>
-          )}
+          {showDisclosureBenefits && goriyakuTags.length > 0 ? (
+            <DisclosureSection title="ご利益">
+              <div className="flex flex-wrap gap-1">
+                {goriyakuTags.map((t) => (
+                  <span key={t.id} className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                    {t.name}
+                  </span>
+                ))}
+              </div>
+            </DisclosureSection>
+          ) : null}
         </div>
       }
     />
