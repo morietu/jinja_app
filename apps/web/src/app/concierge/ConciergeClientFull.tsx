@@ -24,7 +24,7 @@ import { getGoriyakuTags } from "@/lib/api/tags";
 /* ========================================
  * flags
  * ====================================== */
-const DEBUG = process.env.NODE_ENV !== "production" && false;
+
 const CONCIERGE_RENDERER = process.env.NEXT_PUBLIC_CONCIERGE_RENDERER ?? "old";
 const SHOW_NEW_RENDERER = CONCIERGE_RENDERER === "new";
 
