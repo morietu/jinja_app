@@ -13,6 +13,11 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 
+
+import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
+import { DUMMY_SECTIONS } from "@/features/concierge/sections/dummy";
+
+
 const DEBUG = process.env.NODE_ENV !== "production" && false;
 
 function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
@@ -167,6 +172,7 @@ export default function ConciergeClientFull() {
       );
 
     return [
+
       {
         id: null,
         name: "（ダミー）明治神宮",
@@ -297,6 +303,8 @@ export default function ConciergeClientFull() {
     setPromotedTid(null);
   }, [promotedTid, router]);
 
+  const SHOW_NEW_RENDERER = process.env.NODE_ENV !== "production";
+
     return (
       <ConciergeLayout
         messages={messages}
@@ -307,7 +315,13 @@ export default function ConciergeClientFull() {
         canSend={canSend}
         embedMode={false}
       >
-        <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} />
+        {SHOW_NEW_RENDERER ? (
+          <div className="p-4">
+            <ConciergeSectionsRenderer payload={DUMMY_SECTIONS} />
+          </div>
+        ) : (
+          <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} />
+        )}
       </ConciergeLayout>
     );
 }
