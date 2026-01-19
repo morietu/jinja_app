@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Close } from "@/lib/navigation/shrineClose";
 import ShrineCloseLink from "@/components/shrine/ShrineCloseLink";
 import { LABELS } from "@/lib/ui/labels";
+import DetailSection from "@/components/shrine/DetailSection";
+
 
 type SaveAction = {
   shrineId: number;
@@ -55,30 +57,35 @@ export default function ShrineDetailShell({
         <div className="w-[64px]" />
       </header>
 
-      {/* ✅ CTAの順番はここで強制（御朱印 → 経路案内 → 保存） */}
-      {addGoshuinHref ? (
-        <Link
-          href={addGoshuinHref}
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
-        >
-          {LABELS.addGoshuin}
-        </Link>
-      ) : null}
+      
+      {/* ✅ CTA（御朱印 → 経路案内 → 保存）を DetailSection トーンに統一 */}
+      <DetailSection title="操作">
+        <div className="grid gap-2">
+          {addGoshuinHref ? (
+            <Link
+              href={addGoshuinHref}
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
+            >
+              {LABELS.addGoshuin}
+            </Link>
+          ) : null}
 
-      {googleDirHref ? (
-        <a
-          href={googleDirHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-        >
-          {googleDirLabel}
-        </a>
-      ) : (
-        <div className="rounded-xl border bg-white p-3 text-xs text-slate-500">{googleDirFallbackText}</div>
-      )}
+          {googleDirHref ? (
+            <a
+              href={googleDirHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              {googleDirLabel}
+            </a>
+          ) : (
+            <div className="text-xs text-slate-500">{googleDirFallbackText}</div>
+          )}
 
-      {saveAction?.node ? <div>{saveAction.node}</div> : null}
+          {saveAction?.node ? <div>{saveAction.node}</div> : null}
+        </div>
+      </DetailSection>
 
       {/* 本文 */}
       {children}
