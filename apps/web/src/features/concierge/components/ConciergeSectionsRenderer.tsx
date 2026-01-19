@@ -50,6 +50,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                           goriyakuTags={it.goriyakuTags}
                           initialFav={it.initialFav}
                           showFavorite
+                          breakdown={(it as any).breakdown ?? null}
                         />
                       );
                     }
