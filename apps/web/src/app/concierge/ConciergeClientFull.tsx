@@ -484,7 +484,9 @@ export default function ConciergeClientFull() {
     setPromotedTid(null);
   }, [promotedTid, router]);
 
-  const SHOW_NEW_RENDERER = process.env.NODE_ENV !== "production";
+  const SHOW_NEW_RENDERER = process.env.NEXT_PUBLIC_CONCIERGE_RENDERER === "new";
+  console.log("NEXT_PUBLIC_CONCIERGE_RENDERER =", process.env.NEXT_PUBLIC_CONCIERGE_RENDERER);
+  console.log("SHOW_NEW_RENDERER =", SHOW_NEW_RENDERER);
 
   return (
     <ConciergeLayout
