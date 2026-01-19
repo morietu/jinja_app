@@ -308,6 +308,26 @@ class ConciergeChatView(APIView):
 
 
         area = data.get("area") or data.get("where") or data.get("location_text")
+        
+        candidates = build_chat_candidates(
+            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
+            area=area,
+            lat=data.get("lat"),
+            lng=data.get("lng"),
+        )
+        
+
+        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
+        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
+        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
+
+        candidates = user_candidates + build_chat_candidates(
+            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
+            area=area,
+            lat=data.get("lat"),
+            lng=data.get("lng"),
+        )
+        
 
         # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
         raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
