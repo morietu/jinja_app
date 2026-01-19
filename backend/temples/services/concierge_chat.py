@@ -213,14 +213,18 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
         r["astro_matched"] = (pri == 2)
         buckets[pri].append(r)
 
-    picked: List[dict] = []
-    for pri in (2, 1, 0):
-        for r in buckets[pri]:
+    # ✅ pri=2 を最優先。まずは pri=2 だけで最大3件を埋める
+    picked: List[dict] = list(buckets.get(2, []))[:3]
+    
+    # ✅ それでも足りない時だけ pri=1 → 0 で補完
+    if len(picked) < 3:
+        for pri in (1, 0):
+            for r in buckets.get(pri, []):
+                if len(picked) >= 3:
+                    break
+                picked.append(r)
             if len(picked) >= 3:
                 break
-            picked.append(r)
-        if len(picked) >= 3:
-            break
 
     recs["recommendations"] = picked
 
@@ -420,7 +424,8 @@ def build_chat_recommendations(
         else:
             recs["recommendations"] = [{"name": "近隣の神社", "reason": ""}]
 
-    recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=3)
+    pre_limit = 12 if birthdate else 3
+    recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=pre_limit)
 
     cand_addr: dict[str, str] = {}
     for c in candidates or []:
