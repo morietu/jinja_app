@@ -1,7 +1,9 @@
 "use client";
 
+import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
+
 
 import type {
   ConciergeSectionsPayload,
@@ -20,22 +22,19 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
   return (
-    // 既存ConciergeSectionsと同じ幅感に合わせる（max-w-md）
     <div className="mx-auto w-full max-w-md min-w-0 space-y-4">
       {payload.sections.map((sec, i) => {
         switch (sec.type) {
           case "guide":
             return (
-              <section key={`guide-${i}`} className="rounded-xl border bg-white p-3">
+              <DetailSection key={`guide-${i}`} title="ガイド">
                 <div className="text-sm text-slate-700">{sec.text}</div>
-              </section>
+              </DetailSection>
             );
 
           case "recommendations":
             return (
-              <section key={`recs-${i}`} className="space-y-3">
-                {sec.title ? <div className="text-xs font-semibold text-slate-700">{sec.title}</div> : null}
-
+              <DetailSection key={`recs-${i}`} title={sec.title || "おすすめ"}>
                 <div className="space-y-3">
                   {sec.items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (it.kind === "registered") {
@@ -67,14 +66,14 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                     );
                   })}
                 </div>
-              </section>
+              </DetailSection>
             );
 
           case "actions":
             return (
-              <section key={`actions-${i}`} className="rounded-xl border bg-white p-3">
+              <DetailSection key={`actions-${i}`} title="次の操作">
                 <div className="grid gap-2">
-                  {sec.items.map((a: { action: "add_condition" | "open_map"; label: string }, idx: number) => (
+                  {sec.items.map((a: { action: ActionType; label: string }, idx: number) => (
                     <button
                       key={`${a.action}-${idx}`}
                       type="button"
@@ -85,7 +84,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                     </button>
                   ))}
                 </div>
-              </section>
+              </DetailSection>
             );
 
           default:

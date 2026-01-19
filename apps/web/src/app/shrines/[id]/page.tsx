@@ -9,6 +9,8 @@ import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import DetailSection from "@/components/shrine/DetailSection";
+
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -45,25 +47,7 @@ type Props = {
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
 
-function DetailSection({
-  title,
-  right,
-  children,
-}: {
-  title: string;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border bg-white p-4">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold text-slate-500">{title}</h2>
-        {right ? <div className="text-[11px] text-slate-500">{right}</div> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
+
 
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
