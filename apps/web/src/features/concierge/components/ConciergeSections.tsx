@@ -3,14 +3,22 @@
 
 import * as React from "react";
 import type { ConciergeSection } from "@/features/concierge/types/sections";
+import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
 import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
+import DetailSection from "@/components/shrine/DetailSection";
 
 type Props = {
   sections: ConciergeSection[];
   onNewThread?: () => void;
   initialPrimaryIndex?: number;
 };
+
+function clampIndex(i: number, len: number) {
+  if (!Number.isFinite(i)) return 0;
+  if (len <= 0) return 0;
+  return Math.max(0, Math.min(len - 1, i));
+}
 
 export default function ConciergeSections({ sections, onNewThread, initialPrimaryIndex = 0 }: Props) {
   if (!Array.isArray(sections) || sections.length === 0) return null;
@@ -20,14 +28,12 @@ export default function ConciergeSections({ sections, onNewThread, initialPrimar
       {sections.map((sec, i) => {
         if (sec.kind === "note") {
           return (
-            <section key={`note-${i}`} className="rounded-xl border bg-white p-3">
-              <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
-              <div className="mt-1 text-sm text-slate-700">{sec.text}</div>
-            </section>
+            <DetailSection key={`note-${i}`} title={sec.title}>
+              <div className="text-sm text-slate-700">{sec.text}</div>
+            </DetailSection>
           );
         }
 
-        // sec.kind === "primary"
         return (
           <PrimarySection key={`primary-${i}`} sec={sec} onNewThread={onNewThread} initialIndex={initialPrimaryIndex} />
         );
@@ -45,25 +51,28 @@ function PrimarySection({
   onNewThread?: () => void;
   initialIndex: number;
 }) {
-  const items = Array.isArray(sec.items) ? sec.items : [];
+  const items = (Array.isArray(sec.items) ? (sec.items as ConciergeRecommendation[]) : []) as ConciergeRecommendation[];
   const needTags = Array.isArray(sec.needTags) ? sec.needTags : [];
 
-  const safeInit = Number.isFinite(initialIndex) ? Math.max(0, Math.min(items.length - 1, initialIndex)) : 0;
-  const [primaryIndex, setPrimaryIndex] = React.useState<number>(sec.initialIndex ?? safeInit);
+  const safeInit = clampIndex(initialIndex, items.length);
+  const [primaryIndex, setPrimaryIndex] = React.useState<number>(
+    clampIndex(sec.initialIndex ?? safeInit, items.length),
+  );
 
   React.useEffect(() => {
-    setPrimaryIndex(sec.initialIndex ?? safeInit);
-  }, [sec.initialIndex, safeInit]);
+    setPrimaryIndex(clampIndex(sec.initialIndex ?? safeInit, items.length));
+  }, [sec.initialIndex, safeInit, items.length]);
 
   if (items.length === 0) return null;
 
-  const primary = items[Math.max(0, Math.min(items.length - 1, primaryIndex))];
+  const idx = clampIndex(primaryIndex, items.length);
+  const primary = items[idx];
 
   return (
     <section className="rounded-xl border bg-white p-3">
+      {/* ✅ ここは見た目を変えない（元のヘッダーが必要なら戻す） */}
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
-
         {onNewThread ? (
           <button
             type="button"
@@ -75,13 +84,17 @@ function PrimarySection({
         ) : null}
       </div>
 
-      {/* ✅ primary（= 1件目表示） */}
       <div className="mt-2">
-        <PrimaryRecommendationCard rec={primary} primaryIndex={primaryIndex} needTags={needTags} />
+        <PrimaryRecommendationCard rec={primary} primaryIndex={idx} needTags={needTags} />
       </div>
 
-      {/* ✅ スイッチ（候補が2つ以上の時だけ） */}
-      <RecommendationSwitchList items={items} primaryIndex={primaryIndex} onSelect={setPrimaryIndex} />
+      {items.length > 1 ? (
+        <div className="mt-3">
+          <DetailSection title="他の候補">
+            <RecommendationSwitchList items={items} primaryIndex={idx} onSelect={setPrimaryIndex} />
+          </DetailSection>
+        </div>
+      ) : null}
     </section>
   );
 }

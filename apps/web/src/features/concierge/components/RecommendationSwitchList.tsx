@@ -1,6 +1,6 @@
+// apps/web/src/features/concierge/components/RecommendationSwitchList.tsx
 "use client";
 
-import DetailSection from "@/components/shrine/DetailSection";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import { benefitLabel, pickBenefitTagFromRec } from "@/lib/concierge/benefitTag";
 
@@ -11,10 +11,11 @@ type Props = {
 };
 
 export default function RecommendationSwitchList({ items, primaryIndex, onSelect }: Props) {
+  console.log("[SwitchList] items.length =", items?.length, "primaryIndex =", primaryIndex);
   if (!items || items.length <= 1) return null;
 
   return (
-    <DetailSection title="他の候補" right="タップで1件目を切替">
+    <div className="space-y-2">
       <ul className="space-y-2">
         {items.map((r, idx) => {
           if (idx === primaryIndex) return null;
@@ -40,6 +41,7 @@ export default function RecommendationSwitchList({ items, primaryIndex, onSelect
           );
         })}
       </ul>
-    </DetailSection>
+      <p className="text-[11px] text-slate-500">タップすると1件目を切り替えます</p>
+    </div>
   );
 }
