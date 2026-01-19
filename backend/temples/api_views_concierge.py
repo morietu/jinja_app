@@ -181,22 +181,27 @@ def _parse_radius(data: Dict[str, Any]) -> int:
         r = 8000
     return max(1, min(50000, r))
 
+def _to_float(v: Any) -> Optional[float]:
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        try:
+            return float(s)
+        except Exception:
+            return None
+    return None
+
 
 def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
-    """
-    Chat/Plan 共通の “bias” 仕様（テストが radius_km=5 → 5000 を検証する）
-    """
-    lat = data.get("lat")
-    lng = data.get("lng")
-
+    lat = _to_float(data.get("lat"))
+    lng = _to_float(data.get("lng"))
     if lat is None or lng is None:
         return None
-    try:
-        lat = float(lat)
-        lng = float(lng)
-    except Exception:
-        return None
-
     r_m = _parse_radius(data)
     return {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
 
@@ -308,11 +313,14 @@ class ConciergeChatView(APIView):
         raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
         user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
 
+        lat = _to_float(data.get("lat"))
+        lng = _to_float(data.get("lng"))
+
         candidates = user_candidates + build_chat_candidates(
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             area=area,
-            lat=data.get("lat"),
-            lng=data.get("lng"),
+            lat=lat,
+            lng=lng,
         )
         
 
@@ -433,9 +441,8 @@ class ConciergeChatView(APIView):
                         names.append(nm)
             body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
         else:
-            if not candidates:
-                body["reply"] = None
-
+            # ✅ queryモードでも reply キーは常に返す（テスト契約）
+            body["reply"] = None if not candidates else "おすすめを表示します。"
         # --- thread 保存（認証ユーザーのみ）---
         thread_obj = None
         if user is not None and getattr(user, "is_authenticated", False):
