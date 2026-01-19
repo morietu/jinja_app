@@ -284,8 +284,7 @@ export default function ConciergeClientFull() {
         if (!alive) return;
         setTagsError("ご利益タグの取得に失敗しました");
       } finally {
-        if (!alive) return;
-        setTagsLoading(false);
+        if (alive) setTagsLoading(false);
       }
     })();
 
