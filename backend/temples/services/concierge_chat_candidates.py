@@ -22,6 +22,17 @@ def _distance_m(
     """
     Haversine 距離（m）
     """
+
+    # 🔒 即効ガード：文字列・Decimal・何でも float に寄せる
+    try:
+        lat1 = float(lat1) if lat1 is not None else None
+        lng1 = float(lng1) if lng1 is not None else None
+        lat2 = float(lat2) if lat2 is not None else None
+        lng2 = float(lng2) if lng2 is not None else None
+    except Exception:
+        return None
+
+        
     if None in (lat1, lng1, lat2, lng2):
         return None
 
