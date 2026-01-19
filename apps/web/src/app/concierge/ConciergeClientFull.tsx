@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
 import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
-import type { ConciergeSectionsPayload } from "@/features/concierge/sections/types";
 
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
@@ -15,17 +14,35 @@ import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/
 import type { ChatEvent } from "@/features/concierge/types/chat";
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
 
+import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
 import { DUMMY_SECTIONS } from "@/features/concierge/sections/dummy";
+import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 
 import { getGoriyakuTags } from "@/lib/api/tags";
 
+/* ========================================
+ * flags
+ * ====================================== */
 const DEBUG = process.env.NODE_ENV !== "production" && false;
+const CONCIERGE_RENDERER = process.env.NEXT_PUBLIC_CONCIERGE_RENDERER ?? "old";
+const SHOW_NEW_RENDERER = CONCIERGE_RENDERER === "new";
 
+/* ========================================
+ * types / consts
+ * ====================================== */
 type Element4 = "火" | "地" | "風" | "水";
+type Tag = { id: number; name: string };
+
+// ✅ ChatEvent に assistant_state が無い環境でも崩れないよう、このファイル内だけ拡張
+type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeResponse; at: string };
+type LocalEvent = ChatEvent | AssistantStateEvent;
+
+type EventsByThread = Record<number, LocalEvent[]>;
+const STORAGE_KEY = "concierge:eventsByThread";
+
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
 
-// element -> おすすめ（DBのGoriyakuTag.nameと一致させる）
 const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   火: ["仕事運・出世", "勝運・必勝祈願", "開運招福", "厄除け・方除け"],
   地: ["金運・商売繁盛", "健康長寿", "五穀豊穣", "家内安全"],
@@ -33,6 +50,9 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   水: ["縁結び", "子宝・安産", "病気平癒"],
 };
 
+/* ========================================
+ * utils
+ * ====================================== */
 function isValidISODate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
@@ -44,9 +64,7 @@ function isValidISODate(s: string): boolean {
 function birthdateToElement4(birthdateISO: string): Element4 | null {
   if (!isValidISODate(birthdateISO)) return null;
   const [, mm, dd] = birthdateISO.split("-");
-  const m = Number(mm);
-  const d = Number(dd);
-  const md = m * 100 + d;
+  const md = Number(mm) * 100 + Number(dd);
 
   if (md >= 321 && md <= 419) return "火";
   if (md >= 420 && md <= 520) return "地";
@@ -57,36 +75,22 @@ function birthdateToElement4(birthdateISO: string): Element4 | null {
   if (md >= 923 && md <= 1023) return "風";
   if (md >= 1024 && md <= 1122) return "水";
   if (md >= 1123 && md <= 1221) return "火";
-  if (md >= 1222 || md <= 119) return "地"; // 山羊（年跨ぎ）
+  if (md >= 1222 || md <= 119) return "地";
   if (md >= 120 && md <= 218) return "風";
   return "水";
 }
 
-type Tag = { id: number; name: string };
-
-function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage[] {
+function deriveMessages(events: LocalEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
   const out: ConciergeMessage[] = [];
 
   for (const e of events) {
-    if (e.type === "user_message") {
+    if (e.type === "user_message" || e.type === "assistant_reply") {
       mid += 1;
       out.push({
         id: mid,
         thread_id: threadId,
-        role: "user",
-        content: e.text,
-        created_at: e.at,
-      } as ConciergeMessage);
-      continue;
-    }
-
-    if (e.type === "assistant_reply") {
-      mid += 1;
-      out.push({
-        id: mid,
-        thread_id: threadId,
-        role: "assistant",
+        role: e.type === "user_message" ? "user" : "assistant",
         content: e.text,
         created_at: e.at,
       } as ConciergeMessage);
@@ -96,85 +100,32 @@ function deriveMessages(events: ChatEvent[], threadId: number): ConciergeMessage
   return out;
 }
 
-type EventsByThread = Record<number, ChatEvent[]>;
-const STORAGE_KEY = "concierge:eventsByThread";
-
-function getThreadEvents(map: EventsByThread, tid: number): ChatEvent[] {
+/* ========================================
+ * events store helpers
+ * ====================================== */
+function getThreadEvents(map: EventsByThread, tid: number): LocalEvent[] {
   return map[tid] ?? [];
 }
 
-function appendEvents(map: EventsByThread, tid: number, next: ChatEvent | ChatEvent[]): EventsByThread {
+function appendEvents(map: EventsByThread, tid: number, next: LocalEvent | LocalEvent[]): EventsByThread {
   const arr = Array.isArray(next) ? next : [next];
-  const cur = getThreadEvents(map, tid);
-  return { ...map, [tid]: [...cur, ...arr] };
+  return { ...map, [tid]: [...getThreadEvents(map, tid), ...arr] };
 }
 
 function promoteThread(map: EventsByThread, fromTid: number, toTid: number): EventsByThread {
-  if (!toTid) return map;
-  if (fromTid === toTid) return map;
-
+  if (!toTid || fromTid === toTid) return map;
   const fromEvents = getThreadEvents(map, fromTid);
-  const toEvents = getThreadEvents(map, toTid);
   if (!fromEvents.length) return map;
 
-  const next: EventsByThread = { ...map };
-  next[toTid] = [...toEvents, ...fromEvents];
+  const next = { ...map };
+  next[toTid] = [...getThreadEvents(map, toTid), ...fromEvents];
   delete next[fromTid];
   return next;
 }
 
-function buildPayloadFromUnified(u: UnifiedConciergeResponse | null): ConciergeSectionsPayload | null {
-  const recs = u?.data?.recommendations;
-  if (!Array.isArray(recs) || recs.length === 0) return null;
-
-  const items = recs
-    .map((r: any) => {
-      if (typeof r?.id === "number") {
-        return {
-          kind: "registered" as const,
-          shrineId: r.id,
-          title: String(r.display_name ?? r.name ?? "名称不明"),
-          address: r.display_address ?? null,
-          description: String(r.reason ?? ""),
-          imageUrl: r.photo_url ?? null,
-          goriyakuTags: [],
-          initialFav: false,
-        };
-      }
-
-      if (typeof r?.place_id === "string") {
-        return {
-          kind: "place" as const,
-          placeId: r.place_id,
-          title: String(r.display_name ?? r.name ?? "名称不明"),
-          address: r.display_address ?? null,
-          description: String(r.reason ?? ""),
-          imageUrl: r.photo_url ?? null,
-        };
-      }
-
-      return null;
-    })
-    .filter(Boolean) as any[];
-
-  if (items.length === 0) return null;
-
-  return {
-    version: 1,
-    sections: [
-      { type: "guide", text: "おすすめを表示しました。必要なら条件を追加して絞れます。" },
-      { type: "recommendations", title: "おすすめ", items },
-      {
-        type: "actions",
-        items: [
-          { action: "add_condition", label: "条件を追加して絞る" },
-          { action: "open_map", label: "地図で近くの神社を見る" },
-        ],
-      },
-    ],
-  };
-}
-
+/* ========================================
+ * component
+ * ====================================== */
 export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -182,18 +133,18 @@ export default function ConciergeClientFull() {
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
-  const [activeThreadId, setActiveThreadId] = useState<number>(0);
-  const activeThreadIdRef = useRef<number>(0);
+  const [activeThreadId, setActiveThreadId] = useState(0);
+  const activeThreadIdRef = useRef(0);
 
   const [promotedTid, setPromotedTid] = useState<number | null>(null);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [extraCondition, setExtraCondition] = useState<string>("");
+  const [extraCondition, setExtraCondition] = useState("");
 
   const [goriyakuTags, setGoriyakuTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
-  const [birthdate, setBirthdate] = useState<string>(""); // YYYY-MM-DD
+  const [birthdate, setBirthdate] = useState("");
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
@@ -208,16 +159,14 @@ export default function ConciergeClientFull() {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
 
-  // restore
+  /* restore */
   useEffect(() => {
-    if (DEBUG) console.time("restore");
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setEventsByThread(JSON.parse(raw) as EventsByThread);
     } catch {
       // ignore
     } finally {
-      if (DEBUG) console.timeEnd("restore");
       setHydrated(true);
     }
   }, []);
@@ -229,24 +178,20 @@ export default function ConciergeClientFull() {
     setActiveTid(tidFromQuery);
   }, [tidFromQuery, hydrated]);
 
-  // save
+  /* save */
   useEffect(() => {
     if (!hydrated) return;
     const id = window.setTimeout(() => {
-      if (DEBUG) console.time("save");
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeEventsByThread(eventsByThread)));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
       } catch {
         // ignore
-      } finally {
-        if (DEBUG) console.timeEnd("save");
       }
     }, 250);
-
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  // 生年月日 restore
+  /* 生年月日 restore */
   useEffect(() => {
     try {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
@@ -256,17 +201,20 @@ export default function ConciergeClientFull() {
     }
   }, []);
 
-  // 生年月日 save
+  /* 生年月日 save */
   useEffect(() => {
     try {
-      if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
-      else localStorage.removeItem(LS_BIRTHDATE_KEY);
+      if (birthdate && isValidISODate(birthdate)) {
+        localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
+      } else {
+        localStorage.removeItem(LS_BIRTHDATE_KEY);
+      }
     } catch {
       // ignore
     }
   }, [birthdate]);
 
-  // フィルター開いたタイミングでタグ取得
+  /* フィルター開いたタイミングでタグ取得 */
   useEffect(() => {
     if (!isFilterOpen) return;
     if (goriyakuTags.length > 0) return;
@@ -293,7 +241,7 @@ export default function ConciergeClientFull() {
     };
   }, [isFilterOpen, goriyakuTags.length]);
 
-  // dev force
+  /* dev force */
   const force = sp.get("force");
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
@@ -309,12 +257,6 @@ export default function ConciergeClientFull() {
     return [];
   }, [events]);
 
-  const debugRecN = useMemo(() => {
-    if (process.env.NODE_ENV === "production") return 0;
-    const n = Number(sp.get("recs") ?? "0");
-    return Number.isFinite(n) ? Math.max(0, Math.min(3, n)) : 0;
-  }, [sp]);
-
   const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
 
   const suggestedTags = useMemo(() => {
@@ -326,57 +268,6 @@ export default function ConciergeClientFull() {
     return goriyakuTags.filter((t) => setNames.has(t.name));
   }, [element4, goriyakuTags]);
 
-  // dev用のダミー（未応答でもUI確認できるように）
-  const devDummyRecs = useMemo(() => {
-    if (process.env.NODE_ENV === "production") return [];
-    const long =
-      "これは長文の理由です。表示崩れ（高さ・改行・ボタン位置）が起きないか確認するためのダミーテキストです。".repeat(
-        6,
-      );
-
-    return [
-      {
-        id: null,
-        name: "（ダミー）明治神宮",
-        display_name: "（ダミー）明治神宮",
-        display_address: "東京都渋谷区代々木神園町1-1",
-        reason: long,
-        photo_url: null,
-        distance_m: 1234,
-        duration_min: 18,
-        place_id: "dummy-place-1",
-      },
-      {
-        id: null,
-        name: "（ダミー）伏見稲荷大社",
-        display_name: "（ダミー）伏見稲荷大社",
-        display_address: "京都府京都市伏見区深草薮之内町68",
-        reason: "短い理由。",
-        photo_url: null,
-        distance_m: 4321,
-        duration_min: 55,
-        place_id: "dummy-place-2",
-      },
-      {
-        id: null,
-        name: "（ダミー）鶴岡八幡宮",
-        display_name: "（ダミー）鶴岡八幡宮",
-        display_address: "神奈川県鎌倉市雪ノ下2-1-31",
-        reason: long,
-        photo_url: null,
-        distance_m: 9876,
-        duration_min: 120,
-        place_id: "dummy-place-3",
-      },
-    ];
-  }, []);
-
-  const recommendationsView = useMemo(() => {
-    const base = recommendations.length > 0 ? recommendations : devDummyRecs;
-    if (!debugRecN) return base;
-    return base.slice(0, debugRecN);
-  }, [recommendations, devDummyRecs, debugRecN]);
-
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
@@ -385,33 +276,31 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
+  const stopReason: StopReason =
+    process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
+  const canSend = stopReason === null || (process.env.NODE_ENV !== "production" && !!forced);
+
   const needTags = useMemo(() => {
     const tags = lastUnified?.data?._need?.tags;
     return Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
   }, [lastUnified]);
 
-  const sections = useMemo(() => {
-    return buildConciergeSections(recommendationsView as any, needTags);
-  }, [recommendationsView, needTags]);
+  const sections = useMemo(() => buildConciergeSections(recommendations as any, needTags), [recommendations, needTags]);
+
+  const payload = useMemo(() => buildPayloadFromUnified(lastUnified) ?? DUMMY_SECTIONS, [lastUnified]);
 
   const thread: ConciergeThread | null = useMemo(() => {
     const t = lastUnified?.thread;
     return t && typeof t.id === "number" ? t : null;
   }, [lastUnified]);
 
-  const payload = useMemo(() => {
-    return buildPayloadFromUnified(lastUnified) ?? DUMMY_SECTIONS;
-  }, [lastUnified]);
+  const messages = useMemo(
+    () => deriveMessages(events, thread?.id ?? activeThreadId),
+    [events, thread, activeThreadId],
+  );
 
-  const threadIdNum = thread?.id ?? activeThreadId;
-  const messages = useMemo(() => deriveMessages(events, threadIdNum), [events, threadIdNum]);
-
-  const chatThreadId: string | null =
-    typeof thread?.id === "number" && thread.id > 0
-      ? String(thread.id)
-      : activeThreadId !== 0
-        ? String(activeThreadId)
-        : null;
+  const chatThreadId =
+    typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
 
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     onUnified: (u) => {
@@ -424,27 +313,20 @@ export default function ConciergeClientFull() {
         setPromotedTid(nextTid);
       }
 
-      setEventsByThread((prev) => {
-        let cur = prev;
-        if (currentTid === 0 && nextTid !== 0) cur = promoteThread(cur, 0, nextTid);
-
-        const tidToWrite = nextTid !== 0 ? nextTid : currentTid;
-        const nextEvents: ChatEvent[] = [
-          { type: "assistant_state", unified: u, at: now },
-          ...(typeof u.reply === "string" && u.reply.trim()
-            ? [{ type: "assistant_reply", text: u.reply, at: now } as const]
-            : []),
-        ];
-        return appendEvents(cur, tidToWrite, nextEvents);
-      });
+      setEventsByThread((prev) =>
+        appendEvents(
+          currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
+          nextTid || currentTid,
+          [
+            { type: "assistant_state", unified: u, at: now },
+            ...(u.reply ? [{ type: "assistant_reply", text: u.reply, at: now } as const] : []),
+          ],
+        ),
+      );
     },
   });
 
-  const isDevForced = process.env.NODE_ENV !== "production" && !!forced;
-  const stopReason: StopReason = isDevForced ? (forced as StopReason) : (lastUnified?.stop_reason ?? null);
-  const canSend = stopReason === null || isDevForced;
-
-  // JSON固定で送る用（thread_idは hooks 側で注入される前提）
+  // ✅ FilterPanel用：payload を作る（thread_id は hooks 側が注入する前提）
   const buildFilterPayload = (): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const extra = extraCondition.trim();
     const bd = birthdate && isValidISODate(birthdate) ? birthdate : undefined;
@@ -466,172 +348,51 @@ export default function ConciergeClientFull() {
     };
   };
 
-  const handleSend = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    if (!canSend) return;
-
-    const now = new Date().toISOString();
-    const tid = activeThreadId !== 0 ? activeThreadId : activeThreadIdRef.current;
-
-    setEventsByThread((prev) => appendEvents(prev, tid, { type: "user_message", text: trimmed, at: now } as const));
-    void send(trimmed);
-  };
-
   useEffect(() => {
     if (!promotedTid) return;
     router.replace(`/concierge?tid=${promotedTid}`);
     setPromotedTid(null);
   }, [promotedTid, router]);
 
-  const SHOW_NEW_RENDERER = process.env.NEXT_PUBLIC_CONCIERGE_RENDERER === "new";
-  console.log("NEXT_PUBLIC_CONCIERGE_RENDERER =", process.env.NEXT_PUBLIC_CONCIERGE_RENDERER);
-  console.log("SHOW_NEW_RENDERER =", SHOW_NEW_RENDERER);
-
   return (
     <ConciergeLayout
       messages={messages}
       sending={sending}
       error={error}
-      onSend={handleSend}
+      onSend={(text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        if (!canSend) return;
+        void send(trimmed);
+      }}
       onNewThread={() => setActiveTid(0)}
       canSend={canSend}
       embedMode={false}
     >
       {SHOW_NEW_RENDERER ? (
         <div className="p-4 space-y-3">
-          {isFilterOpen ? (
-            <section className="mx-auto w-full max-w-md min-w-0 rounded-xl border bg-white p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold text-slate-700">条件を追加して絞る</div>
-                <button
-                  type="button"
-                  className="text-[11px] font-semibold text-slate-600 hover:underline"
-                  onClick={() => setIsFilterOpen(false)}
-                >
-                  閉じる
-                </button>
-              </div>
-
-              {/* 相性のヒント（任意） */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-700">相性のヒント（任意）</div>
-
-                <div className="grid gap-2">
-                  <input
-                    type="date"
-                    value={birthdate}
-                    onChange={(e) => setBirthdate(e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2 text-sm"
-                    aria-label="生年月日"
-                  />
-
-                  {element4 ? (
-                    <div className="text-xs text-slate-600">
-                      あなたの傾向：<span className="font-semibold">{element4}</span>（参考）
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-slate-500">
-                      入力するとおすすめ条件を提案します（自動適用はしません）
-                    </div>
-                  )}
-
-                  {element4 && suggestedTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {suggestedTags.map((t) => {
-                        const on = selectedTagIds.includes(t.id);
-                        return (
-                          <button
-                            key={`suggest-${t.id}`}
-                            type="button"
-                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                              on ? "bg-emerald-50 border-emerald-600" : "bg-white"
-                            }`}
-                            onClick={() => {
-                              setSelectedTagIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]));
-                            }}
-                          >
-                            おすすめ {t.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* ご利益 */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-700">ご利益</div>
-                {tagsError ? <div className="text-xs text-red-600">{tagsError}</div> : null}
-                {tagsLoading ? <div className="text-xs text-slate-500">読み込み中…</div> : null}
-
-                <div className="flex flex-wrap gap-2">
-                  {goriyakuTags.map((t) => {
-                    const on = selectedTagIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                          on ? "bg-emerald-50 border-emerald-600" : "bg-white"
-                        }`}
-                        onClick={() => {
-                          setSelectedTagIds((prev) =>
-                            prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id],
-                          );
-                        }}
-                      >
-                        {t.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 補足条件 */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-700">補足条件</div>
-                <textarea
-                  value={extraCondition}
-                  onChange={(e) => setExtraCondition(e.target.value)}
-                  placeholder="例：静かな雰囲気、階段が少ない、など"
-                  className="w-full rounded-xl border p-3 text-sm"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="rounded-xl border px-4 py-2 text-sm font-semibold"
-                  onClick={() => {
-                    setExtraCondition("");
-                    setSelectedTagIds([]);
-                    setIsFilterOpen(false);
-                  }}
-                >
-                  クリア
-                </button>
-
-                <button
-                  type="button"
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
-                  onClick={() => {
-                    const p = buildFilterPayload();
-                    if (!p) return;
-                    setIsFilterOpen(false);
-
-                    // NOTE: hooks.ts が send(string) しか受けない場合はここが型エラーになる。
-                    // hooks側を union対応にしたらこのanyキャストは削除してOK。
-                    void send(p);
-                  }}
-                >
-                  この条件で絞る
-                </button>
-              </div>
-            </section>
-          ) : null}
+          <ConciergeFilterPanel
+            isOpen={isFilterOpen}
+            onClose={() => setIsFilterOpen(false)}
+            onApply={() => {
+              const p = buildFilterPayload();
+              if (!p) return;
+              setIsFilterOpen(false);
+              // send が string 型でも通す（挙動は変えない）
+              void (send as any)(p);
+            }}
+            birthdate={birthdate}
+            setBirthdate={setBirthdate}
+            element4={element4}
+            goriyakuTags={goriyakuTags}
+            selectedTagIds={selectedTagIds}
+            setSelectedTagIds={setSelectedTagIds}
+            tagsLoading={tagsLoading}
+            tagsError={tagsError}
+            extraCondition={extraCondition}
+            setExtraCondition={setExtraCondition}
+            suggestedTags={suggestedTags}
+          />
 
           <ConciergeSectionsRenderer
             payload={payload}
@@ -646,32 +407,4 @@ export default function ConciergeClientFull() {
       )}
     </ConciergeLayout>
   );
-}
-
-function sanitizeUnified(u: UnifiedConciergeResponse): UnifiedConciergeResponse {
-  return {
-    ok: u.ok,
-    reply: u.reply ?? null,
-    stop_reason: u.stop_reason ?? null,
-    note: u.note ?? null,
-    remaining_free: u.remaining_free ?? null,
-    thread: u.thread ? ({ id: (u.thread as any).id } as any) : null,
-    data: {
-      recommendations: (u.data as any)?.recommendations ?? [],
-      _need: { tags: (u.data as any)?._need?.tags ?? [] },
-    } as any,
-  } as any;
-}
-
-function sanitizeEventsByThread(map: EventsByThread): EventsByThread {
-  const next: EventsByThread = {};
-  for (const [k, events] of Object.entries(map)) {
-    const tid = Number(k);
-    next[tid] = events.map((e) => {
-      if (e.type !== "assistant_state") return e;
-      if (!e.unified) return e;
-      return { ...e, unified: sanitizeUnified(e.unified as any) } as any;
-    });
-  }
-  return next;
 }

@@ -23,8 +23,8 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
 
   return (
     <div className="mx-auto w-full max-w-md min-w-0 space-y-4">
-      <div className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">RENDERER: NEW</div>
       
+
       {payload.sections.map((sec, i) => {
         switch (sec.type) {
           case "guide":
