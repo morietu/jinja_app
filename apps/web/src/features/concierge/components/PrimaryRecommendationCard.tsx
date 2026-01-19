@@ -14,6 +14,8 @@ type Props = {
 };
 
 export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryIndex, needTags = [], tid }: Props) {
+  console.log("Primary rec breakdown:", rec.breakdown);
+  
   // shrine_id
   const rawShrineId = (rec as any).shrine_id ?? (rec as any).id ?? null;
   const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
@@ -41,9 +43,12 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryI
         imageUrl={imageUrl}
         initialFav={false}
         readOnly={false}
+        breakdown={rec.breakdown ?? null}
       />
     );
   }
+
+  
 
   // ✅ 仮候補（place）
   let detailHref: string | undefined;

@@ -11,7 +11,8 @@ from django.views.generic import RedirectView
 from django.views.static import serve as media_serve
 from temples.api.views.create_superuser import create_superuser
 from django.contrib.auth import get_user_model
-
+from django.urls import path
+from temples.api.views.tags import goriyaku_tags_list
 
 
 from drf_spectacular.renderers import OpenApiJsonRenderer
@@ -197,6 +198,8 @@ urlpatterns = [
     path("healthz", healthz, name="healthz_noslash"),
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
+
+    path("goriyaku-tags/", goriyaku_tags_list),
 ]
 
 if settings.DEBUG:

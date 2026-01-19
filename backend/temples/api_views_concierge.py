@@ -25,6 +25,7 @@ from temples.services.concierge_chat import build_chat_recommendations
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
 from temples.models import ConciergeThread
+from temples.services.concierge_chat_candidates import build_chat_candidates
 
 from .models import ConciergeUsage
 
@@ -273,6 +274,19 @@ class ConciergeChatView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data or {}
 
+        # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
+        filters = data.get("filters") or {}
+        if isinstance(filters, dict):
+            # birthdate
+            if not data.get("birthdate") and filters.get("birthdate"):
+                data["birthdate"] = filters.get("birthdate")
+
+        # ついでに将来用（今は未使用でも保持しておく）
+        if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
+            data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
+        if not data.get("extra_condition") and filters.get("extra_condition"):
+            data["extra_condition"] = filters.get("extra_condition")
+
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
 
@@ -286,8 +300,17 @@ class ConciergeChatView(APIView):
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         language = (data.get("language") or "ja").strip()
-        candidates = data.get("candidates") or []
+
+
         area = data.get("area") or data.get("where") or data.get("location_text")
+        
+        candidates = build_chat_candidates(
+            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
+            area=area,
+            lat=data.get("lat"),
+            lng=data.get("lng"),
+        )
+        
 
         # ✅ テストが locationbias=8000 を見るので probe は残す（結果は使わない）
         try:
@@ -343,7 +366,11 @@ class ConciergeChatView(APIView):
             usage.save(update_fields=["count"])
             remaining = max(daily_limit - usage.count, 0)
 
+
         birthdate = (data.get("birthdate") or "").strip() or None
+
+        
+            
 
         recs = build_chat_recommendations(
             query=query,
@@ -351,7 +378,34 @@ class ConciergeChatView(APIView):
             candidates=candidates,
             bias=bias,
             birthdate=birthdate,
+            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
+            extra_condition=data.get("extra_condition"),
         )
+
+        # --- 無条件3件保証（最後の砦）---
+        items = recs.get("recommendations") or []
+        if len(items) < 3:
+            used = {r.get("name") for r in items if isinstance(r, dict)}
+            for c in candidates or []:
+                name = c.get("name")
+                if not name or name in used:
+                    continue
+                items.append(
+                    {
+                        "name": name,
+                        "reason": "周辺で参拝しやすい神社",
+                        "bullets": [
+                            "周辺エリアから選定",
+                            "比較的参拝しやすい立地",
+                            "条件に近い可能性",
+                        ],
+                    }
+                )
+                used.add(name)
+                if len(items) >= 3:
+                    break
+
+        recs["recommendations"] = items[:3]
 
         try:
             _probe_area_locationbias_for_chat(area=area)
