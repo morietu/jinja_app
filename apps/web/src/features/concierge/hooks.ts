@@ -1,12 +1,10 @@
 // apps/web/src/features/concierge/hooks.ts
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
 import axios from "axios";
-import type { UnifiedConciergeResponse, StopReason } from "@/features/concierge/types/unified";
 
+import type { UnifiedConciergeResponse, StopReason } from "@/features/concierge/types/unified";
 import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 import {
   fetchThreads,
@@ -16,8 +14,9 @@ import {
   type ConciergeThreadDetail,
   type ConciergeMessage,
   type ConciergeRecommendation,
-  
 } from "@/lib/api/concierge";
+
+import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
 
 /* ====== スレッド一覧 ====== */
 
@@ -95,15 +94,14 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
-  
   onUnified?: (u: UnifiedConciergeResponse) => void;
-  
+
   onUpdated?: (payload: {
     thread: ConciergeThread;
     messages?: ConciergeMessage[];
     recommendations?: ConciergeRecommendation[] | null;
 
-    // ★ paywall情報
+    // paywallなど将来拡張用
     remaining_free?: number;
     limit?: number;
     note?: string;
@@ -112,10 +110,11 @@ export type UseConciergeChatOptions = {
   onReply?: (reply: string) => void;
   onRecommendations?: (recs: ConciergeRecommendation[]) => void;
 
-  // ★ thread が無いケースでも paywall だけ出したいなら使う
+  // thread が無いケースでも paywall だけ出したいなら使う
   onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
+type SendInput = string | Omit<ConciergeChatRequestV1, "thread_id">;
 
 function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): UnifiedConciergeResponse {
   const stop: StopReason =
@@ -127,6 +126,7 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
 
   const note = typeof raw?.note === "string" ? raw.note : null;
 
+  // backend が reply を返す/返さない両対応
   const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
   const reply = typeof replyCandidate === "string" ? replyCandidate : null;
 
@@ -134,10 +134,7 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   const remaining_free = typeof raw?.remaining_free === "number" ? raw.remaining_free : null;
 
   const tid = Number(raw?.thread?.id);
-  const thread =
-    raw?.thread && Number.isFinite(tid)
-      ? ({ ...raw.thread, id: tid } as ConciergeThread)
-      : null;
+  const thread = raw?.thread && Number.isFinite(tid) ? ({ ...raw.thread, id: tid } as ConciergeThread) : null;
 
   return {
     ok,
@@ -150,42 +147,47 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   };
 }
 
+/**
+ * ✅ send() は string と structured request 両方OK
+ * - thread_id は hooks 側で注入
+ */
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const send = useCallback(
-    async (message: string) => {
-      if (!message.trim()) return;
+    async (input: SendInput) => {
+      const req: ConciergeChatRequestV1 =
+        typeof input === "string"
+          ? { version: 1, query: input.trim(), thread_id: threadId ?? undefined }
+          : { ...input, version: 1, thread_id: threadId ?? undefined };
+
+      // query は必須（空なら送らない）
+      if (!req.query?.trim()) return;
 
       setSending(true);
       setError(null);
 
       try {
-        const res = await postConciergeChat({ query: message, thread_id: threadId ?? undefined });
+        const res = await postConciergeChat(req);
 
-        // ✅ axiosレスポンス判定（payload自身も "data" を持つので "status" で判定）
-        const isAxiosLike =
-          !!res &&
-          typeof res === "object" &&
-          "status" in (res as any) &&
-          "data" in (res as any);
-
+        // axiosレスポンス/生payload 両対応
+        const isAxiosLike = !!res && typeof res === "object" && "status" in (res as any) && "data" in (res as any);
         const payload = isAxiosLike ? (res as any).data : res;
 
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[chat] payload keys", Object.keys(payload ?? {}));
-          console.log("[chat] payload", payload);
-          console.log("[chat] payload.data", payload?.data);
-        }
-
-        // ✅ recommendations は payload 起点で統一
+        // recommendations は payload 起点で統一
         const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
 
-        // ✅ unified も payload 起点で統一（thread が拾える）
+        // unified も payload 起点で統一
         const unified = normalizeConciergeResponse(payload, recs);
-        options?.onUnified?.(unified);
 
+        if (process.env.NODE_ENV !== "production") {
+          // 必要なら見たい時だけ
+          // console.log("[chat] req", req);
+          // console.log("[chat] payload", payload);
+        }
+
+        options?.onUnified?.(unified);
         options?.onRecommendations?.(recs);
 
         options?.onPaywall?.({
@@ -233,3 +235,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
   return { send, sending, error };
 }
+
+// 型も re-export（使う側が hooks から import したい時用）
+export type { ConciergeChatRequestV1, ConciergeChatFilters };
+export type { SendInput as ConciergeChatSendInput };

@@ -4,13 +4,15 @@
 import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 
+type GoriyakuTag = { id: number; name: string };
+
 type Props = {
   shrineId: number;
   title: string;
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-  goriyakuTags?: { id: number; name: string }[];
+  goriyakuTags?: readonly GoriyakuTag[];
 
   /** 表示制御 */
   showFavorite?: boolean;
