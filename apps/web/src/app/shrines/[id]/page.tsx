@@ -45,6 +45,26 @@ type Props = {
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
 
+function DetailSection({
+  title,
+  right,
+  children,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border bg-white p-4">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h2 className="text-xs font-semibold text-slate-500">{title}</h2>
+        {right ? <div className="text-[11px] text-slate-500">{right}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
@@ -155,18 +175,23 @@ export default async function Page({ params, searchParams }: Props) {
       >
         <article className="space-y-4">
           {/* ✅ ShrineCardを使用 */}
-          <ShrineCard {...cardProps} />
+          <ShrineCard
+            {...cardProps}
+            // 詳細ページは下に「ご利益」セクションがあるので、disclosure側は消す
+            showDisclosureBenefits={false}
+            // 詳細ページは concierge の内訳が無いケースが多いので、出さないならここで切る
+            breakdown={null}
+          />
 
-          {/* 以下は既存のsectionをそのまま */}
-          <section className="rounded-2xl border bg-white p-4">
-            <h2 className="text-xs font-semibold text-gray-500">住所</h2>
-            <p className="text-sm">{s.address}</p>
-          </section>
+          {/* 住所セクション */}
+          <DetailSection title="住所">
+            <p className="text-sm text-slate-900">{s.address}</p>
+          </DetailSection>
 
-          <section className="space-y-1 rounded-2xl border bg-white p-4 text-sm">
-            <h2 className="text-xs font-semibold text-gray-500">ご利益</h2>
+          {/* ご利益セクション */}
+          <DetailSection title="ご利益">
             {benefitLabels.length === 0 ? (
-              <p className="text-xs text-gray-400">ご利益情報は準備中です。</p>
+              <p className="text-xs text-slate-400">ご利益情報は準備中です。</p>
             ) : (
               <div className="flex flex-wrap gap-1">
                 {benefitLabels.map((label) => (
@@ -179,17 +204,12 @@ export default async function Page({ params, searchParams }: Props) {
                 ))}
               </div>
             )}
-          </section>
+          </DetailSection>
 
-          {/* ✅ その神社の公開御朱印（みんなの一覧ではない） */}
-          <section className="rounded-2xl border bg-white p-4">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">公開御朱印</h2>
-              <p className="text-[11px] text-slate-500">この神社の公開分のみ</p>
-            </div>
-
+          {/* 公開御朱印セクション */}
+          <DetailSection title="公開御朱印" right="この神社の公開分のみ">
             {publicGoshuins.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
+              <p className="text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
             ) : (
               <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {publicGoshuins.map((g) => (
@@ -214,7 +234,7 @@ export default async function Page({ params, searchParams }: Props) {
                 ))}
               </div>
             )}
-          </section>
+          </DetailSection>
         </article>
       </ShrineDetailShell>
     </>
