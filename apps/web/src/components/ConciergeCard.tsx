@@ -64,6 +64,10 @@ export default function ConciergeCard(props: BaseCardProps) {
 
   const [open, setOpen] = React.useState(false);
 
+  // disclosureBody があるカードは「閉=clamp」, 「開=clamp解除」
+  // disclosureBody が無いカードは「isPrimary ならclampしない / それ以外clamp」
+  const clampDesc = disclosureBody ? !open : !isPrimary;
+
   return (
     <div className="rounded-xl border border-neutral-200 bg-white">
       {imageUrl ? (
@@ -108,7 +112,7 @@ export default function ConciergeCard(props: BaseCardProps) {
             <p
               className={cn(
                 "mt-2 text-sm leading-relaxed text-neutral-800",
-                !isPrimary && "line-clamp-1 text-neutral-700",
+                clampDesc && "line-clamp-1 text-neutral-700",
               )}
             >
               {description}

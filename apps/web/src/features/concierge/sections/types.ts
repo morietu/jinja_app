@@ -1,4 +1,6 @@
 // apps/web/src/features/concierge/sections/types.ts
+import type { ConciergeBreakdown } from "@/lib/api/concierge";
+
 
 /* =========================
  * core payload
@@ -66,8 +68,16 @@ export type RegisteredShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-  goriyakuTags?: readonly { id: number; name: string }[];
-  initialFav?: boolean;
+
+  goriyakuTags: Array<{ id: number; name: string }>;
+  initialFav: boolean;
+
+  // ✅ 追加（おすすめ理由の内訳）
+  breakdown?: ConciergeBreakdown | null;
+
+  // ✅ 追加（詳細導線）
+  detailHref?: string;
+  detailLabel?: string;
 };
 
 export type PlaceShrineItem = {
