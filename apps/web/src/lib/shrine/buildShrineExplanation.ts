@@ -18,41 +18,43 @@ function hasText(v: unknown): v is string {
 }
 
 function pickAClauseFromShrine(s: Shrine): string {
-  let result = "少し立ち止まって考えたい人には";
-
   const e = (s as any)?.element;
-
-  if (hasText(e)) {
-    result = "雰囲気や相性を大切にしたい人には";
-  } else if (typeof e === "number" && Number.isFinite(e)) {
-    result = "雰囲気や相性を大切にしたい人には";
-  }
-
-  return result;
+  if (hasText(e)) return "雰囲気や相性を大切にしたい人には";
+  if (typeof e === "number" && Number.isFinite(e)) return "雰囲気や相性を大切にしたい人には";
+  return "少し立ち止まって考えたい人には";
 }
+
+// ✅ 文言はトップレベル定数でOK（依存なし）
+const BASE_UNFIT = "判断材料の一つとして、前提とあわせて参考にしてください。";
+const NUANCED_UNFIT = "判断の前提によっては、特徴の受け取り方が変わるため、判断材料の一つとして参考にしてください。";
 
 export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Result {
   const desc = hasText((shrine as any)?.description) ? String((shrine as any).description).trim() : "";
 
   const A = pickAClauseFromShrine(shrine);
 
-  // 「説明が薄い」時の安全な既定文
   const baseFit = `${A}、選択肢として検討しやすい神社です。`;
   const baseHowto = "判断を急がず、状況を整理するための参拝として使われることがあります。";
   const baseNote =
     "合うかどうかは、その日の状態や目的で変わることがあります。無理に意味づけせず、判断材料として使うのが自然です。";
-  const baseUnfit = "即効性や強い確信を求めると、期待とずれることがあります。";
+
+  const hasSignal =
+    hasText((shrine as any)?.description) ||
+    hasText((shrine as any)?.element) ||
+    (typeof (shrine as any)?.element === "number" && Number.isFinite((shrine as any).element)) ||
+    publicCount >= 3;
+
+  const unfit = hasSignal ? NUANCED_UNFIT : BASE_UNFIT;
 
   const refHint = publicCount >= 3 ? "公開御朱印があるため、参拝のイメージをつかむ材料が比較的そろっています。" : null;
 
-  // description がある場合は「要点」を短く足す（ただし断定しない）
   const fit = desc ? `${baseFit}（要点：${desc.slice(0, 48)}${desc.length > 48 ? "…" : ""}）` : baseFit;
 
   const howto = refHint ? `${baseHowto} ${refHint}` : baseHowto;
 
   return {
     fit,
-    unfit: baseUnfit,
+    unfit,
     howto,
     note: baseNote,
   };

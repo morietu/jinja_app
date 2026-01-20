@@ -11,6 +11,7 @@ import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import DetailSection from "@/components/shrine/DetailSection";
 
+import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -134,11 +135,14 @@ export default async function Page({ params, searchParams }: Props) {
 
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
   const benefitLabels = getBenefitLabels(s);
+  
 
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
   // ✅ ShrineCard用のpropsを構築
   const { cardProps } = buildShrineCardProps(s);
+  const publicCount = publicGoshuins.length; // まずはこれで暫定OK（limit=12でも十分）
+  const exp = buildShrineExplanation({ shrine: s, publicCount });
 
   return (
     <>
@@ -162,10 +166,35 @@ export default async function Page({ params, searchParams }: Props) {
           <ShrineCard
             {...cardProps}
             // 詳細ページは下に「ご利益」セクションがあるので、disclosure側は消す
-            
+
             // 詳細ページは concierge の内訳が無いケースが多いので、出さないならここで切る
             breakdown={null}
           />
+
+          {/* 説明セクション（固定テンプレ） */}
+          <DetailSection title="説明">
+            <div className="space-y-3 text-sm text-slate-800">
+              <div>
+                <div className="text-xs font-semibold text-slate-500">合う人</div>
+                <p className="line-clamp-3">{exp.fit}</p>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
+                <p className="mt-1 line-clamp-3">{exp.unfit}</p>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
+                <p className="mt-1 line-clamp-3">{exp.howto}</p>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-slate-500">注意</div>
+                <p className="mt-1 line-clamp-3">{exp.note}</p>
+              </div>
+            </div>
+          </DetailSection>
 
           {/* 住所セクション */}
           <DetailSection title="住所">
