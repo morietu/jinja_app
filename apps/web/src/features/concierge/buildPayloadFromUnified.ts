@@ -29,7 +29,8 @@ export function buildPayloadFromUnified(
           kind: "registered" as const,
           shrineId,
           title: String(r.display_name ?? r.name ?? "名称不明"),
-          address: r.display_address ?? null,
+          
+          address: r.display_address ?? r.address ?? r.location ?? null,
           description: String(r.reason ?? ""),
           imageUrl: r.photo_url ?? null,
           goriyakuTags: [],
@@ -70,7 +71,10 @@ export function buildPayloadFromUnified(
     { type: "recommendations", title: "おすすめ", items: items as any[] },
     {
       type: "actions",
-      items: [{ action: "open_map", label: "地図で近くの神社を見る" }],
+      items: [
+        { action: "add_condition", label: "条件を追加して絞る" },
+        { action: "open_map", label: "地図で近くの神社を見る" },
+      ],
     },
   ];
 

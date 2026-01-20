@@ -31,9 +31,14 @@ export type RecommendationsSection = {
   items: readonly (RegisteredShrineItem | PlaceShrineItem)[];
 };
 
+export type ActionType = "add_condition" | "open_map";
+
 export type ActionsSection = {
   type: "actions";
-  items: readonly { action: ActionType; label: string }[];
+  items: Array<{
+    action: ActionType;
+    label: string;
+  }>;
 };
 
 /* =========================
@@ -48,8 +53,8 @@ export type RendererAction =
   | { type: "filter_toggle_tag"; tagId: number }
   | { type: "filter_set_extra"; extraCondition: string };
 
-// ✅ actions セクションに載るのは open_map だけ
-export type ActionType = "open_map";
+
+
 
 /* =========================
  * recommendation items
