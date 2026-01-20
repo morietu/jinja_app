@@ -52,10 +52,6 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
 
 
 
-
-  
-
-
 /* ========================================
  * utils
  * ====================================== */
@@ -166,6 +162,8 @@ export default function ConciergeClientFull() {
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
+
+  
 
   useEffect(() => {
     if (!promotedTid) return;
@@ -290,6 +288,10 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
+  useEffect(() => {
+    console.log("[recs]", recommendations);
+  }, [recommendations]);
+
   const stopReason: StopReason =
     process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
   const canSend = stopReason === null || (process.env.NODE_ENV !== "production" && !!forced);
@@ -347,6 +349,8 @@ export default function ConciergeClientFull() {
 
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     onUnified: (u) => {
+      console.log("[chat.res.data.recommendations]", u?.data?.recommendations);
+      console.log("[chat.res.data.recommendations[0]?.id]", u?.data?.recommendations?.[0]?.id);
       const now = new Date().toISOString();
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
       const currentTid = activeThreadIdRef.current;

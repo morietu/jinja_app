@@ -12,12 +12,22 @@ export function buildPayloadFromUnified(
   const recs = u?.data?.recommendations;
   if (!Array.isArray(recs) || recs.length === 0) return null;
 
+  const tidRaw = (u as any)?.thread?.id ?? (u as any)?.thread_id ?? (u as any)?.data?.thread_id ?? null;
+
+  const tid = typeof tidRaw === "number" || typeof tidRaw === "string" ? String(tidRaw) : null;
+
   const items = recs
     .map((r: any) => {
       if (typeof r?.id === "number") {
+        const shrineId = r.id as number;
+
+        const qs = new URLSearchParams();
+        qs.set("ctx", "concierge");
+        if (tid) qs.set("tid", tid);
+
         return {
           kind: "registered" as const,
-          shrineId: r.id,
+          shrineId,
           title: String(r.display_name ?? r.name ?? "名称不明"),
           address: r.display_address ?? null,
           description: String(r.reason ?? ""),
@@ -25,6 +35,10 @@ export function buildPayloadFromUnified(
           goriyakuTags: [],
           initialFav: false,
           breakdown: r.breakdown ?? null,
+
+          // ✅ 追加：詳細導線
+          detailHref: `/shrines/${shrineId}?${qs.toString()}`,
+          detailLabel: "神社の詳細を見る",
         };
       }
 
