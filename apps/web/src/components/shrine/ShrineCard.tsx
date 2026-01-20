@@ -5,7 +5,7 @@ import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-
+import { buildOneLiner } from "@/lib/concierge/pickAClause";
 
 
 type Props = {
@@ -173,7 +173,7 @@ export default function ShrineCard({
           ) : null}
 
           <DisclosureSection title="要点">
-            <p className="text-sm text-slate-700 line-clamp-2">{description}</p>
+            <p className="text-sm text-slate-700 line-clamp-2">{buildOneLiner(breakdown)}</p>
           </DisclosureSection>
         </div>
       }
