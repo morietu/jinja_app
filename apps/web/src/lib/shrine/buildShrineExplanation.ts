@@ -38,11 +38,16 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Resul
   const baseNote =
     "合うかどうかは、その日の状態や目的で変わることがあります。無理に意味づけせず、判断材料として使うのが自然です。";
 
+  const views30d = Number((shrine as any)?.views_30d ?? 0);
+  const fav30d = Number((shrine as any)?.favorites_30d ?? 0);
+
   const hasSignal =
     hasText((shrine as any)?.description) ||
     hasText((shrine as any)?.element) ||
     (typeof (shrine as any)?.element === "number" && Number.isFinite((shrine as any).element)) ||
-    publicCount >= 3;
+    publicCount >= 3 ||
+    (Number.isFinite(views30d) && views30d >= 30) ||
+    (Number.isFinite(fav30d) && fav30d >= 3);
 
   const unfit = hasSignal ? NUANCED_UNFIT : BASE_UNFIT;
 
