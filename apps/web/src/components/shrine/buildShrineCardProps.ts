@@ -1,13 +1,12 @@
 // apps/web/src/components/shrine/buildShrineCardProps.ts
 import type { Shrine } from "@/lib/api/shrines";
 
-
 export type ShrineCardAdapterProps = {
   shrineId: number;
   title: string;
   address?: string | null;
-  imageUrl?: string | null; // 使うなら
-  description: string; // “短い一言”として固定でOK
+  imageUrl?: string | null;
+  description: string;
   badges?: string[];
 };
 
@@ -16,11 +15,13 @@ export function buildShrineCardProps(s: Shrine): { cardProps: ShrineCardAdapterP
 
   const fallbackTitle = typeof (s as any).name === "string" ? (s as any).name : "";
   const title = (s.name_jp ?? fallbackTitle ?? "").trim() || `神社 #${shrineId}`;
+
   const address = (s.address ?? "").trim() || null;
 
-  // 画像を ShrineCard で出すなら：最初の1枚だけ
   const imageUrl =
-    (s as any).photo_url ?? (Array.isArray((s as any).photos) ? (s as any).photos?.[0]?.url : null) ?? null;
+    ((s as any).photo_url as string | null | undefined) ??
+    (Array.isArray((s as any).photos) ? (s as any).photos?.[0]?.url : null) ??
+    null;
 
   return {
     cardProps: {

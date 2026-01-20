@@ -155,10 +155,12 @@ export default function ShrineCard({
     2,
   );
 
+  const addr = (address ?? "").trim() || "住所情報は準備中です。";
+
   return (
     <ConciergeCard
       title={title}
-      address={address}
+      address={addr}
       imageUrl={imageUrl}
       description={description}
       isPrimary
