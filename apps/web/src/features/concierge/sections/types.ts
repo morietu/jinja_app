@@ -1,22 +1,59 @@
 // apps/web/src/features/concierge/sections/types.ts
+
+/* =========================
+ * core payload
+ * ========================= */
 export type ConciergeSectionsPayload = {
   version: 1;
-  
   sections: readonly ConciergeSection[];
 };
 
-export type ConciergeSection =
-  | { type: "guide"; text: string }
-  | {
-      type: "recommendations";
-      title?: string;
-      items: readonly (RegisteredShrineItem | PlaceShrineItem)[];
-    }
-  | {
-      type: "actions";
-      items: readonly { action: "add_condition" | "open_map"; label: string }[];
-    };
+export type ConciergeSection = GuideSection | FilterSection | RecommendationsSection | ActionsSection;
 
+/* =========================
+ * sections
+ * ========================= */
+export type GuideSection = {
+  type: "guide";
+  text: string;
+};
+
+export type FilterSection = {
+  type: "filter";
+  title?: string;
+  closedLabel?: string;
+  state: ConciergeFilterState;
+};
+
+export type RecommendationsSection = {
+  type: "recommendations";
+  title?: string;
+  items: readonly (RegisteredShrineItem | PlaceShrineItem)[];
+};
+
+export type ActionsSection = {
+  type: "actions";
+  items: readonly { action: ActionType; label: string }[];
+};
+
+/* =========================
+ * renderer -> client action
+ * ========================= */
+export type RendererAction =
+  | { type: "add_condition" } // ← filter入口ボタン用なので残す
+  | { type: "open_map" }
+  | { type: "filter_close" }
+  | { type: "filter_apply" }
+  | { type: "filter_set_birthdate"; birthdate: string }
+  | { type: "filter_toggle_tag"; tagId: number }
+  | { type: "filter_set_extra"; extraCondition: string };
+
+// ✅ actions セクションに載るのは open_map だけ
+export type ActionType = "open_map";
+
+/* =========================
+ * recommendation items
+ * ========================= */
 export type RegisteredShrineItem = {
   kind: "registered";
   shrineId: number;
@@ -35,4 +72,27 @@ export type PlaceShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
+};
+
+/* =========================
+ * filter state
+ * ========================= */
+export type Element4 = "火" | "地" | "風" | "水";
+export type GoriyakuTag = { id: number; name: string };
+
+export type ConciergeFilterState = {
+  isOpen: boolean;
+
+  birthdate: string; // YYYY-MM-DD（空文字OK）
+  element4: Element4 | null;
+
+  goriyakuTags: readonly GoriyakuTag[];
+  suggestedTags: readonly GoriyakuTag[];
+
+  selectedTagIds: readonly number[];
+
+  tagsLoading: boolean;
+  tagsError: string | null;
+
+  extraCondition: string;
 };
