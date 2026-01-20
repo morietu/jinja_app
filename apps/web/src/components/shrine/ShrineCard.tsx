@@ -153,12 +153,10 @@ export default function ShrineCard({
 
   // ✅ バッジは “要約” に寄せる（重複感を減らす）
   const reasonLabel = pickReasonLabel(breakdown);
-  const badges = [
-    "正式登録",
-    reasonLabel ? `おすすめ理由：${reasonLabel}` : null,
-    // ご利益をバッジに出すなら最大1個だけ（重複感対策）
-    goriyakuTags[0]?.name ?? null,
-  ].filter(Boolean) as string[];
+  const badges = (["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null].filter(Boolean) as string[]).slice(
+    0,
+    2,
+  );
 
   return (
     <ConciergeCard
@@ -170,28 +168,16 @@ export default function ShrineCard({
       badges={badges}
       detailHref={safeDetailHref}
       headerRight={favButton}
-      disclosureTitle="この神社について"
+      disclosureTitle="おすすめ理由を見る"
       disclosureBody={
         <div className="space-y-3">
           {breakdown ? (
             <DisclosureSection title="おすすめ理由（内訳）">{renderBreakdownBody(breakdown)}</DisclosureSection>
           ) : null}
 
-          <DisclosureSection title="説明">
-            <p className="text-sm text-slate-700">{description}</p>
+          <DisclosureSection title="要点">
+            <p className="text-sm text-slate-700 line-clamp-2">{description}</p>
           </DisclosureSection>
-
-          {showDisclosureBenefits && goriyakuTags.length > 0 ? (
-            <DisclosureSection title="ご利益">
-              <div className="flex flex-wrap gap-1">
-                {goriyakuTags.map((t) => (
-                  <span key={t.id} className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                    {t.name}
-                  </span>
-                ))}
-              </div>
-            </DisclosureSection>
-          ) : null}
         </div>
       }
     />

@@ -4,7 +4,7 @@ import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
-import Link from "next/link";
+
 
 import type {
   ConciergeSectionsPayload,
@@ -87,7 +87,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                   {sec.items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (it.kind === "registered") {
                       const detailHref = (it as any).detailHref as string | undefined;
-                      const detailLabel = ((it as any).detailLabel as string | undefined) ?? "神社の詳細を見る";
 
                       return (
                         <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">
@@ -100,24 +99,9 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                             goriyakuTags={it.goriyakuTags}
                             initialFav={it.initialFav}
                             showFavorite
-                            breakdown={(it as any).breakdown ?? null}
-                            // ✅ 黒いメインCTAも ctx/tid 付き
-                            detailHref={detailHref}
+                            breakdown={it.breakdown ?? null}
+                            detailHref={it.detailHref}
                           />
-
-                          {/* ✅ サブ導線：必ず出す */}
-                          {detailHref ? (
-                            <Link
-                              href={detailHref}
-                              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold"
-                            >
-                              {detailLabel}
-                            </Link>
-                          ) : (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                              detailHref がありません（recommendations に id が入っていない可能性）
-                            </div>
-                          )}
                         </div>
                       );
                     }
