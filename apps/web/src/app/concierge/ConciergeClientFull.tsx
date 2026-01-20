@@ -13,18 +13,18 @@ import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
+import { buildDummySections } from "@/features/concierge/sections/dummy";
 
-import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
-import { DUMMY_SECTIONS } from "@/features/concierge/sections/dummy";
+
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
+
+import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
 
-/* ========================================
- * flags
- * ====================================== */
+
 
 
 
@@ -49,6 +49,12 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   風: ["学業成就", "合格祈願"],
   水: ["縁結び", "子宝・安産", "病気平癒"],
 };
+
+
+
+
+  
+
 
 /* ========================================
  * utils
@@ -148,6 +154,8 @@ export default function ConciergeClientFull() {
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
+  
+
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
@@ -158,6 +166,12 @@ export default function ConciergeClientFull() {
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
+
+  useEffect(() => {
+    if (!promotedTid) return;
+    router.replace(`/concierge?tid=${promotedTid}`);
+    setPromotedTid(null);
+  }, [promotedTid, router]);
 
   /* restore */
   useEffect(() => {
@@ -287,7 +301,36 @@ export default function ConciergeClientFull() {
 
   const sections = useMemo(() => buildConciergeSections(recommendations as any, needTags), [recommendations, needTags]);
 
-  const payload = useMemo(() => buildPayloadFromUnified(lastUnified) ?? DUMMY_SECTIONS, [lastUnified]);
+  const filterState = useMemo(
+    () => ({
+      isOpen: isFilterOpen,
+      birthdate,
+      element4,
+      goriyakuTags,
+      suggestedTags,
+      selectedTagIds,
+      tagsLoading,
+      tagsError,
+      extraCondition,
+    }),
+    [
+      isFilterOpen,
+      birthdate,
+      element4,
+      goriyakuTags,
+      suggestedTags,
+      selectedTagIds,
+      tagsLoading,
+      tagsError,
+      extraCondition,
+    ],
+  );
+
+  
+
+  const payload = useMemo(() => {
+    return buildPayloadFromUnified(lastUnified, filterState) ?? buildDummySections(filterState);
+  }, [lastUnified, filterState]);
 
   const thread: ConciergeThread | null = useMemo(() => {
     const t = lastUnified?.thread;
@@ -348,12 +391,48 @@ export default function ConciergeClientFull() {
     };
   };
 
-  useEffect(() => {
-    if (!promotedTid) return;
-    router.replace(`/concierge?tid=${promotedTid}`);
-    setPromotedTid(null);
-  }, [promotedTid, router]);
+  const onRendererAction = (a: RendererAction) => {
+    switch (a.type) {
+      case "open_map":
+        router.push("/map");
+        return;
 
+      case "add_condition":
+        setIsFilterOpen((v) => !v);
+        return;
+
+      case "filter_close":
+        setIsFilterOpen(false);
+        return;
+
+      case "filter_apply": {
+        const p = buildFilterPayload();
+        if (!p) return;
+        setIsFilterOpen(false);
+        void (send as any)(p);
+        return;
+      }
+
+      case "filter_set_birthdate":
+        setBirthdate(a.birthdate);
+        return;
+
+      case "filter_toggle_tag":
+        setSelectedTagIds((prev) => {
+          const set = new Set(prev);
+          if (set.has(a.tagId)) set.delete(a.tagId);
+          else set.add(a.tagId);
+          return Array.from(set);
+        });
+        return;
+
+      case "filter_set_extra":
+        setExtraCondition(a.extraCondition);
+        return;
+    }
+  };
+
+  
   return (
     <ConciergeLayout
       messages={messages}
@@ -371,36 +450,7 @@ export default function ConciergeClientFull() {
     >
       {SHOW_NEW_RENDERER ? (
         <div className="p-4 space-y-3">
-          <ConciergeFilterPanel
-            isOpen={isFilterOpen}
-            onClose={() => setIsFilterOpen(false)}
-            onApply={() => {
-              const p = buildFilterPayload();
-              if (!p) return;
-              setIsFilterOpen(false);
-              // send が string 型でも通す（挙動は変えない）
-              void (send as any)(p);
-            }}
-            birthdate={birthdate}
-            setBirthdate={setBirthdate}
-            element4={element4}
-            goriyakuTags={goriyakuTags}
-            selectedTagIds={selectedTagIds}
-            setSelectedTagIds={setSelectedTagIds}
-            tagsLoading={tagsLoading}
-            tagsError={tagsError}
-            extraCondition={extraCondition}
-            setExtraCondition={setExtraCondition}
-            suggestedTags={suggestedTags}
-          />
-
-          <ConciergeSectionsRenderer
-            payload={payload}
-            onAction={(action) => {
-              if (action === "open_map") router.push("/map");
-              if (action === "add_condition") setIsFilterOpen(true);
-            }}
-          />
+          <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} />
         </div>
       ) : (
         <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} />

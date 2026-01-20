@@ -1,55 +1,59 @@
 // apps/web/src/features/concierge/components/ConciergeFilterPanel.tsx
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
-
-type Tag = { id: number; name: string };
-type Element4 = "火" | "地" | "風" | "水";
+import type { GoriyakuTag, Element4 } from "@/features/concierge/sections/types";
 
 type Props = {
   isOpen: boolean;
+  title?: string;
+
   onClose: () => void;
   onApply: () => void;
 
   birthdate: string;
-  setBirthdate: Dispatch<SetStateAction<string>>;
+  onBirthdateChange: (v: string) => void;
+
   element4: Element4 | null;
 
-  goriyakuTags: Tag[];
-  selectedTagIds: number[];
-  setSelectedTagIds: Dispatch<SetStateAction<number[]>>;
+  goriyakuTags: readonly GoriyakuTag[];
+  suggestedTags: readonly GoriyakuTag[];
+  selectedTagIds: readonly number[];
+  onToggleTag: (tagId: number) => void;
 
   tagsLoading: boolean;
   tagsError: string | null;
 
   extraCondition: string;
-  setExtraCondition: Dispatch<SetStateAction<string>>;
-
-  suggestedTags: Tag[];
+  onExtraConditionChange: (v: string) => void;
 };
 
 export default function ConciergeFilterPanel({
   isOpen,
+  title = "条件を追加して絞る",
   onClose,
   onApply,
   birthdate,
-  setBirthdate,
+  onBirthdateChange,
   element4,
   goriyakuTags,
+  suggestedTags,
   selectedTagIds,
-  setSelectedTagIds,
+  onToggleTag,
   tagsLoading,
   tagsError,
   extraCondition,
-  setExtraCondition,
-  suggestedTags,
+  onExtraConditionChange,
 }: Props) {
+  console.log("[FilterPanel.isOpen]", isOpen);
+  
   if (!isOpen) return null;
+
+  const selected = new Set(selectedTagIds);
 
   return (
     <section className="mx-auto w-full max-w-md min-w-0 space-y-3 rounded-xl border bg-white p-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold text-slate-700">条件を追加して絞る</div>
+        <div className="text-xs font-semibold text-slate-700">{title}</div>
         <button type="button" className="text-[11px] font-semibold text-slate-600 hover:underline" onClick={onClose}>
           閉じる
         </button>
@@ -63,7 +67,7 @@ export default function ConciergeFilterPanel({
           <input
             type="date"
             value={birthdate}
-            onChange={(e) => setBirthdate(e.target.value)}
+            onChange={(e) => onBirthdateChange(e.target.value)}
             className="w-full rounded-xl border px-3 py-2 text-sm"
           />
 
@@ -78,7 +82,7 @@ export default function ConciergeFilterPanel({
           {element4 && suggestedTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {suggestedTags.map((t) => {
-                const on = selectedTagIds.includes(t.id);
+                const on = selected.has(t.id);
                 return (
                   <button
                     key={t.id}
@@ -86,7 +90,7 @@ export default function ConciergeFilterPanel({
                     className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                       on ? "border-emerald-600 bg-emerald-50" : "bg-white"
                     }`}
-                    onClick={() => setSelectedTagIds((prev) => (prev.includes(t.id) ? prev : [...prev, t.id]))}
+                    onClick={() => onToggleTag(t.id)}
                   >
                     おすすめ {t.name}
                   </button>
@@ -105,7 +109,7 @@ export default function ConciergeFilterPanel({
 
         <div className="flex flex-wrap gap-2">
           {goriyakuTags.map((t) => {
-            const on = selectedTagIds.includes(t.id);
+            const on = selected.has(t.id);
             return (
               <button
                 key={t.id}
@@ -113,9 +117,7 @@ export default function ConciergeFilterPanel({
                 className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                   on ? "border-emerald-600 bg-emerald-50" : "bg-white"
                 }`}
-                onClick={() =>
-                  setSelectedTagIds((prev) => (prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]))
-                }
+                onClick={() => onToggleTag(t.id)}
               >
                 {t.name}
               </button>
@@ -129,7 +131,7 @@ export default function ConciergeFilterPanel({
         <div className="text-xs font-semibold text-slate-700">補足条件</div>
         <textarea
           value={extraCondition}
-          onChange={(e) => setExtraCondition(e.target.value)}
+          onChange={(e) => onExtraConditionChange(e.target.value)}
           placeholder="例：静かな雰囲気、階段が少ない、など"
           className="w-full rounded-xl border p-3 text-sm"
           rows={3}
