@@ -11,6 +11,7 @@ type Result = {
   unfit: string;
   howto: string;
   note: string;
+  hasSignal: boolean;
 };
 
 function hasText(v: unknown): v is string {
@@ -62,5 +63,6 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Resul
     unfit,
     howto,
     note: baseNote,
+    hasSignal,
   };
 }

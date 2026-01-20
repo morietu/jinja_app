@@ -10,7 +10,7 @@ import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import DetailSection from "@/components/shrine/DetailSection";
-import * as React from "react";
+
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
@@ -30,6 +30,12 @@ function getBenefitLabels(shrine: Shrine): string[] {
   }
   return [];
 }
+
+function toOneLine(s: string) {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+
 
 
 
@@ -109,6 +115,8 @@ export default async function Page({ params, searchParams }: Props) {
 
   const s = shrine;
 
+  const pageTitle = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
+
   // ✅ その神社の「公開御朱印」だけ（shrine必須）
   let publicGoshuins: PublicGoshuin[] = [];
   try {
@@ -124,7 +132,7 @@ export default async function Page({ params, searchParams }: Props) {
     publicGoshuins = [];
   }
 
-  const title = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
+  
 
   const latNum = Number(s.lat ?? s.latitude ?? NaN);
   const lngNum = Number(s.lng ?? s.longitude ?? NaN);
@@ -147,12 +155,17 @@ export default async function Page({ params, searchParams }: Props) {
   const publicCount = publicGoshuins.length; // まずはこれで暫定OK（limit=12でも十分）
   const exp = buildShrineExplanation({ shrine: s, publicCount });
 
+  const judgeTitle = exp.hasSignal ? "判断材料" : "目安";
+  const judgeSummary = exp.hasSignal
+    ? toOneLine(exp.fit ?? "")
+    : "情報が少ないため、判断材料の目安として表示しています。";
+
   return (
     <>
       <ShrineDetailToast shrineId={numericId} />
 
       <ShrineDetailShell
-        title={title}
+        title={pageTitle}
         subtitle={null}
         close={close}
         addGoshuinHref={addGoshuinHref}
@@ -176,32 +189,39 @@ export default async function Page({ params, searchParams }: Props) {
 
           {/* 説明セクション（固定テンプレ） */}
           <DetailSection title="説明">
-            <DetailDisclosureBlock title="判断材料" summary={`${exp.fit}\n${exp.note}`}>
+            <DetailDisclosureBlock title={judgeTitle} summary={judgeSummary}>
               <div className="space-y-3 text-sm text-slate-800">
                 <div>
                   <div className="text-xs font-semibold text-slate-500">合う人</div>
                   <p className="line-clamp-3">{exp.fit}</p>
                 </div>
 
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
-                  <p className="mt-1 line-clamp-3">{exp.unfit}</p>
-                </div>
+                {exp.hasSignal ? (
+                  <>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
+                      <p className="mt-1 line-clamp-3">{exp.unfit}</p>
+                    </div>
 
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
-                  <p className="mt-1 line-clamp-3">{exp.howto}</p>
-                </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
+                      <p className="mt-1 line-clamp-3">{exp.howto}</p>
+                    </div>
 
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">注意</div>
-                  <p className="mt-1 line-clamp-3">{exp.note}</p>
-                </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">注意</div>
+                      <p className="mt-1 line-clamp-3">{exp.note}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-800 space-y-2">
+                    <p className="text-xs text-slate-500">情報が少ないため、現時点では目安として扱ってください。</p>
+                    <p className="line-clamp-3">{exp.note}</p>
+                  </div>
+                )}
               </div>
             </DetailDisclosureBlock>
           </DetailSection>
-
-          
 
           {/* ご利益セクション */}
           <DetailSection title="ご利益">
