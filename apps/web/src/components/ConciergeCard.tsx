@@ -70,8 +70,9 @@ export default function ConciergeCard(props: BaseCardProps) {
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white">
-      {imageUrl ? (
-        <div className="relative h-36 w-full">
+      {/* ✅ 画像あり/なしに関わらず高さを確保 */}
+      <div className="relative h-36 w-full">
+        {imageUrl ? (
           <Image
             src={imageUrl}
             alt={title}
@@ -80,8 +81,11 @@ export default function ConciergeCard(props: BaseCardProps) {
             sizes="(max-width: 768px) 100vw, 600px"
             priority={isPrimary}
           />
-        </div>
-      ) : null}
+        ) : (
+          // ✅ プレースホルダ（高さ確保＋見た目の統一）
+          <div className="h-full w-full rounded-t-xl bg-neutral-100" />
+        )}
+      </div>
 
       <div className={cn("px-3", isPrimary ? "py-3" : "py-2")}>
         {(badges.length > 0 || headerRight) && (
