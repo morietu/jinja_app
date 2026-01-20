@@ -427,35 +427,43 @@ def build_chat_recommendations(
     pre_limit = 12 if birthdate else 3
     recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=pre_limit)
 
-    cand_addr: dict[str, str] = {}
+    # --- candidates を name で引ける辞書にする（詳細導線のため） ---
+    cand_by_name: dict[str, dict] = {}
     for c in candidates or []:
-        if isinstance(c, dict) and c.get("name") and c.get("formatted_address"):
-            cand_addr[(c["name"] or "").strip()] = c["formatted_address"]
+        if not isinstance(c, dict):
+            continue
+        nm = (c.get("name") or "").strip()
+        if not nm:
+            continue
+        cand_by_name[nm] = c
 
+    # --- candidate fields を recommendations にマージ ---
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
-        if r.get("location"):
-            continue
 
         nm = (r.get("name") or "").strip()
-        if nm in cand_addr:
-            addr = cand_addr[nm]
-            try:
-                r["location"] = bf._shorten_japanese_address(addr) or addr
-            except Exception:
-                r["location"] = addr
+        if not nm:
             continue
 
-        try:
-            addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
-        except Exception:
-            addr = None
-        if addr:
-            try:
-                r["location"] = bf._shorten_japanese_address(addr) or addr
-            except Exception:
-                r["location"] = addr
+        c = cand_by_name.get(nm)
+        if not isinstance(c, dict):
+            continue
+
+        if r.get("id") is None and c.get("id") is not None:
+            r["id"] = c.get("id")
+
+        if r.get("lat") is None and c.get("lat") is not None:
+            r["lat"] = c.get("lat")
+        if r.get("lng") is None and c.get("lng") is not None:
+            r["lng"] = c.get("lng")
+        if r.get("address") is None and c.get("address") is not None:
+            r["address"] = c.get("address")
+
+        if r.get("goriyaku_tag_ids") is None and c.get("goriyaku_tag_ids") is not None:
+            r["goriyaku_tag_ids"] = c.get("goriyaku_tag_ids")
+        if r.get("popular_score") is None and c.get("popular_score") is not None:
+            r["popular_score"] = c.get("popular_score")
 
     # ✅ user filters → astrology → slice
     try:
