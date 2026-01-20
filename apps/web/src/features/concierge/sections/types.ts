@@ -69,15 +69,12 @@ export type RegisteredShrineItem = {
   description: string;
   imageUrl?: string | null;
 
-  goriyakuTags: Array<{ id: number; name: string }>;
+  goriyakuTags: { id: number; name: string }[];
   initialFav: boolean;
 
-  // ✅ 追加（おすすめ理由の内訳）
-  breakdown?: ConciergeBreakdown | null;
-
-  // ✅ 追加（詳細導線）
+  // ✅ 追加
   detailHref?: string;
-  detailLabel?: string;
+  breakdown?: ConciergeBreakdown | null;
 };
 
 export type PlaceShrineItem = {

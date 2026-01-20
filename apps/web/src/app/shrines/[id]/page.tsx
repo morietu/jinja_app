@@ -162,7 +162,7 @@ export default async function Page({ params, searchParams }: Props) {
           <ShrineCard
             {...cardProps}
             // 詳細ページは下に「ご利益」セクションがあるので、disclosure側は消す
-            showDisclosureBenefits={false}
+            
             // 詳細ページは concierge の内訳が無いケースが多いので、出さないならここで切る
             breakdown={null}
           />

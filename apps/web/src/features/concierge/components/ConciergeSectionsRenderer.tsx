@@ -86,8 +86,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                 <div className="space-y-3">
                   {sec.items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (it.kind === "registered") {
-                      const detailHref = (it as any).detailHref as string | undefined;
-
                       return (
                         <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">
                           <ShrineCard
@@ -96,7 +94,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                             address={it.address}
                             description={it.description}
                             imageUrl={it.imageUrl}
-                            goriyakuTags={it.goriyakuTags}
+                            
                             initialFav={it.initialFav}
                             showFavorite
                             breakdown={it.breakdown ?? null}
