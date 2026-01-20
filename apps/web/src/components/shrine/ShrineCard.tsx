@@ -6,7 +6,7 @@ import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 
-type GoriyakuTag = { id: number; name: string };
+
 
 type Props = {
   shrineId: number;
@@ -14,10 +14,10 @@ type Props = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-  goriyakuTags?: readonly GoriyakuTag[];
+  showFavorite?: boolean;
 
   /** 表示制御 */
-  showFavorite?: boolean;
+
   readOnly?: boolean;
 
   /** お気に入り初期値 */
@@ -32,8 +32,7 @@ type Props = {
   /** concierge のおすすめ内訳（任意） */
   breakdown?: ConciergeBreakdown | null;
 
-  /** disclosure内に「ご利益」を出すか（/shrines/[id] では false 推奨） */
-  showDisclosureBenefits?: boolean;
+  
 };
 
 function toNum(n: unknown) {
@@ -126,13 +125,11 @@ export default function ShrineCard({
   address,
   description,
   imageUrl,
-  goriyakuTags = [],
   showFavorite = true,
   initialFav = false,
   readOnly = false,
   detailHref,
   breakdown,
-  showDisclosureBenefits = true,
 }: Props) {
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
