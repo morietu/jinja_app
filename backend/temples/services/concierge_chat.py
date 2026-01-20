@@ -427,21 +427,61 @@ def build_chat_recommendations(
     pre_limit = 12 if birthdate else 3
     recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=pre_limit)
 
-    # --- candidates を name で引ける辞書にする（詳細導線のため） ---
-    cand_by_name: dict[str, dict] = {}
+    # --- candidates から住所を引けるなら優先して location を埋める（後方互換: location） ---
+    cand_addr: dict[str, str] = {}
     for c in candidates or []:
         if not isinstance(c, dict):
             continue
         nm = (c.get("name") or "").strip()
         if not nm:
             continue
-        cand_by_name[nm] = c
+        addr = c.get("formatted_address") or c.get("address")
+        if isinstance(addr, str) and addr.strip():
+            cand_addr[nm] = addr.strip()
 
-    # --- candidate fields を recommendations にマージ ---
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
+        if r.get("location"):
+            continue
 
+        nm = (r.get("name") or "").strip()
+        if not nm:
+            continue
+
+        # 1) candidates の address/formatted_address があればそれを短縮して location に入れる
+        if nm in cand_addr:
+            addr = cand_addr[nm]
+            try:
+                r["location"] = bf._shorten_japanese_address(addr) or addr
+            except Exception:
+                r["location"] = addr
+            continue
+
+        # 2) 無ければ Google で引いて location を埋める（テストはこれを期待）
+        try:
+            addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
+        except Exception:
+            addr = None
+
+        if isinstance(addr, str) and addr.strip():
+            try:
+                r["location"] = bf._shorten_japanese_address(addr) or addr
+            except Exception:
+                r["location"] = addr
+
+    # --- candidates のフィールドを recommendations にマージ（詳細導線用 id など） ---
+    cand_by_name: dict[str, dict] = {}
+    for c in candidates or []:
+        if not isinstance(c, dict):
+            continue
+        nm = (c.get("name") or "").strip()
+        if nm:
+            cand_by_name[nm] = c
+
+    for r in recs.get("recommendations", []) or []:
+        if not isinstance(r, dict):
+            continue
         nm = (r.get("name") or "").strip()
         if not nm:
             continue
@@ -450,21 +490,36 @@ def build_chat_recommendations(
         if not isinstance(c, dict):
             continue
 
+        # ✅ DB shrine id（詳細導線の鍵）
         if r.get("id") is None and c.get("id") is not None:
             r["id"] = c.get("id")
 
+        # ✅ 座標・住所（新キー）
         if r.get("lat") is None and c.get("lat") is not None:
             r["lat"] = c.get("lat")
         if r.get("lng") is None and c.get("lng") is not None:
             r["lng"] = c.get("lng")
-        if r.get("address") is None and c.get("address") is not None:
-            r["address"] = c.get("address")
 
+        addr2 = c.get("formatted_address") or c.get("address")
+        if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
+            r["address"] = addr2.strip()
+        
+        
+
+        # 既存ロジックが使うキー群（絞り込み/スコアに必要）
         if r.get("goriyaku_tag_ids") is None and c.get("goriyaku_tag_ids") is not None:
             r["goriyaku_tag_ids"] = c.get("goriyaku_tag_ids")
         if r.get("popular_score") is None and c.get("popular_score") is not None:
             r["popular_score"] = c.get("popular_score")
 
+        # ✅ 互換: candidates に住所があるなら location 未設定時に埋める（保険）
+        if not r.get("location"):
+            addr = c.get("formatted_address") or c.get("address")
+            if isinstance(addr, str) and addr.strip():
+                try:
+                    r["location"] = bf._shorten_japanese_address(addr) or addr
+                except Exception:
+                    r["location"] = addr
     # ✅ user filters → astrology → slice
     try:
         recs = _apply_user_filters(recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition)
@@ -516,8 +571,8 @@ def build_chat_recommendations(
         pass
 
     for r in recs.get("recommendations", []) or []:
-        if not isinstance(r, dict):
-            continue
+        if isinstance(r, dict) and r.get("location") is None:
+            r["location"] = ""
 
         if r.get("name"):
             cleaned = _clean_display_name(r["name"])
