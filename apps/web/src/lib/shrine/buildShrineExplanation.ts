@@ -6,12 +6,17 @@ type Args = {
   publicCount?: number;
 };
 
-type Result = {
+export type SignalLevel = "weak" | "medium" | "strong";
+
+export type ShrineExplanation = {
   fit: string;
   unfit: string;
   howto: string;
   note: string;
   hasSignal: boolean;
+  signalLevel: SignalLevel;
+  summary: string;
+  strongHint: string | null;
 };
 
 function hasText(v: unknown): v is string {
@@ -25,11 +30,32 @@ function pickAClauseFromShrine(s: Shrine): string {
   return "少し立ち止まって考えたい人には";
 }
 
-// ✅ 文言はトップレベル定数でOK（依存なし）
+// ✅ 固定3文言（この後触らない）
+function buildSummary(args: { hasSignal: boolean; level: SignalLevel }): string {
+  if (!args.hasSignal) {
+    return "情報が少ないため、現時点では判断材料の目安として表示しています。";
+  }
+  if (args.level === "strong") {
+    return "参考になる参拝例が複数あり、おすすめしやすい神社です。";
+  }
+  if (args.level === "medium") {
+    return "いくつかの傾向から、検討の参考として提案しています。";
+  }
+  return "情報が少ないため、現時点では判断材料の目安として表示しています。";
+}
+
+function buildStrongHint(args: { publicCount: number; views30d: number; fav30d: number }): string | null {
+  const reasons: string[] = [];
+  if (args.publicCount >= 5) reasons.push("公開御朱印が複数あります");
+  if (args.views30d >= 100) reasons.push("閲覧が多い傾向があります");
+  if (args.fav30d >= 5) reasons.push("お気に入りが多い傾向があります");
+  return reasons.length ? reasons.join(" / ") : null;
+}
+
 const BASE_UNFIT = "判断材料の一つとして、前提とあわせて参考にしてください。";
 const NUANCED_UNFIT = "判断の前提によっては、特徴の受け取り方が変わるため、判断材料の一つとして参考にしてください。";
 
-export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Result {
+export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): ShrineExplanation {
   const desc = hasText((shrine as any)?.description) ? String((shrine as any).description).trim() : "";
 
   const A = pickAClauseFromShrine(shrine);
@@ -55,8 +81,17 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Resul
   const refHint = publicCount >= 3 ? "公開御朱印があるため、参拝のイメージをつかむ材料が比較的そろっています。" : null;
 
   const fit = desc ? `${baseFit}（要点：${desc.slice(0, 48)}${desc.length > 48 ? "…" : ""}）` : baseFit;
-
   const howto = refHint ? `${baseHowto} ${refHint}` : baseHowto;
+
+  let signalLevel: SignalLevel = "weak";
+  if (publicCount >= 5 || fav30d >= 5 || views30d >= 100) {
+    signalLevel = "strong";
+  } else if (publicCount >= 3 || fav30d >= 3 || views30d >= 30 || hasText((shrine as any)?.description)) {
+    signalLevel = "medium";
+  }
+
+  const summary = buildSummary({ hasSignal, level: signalLevel });
+  const strongHint = signalLevel === "strong" ? buildStrongHint({ publicCount, views30d, fav30d }) : null;
 
   return {
     fit,
@@ -64,5 +99,8 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Resul
     howto,
     note: baseNote,
     hasSignal,
+    signalLevel,
+    summary,
+    strongHint,
   };
 }

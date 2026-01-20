@@ -31,9 +31,7 @@ function getBenefitLabels(shrine: Shrine): string[] {
   return [];
 }
 
-function toOneLine(s: string) {
-  return s.replace(/\s+/g, " ").trim();
-}
+
 
 
 
@@ -156,9 +154,7 @@ export default async function Page({ params, searchParams }: Props) {
   const exp = buildShrineExplanation({ shrine: s, publicCount });
 
   const judgeTitle = exp.hasSignal ? "判断材料" : "目安";
-  const judgeSummary = exp.hasSignal
-    ? toOneLine(exp.fit ?? "")
-    : "情報が少ないため、判断材料の目安として表示しています。";
+  
 
   return (
     <>
@@ -189,7 +185,12 @@ export default async function Page({ params, searchParams }: Props) {
 
           {/* 説明セクション（固定テンプレ） */}
           <DetailSection title="説明">
-            <DetailDisclosureBlock title={judgeTitle} summary={judgeSummary}>
+            <DetailDisclosureBlock
+              title={judgeTitle}
+              summary={exp.summary}
+              level={exp.signalLevel}
+              hint={exp.strongHint} // strongHint を追加するなら（後述）
+            >
               <div className="space-y-3 text-sm text-slate-800">
                 <div>
                   <div className="text-xs font-semibold text-slate-500">合う人</div>
