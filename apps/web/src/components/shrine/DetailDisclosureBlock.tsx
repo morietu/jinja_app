@@ -1,6 +1,5 @@
 // apps/web/src/components/shrine/DetailDisclosureBlock.tsx;
 "use client";
-
 import * as React from "react";
 
 type Props = {
@@ -23,9 +22,7 @@ export default function DetailDisclosureBlock({ title, summary, children, defaul
       >
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">{title}</div>
-          {!open ? (
-            <div className="mt-0.5 text-xs text-slate-500 line-clamp-2 whitespace-pre-line">{summary}</div>
-          ) : null}
+          {!open ? <div className="mt-0.5 text-xs text-slate-500 line-clamp-1">{summary}</div> : null}
         </div>
         <span className="text-xs text-slate-500">{open ? "閉じる" : "開く"}</span>
       </button>
