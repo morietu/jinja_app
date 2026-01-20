@@ -10,7 +10,8 @@ import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import DetailSection from "@/components/shrine/DetailSection";
-
+import * as React from "react";
+import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
@@ -29,6 +30,8 @@ function getBenefitLabels(shrine: Shrine): string[] {
   }
   return [];
 }
+
+
 
 type PublicGoshuin = {
   id: number;
@@ -173,33 +176,32 @@ export default async function Page({ params, searchParams }: Props) {
 
           {/* 説明セクション（固定テンプレ） */}
           <DetailSection title="説明">
-            <div className="space-y-3 text-sm text-slate-800">
-              <div>
-                <div className="text-xs font-semibold text-slate-500">合う人</div>
-                <p className="line-clamp-3">{exp.fit}</p>
-              </div>
+            <DetailDisclosureBlock title="判断材料" summary={`${exp.fit}\n${exp.note}`}>
+              <div className="space-y-3 text-sm text-slate-800">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">合う人</div>
+                  <p className="line-clamp-3">{exp.fit}</p>
+                </div>
 
-              <div>
-                <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
-                <p className="mt-1 line-clamp-3">{exp.unfit}</p>
-              </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
+                  <p className="mt-1 line-clamp-3">{exp.unfit}</p>
+                </div>
 
-              <div>
-                <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
-                <p className="mt-1 line-clamp-3">{exp.howto}</p>
-              </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
+                  <p className="mt-1 line-clamp-3">{exp.howto}</p>
+                </div>
 
-              <div>
-                <div className="text-xs font-semibold text-slate-500">注意</div>
-                <p className="mt-1 line-clamp-3">{exp.note}</p>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500">注意</div>
+                  <p className="mt-1 line-clamp-3">{exp.note}</p>
+                </div>
               </div>
-            </div>
+            </DetailDisclosureBlock>
           </DetailSection>
 
-          {/* 住所セクション */}
-          <DetailSection title="住所">
-            <p className="text-sm text-slate-900">{s.address}</p>
-          </DetailSection>
+          
 
           {/* ご利益セクション */}
           <DetailSection title="ご利益">
