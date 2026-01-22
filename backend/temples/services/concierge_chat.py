@@ -338,7 +338,6 @@ def _attach_breakdown(
         score_element = pri_raw
         pri = pri_raw
     else:
-        # fallback（念のため。Aの主ルートではここに来ない想定）
         score_element = 0
         pri = 0
         try:
@@ -371,7 +370,6 @@ def _attach_breakdown(
     w2 = float(weights.get("need", 0.0))
     w3 = float(weights.get("popular", 0.0))
 
-    # ✅ A(チャット)は基本0。Bでだけ有効化する前提。
     astro_bonus = 0.0
     if astro_bonus_enabled:
         if pri == 2:
@@ -381,6 +379,7 @@ def _attach_breakdown(
 
     score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
 
+    # ✅ Contract: breakdown は 6キー固定
     rec["breakdown"] = {
         "score_element": int(score_element),
         "score_need": int(score_need),
@@ -388,9 +387,10 @@ def _attach_breakdown(
         "score_total": float(score_total),
         "weights": {"element": w1, "need": w2, "popular": w3},
         "matched_need_tags": matched,
-        "score_astro": int(pri),
-        "score_astro_bonus": float(astro_bonus),
     }
+
+    # ✅ astro情報を残したいなら breakdown の外へ（任意）
+    rec["_astro_scores"] = {"score_astro": int(pri), "score_astro_bonus": float(astro_bonus)}
 
     
 
@@ -638,8 +638,7 @@ def build_chat_recommendations(
                 "score_total": 0.0,
                 "weights": dict(WEIGHTS),
                 "matched_need_tags": [],
-                "score_astro": int(r.get("astro_priority") or 0) if isinstance(r, dict) else 0,
-                "score_astro_bonus": 0.0,
+                
             }
 
     # ✅ pool全員を score_total でソート（Aの主戦場）
