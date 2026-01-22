@@ -1,4 +1,3 @@
-// apps/web/src/app/api/concierge-threads/[id]/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
@@ -6,24 +5,47 @@ import { djFetch } from "@/lib/server/backend";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+async function refreshAccess(req: NextRequest): Promise<string | null> {
+  const refresh = req.cookies.get("refresh_token")?.value;
+  if (!refresh) return null;
 
-  const r = await djFetch(req, `/api/concierge-threads/${id}/`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
+  const r = await djFetch(req, "/api/auth/jwt/refresh/", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
   });
 
-  const text = await r.text();
-  let body: any;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    body = text;
+  if (!r.ok) return null;
+
+  const data = (await r.json().catch(() => null)) as any;
+  return typeof data?.access === "string" ? data.access : null;
+}
+
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+
+  const access = req.cookies.get("access_token")?.value;
+  const authHeader = req.headers.get("authorization") ?? (access ? `Bearer ${access}` : null);
+
+  const doFetch = (token?: string) =>
+    djFetch(req, `/api/concierge-threads/${id}/`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : authHeader ? { Authorization: authHeader } : {}),
+      },
+    });
+
+  let r = await doFetch();
+
+  if (r.status === 401) {
+    const nextAccess = await refreshAccess(req);
+    if (nextAccess) r = await doFetch(nextAccess);
   }
 
-  return new NextResponse(JSON.stringify(body), {
+  const text = await r.text();
+  return new NextResponse(text, {
     status: r.status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": r.headers.get("content-type") ?? "application/json" },
   });
 }

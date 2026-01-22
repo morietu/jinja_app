@@ -175,7 +175,7 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     if not birthdate:
         return recs
     try:
-        from temples.domain.astrology import sun_sign_and_element, element_priority
+        from temples.domain.astrology import sun_sign_and_element, element_priority, element_code
         from temples.models import Shrine
     except Exception:
         return recs
@@ -184,39 +184,44 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     if not prof:
         return recs
 
-    ELEMENT_LABEL_JA = {"fire": "火", "water": "水", "earth": "地", "air": "風"}
+    ELEMENT_LABEL_JA = {
+        "fire": "火", "water": "水", "earth": "地", "air": "風",
+        "火": "火", "水": "水", "土": "地", "風": "風",
+    }
 
     items = recs.get("recommendations") or []
     if not isinstance(items, list) or not items:
         return recs
 
+    # --- attach: recommendations に astro_elements が無ければDBから埋める ---
     for r in items:
         if not isinstance(r, dict):
             continue
         if r.get("astro_elements") is not None:
             continue
+
         name = (r.get("name") or "").strip()
         if not name:
             r["astro_elements"] = []
             continue
+
         try:
             s = Shrine.objects.filter(name_jp__icontains=name).only("astro_elements").first()
             r["astro_elements"] = (s.astro_elements or []) if s else []
         except Exception:
             r["astro_elements"] = []
 
+    # --- pick: pri=2 -> 1 -> 0 の順に最大3件 ---
     only_dicts = [r for r in items if isinstance(r, dict)]
     buckets: Dict[int, List[dict]] = {2: [], 1: [], 0: []}
+
     for r in only_dicts:
         pri = int(element_priority(prof.element, r.get("astro_elements")))
         r["astro_priority"] = pri
         r["astro_matched"] = (pri == 2)
         buckets[pri].append(r)
 
-    # ✅ pri=2 を最優先。まずは pri=2 だけで最大3件を埋める
     picked: List[dict] = list(buckets.get(2, []))[:3]
-    
-    # ✅ それでも足りない時だけ pri=1 → 0 で補完
     if len(picked) < 3:
         for pri in (1, 0):
             for r in buckets.get(pri, []):
@@ -229,10 +234,12 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     recs["recommendations"] = picked
 
     picked_names = [x.get("name") for x in picked if isinstance(x.get("name"), str) and x.get("name").strip()]
-    label_ja = ELEMENT_LABEL_JA.get(prof.element, prof.element)
+    label_ja = ELEMENT_LABEL_JA.get(prof.element, str(prof.element))
+
     recs["_astro"] = {
         "sun_sign": prof.sign,
-        "element": prof.element,
+        "element": prof.element,                      # "火" 等
+        "element_code": element_code(prof.element),   # "fire" 等
         "label_ja": label_ja,
         "matched_count": len(picked_names),
         "picked": picked_names,
@@ -390,6 +397,14 @@ def _apply_user_filters(
     recs["recommendations"] = out
     return recs
 
+def _astro_enabled(birthdate: Optional[str]) -> bool:
+    if not birthdate:
+        return False
+    try:
+        from temples.domain.astrology import sun_sign_and_element
+        return bool(sun_sign_and_element(birthdate))
+    except Exception:
+        return False
 
 def build_chat_recommendations(
     *,
@@ -424,7 +439,7 @@ def build_chat_recommendations(
         else:
             recs["recommendations"] = [{"name": "近隣の神社", "reason": ""}]
 
-    pre_limit = 12 if birthdate else 3
+    pre_limit = 12 if _astro_enabled(birthdate) else 3
     recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=pre_limit)
 
     # --- candidates から住所を引けるなら優先して location を埋める（後方互換: location） ---
@@ -557,18 +572,22 @@ def build_chat_recommendations(
                 "matched_need_tags": [],
             }
     # ✅ 最終順位：score_total でソート（A案）
+    # astrology が有効なときは pick の順序を守る（テスト契約）
     try:
-        recs["recommendations"] = sorted(
-            recs.get("recommendations") or [],
-            key=lambda r: (
-                r.get("breakdown", {}).get("score_total", 0.0)
-                if isinstance(r, dict)
-                else 0.0
-            ),
-            reverse=True,
-        )
+        if "_astro" not in recs:
+            recs["recommendations"] = sorted(
+                recs.get("recommendations") or [],
+                key=lambda r: (
+                    r.get("breakdown", {}).get("score_total", 0.0)
+                    if isinstance(r, dict)
+                    else 0.0
+                ),
+                reverse=True,
+            )
     except Exception:
         pass
+        
+    
 
     for r in recs.get("recommendations", []) or []:
         if isinstance(r, dict) and r.get("location") is None:

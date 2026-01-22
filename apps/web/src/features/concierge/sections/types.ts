@@ -84,6 +84,10 @@ export type PlaceShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
+
+  // ✅ 追加
+  detailHref?: string;
+  detailLabel?: string;
 };
 
 /* =========================

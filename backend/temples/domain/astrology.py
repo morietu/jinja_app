@@ -105,3 +105,17 @@ def element_priority(user_elem: Element, shrine_elems: list[str] | None) -> int:
     if any(e in norm for e in _COMPAT[user_elem]):
         return 1
     return 0
+
+
+# backend/temples/domain/astrology.py
+
+_JA_TO_EN: dict[Element, str] = {
+    "火": "fire",
+    "水": "water",
+    "土": "earth",
+    "風": "air",
+}
+
+def element_code(elem: Element) -> str:
+    # elem は "火"|"土"|"風"|"水" の想定
+    return _JA_TO_EN.get(elem, str(elem))

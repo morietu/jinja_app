@@ -5,7 +5,6 @@ import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 
-
 import type {
   ConciergeSectionsPayload,
   ConciergeSection,
@@ -16,6 +15,21 @@ import type {
   ActionType,
   ActionsSection,
 } from "@/features/concierge/sections/types";
+
+// ✅ まずはここで AstroCard を定義（import 迷子を防ぐ）
+function AstroCard(props: { sunSign?: string; element?: string; reason?: string }) {
+  const { sunSign, element, reason } = props;
+  return (
+    <DetailSection title="占星術による選定">
+      <div className="rounded-xl border bg-amber-50 px-4 py-3">
+        <div className="text-sm font-semibold text-slate-900">
+          {sunSign || "不明"} / {element || "不明"}
+        </div>
+        <div className="mt-1 text-sm text-slate-700">{reason || "（理由なし）"}</div>
+      </div>
+    </DetailSection>
+  );
+}
 
 type Props = {
   payload: ConciergeSectionsPayload;
@@ -32,16 +46,15 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           case "guide":
             return (
               <DetailSection key={`guide-${i}`} title="ガイド">
-                <div className="text-sm text-slate-700">{sec.text}</div>
+                <div className="text-sm text-slate-700">{(sec as any).text}</div>
               </DetailSection>
             );
 
           case "filter": {
-            const state: ConciergeFilterState = sec.state;
-            const title = sec.title ?? "条件を追加して絞る";
-            const closedLabel = sec.closedLabel ?? "条件を追加して絞る";
+            const state: ConciergeFilterState = (sec as any).state;
+            const title = (sec as any).title ?? "条件を追加して絞る";
+            const closedLabel = (sec as any).closedLabel ?? "条件を追加して絞る";
 
-            // 閉じてる時：入口ボタンだけ
             if (!state.isOpen) {
               return (
                 <DetailSection key={`filter-${i}`} title="絞り込み">
@@ -56,7 +69,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
               );
             }
 
-            // 開いてる時：Panel
             return (
               <DetailSection key={`filter-${i}`} title={title}>
                 <ConciergeFilterPanel
@@ -82,9 +94,9 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
 
           case "recommendations":
             return (
-              <DetailSection key={`recs-${i}`} title={sec.title ?? "おすすめ"}>
+              <DetailSection key={`recs-${i}`} title={(sec as any).title ?? "おすすめ"}>
                 <div className="space-y-3">
-                  {sec.items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
+                  {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (it.kind === "registered") {
                       return (
                         <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">
@@ -94,7 +106,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                             address={it.address}
                             description={it.description}
                             imageUrl={it.imageUrl}
-                            
                             initialFav={it.initialFav}
                             showFavorite
                             breakdown={it.breakdown ?? null}
@@ -104,7 +115,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                       );
                     }
 
-                    // place
                     return (
                       <PlaceShrineCard
                         key={`place-${it.placeId}-${idx}`}
@@ -113,6 +123,8 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                         address={it.address}
                         description={it.description}
                         imageUrl={it.imageUrl}
+                        detailHref={it.detailHref}
+                        detailLabel={it.detailLabel}
                       />
                     );
                   })}
@@ -138,6 +150,12 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                 </div>
               </DetailSection>
             );
+          }
+
+          // ✅ ここが本題
+          case "astro": {
+            const a = sec as any;
+            return <AstroCard key={`astro-${i}`} sunSign={a.sunSign} element={a.element} reason={a.reason} />;
           }
 
           default:

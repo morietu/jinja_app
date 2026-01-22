@@ -380,6 +380,7 @@ class ConciergeChatView(APIView):
 
 
         birthdate = (data.get("birthdate") or "").strip() or None
+        log.warning("[concierge_chat] birthdate=%r (raw=%r, filters=%r)", birthdate, data.get("birthdate"), (data.get("filters") if isinstance(data.get("filters"), dict) else None))
 
         
             
@@ -502,6 +503,8 @@ class ConciergePlanView(APIView):
             serializer_validated=s.validated_data or {},
         )
         return Response(body, status=status.HTTP_200_OK)
+
+    
 
 
 class ConciergePlanViewLegacy(ConciergePlanView):

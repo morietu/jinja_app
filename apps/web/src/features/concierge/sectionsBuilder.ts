@@ -2,10 +2,8 @@
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import type { ConciergeSection } from "@/features/concierge/types/sections";
 
-
-
 export function buildConciergeSections(recs: ConciergeRecommendation[], needTags: string[] = []): ConciergeSection[] {
-  const items = Array.isArray(recs) ? recs : [];
+  const items = Array.isArray(recs) ? recs.slice(0, 3) : [];
   if (items.length === 0) return [];
 
   const safeNeedTags = Array.isArray(needTags) ? needTags.filter((t) => typeof t === "string" && t.trim()) : [];

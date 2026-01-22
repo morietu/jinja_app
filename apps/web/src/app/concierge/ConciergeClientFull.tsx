@@ -20,13 +20,8 @@ import ConciergeSectionsRenderer from "@/features/concierge/components/Concierge
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
-
 import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
-
-
-
-
 
 /* ========================================
  * types / consts
@@ -50,8 +45,6 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   水: ["縁結び", "子宝・安産", "病気平癒"],
 };
 
-
-
 /* ========================================
  * utils
  * ====================================== */
@@ -61,6 +54,24 @@ function isValidISODate(s: string): boolean {
   if (Number.isNaN(d.getTime())) return false;
   const [y, m, dd] = s.split("-").map(Number);
   return d.getUTCFullYear() === y && d.getUTCMonth() + 1 === m && d.getUTCDate() === dd;
+}
+
+function normalizeISODate(s: string): string | null {
+  const t = (s || "").trim();
+  if (!t) return null;
+
+  // 2000-3-21 / 2000-03-21 を許容
+  const m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) {
+    const y = m[1];
+    const mm = m[2].padStart(2, "0");
+    const dd = m[3].padStart(2, "0");
+    const iso = `${y}-${mm}-${dd}`;
+    return isValidISODate(iso) ? iso : null;
+  }
+
+  // 既に正しい形式ならそのまま
+  return isValidISODate(t) ? t : null;
 }
 
 function birthdateToElement4(birthdateISO: string): Element4 | null {
@@ -150,8 +161,6 @@ export default function ConciergeClientFull() {
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
-  
-
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
@@ -163,7 +172,7 @@ export default function ConciergeClientFull() {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
 
-  
+ 
 
   useEffect(() => {
     if (!promotedTid) return;
@@ -289,7 +298,11 @@ export default function ConciergeClientFull() {
   }, [events]);
 
   useEffect(() => {
-    console.log("[recs]", recommendations);
+    console.log("[ui] _astro =", lastUnified?.data?._astro);
+  }, [lastUnified]);
+
+  useEffect(() => {
+    
   }, [recommendations]);
 
   const stopReason: StopReason =
@@ -302,6 +315,7 @@ export default function ConciergeClientFull() {
   }, [lastUnified]);
 
   const sections = useMemo(() => buildConciergeSections(recommendations as any, needTags), [recommendations, needTags]);
+  
 
   const filterState = useMemo(
     () => ({
@@ -328,8 +342,6 @@ export default function ConciergeClientFull() {
     ],
   );
 
-  
-
   const payload = useMemo(() => {
     return buildPayloadFromUnified(lastUnified, filterState) ?? buildDummySections(filterState);
   }, [lastUnified, filterState]);
@@ -349,8 +361,7 @@ export default function ConciergeClientFull() {
 
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     onUnified: (u) => {
-      console.log("[chat.res.data.recommendations]", u?.data?.recommendations);
-      console.log("[chat.res.data.recommendations[0]?.id]", u?.data?.recommendations?.[0]?.id);
+      
       const now = new Date().toISOString();
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
       const currentTid = activeThreadIdRef.current;
@@ -376,7 +387,7 @@ export default function ConciergeClientFull() {
   // ✅ FilterPanel用：payload を作る（thread_id は hooks 側が注入する前提）
   const buildFilterPayload = (): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const extra = extraCondition.trim();
-    const bd = birthdate && isValidISODate(birthdate) ? birthdate : undefined;
+    const bd = normalizeISODate(birthdate) ?? undefined;
 
     const filters: ConciergeChatFilters = {
       goriyaku_tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
@@ -385,6 +396,7 @@ export default function ConciergeClientFull() {
     };
 
     const hasFilter = (filters.goriyaku_tag_ids?.length ?? 0) > 0 || !!filters.birthdate || !!filters.extra_condition;
+    console.log("[filter] birthdate=", birthdate, "valid=", isValidISODate(birthdate));
 
     if (!hasFilter) return null;
 
@@ -437,6 +449,7 @@ export default function ConciergeClientFull() {
   };
 
   
+
   return (
     <ConciergeLayout
       messages={messages}

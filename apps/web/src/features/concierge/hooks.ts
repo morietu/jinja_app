@@ -125,8 +125,6 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
         : null;
 
   const note = typeof raw?.note === "string" ? raw.note : null;
-
-  // backend が reply を返す/返さない両対応
   const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
   const reply = typeof replyCandidate === "string" ? replyCandidate : null;
 
@@ -136,6 +134,10 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   const tid = Number(raw?.thread?.id);
   const thread = raw?.thread && Number.isFinite(tid) ? ({ ...raw.thread, id: tid } as ConciergeThread) : null;
 
+  
+
+  // ✅ ここが重要：raw.data を保持しつつ recommendations だけ正規化で上書き
+  const rawData = raw?.data && typeof raw.data === "object" ? raw.data : {};
   return {
     ok,
     stop_reason: stop,
@@ -143,7 +145,7 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
     reply,
     remaining_free,
     thread,
-    data: { recommendations: recs },
+    data: { ...rawData, recommendations: recs },
   };
 }
 
@@ -168,6 +170,10 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setSending(true);
       setError(null);
 
+      if (process.env.NODE_ENV !== "production") {
+        
+      }
+
       try {
         const res = await postConciergeChat(req);
 
@@ -177,9 +183,11 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
         // recommendations は payload 起点で統一
         const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
-
+        
         // unified も payload 起点で統一
         const unified = normalizeConciergeResponse(payload, recs);
+
+        
 
         if (process.env.NODE_ENV !== "production") {
           // 必要なら見たい時だけ
