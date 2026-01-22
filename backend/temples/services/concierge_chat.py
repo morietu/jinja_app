@@ -478,7 +478,10 @@ def _astro_enabled(birthdate: Optional[str]) -> bool:
     except Exception:
         return False
 
-
+# Contract:
+# A) no candidates & no astro -> passthrough top3
+# B) no candidates & astro_on -> astrology pool
+# C) candidates present -> full flow
 def build_chat_recommendations(
     *,
     query: str,
