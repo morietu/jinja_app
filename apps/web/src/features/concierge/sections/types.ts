@@ -1,16 +1,59 @@
-// apps/web/src/features/concierge/sections/types.ts
+//apps / web / src / features / concierge / sections / types.ts;
+
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 
-
 /* =========================
- * core payload
+ * filter state
  * ========================= */
-export type ConciergeSectionsPayload = {
-  version: 1;
-  sections: readonly ConciergeSection[];
+export type Element4 = "火" | "地" | "風" | "水";
+export type GoriyakuTag = { id: number; name: string };
+
+export type ConciergeFilterState = {
+  isOpen: boolean;
+
+  birthdate: string; // YYYY-MM-DD（空文字OK）
+  element4: Element4 | null;
+
+  goriyakuTags: readonly GoriyakuTag[];
+  suggestedTags: readonly GoriyakuTag[];
+
+  selectedTagIds: readonly number[];
+
+  tagsLoading: boolean;
+  tagsError: string | null;
+
+  extraCondition: string;
 };
 
-export type ConciergeSection = GuideSection | FilterSection | RecommendationsSection | ActionsSection;
+/* =========================
+ * recommendation items
+ * ========================= */
+export type RegisteredShrineItem = {
+  kind: "registered";
+  shrineId: number;
+  title: string;
+  address?: string | null;
+  description: string;
+  imageUrl?: string | null;
+
+  goriyakuTags: { id: number; name: string }[];
+  initialFav: boolean;
+
+  detailHref?: string;
+  breakdown?: ConciergeBreakdown | null;
+};
+
+export type PlaceShrineItem = {
+  kind: "place";
+  placeId: string;
+  title: string;
+  address?: string | null;
+  description: string;
+  imageUrl?: string | null;
+
+  detailHref?: string;
+  detailLabel?: string;
+};
 
 /* =========================
  * sections
@@ -37,74 +80,39 @@ export type ActionType = "add_condition" | "open_map";
 
 export type ActionsSection = {
   type: "actions";
-  items: Array<{
+  items: readonly {
     action: ActionType;
     label: string;
-  }>;
+  }[];
+};
+
+export type AstroSection = {
+  type: "astro";
+  title?: string;
+  sunSign?: string;
+  element?: string;
+  elementCode?: string;
+  reason?: string;
+};
+
+/* =========================
+ * union / payload
+ * ========================= */
+export type ConciergeSection = GuideSection | FilterSection | RecommendationsSection | ActionsSection | AstroSection;
+
+export type ConciergeSectionsPayload = {
+  version: 1;
+  sections: readonly ConciergeSection[];
 };
 
 /* =========================
  * renderer -> client action
  * ========================= */
 export type RendererAction =
-  | { type: "add_condition" } // ← filter入口ボタン用なので残す
+  | { type: "add_condition" }
   | { type: "open_map" }
   | { type: "filter_close" }
   | { type: "filter_apply" }
   | { type: "filter_set_birthdate"; birthdate: string }
   | { type: "filter_toggle_tag"; tagId: number }
   | { type: "filter_set_extra"; extraCondition: string };
-
-
-
-
-/* =========================
- * recommendation items
- * ========================= */
-export type RegisteredShrineItem = {
-  kind: "registered";
-  shrineId: number;
-  title: string;
-  address?: string | null;
-  description: string;
-  imageUrl?: string | null;
-
-  goriyakuTags: { id: number; name: string }[];
-  initialFav: boolean;
-
-  // ✅ 追加
-  detailHref?: string;
-  breakdown?: ConciergeBreakdown | null;
-};
-
-export type PlaceShrineItem = {
-  kind: "place";
-  placeId: string;
-  title: string;
-  address?: string | null;
-  description: string;
-  imageUrl?: string | null;
-};
-
-/* =========================
- * filter state
- * ========================= */
-export type Element4 = "火" | "地" | "風" | "水";
-export type GoriyakuTag = { id: number; name: string };
-
-export type ConciergeFilterState = {
-  isOpen: boolean;
-
-  birthdate: string; // YYYY-MM-DD（空文字OK）
-  element4: Element4 | null;
-
-  goriyakuTags: readonly GoriyakuTag[];
-  suggestedTags: readonly GoriyakuTag[];
-
-  selectedTagIds: readonly number[];
-
-  tagsLoading: boolean;
-  tagsError: string | null;
-
-  extraCondition: string;
-};

@@ -1,25 +1,27 @@
 # backend/temples/api/views/__init__.py
-# -*- coding: utf-8 -*-
 
-from .concierge import ConciergeChatView
-from .shrine import NearestShrinesAPIView, RankingAPIView, ShrineViewSet
-from .goshuin import PublicGoshuinViewSet, MyGoshuinViewSet
-from temples.services.concierge_history import append_chat
+from temples.api_views_concierge import (
+    chat,
+    plan,
+    chat_legacy,
+    plan_legacy,
+    ConciergeChatView,
+    ConciergePlanView,
+    ConciergeChatViewLegacy,
+    ConciergePlanViewLegacy,
+)
 
-
-def chat(request, *args, **kwargs):
-    
-    return ConciergeChatView.as_view()(request, *args, **kwargs)
-
-chat_legacy = chat
+from .concierge import ConciergeThreadListView, ConciergeThreadDetailView
 
 __all__ = [
-    "ConciergeChatView",
     "chat",
+    "plan",
     "chat_legacy",
-    "NearestShrinesAPIView",
-    "RankingAPIView",
-    "ShrineViewSet",
-    "PublicGoshuinViewSet",  # ★ 追加
-    "MyGoshuinViewSet",      # ★ 追加
+    "plan_legacy",
+    "ConciergeChatView",
+    "ConciergePlanView",
+    "ConciergeChatViewLegacy",
+    "ConciergePlanViewLegacy",
+    "ConciergeThreadListView",
+    "ConciergeThreadDetailView",
 ]

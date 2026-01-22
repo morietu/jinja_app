@@ -1,88 +1,106 @@
+// apps/web/src/app/api/concierge/chat/route.ts
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { djFetch } from "@/lib/server/backend";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+async function refreshAccess(req: NextRequest): Promise<string | null> {
+  const refresh = req.cookies.get("refresh_token")?.value;
+  if (!refresh) return null;
 
-async function refreshAccessToken(refresh: string) {
-  const res = await fetch(`${API_BASE}/api/auth/jwt/refresh/`, {
+  const r = await djFetch(req, `/api/auth/jwt/refresh/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ refresh }),
-    cache: "no-store",
   });
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  return (data?.access as string | null) ?? null;
+  if (!r.ok) return null;
+
+  const data = await r.json().catch(() => null);
+  const nextAccess = data?.access;
+  return typeof nextAccess === "string" ? nextAccess : null;
 }
 
-// ✅ cookies() が「Promise を返す版」「同期で返す版」両対応
-async function getCookieStore() {
-  const cs: any = cookies();
-  return typeof cs?.then === "function" ? await cs : cs;
-}
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  let payload: any = null;
   try {
-    const cookieStore: any = await getCookieStore();
+    payload = await req.json();
+    console.log("[api/concierge/chat] forward body =", payload);
+    console.log("[api/concierge/chat] payload.filters.birthdate=", payload?.filters?.birthdate);
+    console.log("[api/concierge/chat] payload.birthdate=", payload?.birthdate);
+  } catch {
+    // noop: body is not JSON (or already consumed)
+  }
 
-    const access = cookieStore?.get?.("access_token")?.value;
-    const refresh = cookieStore?.get?.("refresh_token")?.value;
+  // 1st try
+  const accessCookie = req.cookies.get("access_token")?.value;
+  const headerAuth = req.headers.get("authorization");
 
-    const body = await req.text();
+  console.log("[api/concierge/chat] hasCookieAccess=", !!req.cookies.get("access_token")?.value);
+  console.log("[api/concierge/chat] hasAuthHeader=", !!req.headers.get("authorization"));
 
-    const doFetch = async (token?: string) =>
-      await fetch(`${API_BASE}/api/concierge/chat/`, {
+  const auth1 = headerAuth ?? (accessCookie ? `Bearer ${accessCookie}` : null);
+
+  const r1 = await djFetch(req, `/api/concierge/chat/`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(auth1 ? { Authorization: auth1 } : {}),
+    },
+    body: JSON.stringify(payload ?? {}),
+  });
+
+  // 401 → refresh → retry
+  if (r1.status === 401) {
+    const nextAccess = await refreshAccess(req);
+    if (nextAccess) {
+      const r2 = await djFetch(req, `/api/concierge/chat/`, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${nextAccess}`,
         },
-        body,
-        cache: "no-store",
+        body: JSON.stringify(payload ?? {}),
       });
 
-    let upstream = await doFetch(access);
-    let newAccess: string | null = null;
+      const text2 = await r2.text();
+      let body2: any;
+      try {
+        body2 = JSON.parse(text2);
+      } catch {
+        // noop: backend returned non-JSON
+        body2 = { raw: text2 };
+      }
 
-    if (upstream.status === 401 && refresh) {
-      newAccess = await refreshAccessToken(refresh);
-      if (newAccess) upstream = await doFetch(newAccess);
-    }
-
-    const text = await upstream.text();
-
-    let payload: any;
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      return new NextResponse(text || "", {
-        status: upstream.status,
-        headers: { "Content-Type": upstream.headers.get("content-type") ?? "text/plain; charset=utf-8" },
+      const res = new NextResponse(JSON.stringify(body2), {
+        status: r2.status,
+        headers: { "Content-Type": "application/json" },
       });
-    }
 
-    const res = NextResponse.json(payload, { status: upstream.status });
-
-    // ✅ cookie更新は response に対して
-    if (newAccess) {
-      res.cookies.set("access_token", newAccess, {
+      // ✅ access_token cookie を更新（ここが超重要）
+      res.cookies.set("access_token", nextAccess, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60,
-        secure: false,
       });
+      return res;
     }
-
-    return res;
-  } catch (e: any) {
-    console.error("[/api/concierge/chat] route error:", e);
-    return NextResponse.json(
-      { ok: false, detail: String(e?.message ?? e), name: e?.name ?? null, stack: e?.stack ?? null },
-      { status: 500 },
-    );
   }
+
+  const text1 = await r1.text();
+  let body1: any;
+  try {
+    body1 = JSON.parse(text1);
+  } catch {
+    // noop: backend returned non-JSON
+    body1 = { raw: text1 };
+  }
+
+  return new NextResponse(JSON.stringify(body1), {
+    status: r1.status,
+    headers: { "Content-Type": "application/json" },
+  });
 }

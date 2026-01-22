@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import logging
+
 from temples.llm import backfill as bf
+
+log = logging.getLogger(__name__)
 
 
 def _clean_display_name(name: Any) -> str:
@@ -173,50 +177,75 @@ def _topup_recommendations_with_candidates(
 
 def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) -> Dict[str, Any]:
     if not birthdate:
+        log.debug("[concierge][astro] birthdate is empty -> skip")
         return recs
+
+    items = recs.get("recommendations") or []
+    items_n = len(items) if isinstance(items, list) else 0
+    log.info("[concierge][astro] enter birthdate=%r items=%d", birthdate, items_n)
+
     try:
-        from temples.domain.astrology import sun_sign_and_element, element_priority
+        from temples.domain.astrology import sun_sign_and_element, element_priority, element_code
         from temples.models import Shrine
-    except Exception:
+    except Exception as e:
+        log.exception("[concierge][astro] import failed -> skip: %s", e)
         return recs
 
     prof = sun_sign_and_element(birthdate)
     if not prof:
+        log.info("[concierge][astro] sun_sign_and_element returned None -> skip birthdate=%r", birthdate)
         return recs
 
-    ELEMENT_LABEL_JA = {"fire": "火", "water": "水", "earth": "地", "air": "風"}
+    log.info("[concierge][astro] prof sign=%s elem=%s", prof.sign, prof.element)
 
-    items = recs.get("recommendations") or []
+    ELEMENT_LABEL_JA = {
+        "fire": "火",
+        "water": "水",
+        "earth": "地",
+        "air": "風",
+        "火": "火",
+        "水": "水",
+        "土": "地",
+        "風": "風",
+    }
+
     if not isinstance(items, list) or not items:
+        log.info("[concierge][astro] recommendations empty -> skip")
         return recs
 
+    # --- attach: recommendations に astro_elements が無ければDBから埋める ---
+    attached = 0
     for r in items:
         if not isinstance(r, dict):
             continue
         if r.get("astro_elements") is not None:
             continue
+
         name = (r.get("name") or "").strip()
         if not name:
             r["astro_elements"] = []
             continue
+
         try:
             s = Shrine.objects.filter(name_jp__icontains=name).only("astro_elements").first()
             r["astro_elements"] = (s.astro_elements or []) if s else []
+            attached += 1
         except Exception:
             r["astro_elements"] = []
 
+    log.info("[concierge][astro] attached astro_elements for %d items", attached)
+
+    # --- pick: pri=2 -> 1 -> 0 の順に最大3件 ---
     only_dicts = [r for r in items if isinstance(r, dict)]
     buckets: Dict[int, List[dict]] = {2: [], 1: [], 0: []}
+
     for r in only_dicts:
         pri = int(element_priority(prof.element, r.get("astro_elements")))
         r["astro_priority"] = pri
         r["astro_matched"] = (pri == 2)
         buckets[pri].append(r)
 
-    # ✅ pri=2 を最優先。まずは pri=2 だけで最大3件を埋める
     picked: List[dict] = list(buckets.get(2, []))[:3]
-    
-    # ✅ それでも足りない時だけ pri=1 → 0 で補完
     if len(picked) < 3:
         for pri in (1, 0):
             for r in buckets.get(pri, []):
@@ -229,15 +258,25 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     recs["recommendations"] = picked
 
     picked_names = [x.get("name") for x in picked if isinstance(x.get("name"), str) and x.get("name").strip()]
-    label_ja = ELEMENT_LABEL_JA.get(prof.element, prof.element)
+    label_ja = ELEMENT_LABEL_JA.get(prof.element, str(prof.element))
+
     recs["_astro"] = {
         "sun_sign": prof.sign,
-        "element": prof.element,
+        "element": prof.element,  # "火" 等
+        "element_code": element_code(prof.element),  # "fire" 等
         "label_ja": label_ja,
         "matched_count": len(picked_names),
         "picked": picked_names,
         "reason": f"{label_ja}の気質に寄せて上位を選びました",
     }
+
+    log.info(
+        "[concierge][astro] attached _astro sign=%s elem=%s code=%s picked=%s",
+        prof.sign,
+        prof.element,
+        element_code(prof.element),
+        picked_names,
+    )
     return recs
 
 
@@ -391,6 +430,16 @@ def _apply_user_filters(
     return recs
 
 
+def _astro_enabled(birthdate: Optional[str]) -> bool:
+    if not birthdate:
+        return False
+    try:
+        from temples.domain.astrology import sun_sign_and_element
+        return bool(sun_sign_and_element(birthdate))
+    except Exception:
+        return False
+
+
 def build_chat_recommendations(
     *,
     query: str,
@@ -401,6 +450,15 @@ def build_chat_recommendations(
     goriyaku_tag_ids: Optional[List[int]] = None,
     extra_condition: Optional[str] = None,
 ) -> Dict[str, Any]:
+    log.info(
+        "[svc/chat] birthdate=%r goriyaku=%r extra=%r query=%r candidates=%d",
+        birthdate,
+        goriyaku_tag_ids,
+        extra_condition,
+        (query or "")[:40],
+        len(candidates or []),
+    )
+
     try:
         from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
         recs: Any = Orchestrator().suggest(query=query, candidates=candidates)
@@ -424,10 +482,9 @@ def build_chat_recommendations(
         else:
             recs["recommendations"] = [{"name": "近隣の神社", "reason": ""}]
 
-    pre_limit = 12 if birthdate else 3
+    pre_limit = 12 if _astro_enabled(birthdate) else 3
     recs = _topup_recommendations_with_candidates(recs, candidates=candidates, limit=pre_limit)
 
-    # --- candidates から住所を引けるなら優先して location を埋める（後方互換: location） ---
     cand_addr: dict[str, str] = {}
     for c in candidates or []:
         if not isinstance(c, dict):
@@ -449,7 +506,6 @@ def build_chat_recommendations(
         if not nm:
             continue
 
-        # 1) candidates の address/formatted_address があればそれを短縮して location に入れる
         if nm in cand_addr:
             addr = cand_addr[nm]
             try:
@@ -458,7 +514,6 @@ def build_chat_recommendations(
                 r["location"] = addr
             continue
 
-        # 2) 無ければ Google で引いて location を埋める（テストはこれを期待）
         try:
             addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
         except Exception:
@@ -470,7 +525,6 @@ def build_chat_recommendations(
             except Exception:
                 r["location"] = addr
 
-    # --- candidates のフィールドを recommendations にマージ（詳細導線用 id など） ---
     cand_by_name: dict[str, dict] = {}
     for c in candidates or []:
         if not isinstance(c, dict):
@@ -490,11 +544,9 @@ def build_chat_recommendations(
         if not isinstance(c, dict):
             continue
 
-        # ✅ DB shrine id（詳細導線の鍵）
         if r.get("id") is None and c.get("id") is not None:
             r["id"] = c.get("id")
 
-        # ✅ 座標・住所（新キー）
         if r.get("lat") is None and c.get("lat") is not None:
             r["lat"] = c.get("lat")
         if r.get("lng") is None and c.get("lng") is not None:
@@ -503,16 +555,12 @@ def build_chat_recommendations(
         addr2 = c.get("formatted_address") or c.get("address")
         if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
             r["address"] = addr2.strip()
-        
-        
 
-        # 既存ロジックが使うキー群（絞り込み/スコアに必要）
         if r.get("goriyaku_tag_ids") is None and c.get("goriyaku_tag_ids") is not None:
             r["goriyaku_tag_ids"] = c.get("goriyaku_tag_ids")
         if r.get("popular_score") is None and c.get("popular_score") is not None:
             r["popular_score"] = c.get("popular_score")
 
-        # ✅ 互換: candidates に住所があるなら location 未設定時に埋める（保険）
         if not r.get("location"):
             addr = c.get("formatted_address") or c.get("address")
             if isinstance(addr, str) and addr.strip():
@@ -520,7 +568,7 @@ def build_chat_recommendations(
                     r["location"] = bf._shorten_japanese_address(addr) or addr
                 except Exception:
                     r["location"] = addr
-    # ✅ user filters → astrology → slice
+
     try:
         recs = _apply_user_filters(recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition)
     except Exception:
@@ -529,7 +577,7 @@ def build_chat_recommendations(
     try:
         recs = _maybe_apply_astrology(recs, birthdate=birthdate)
     except Exception:
-        pass
+        log.exception("[concierge][astro] _maybe_apply_astrology crashed -> continue")
 
     try:
         recs["recommendations"] = (recs.get("recommendations") or [])[:3]
@@ -556,17 +604,14 @@ def build_chat_recommendations(
                 "weights": dict(WEIGHTS),
                 "matched_need_tags": [],
             }
-    # ✅ 最終順位：score_total でソート（A案）
+
     try:
-        recs["recommendations"] = sorted(
-            recs.get("recommendations") or [],
-            key=lambda r: (
-                r.get("breakdown", {}).get("score_total", 0.0)
-                if isinstance(r, dict)
-                else 0.0
-            ),
-            reverse=True,
-        )
+        if "_astro" not in recs:
+            recs["recommendations"] = sorted(
+                recs.get("recommendations") or [],
+                key=lambda r: (r.get("breakdown", {}).get("score_total", 0.0) if isinstance(r, dict) else 0.0),
+                reverse=True,
+            )
     except Exception:
         pass
 
@@ -589,14 +634,43 @@ def build_chat_recommendations(
         except Exception:
             r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
 
-    # ✅ デバッグは関数内だけ
     if __debug__:
         try:
-            import logging
-            log = logging.getLogger(__name__)
             keys = [sorted(list(rr.keys())) for rr in (recs.get("recommendations") or []) if isinstance(rr, dict)]
             log.debug("CHAT rec keys: %s", keys)
         except Exception:
             pass
+
+    try:
+        if not isinstance(recs.get("_signals"), dict):
+            recs["_signals"] = {}
+
+        if isinstance(recs.get("_need"), dict):
+            recs["_signals"]["need_tags"] = recs["_need"]
+        elif isinstance(recs.get("_signals").get("need_tags"), dict):
+            pass
+        else:
+            recs["_signals"]["need_tags"] = {"tags": [], "hits": {}}
+
+        if isinstance(recs.get("_astro"), dict):
+            recs["_signals"]["astro"] = recs["_astro"]
+        elif isinstance(recs.get("_signals").get("astro"), dict):
+            pass
+        else:
+            recs["_signals"]["astro"] = None
+
+        recs["_signals"]["user_filters"] = {
+            "birthdate": birthdate,
+            "goriyaku_tag_ids": goriyaku_tag_ids,
+            "extra_condition": extra_condition,
+        }
+
+        if not isinstance(recs.get("_explain"), dict):
+            recs["_explain"] = {"summary": None, "per_item": {}}
+        else:
+            recs["_explain"].setdefault("summary", None)
+            recs["_explain"].setdefault("per_item", {})
+    except Exception:
+        pass
 
     return recs

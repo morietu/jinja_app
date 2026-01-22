@@ -34,6 +34,12 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryI
 
   // ✅ 正式な神社
   if (typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0) {
+    const params = new URLSearchParams();
+    params.set("ctx", "concierge");
+    if (tid) params.set("tid", tid);
+
+    const detailHref = `/shrines/${shrineId}?${params.toString()}`;
+
     return (
       <ShrineCard
         shrineId={shrineId}
@@ -44,6 +50,7 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryI
         initialFav={false}
         readOnly={false}
         breakdown={rec.breakdown ?? null}
+        detailHref={detailHref} // ✅ 追加
       />
     );
   }

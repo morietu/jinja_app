@@ -181,6 +181,7 @@ def _parse_radius(data: Dict[str, Any]) -> int:
         r = 8000
     return max(1, min(50000, r))
 
+
 def _to_float(v: Any) -> Optional[float]:
     if v is None:
         return None
@@ -279,6 +280,14 @@ class ConciergeChatView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data or {}
 
+        # --- debug: request 受け取り ---
+        log.info(
+            "[api/chat] keys=%s filters=%r birthdate_top=%r",
+            list((request.data or {}).keys()),
+            (request.data or {}).get("filters"),
+            (request.data or {}).get("birthdate"),
+        )
+
         # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
         filters = data.get("filters") or {}
         if isinstance(filters, dict):
@@ -291,6 +300,14 @@ class ConciergeChatView(APIView):
             data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
         if not data.get("extra_condition") and filters.get("extra_condition"):
             data["extra_condition"] = filters.get("extra_condition")
+
+        # --- debug: merge 後 ---
+        log.info(
+            "[api/chat] after_merge birthdate=%r goriyaku=%r extra=%r",
+            (data.get("birthdate") or None),
+            data.get("goriyaku_tag_ids"),
+            data.get("extra_condition"),
+        )
 
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
@@ -306,10 +323,18 @@ class ConciergeChatView(APIView):
 
         language = (data.get("language") or "ja").strip()
 
-
         area = data.get("area") or data.get("where") or data.get("location_text")
         
-        candidates = build_chat_candidates(
+       
+
+        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
+        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
+        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
+
+        lat = _to_float(data.get("lat"))
+        lng = _to_float(data.get("lng"))
+        
+        candidates = user_candidates + build_chat_candidates(
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             area=area,
             lat=data.get("lat"),
@@ -317,452 +342,7 @@ class ConciergeChatView(APIView):
         )
         
 
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
 
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=data.get("lat"),
-            lng=data.get("lng"),
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
-        candidates = user_candidates + build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
-            lat=lat,
-            lng=lng,
-        )
-        
 
         # ✅ テストが locationbias=8000 を見るので probe は残す（結果は使わない）
         try:
@@ -818,11 +398,8 @@ class ConciergeChatView(APIView):
             usage.save(update_fields=["count"])
             remaining = max(daily_limit - usage.count, 0)
 
-
         birthdate = (data.get("birthdate") or "").strip() or None
-
-        
-            
+        log.warning("[concierge_chat] birthdate=%r (raw=%r, filters=%r)", birthdate, data.get("birthdate"), (data.get("filters") if isinstance(data.get("filters"), dict) else None))
 
         recs = build_chat_recommendations(
             query=query,
@@ -859,10 +436,7 @@ class ConciergeChatView(APIView):
 
         recs["recommendations"] = items[:3]
 
-        try:
-            _probe_area_locationbias_for_chat(area=area)
-        except Exception:
-            pass
+        
 
         body = {"ok": True, "intent": intent, "data": recs}
 
@@ -883,6 +457,7 @@ class ConciergeChatView(APIView):
         else:
             # ✅ queryモードでも reply キーは常に返す（テスト契約）
             body["reply"] = None if not candidates else "おすすめを表示します。"
+
         # --- thread 保存（認証ユーザーのみ）---
         thread_obj = None
         if user is not None and getattr(user, "is_authenticated", False):
@@ -942,6 +517,8 @@ class ConciergePlanView(APIView):
             serializer_validated=s.validated_data or {},
         )
         return Response(body, status=status.HTTP_200_OK)
+
+    
 
 
 class ConciergePlanViewLegacy(ConciergePlanView):

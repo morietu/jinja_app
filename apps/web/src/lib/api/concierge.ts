@@ -21,10 +21,6 @@ export type ConciergeBreakdown = {
   matched_need_tags: string[];
 };
 
-
-
-
-
 export type {
   ConciergeThread,
   ConciergeMessage,
@@ -76,4 +72,13 @@ export async function fetchThreadDetail(threadId: string): Promise<ConciergeThre
     }
     throw err;
   }
+}
+
+export async function getConciergeThread(tid: string) {
+  const res = await fetch(`/api/concierge-threads/${encodeURIComponent(tid)}/`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`getConciergeThread failed: ${res.status}`);
+  return res.json();
 }

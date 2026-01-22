@@ -336,6 +336,9 @@ class ConciergeThread(models.Model):
     # 最後のメッセージ時間（ソート用）
     last_message_at = models.DateTimeField(null=True, blank=True)
 
+    recommendations = models.JSONField(null=True, blank=True)
+    recommendations_v2 = models.JSONField(null=True, blank=True)
+
     class Meta:
         ordering = ["-last_message_at", "-id"]
         indexes = [
@@ -462,7 +465,9 @@ class RankingLog(models.Model):
 
 class ConciergeHistory(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="concierge_histories"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="concierge_histories"
     )
     shrine = models.ForeignKey(
         Shrine,

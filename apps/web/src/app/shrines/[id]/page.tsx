@@ -14,6 +14,15 @@ import DetailSection from "@/components/shrine/DetailSection";
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
+
+import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import { getConciergeThread } from "@/lib/api/concierge"; 
+import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
+
+import type { ConciergeBreakdown } from "@/lib/api/concierge";
+import ConciergeBreakdownBody, { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
+
+
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
 }
@@ -32,7 +41,14 @@ function getBenefitLabels(shrine: Shrine): string[] {
 }
 
 
+function pickBreakdownFromThread(thread: unknown, shrineId: number): ConciergeBreakdown | null {
+  const t = thread as any;
+  const recs = t?.recommendations ?? t?.recommendations_v2 ?? [];
+  if (!Array.isArray(recs)) return null;
 
+  const hit = recs.find((r: any) => Number(r?.shrine?.id ?? r?.shrine_id ?? r?.shrineId) === shrineId);
+  return (hit?.breakdown ?? hit?.reason_breakdown ?? null) as ConciergeBreakdown | null;
+}
 
 
 
@@ -151,10 +167,30 @@ export default async function Page({ params, searchParams }: Props) {
   // ✅ ShrineCard用のpropsを構築
   const { cardProps } = buildShrineCardProps(s);
   const publicCount = publicGoshuins.length; // まずはこれで暫定OK（limit=12でも十分）
+  
+  let conciergeBreakdown: ConciergeBreakdown | null = null;
+
+  if (ctx === "concierge" && tid) {
+    try {
+      const thread = await getConciergeThread(String(tid));
+      conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
+    } catch {
+      conciergeBreakdown = null;
+    }
+  }
+
   const exp = buildShrineExplanation({ shrine: s, publicCount });
 
-  const judgeTitle = exp.hasSignal ? "判断材料" : "目安";
+ 
+  const concierge = conciergeBreakdown; // alias（読みやすさ用）
+
+  const useConcierge = concierge !== null;
+
+  const judgeTitle = useConcierge ? "おすすめ理由" : exp.hasSignal ? "判断材料" : "目安";
+  const judgeLevel: SignalLevel = useConcierge ? "strong" : exp.signalLevel;
   
+  const judgeSummary = useConcierge ? buildOneLiner(concierge) : exp.summary;
+  const judgeHint = useConcierge ? buildConciergeHint(concierge) : exp.strongHint;
 
   return (
     <>
@@ -185,42 +221,44 @@ export default async function Page({ params, searchParams }: Props) {
 
           {/* 説明セクション（固定テンプレ） */}
           <DetailSection title="説明">
-            <DetailDisclosureBlock
-              title={judgeTitle}
-              summary={exp.summary}
-              level={exp.signalLevel}
-              hint={exp.strongHint} // strongHint を追加するなら（後述）
-            >
-              <div className="space-y-3 text-sm text-slate-800">
-                <div>
-                  <div className="text-xs font-semibold text-slate-500">合う人</div>
-                  <p className="line-clamp-3">{exp.fit}</p>
+            <DetailDisclosureBlock title={judgeTitle} summary={judgeSummary} level={judgeLevel} hint={judgeHint}>
+              {useConcierge ? (
+                <div className="space-y-2 text-sm text-slate-800">
+                  <div className="text-xs font-semibold text-slate-500">おすすめ理由（内訳）</div>
+                  <ConciergeBreakdownBody breakdown={concierge!} />
                 </div>
-
-                {exp.hasSignal ? (
-                  <>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
-                      <p className="mt-1 line-clamp-3">{exp.unfit}</p>
-                    </div>
-
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
-                      <p className="mt-1 line-clamp-3">{exp.howto}</p>
-                    </div>
-
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">注意</div>
-                      <p className="mt-1 line-clamp-3">{exp.note}</p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-sm text-slate-800 space-y-2">
-                    <p className="text-xs text-slate-500">情報が少ないため、現時点では目安として扱ってください。</p>
-                    <p className="line-clamp-3">{exp.note}</p>
+              ) : (
+                <div className="space-y-3 text-sm text-slate-800">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">合う人</div>
+                    <p className="line-clamp-3">{exp.fit}</p>
                   </div>
-                )}
-              </div>
+
+                  {exp.hasSignal ? (
+                    <>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
+                        <p className="mt-1 line-clamp-3">{exp.unfit}</p>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
+                        <p className="mt-1 line-clamp-3">{exp.howto}</p>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">注意</div>
+                        <p className="mt-1 line-clamp-3">{exp.note}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2 text-sm text-slate-800">
+                      <p className="text-xs text-slate-500">情報が少ないため、現時点では目安として扱ってください。</p>
+                      <p className="line-clamp-3">{exp.note}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </DetailDisclosureBlock>
           </DetailSection>
 

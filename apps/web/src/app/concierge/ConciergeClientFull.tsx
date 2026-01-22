@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
 import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
@@ -20,13 +20,8 @@ import ConciergeSectionsRenderer from "@/features/concierge/components/Concierge
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
-
 import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
-
-
-
-
 
 /* ========================================
  * types / consts
@@ -50,8 +45,6 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   水: ["縁結び", "子宝・安産", "病気平癒"],
 };
 
-
-
 /* ========================================
  * utils
  * ====================================== */
@@ -61,6 +54,24 @@ function isValidISODate(s: string): boolean {
   if (Number.isNaN(d.getTime())) return false;
   const [y, m, dd] = s.split("-").map(Number);
   return d.getUTCFullYear() === y && d.getUTCMonth() + 1 === m && d.getUTCDate() === dd;
+}
+
+function normalizeISODate(s: string): string | null {
+  const t = (s || "").trim();
+  if (!t) return null;
+
+  // 2000-3-21 / 2000-03-21 を許容
+  const m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) {
+    const y = m[1];
+    const mm = m[2].padStart(2, "0");
+    const dd = m[3].padStart(2, "0");
+    const iso = `${y}-${mm}-${dd}`;
+    return isValidISODate(iso) ? iso : null;
+  }
+
+  // 既に正しい形式ならそのまま
+  return isValidISODate(t) ? t : null;
 }
 
 function birthdateToElement4(birthdateISO: string): Element4 | null {
@@ -150,8 +161,6 @@ export default function ConciergeClientFull() {
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
-  
-
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
@@ -162,8 +171,6 @@ export default function ConciergeClientFull() {
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
-
-  
 
   useEffect(() => {
     if (!promotedTid) return;
@@ -259,15 +266,66 @@ export default function ConciergeClientFull() {
 
   const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
 
-  const recommendations = useMemo(() => {
+  const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
-      if (e.type !== "assistant_state") continue;
-      const recs = e.unified?.data?.recommendations;
-      if (Array.isArray(recs)) return recs;
+      if (e.type === "assistant_state") return e.unified;
     }
-    return [];
+    return null;
   }, [events]);
+
+  const recommendations = useMemo(() => {
+    const recs = lastUnified?.data?.recommendations;
+    return Array.isArray(recs) ? recs : [];
+  }, [lastUnified]);
+
+  useEffect(() => {
+    console.log("[ui] _astro =", lastUnified?.data?._astro);
+  }, [lastUnified]);
+
+  const thread: ConciergeThread | null = useMemo(() => {
+    const t = lastUnified?.thread;
+    return t && typeof t.id === "number" ? t : null;
+  }, [lastUnified]);
+
+  const chatThreadId =
+    typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
+
+  const baseFilters: ConciergeChatFilters = useMemo(() => {
+    const bd = normalizeISODate(birthdate) ?? undefined;
+    const extra = extraCondition.trim() || undefined;
+
+    return {
+      birthdate: bd,
+      goriyaku_tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
+      extra_condition: extra,
+    };
+  }, [birthdate, selectedTagIds, extraCondition]);
+
+  const { send, sending, error } = useConciergeChat(chatThreadId, {
+    filters: baseFilters,
+    onUnified: (u) => {
+      const now = new Date().toISOString();
+      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
+      const currentTid = activeThreadIdRef.current;
+
+      if (currentTid === 0 && nextTid !== 0) {
+        setActiveTid(nextTid);
+        setPromotedTid(nextTid);
+      }
+
+      setEventsByThread((prev) =>
+        appendEvents(
+          currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
+          nextTid || currentTid,
+          [
+            { type: "assistant_state", unified: u, at: now },
+            ...(u.reply ? [{ type: "assistant_reply", text: u.reply, at: now } as const] : []),
+          ],
+        ),
+      );
+    },
+  });
 
   const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
 
@@ -279,18 +337,6 @@ export default function ConciergeClientFull() {
     const setNames = new Set(names);
     return goriyakuTags.filter((t) => setNames.has(t.name));
   }, [element4, goriyakuTags]);
-
-  const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
-    for (let i = events.length - 1; i >= 0; i--) {
-      const e = events[i];
-      if (e.type === "assistant_state") return e.unified;
-    }
-    return null;
-  }, [events]);
-
-  useEffect(() => {
-    console.log("[recs]", recommendations);
-  }, [recommendations]);
 
   const stopReason: StopReason =
     process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
@@ -328,72 +374,27 @@ export default function ConciergeClientFull() {
     ],
   );
 
-  
-
   const payload = useMemo(() => {
     return buildPayloadFromUnified(lastUnified, filterState) ?? buildDummySections(filterState);
   }, [lastUnified, filterState]);
-
-  const thread: ConciergeThread | null = useMemo(() => {
-    const t = lastUnified?.thread;
-    return t && typeof t.id === "number" ? t : null;
-  }, [lastUnified]);
 
   const messages = useMemo(
     () => deriveMessages(events, thread?.id ?? activeThreadId),
     [events, thread, activeThreadId],
   );
 
-  const chatThreadId =
-    typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
-
-  const { send, sending, error } = useConciergeChat(chatThreadId, {
-    onUnified: (u) => {
-      console.log("[chat.res.data.recommendations]", u?.data?.recommendations);
-      console.log("[chat.res.data.recommendations[0]?.id]", u?.data?.recommendations?.[0]?.id);
-      const now = new Date().toISOString();
-      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
-      const currentTid = activeThreadIdRef.current;
-
-      if (currentTid === 0 && nextTid !== 0) {
-        setActiveTid(nextTid);
-        setPromotedTid(nextTid);
-      }
-
-      setEventsByThread((prev) =>
-        appendEvents(
-          currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
-          nextTid || currentTid,
-          [
-            { type: "assistant_state", unified: u, at: now },
-            ...(u.reply ? [{ type: "assistant_reply", text: u.reply, at: now } as const] : []),
-          ],
-        ),
-      );
-    },
-  });
-
   // ✅ FilterPanel用：payload を作る（thread_id は hooks 側が注入する前提）
-  const buildFilterPayload = (): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
-    const extra = extraCondition.trim();
-    const bd = birthdate && isValidISODate(birthdate) ? birthdate : undefined;
-
-    const filters: ConciergeChatFilters = {
-      goriyaku_tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
-      birthdate: bd,
-      extra_condition: extra ? extra : undefined,
-    };
-
-    const hasFilter = (filters.goriyaku_tag_ids?.length ?? 0) > 0 || !!filters.birthdate || !!filters.extra_condition;
+  const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
+    const hasFilter =
+      (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
     if (!hasFilter) return null;
 
     return {
       version: 1,
       query: "条件を追加して絞り込みたいです。",
-      filters,
     };
-  };
+  }, [baseFilters]);
 
   const onRendererAction = (a: RendererAction) => {
     switch (a.type) {
@@ -436,7 +437,6 @@ export default function ConciergeClientFull() {
     }
   };
 
-  
   return (
     <ConciergeLayout
       messages={messages}
