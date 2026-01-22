@@ -44,12 +44,7 @@ except Exception:  # pragma: no cover
         return {"recommendations": []}
 
 
-def _clean_display_name(name: Any) -> str:
-    """(ダミー)などの補助フラグを表示から外す"""
-    if not isinstance(name, str):
-        return str(name)
-    n = name.replace("(ダミー)", "").replace("（ダミー）", "")
-    return n.strip()
+
 
 
 # --- pytest 安定化：外部 export された BILLING_STUB_* に引きずられない ---
@@ -413,30 +408,7 @@ class ConciergeChatView(APIView):
             extra_condition=data.get("extra_condition"),
         )
 
-        # --- 無条件3件保証（最後の砦）---
-        items = recs.get("recommendations") or []
-        if len(items) < 3:
-            used = {r.get("name") for r in items if isinstance(r, dict)}
-            for c in candidates or []:
-                name = c.get("name")
-                if not name or name in used:
-                    continue
-                items.append(
-                    {
-                        "name": name,
-                        "reason": "周辺で参拝しやすい神社",
-                        "bullets": [
-                            "周辺エリアから選定",
-                            "比較的参拝しやすい立地",
-                            "条件に近い可能性",
-                        ],
-                    }
-                )
-                used.add(name)
-                if len(items) >= 3:
-                    break
-
-        recs["recommendations"] = items[:3]
+        
 
         body = {"ok": True, "intent": intent, "data": recs}
 
