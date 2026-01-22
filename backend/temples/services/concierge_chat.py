@@ -513,17 +513,16 @@ def build_chat_recommendations(
     )
 
     # =========================================================
-    # 1. 入口で candidates を正規化（lat/lng 必須）
+    
     # =========================================================
+    
+    
     valid_candidates = [
         c for c in (candidates or [])
-        if isinstance(c, dict) and c.get("lat") is not None and c.get("lng") is not None
+        if isinstance(c, dict) and (c.get("name") or "").strip()
     ]
 
-    if not valid_candidates:
-        recs = {"recommendations": []}
-        recs["_signals"] = {"empty_reason": "no_valid_candidates"}
-        return recs
+
 
     # =========================================================
     # 2. LLMで初期推薦を取得
@@ -541,6 +540,43 @@ def build_chat_recommendations(
     if "recommendations" not in recs or recs["recommendations"] is None:
         recs["recommendations"] = []
 
+    # ---------------------------------------------------------
+    # Orchestrator結果を正規化（dedupe）
+    # ---------------------------------------------------------
+    items0 = recs.get("recommendations") or []
+    items0 = [r for r in items0 if isinstance(r, dict)]
+    recs["recommendations"] = _dedupe_by_name(items0)
+
+    # ---------------------------------------------------------
+    # candidates が無い場合は、Orchestrator上位3件をそのまま返す（テスト契約）
+    # ---------------------------------------------------------
+    astro_on = _astro_enabled(birthdate)
+
+    if not valid_candidates and not astro_on:
+        recs["recommendations"] = (recs.get("recommendations") or [])[:3]
+
+        # 表示整形だけ（reason/bulletsなど最低限）
+        for r in recs["recommendations"]:
+            if r.get("location") is None:
+                r["location"] = ""
+            if r.get("name"):
+                cleaned = _clean_display_name(r["name"])
+                r["display_name"] = cleaned
+                r["name"] = cleaned
+            try:
+                r["reason"] = normalize_reason_for_chat(r, query=query)
+            except Exception:
+                r["reason"] = "静かに手を合わせたい社"
+            try:
+                r["bullets"] = build_bullets_for_chat(r, query=query)
+            except Exception:
+                r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
+
+        # signals 最低限
+        recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
+        recs["_signals"]["empty_reason"] = None
+        return recs
+
     # =========================================================
     # 3. need（ご利益タグ）抽出
     # =========================================================
@@ -551,7 +587,7 @@ def build_chat_recommendations(
     # =========================================================
     # 4. 候補プールの準備（12件 or 3件）
     # =========================================================
-    pre_limit = 12 if _astro_enabled(birthdate) else 3
+    pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
 
     # =========================================================
@@ -709,20 +745,26 @@ def build_chat_recommendations(
     # =========================================================
     # 9. lat/lng必須チェック（recommendations側）
     # =========================================================
-    recs["recommendations"] = [
-        r for r in (recs.get("recommendations") or [])
-        if isinstance(r, dict) and r.get("lat") is not None and r.get("lng") is not None
-    ]
+    if valid_candidates:
+        before_geo = list(recs.get("recommendations") or [])
+        filtered = [
+            r for r in (recs.get("recommendations") or [])
+            if isinstance(r, dict) and r.get("lat") is not None and r.get("lng") is not None
+        ]
+        # 位置情報の欠落で3件未満になる場合は絞り込みをスキップ
+        recs["recommendations"] = filtered if len(filtered) >= 3 else before_geo
+
+    
 
     # =========================================================
     # 10. 最終3件確定（ここ1回だけ）
     # =========================================================
-    pool_all = [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
+    pool_all = list(recs.get("recommendations") or [])
     
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
     items = recs.get("recommendations") or []
 
-    # ✅ 3件揃わなければ理由付きで返す
+    
     if not isinstance(items, list) or len(items) < 3:
         recs["_signals"] = recs.get("_signals") or {}
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
@@ -756,7 +798,7 @@ def build_chat_recommendations(
         except Exception:
             r["reason"] = "静かに手を合わせたい社"
 
-        # bullets
+        
         try:
             r["bullets"] = build_bullets_for_chat(r, query=query)
         except Exception:
@@ -800,17 +842,8 @@ def build_chat_recommendations(
             "flow": flow,
             "astro_bonus_enabled": astro_bonus_enabled,
         }
-
-        if isinstance(recs.get("_need"), dict):
-            recs["_signals"]["need_tags"] = recs["_need"]
-        else:
-            recs["_signals"]["need_tags"] = {"tags": [], "hits": {}}
-
-        if isinstance(recs.get("_astro"), dict):
-            recs["_signals"]["astro"] = recs["_astro"]
-        else:
-            recs["_signals"]["astro"] = None
-
+        recs["_signals"]["need_tags"] = recs.get("_need") if isinstance(recs.get("_need"), dict) else {"tags": [], "hits": {}}
+        recs["_signals"]["astro"] = recs.get("_astro") if isinstance(recs.get("_astro"), dict) else None
         recs["_signals"]["user_filters"] = {
             "birthdate": birthdate,
             "goriyaku_tag_ids": goriyaku_tag_ids,
