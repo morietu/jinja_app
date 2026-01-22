@@ -26,10 +26,12 @@ export async function POST(req: NextRequest) {
   let payload: any = null;
   try {
     payload = await req.json();
-    console.log("[api/concierge/chat] payload=", payload);
+    console.log("[api/concierge/chat] forward body =", payload);
     console.log("[api/concierge/chat] payload.filters.birthdate=", payload?.filters?.birthdate);
     console.log("[api/concierge/chat] payload.birthdate=", payload?.birthdate);
-  } catch {}
+  } catch {
+    // noop: body is not JSON (or already consumed)
+  }
 
   // 1st try
   const accessCookie = req.cookies.get("access_token")?.value;
@@ -37,7 +39,6 @@ export async function POST(req: NextRequest) {
 
   console.log("[api/concierge/chat] hasCookieAccess=", !!req.cookies.get("access_token")?.value);
   console.log("[api/concierge/chat] hasAuthHeader=", !!req.headers.get("authorization"));
-
 
   const auth1 = headerAuth ?? (accessCookie ? `Bearer ${accessCookie}` : null);
 
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
       try {
         body2 = JSON.parse(text2);
       } catch {
+        // noop: backend returned non-JSON
         body2 = { raw: text2 };
       }
 
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
   try {
     body1 = JSON.parse(text1);
   } catch {
+    // noop: backend returned non-JSON
     body1 = { raw: text1 };
   }
 

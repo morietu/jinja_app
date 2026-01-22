@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/buildPayloadFromUnified.ts
 import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type {
   ConciergeSectionsPayload,
@@ -22,6 +21,7 @@ export function buildPayloadFromUnified(
 
   const items = recs
     .map((r: any) => {
+      // place recommendation
       if (typeof r?.place_id === "string" && r.place_id.trim()) {
         const qs = new URLSearchParams(qsBase);
         return {
@@ -36,6 +36,7 @@ export function buildPayloadFromUnified(
         };
       }
 
+      // registered shrine recommendation
       const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? r?.id ?? null;
       const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
 
@@ -80,15 +81,22 @@ export function buildPayloadFromUnified(
     },
   ];
 
-  // ✅ ここで _astro を UI に出す（型が確実に通る guide で出す）
-  const astro = (u as any)?.data?._astro;
-  if (astro) {
-    const line = `${astro.sun_sign ?? ""} / ${astro.label_ja ?? astro.element ?? ""}${
-      astro.element_code ? `（${astro.element_code}）` : ""
-    }: ${astro.reason ?? ""}`.trim();
+  // ✅ astro: _signals 優先、無ければ _astro。変な型は弾く
+  const astroRaw = (u as any)?.data?._signals?.astro ?? (u as any)?.data?._astro ?? null;
+  const astro = astroRaw && typeof astroRaw === "object" ? astroRaw : null;
 
-    sections.splice(2, 0, { type: "guide", text: `占星術フィルター: ${line}` } as any);
-    // ↑ recommendations の直前に差し込む（見つけやすい）
+  if (astro && (astro.label_ja || astro.element || astro.reason || astro.sun_sign)) {
+    const idx = sections.findIndex((s) => s.type === "recommendations");
+    const insertAt = idx >= 0 ? idx : 2;
+
+    sections.splice(insertAt, 0, {
+      type: "astro",
+      title: "占星術フィルター",
+      sunSign: typeof astro.sun_sign === "string" ? astro.sun_sign : undefined,
+      element: String(astro.label_ja ?? astro.element ?? ""),
+      elementCode: typeof astro.element_code === "string" ? astro.element_code : undefined,
+      reason: typeof astro.reason === "string" ? astro.reason : undefined,
+    });
   }
 
   return { version: 1, sections };

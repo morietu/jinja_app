@@ -94,6 +94,7 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
+  filters?: ConciergeChatFilters;
   onUnified?: (u: UnifiedConciergeResponse) => void;
 
   onUpdated?: (payload: {
@@ -134,8 +135,6 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   const tid = Number(raw?.thread?.id);
   const thread = raw?.thread && Number.isFinite(tid) ? ({ ...raw.thread, id: tid } as ConciergeThread) : null;
 
-  
-
   // ✅ ここが重要：raw.data を保持しつつ recommendations だけ正規化で上書き
   const rawData = raw?.data && typeof raw.data === "object" ? raw.data : {};
   return {
@@ -159,20 +158,29 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
   const send = useCallback(
     async (input: SendInput) => {
+      const baseFilters = options?.filters;
+
       const req: ConciergeChatRequestV1 =
         typeof input === "string"
           ? { version: 1, query: input.trim(), thread_id: threadId ?? undefined }
           : { ...input, version: 1, thread_id: threadId ?? undefined };
+
+      // ✅ filters を必ず合成（input 側が優先、無ければ base）
+      const mergedFilters = {
+        ...(baseFilters ?? {}),
+        ...((req as any).filters ?? {}),
+      };
+
+      // ✅ 空なら付けない（ログ汚し防止）
+      if (Object.keys(mergedFilters).length > 0) {
+        (req as any).filters = mergedFilters;
+      }
 
       // query は必須（空なら送らない）
       if (!req.query?.trim()) return;
 
       setSending(true);
       setError(null);
-
-      if (process.env.NODE_ENV !== "production") {
-        
-      }
 
       try {
         const res = await postConciergeChat(req);
@@ -183,16 +191,14 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
         // recommendations は payload 起点で統一
         const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
-        
-        // unified も payload 起点で統一
+
+        // unified も payload 起点で統一（raw.data を保持しつつ recs を上書き）
         const unified = normalizeConciergeResponse(payload, recs);
 
-        
-
         if (process.env.NODE_ENV !== "production") {
-          // 必要なら見たい時だけ
-          // console.log("[chat] req", req);
-          // console.log("[chat] payload", payload);
+          console.log("[hook] payload.data._signals=", payload?.data?._signals);
+          console.log("[hook] unified.data._signals=", (unified as any)?.data?._signals);
+          console.log("[hook] unified.data._explain=", (unified as any)?.data?._explain);
         }
 
         options?.onUnified?.(unified);

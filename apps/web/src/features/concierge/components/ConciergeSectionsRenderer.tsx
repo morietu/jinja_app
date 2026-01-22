@@ -153,10 +153,8 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           }
 
           // ✅ ここが本題
-          case "astro": {
-            const a = sec as any;
-            return <AstroCard key={`astro-${i}`} sunSign={a.sunSign} element={a.element} reason={a.reason} />;
-          }
+          case "astro":
+            return <AstroCard key={`astro-${i}`} sunSign={sec.sunSign} element={sec.element} reason={sec.reason} />;
 
           default:
             return null;
