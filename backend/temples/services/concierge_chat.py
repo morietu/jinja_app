@@ -14,11 +14,15 @@ FLOW_DEFINITIONS = {
         "description": "chat balanced recommendation",
         "weights": {"element": 0.6, "need": 0.3, "popular": 0.1},
         "astro_bonus_enabled": False,
+        "ui_label_ja": "バランス",
+        "ui_note_ja": "条件と人気も含めて総合的におすすめしています",
     },
     "B": {
         "description": "astrology-driven exploration",
         "weights": {"element": 0.8, "need": 0.2, "popular": 0.0},
         "astro_bonus_enabled": False,
+        "ui_label_ja": "占星術強め",
+        "ui_note_ja": "生年月日（星座/四元素）を強く反映して並べ替えています",
     },
 }
 
@@ -78,6 +82,8 @@ def _ensure_signals_base(
         "weights": dict(mode_weights),
         "astro_bonus_enabled": astro_bonus_enabled,
         "description": flow_def.get("description"),
+        "ui_label_ja": flow_def.get("ui_label_ja"),
+        "ui_note_ja": flow_def.get("ui_note_ja"),
     }
     recs["_signals"]["need_tags"] = (
         recs.get("_need") if isinstance(recs.get("_need"), dict) else {"tags": [], "hits": {}}

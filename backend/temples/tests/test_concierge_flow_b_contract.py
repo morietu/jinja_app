@@ -37,3 +37,6 @@ def test_flow_b_contract(monkeypatch):
     assert mode["flow"] == "B"
     assert mode["weights"] == {"element": 0.8, "need": 0.2, "popular": 0.0}
     assert mode["astro_bonus_enabled"] is False
+
+    assert mode["ui_label_ja"] == "占星術強め"
+    assert mode["ui_note_ja"] == "生年月日（星座/四元素）を強く反映して並べ替えています"
