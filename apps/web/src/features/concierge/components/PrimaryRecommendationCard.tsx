@@ -5,6 +5,7 @@ import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
+import { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 
 type Props = {
   rec: ConciergeRecommendation;
@@ -32,6 +33,10 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryI
 
   const badges = Array.isArray(needTags) ? needTags.filter((t) => typeof t === "string" && t.trim()) : [];
 
+  const heroBadges = ["今のあなたに最適", pickReasonLabel(rec.breakdown)].filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  );
+
   // ✅ 正式な神社
   if (typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0) {
     const params = new URLSearchParams();
@@ -50,7 +55,8 @@ export default function PrimaryRecommendationCard({ rec, primaryIndex: _primaryI
         initialFav={false}
         readOnly={false}
         breakdown={rec.breakdown ?? null}
-        detailHref={detailHref} // ✅ 追加
+        detailHref={detailHref}
+        badgesOverride={heroBadges}
       />
     );
   }

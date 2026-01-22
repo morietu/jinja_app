@@ -11,37 +11,62 @@ type Props = {
 };
 
 export default function RecommendationSwitchList({ items, primaryIndex, onSelect }: Props) {
-  console.log("[SwitchList] items.length =", items?.length, "primaryIndex =", primaryIndex);
   if (!items || items.length <= 1) return null;
 
   return (
     <div className="space-y-2">
-      <ul className="space-y-2">
-        {items.map((r, idx) => {
-          if (idx === primaryIndex) return null;
+      {/* 横スクロールチップ */}
+      <div className="-mx-1 overflow-x-auto">
+        <ul className="flex gap-2 px-1 pb-1">
+          {items.map((r, idx) => {
+            if (idx === primaryIndex) return null;
 
-          const tag = benefitLabel(pickBenefitTagFromRec(r));
-          const title = (r.display_name || r.name || "").trim() || "（名称不明）";
+            const tag = benefitLabel(pickBenefitTagFromRec(r));
+            const title = (r.display_name || r.name || "").trim() || "（名称不明）";
 
-          return (
-            <li key={(r as any).shrine_id ?? r.id ?? (r as any).place_id ?? idx}>
-              <button
-                type="button"
-                onClick={() => onSelect(idx)}
-                className="flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm hover:bg-slate-50"
-              >
-                <span className="truncate font-medium text-slate-900">{title}</span>
-                {tag ? (
-                  <span className="ml-2 inline-flex shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                    {tag}
-                  </span>
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="text-[11px] text-slate-500">タップすると1件目を切り替えます</p>
+            return (
+              <li key={(r as any).shrine_id ?? r.id ?? (r as any).place_id ?? idx} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onSelect(idx)}
+                  className={`
+                    flex max-w-[220px] items-center gap-2
+                    rounded-full px-4 py-2
+                    text-left text-sm font-medium
+                    bg-white
+                    ring-1 ring-inset ring-neutral-200
+                    shadow-sm
+                    transition
+                    hover:bg-neutral-50
+                    active:scale-[0.98]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400
+                  `}
+                >
+                  <span className="truncate text-neutral-900">{title}</span>
+
+                  {tag ? (
+                    <span
+                      className="
+                        inline-flex shrink-0
+                        rounded-full
+                        bg-neutral-100
+                        px-2 py-0.5
+                        text-[11px] font-semibold
+                        text-neutral-700
+                        ring-1 ring-inset ring-neutral-200
+                      "
+                    >
+                      {tag}
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <p className="text-[11px] text-neutral-500">タップすると表示中のおすすめを切り替えます</p>
     </div>
   );
 }

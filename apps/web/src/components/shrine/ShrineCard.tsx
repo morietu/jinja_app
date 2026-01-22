@@ -32,14 +32,8 @@ type Props = {
 
   /** concierge のおすすめ内訳（任意） */
   breakdown?: ConciergeBreakdown | null;
-
-  
+  badgesOverride?: string[];
 };
-
-
-
-
-
 
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -62,6 +56,7 @@ export default function ShrineCard({
   readOnly = false,
   detailHref,
   breakdown,
+  badgesOverride,
 }: Props) {
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
@@ -80,12 +75,18 @@ export default function ShrineCard({
 
   const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
 
+
+
   // ✅ バッジは “要約” に寄せる（重複感を減らす）
   const reasonLabel = pickReasonLabel(breakdown);
-  const badges = (["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null].filter(Boolean) as string[]).slice(
-    0,
-    2,
-  );
+  
+  
+  const defaultBadges = ["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null]
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .slice(0, 2);
+
+  const badges =
+    badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
 
   const addr = (address ?? "").trim() || "住所情報は準備中です。";
 
