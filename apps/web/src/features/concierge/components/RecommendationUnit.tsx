@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/components/RecommendationUnit.tsx
 "use client";
 
 import ConciergeCard from "@/components/ConciergeCard";
@@ -38,7 +37,6 @@ export default function RecommendationUnit({ rec, index, needTags = [], tid = nu
   const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
   const placeId = (safe.place_id ?? null)?.toString() || null;
 
-
   const qs = new URLSearchParams();
   qs.set("ctx", "concierge");
   if (tid) qs.set("tid", tid);
@@ -55,9 +53,8 @@ export default function RecommendationUnit({ rec, index, needTags = [], tid = nu
   );
 
   const breakdown = safe.breakdown ?? null;
-
-  // 既存の「おすすめ理由：〜」バッジが欲しければここで追加
   const reasonLabel = pickReasonLabel(breakdown);
+
   const finalBadges = (
     [reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]
   ).slice(0, 3);

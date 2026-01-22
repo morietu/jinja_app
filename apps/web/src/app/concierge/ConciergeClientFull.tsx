@@ -292,6 +292,8 @@ export default function ConciergeClientFull() {
     return t && typeof t.id === "number" ? t : null;
   }, [displayUnified]);
 
+  const mode = useMemo(() => displayUnified?.data?._signals?.mode, [displayUnified]);
+
   const chatThreadId =
     typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
 
@@ -476,7 +478,7 @@ export default function ConciergeClientFull() {
           <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} />
         </div>
       ) : (
-        <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} />
+        <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} mode={mode} />
       )}
     </ConciergeLayout>
   );

@@ -135,8 +135,14 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   const tid = Number(raw?.thread?.id);
   const thread = raw?.thread && Number.isFinite(tid) ? ({ ...raw.thread, id: tid } as ConciergeThread) : null;
 
-  // ✅ ここが重要：raw.data を保持しつつ recommendations だけ正規化で上書き
-  const rawData = raw?.data && typeof raw.data === "object" ? raw.data : {};
+  // ✅ raw.data を保持（objectのみ）。arrayは捨てる
+  const rawData = raw?.data && typeof raw.data === "object" && !Array.isArray(raw.data) ? raw.data : {};
+
+  const sig = (rawData as any)?._signals;
+  if (!sig || typeof sig !== "object" || Array.isArray(sig)) {
+    delete (rawData as any)._signals;
+  }
+  
   return {
     ok,
     stop_reason: stop,
@@ -195,10 +201,14 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         // unified も payload 起点で統一（raw.data を保持しつつ recs を上書き）
         const unified = normalizeConciergeResponse(payload, recs);
 
+        const signals = payload?.data?._signals;
+        const safeSignals = signals && typeof signals === "object" && !Array.isArray(signals) ? signals : undefined;
+
+
+
         if (process.env.NODE_ENV !== "production") {
           console.log("[hook] payload.data._signals=", payload?.data?._signals);
           console.log("[hook] unified.data._signals=", (unified as any)?.data?._signals);
-          console.log("[hook] unified.data._explain=", (unified as any)?.data?._explain);
         }
 
         options?.onUnified?.(unified);
