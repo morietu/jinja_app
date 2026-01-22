@@ -142,7 +142,7 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   if (!sig || typeof sig !== "object" || Array.isArray(sig)) {
     delete (rawData as any)._signals;
   }
-  
+
   return {
     ok,
     stop_reason: stop,
@@ -202,7 +202,9 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         const unified = normalizeConciergeResponse(payload, recs);
 
         const signals = payload?.data?._signals;
-        const safeSignals = signals && typeof signals === "object" && !Array.isArray(signals) ? signals : undefined;
+        if (signals && typeof signals === "object" && !Array.isArray(signals)) {
+          (unified as any).data._signals = signals;
+        }
 
 
 
