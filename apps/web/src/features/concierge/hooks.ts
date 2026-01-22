@@ -212,7 +212,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
         if (payload?.thread) {
           options?.onUpdated?.({
-            thread: payload.thread,
+            thread: payload?.thread ?? null,
             recommendations: recs,
             remaining_free: payload?.remaining_free,
             limit: payload?.limit,

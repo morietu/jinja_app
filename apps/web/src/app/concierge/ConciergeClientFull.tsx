@@ -9,7 +9,7 @@ import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
 
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
-import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
+import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
@@ -60,7 +60,6 @@ function normalizeISODate(s: string): string | null {
   const t = (s || "").trim();
   if (!t) return null;
 
-  // 2000-3-21 / 2000-03-21 を許容
   const m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (m) {
     const y = m[1];
@@ -70,7 +69,6 @@ function normalizeISODate(s: string): string | null {
     return isValidISODate(iso) ? iso : null;
   }
 
-  // 既に正しい形式ならそのまま
   return isValidISODate(t) ? t : null;
 }
 
@@ -160,6 +158,10 @@ export default function ConciergeClientFull() {
   const [birthdate, setBirthdate] = useState("");
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
+
+  // ✅ 初回レスポンス保持（2回送信問題対策）
+  const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
+  const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
 
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
@@ -260,6 +262,8 @@ export default function ConciergeClientFull() {
     };
   }, [isFilterOpen, goriyakuTags.length]);
 
+  
+
   /* dev force */
   const force = sp.get("force");
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
@@ -274,22 +278,46 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
-  const recommendations = useMemo(() => {
-    const recs = lastUnified?.data?.recommendations;
-    return Array.isArray(recs) ? recs : [];
-  }, [lastUnified]);
+  // ✅ 表示ソースは displayUnified に統一
+  const displayUnified = useMemo(() => liveUnified ?? lastUnified, [lastUnified, liveUnified]);
 
-  useEffect(() => {
-    console.log("[ui] _astro =", lastUnified?.data?._astro);
-  }, [lastUnified]);
+  const displayRecommendations = useMemo(() => {
+    if (liveRecs.length > 0) return liveRecs;
+    const recs = displayUnified?.data?.recommendations;
+    return Array.isArray(recs) ? (recs as ConciergeRecommendation[]) : [];
+  }, [liveRecs, displayUnified]);
 
   const thread: ConciergeThread | null = useMemo(() => {
-    const t = lastUnified?.thread;
+    const t = displayUnified?.thread;
     return t && typeof t.id === "number" ? t : null;
-  }, [lastUnified]);
+  }, [displayUnified]);
 
   const chatThreadId =
     typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
+
+  const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
+
+  const suggestedTags = useMemo(() => {
+    if (!element4) return [];
+    if (!Array.isArray(goriyakuTags) || goriyakuTags.length === 0) return [];
+    const names = ELEMENT_TO_GORIYAKU[element4] ?? [];
+    const setNames = new Set(names);
+    return goriyakuTags.filter((t) => setNames.has(t.name));
+  }, [element4, goriyakuTags]);
+
+  const stopReason: StopReason =
+    process.env.NODE_ENV !== "production" && forced ? forced : (displayUnified?.stop_reason ?? null);
+  const canSend = stopReason === null || (process.env.NODE_ENV !== "production" && !!forced);
+
+  const needTags = useMemo(() => {
+    const tags = displayUnified?.data?._need?.tags;
+    return Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
+  }, [displayUnified]);
+
+  const sections = useMemo(
+    () => buildConciergeSections(displayRecommendations as any, needTags),
+    [displayRecommendations, needTags],
+  );
 
   const baseFilters: ConciergeChatFilters = useMemo(() => {
     const bd = normalizeISODate(birthdate) ?? undefined;
@@ -302,53 +330,7 @@ export default function ConciergeClientFull() {
     };
   }, [birthdate, selectedTagIds, extraCondition]);
 
-  const { send, sending, error } = useConciergeChat(chatThreadId, {
-    filters: baseFilters,
-    onUnified: (u) => {
-      const now = new Date().toISOString();
-      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
-      const currentTid = activeThreadIdRef.current;
-
-      if (currentTid === 0 && nextTid !== 0) {
-        setActiveTid(nextTid);
-        setPromotedTid(nextTid);
-      }
-
-      setEventsByThread((prev) =>
-        appendEvents(
-          currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
-          nextTid || currentTid,
-          [
-            { type: "assistant_state", unified: u, at: now },
-            ...(u.reply ? [{ type: "assistant_reply", text: u.reply, at: now } as const] : []),
-          ],
-        ),
-      );
-    },
-  });
-
-  const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
-
-  const suggestedTags = useMemo(() => {
-    if (!element4) return [];
-    if (!Array.isArray(goriyakuTags) || goriyakuTags.length === 0) return [];
-
-    const names = ELEMENT_TO_GORIYAKU[element4] ?? [];
-    const setNames = new Set(names);
-    return goriyakuTags.filter((t) => setNames.has(t.name));
-  }, [element4, goriyakuTags]);
-
-  const stopReason: StopReason =
-    process.env.NODE_ENV !== "production" && forced ? forced : (lastUnified?.stop_reason ?? null);
-  const canSend = stopReason === null || (process.env.NODE_ENV !== "production" && !!forced);
-
-  const needTags = useMemo(() => {
-    const tags = lastUnified?.data?._need?.tags;
-    return Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
-  }, [lastUnified]);
-
-  const sections = useMemo(() => buildConciergeSections(recommendations as any, needTags), [recommendations, needTags]);
-
+  // ✅ filterState は payload より先
   const filterState = useMemo(
     () => ({
       isOpen: isFilterOpen,
@@ -374,16 +356,49 @@ export default function ConciergeClientFull() {
     ],
   );
 
+  // ✅ payload は 1回だけ（displayUnified + filterState）
   const payload = useMemo(() => {
-    return buildPayloadFromUnified(lastUnified, filterState) ?? buildDummySections(filterState);
-  }, [lastUnified, filterState]);
+    return buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState);
+  }, [displayUnified, filterState]);
 
   const messages = useMemo(
     () => deriveMessages(events, thread?.id ?? activeThreadId),
     [events, thread, activeThreadId],
   );
 
-  // ✅ FilterPanel用：payload を作る（thread_id は hooks 側が注入する前提）
+  const { send, sending, error } = useConciergeChat(chatThreadId, {
+    filters: baseFilters,
+
+    // ✅ 初回で cards 出すために保持
+    onRecommendations: (recs) => {
+      setLiveRecs(Array.isArray(recs) ? recs : []);
+    },
+
+    onUnified: (u) => {
+      setLiveUnified(u);
+
+      const now = new Date().toISOString();
+      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
+      const currentTid = activeThreadIdRef.current;
+
+      if (currentTid === 0 && nextTid !== 0) {
+        setActiveTid(nextTid);
+        setPromotedTid(nextTid);
+      }
+
+      setEventsByThread((prev) =>
+        appendEvents(
+          currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
+          nextTid || currentTid,
+          [
+            { type: "assistant_state", unified: u, at: now },
+            ...(u.reply ? [{ type: "assistant_reply", text: u.reply, at: now } as const] : []),
+          ],
+        ),
+      );
+    },
+  });
+
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const hasFilter =
       (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
@@ -448,7 +463,11 @@ export default function ConciergeClientFull() {
         if (!canSend) return;
         void send(trimmed);
       }}
-      onNewThread={() => setActiveTid(0)}
+      onNewThread={() => {
+        setLiveUnified(null);
+        setLiveRecs([]);
+        setActiveTid(0);
+      }}
       canSend={canSend}
       embedMode={false}
     >
