@@ -7,11 +7,14 @@ import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
 import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
 import DetailSection from "@/components/shrine/DetailSection";
+import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
+import ModeBadge from "@/features/concierge/components/ModeBadge";
 
 type Props = {
   sections: ConciergeSection[];
   onNewThread?: () => void;
-  initialPrimaryIndex?: number;
+  mode?: ConciergeModeSignal | null;
+  initialPrimaryIndex?: number; // 既存互換のため optional
 };
 
 function clampIndex(i: number, len: number) {
@@ -20,7 +23,7 @@ function clampIndex(i: number, len: number) {
   return Math.max(0, Math.min(len - 1, i));
 }
 
-export default function ConciergeSections({ sections, onNewThread, initialPrimaryIndex = 0 }: Props) {
+export default function ConciergeSections({ sections, onNewThread, mode = null, initialPrimaryIndex = 0 }: Props) {
   if (!Array.isArray(sections) || sections.length === 0) return null;
 
   return (
@@ -35,7 +38,13 @@ export default function ConciergeSections({ sections, onNewThread, initialPrimar
         }
 
         return (
-          <PrimarySection key={`primary-${i}`} sec={sec} onNewThread={onNewThread} initialIndex={initialPrimaryIndex} />
+          <PrimarySection
+            key={`primary-${i}`}
+            sec={sec}
+            onNewThread={onNewThread}
+            initialIndex={initialPrimaryIndex}
+            mode={mode}
+          />
         );
       })}
     </div>
@@ -46,10 +55,12 @@ function PrimarySection({
   sec,
   onNewThread,
   initialIndex,
+  mode,
 }: {
   sec: Extract<ConciergeSection, { kind: "primary" }>;
   onNewThread?: () => void;
   initialIndex: number;
+  mode?: ConciergeModeSignal | null;
 }) {
   const items = (Array.isArray(sec.items) ? (sec.items as ConciergeRecommendation[]) : []) as ConciergeRecommendation[];
   const needTags = Array.isArray(sec.needTags) ? sec.needTags : [];
@@ -70,9 +81,12 @@ function PrimarySection({
 
   return (
     <section className="rounded-xl border bg-white p-3">
-      {/* ✅ ここは見た目を変えない（元のヘッダーが必要なら戻す） */}
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
+          <ModeBadge mode={mode} />
+        </div>
+
         {onNewThread ? (
           <button
             type="button"
@@ -91,7 +105,13 @@ function PrimarySection({
       {items.length > 1 ? (
         <div className="mt-3">
           <DetailSection title="他の候補">
-            <RecommendationSwitchList items={items} primaryIndex={idx} onSelect={setPrimaryIndex} />
+            <RecommendationSwitchList
+              items={items}
+              primaryIndex={idx}
+              onPick={setPrimaryIndex}
+              needTags={needTags}
+              
+            />
           </DetailSection>
         </div>
       ) : null}
