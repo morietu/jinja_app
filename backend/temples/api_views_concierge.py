@@ -333,6 +333,11 @@ class ConciergeChatView(APIView):
 
         lat = _to_float(data.get("lat"))
         lng = _to_float(data.get("lng"))
+
+        if (lat is None or lng is None) and area:
+            pt = _geocode_area_for_chat(area=area)
+            if pt:
+                lat, lng = pt
         
         candidates = user_candidates + build_chat_candidates(
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
