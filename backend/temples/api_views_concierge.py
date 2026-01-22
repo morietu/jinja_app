@@ -398,6 +398,14 @@ class ConciergeChatView(APIView):
             (data.get("filters") if isinstance(data.get("filters"), dict) else None),
         )
 
+        # Bルート判定は「絞り込みが実際に効いている」時だけ
+        gids = data.get("goriyaku_tag_ids")
+        has_goriyaku = isinstance(gids, list) and len([x for x in gids if x is not None and str(x).strip() != ""]) > 0
+
+        has_extra = bool((data.get("extra_condition") or "").strip())
+
+        flow = "B" if (has_goriyaku or has_extra) else "A"
+
         recs = build_chat_recommendations(
             query=query,
             language=language,
@@ -406,6 +414,7 @@ class ConciergeChatView(APIView):
             birthdate=birthdate,
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             extra_condition=data.get("extra_condition"),
+            flow=flow,
         )
 
         
