@@ -198,15 +198,6 @@ def _to_float(v: Any) -> Optional[float]:
     return None
 
 
-def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
-    lat = _to_float(data.get("lat"))
-    lng = _to_float(data.get("lng"))
-    if lat is None or lng is None:
-        return None
-    r_m = _parse_radius(data)
-    return {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
-
-
 def _get_google_key() -> str | None:
     return (
         getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
@@ -219,6 +210,7 @@ def _get_google_key() -> str | None:
 
 
 def _geocode_area_for_chat(*, area: str) -> tuple[float, float] | None:
+    """area（地名文字列）を geocode して (lat, lng) を返す"""
     key = _get_google_key()
     if not key or not area:
         return None
@@ -322,27 +314,28 @@ class ConciergeChatView(APIView):
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         language = (data.get("language") or "ja").strip()
-
         area = data.get("area") or data.get("where") or data.get("location_text")
-        
-       
 
         # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
         raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
         user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
 
+        # --- lat/lng 解決：top-level → 無ければ area を geocode ---
         lat = _to_float(data.get("lat"))
         lng = _to_float(data.get("lng"))
-        
+
+        if (lat is None or lng is None) and area:
+            pt = _geocode_area_for_chat(area=area)
+            if pt:
+                lat, lng = pt
+
+        # candidates は補完 lat/lng を使う
         candidates = user_candidates + build_chat_candidates(
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             area=area,
-            lat=data.get("lat"),
-            lng=data.get("lng"),
+            lat=lat,
+            lng=lng,
         )
-        
-
-
 
         # ✅ テストが locationbias=8000 を見るので probe は残す（結果は使わない）
         try:
@@ -350,7 +343,11 @@ class ConciergeChatView(APIView):
         except Exception:
             pass
 
-        bias = _build_bias(data)
+        # bias は最終的に使う lat/lng から作る（ここがテストの本丸）
+        bias = None
+        if lat is not None and lng is not None:
+            r_m = _parse_radius(data)
+            bias = {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
 
         # intent は常に返す
         intent = extract_intent(query)
@@ -399,7 +396,12 @@ class ConciergeChatView(APIView):
             remaining = max(daily_limit - usage.count, 0)
 
         birthdate = (data.get("birthdate") or "").strip() or None
-        log.warning("[concierge_chat] birthdate=%r (raw=%r, filters=%r)", birthdate, data.get("birthdate"), (data.get("filters") if isinstance(data.get("filters"), dict) else None))
+        log.warning(
+            "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
+            birthdate,
+            data.get("birthdate"),
+            (data.get("filters") if isinstance(data.get("filters"), dict) else None),
+        )
 
         recs = build_chat_recommendations(
             query=query,
@@ -435,8 +437,6 @@ class ConciergeChatView(APIView):
                     break
 
         recs["recommendations"] = items[:3]
-
-        
 
         body = {"ok": True, "intent": intent, "data": recs}
 
@@ -517,8 +517,6 @@ class ConciergePlanView(APIView):
             serializer_validated=s.validated_data or {},
         )
         return Response(body, status=status.HTTP_200_OK)
-
-    
 
 
 class ConciergePlanViewLegacy(ConciergePlanView):
