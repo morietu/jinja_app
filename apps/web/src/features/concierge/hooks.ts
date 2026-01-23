@@ -208,10 +208,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
 
 
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[hook] payload.data._signals=", payload?.data?._signals);
-          console.log("[hook] unified.data._signals=", (unified as any)?.data?._signals);
-        }
+       
 
         options?.onUnified?.(unified);
         options?.onRecommendations?.(recs);

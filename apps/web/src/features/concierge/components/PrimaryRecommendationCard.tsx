@@ -19,7 +19,7 @@ export default function PrimaryRecommendationCard({
   needTags = [],
   tid: _tid,
 }: Props) {
-  console.log("[PrimaryCard] render");
+ 
   const breakdown = (rec as any)?.breakdown ?? null;
 
   const oneLiner = breakdown && typeof breakdown === "object" ? buildOneLiner(breakdown) : null;
@@ -29,14 +29,7 @@ export default function PrimaryRecommendationCard({
     (typeof rec.reason === "string" && rec.reason.trim()) ||
     "まずは代表的な候補から表示しています。";
 
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[PrimaryCard]", {
-      hasBreakdown: !!breakdown,
-      oneLiner,
-      reason: rec.reason,
-      final: description,
-    });
-  }
+
 
   return (
     <ConciergeCard
