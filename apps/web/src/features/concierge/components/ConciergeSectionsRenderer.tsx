@@ -40,13 +40,13 @@ type Props = {
 };
 
 export default function ConciergeSectionsRenderer({ payload, onAction }: Props) {
-  if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
-
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
+
+  if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
   return (
     <div className="mx-auto w-full max-w-md min-w-0 space-y-4">
@@ -58,7 +58,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           case "filter": {
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
-            const closedLabel = (sec as any).closedLabel ?? "まずは条件を追加して絞る";
+            
 
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
