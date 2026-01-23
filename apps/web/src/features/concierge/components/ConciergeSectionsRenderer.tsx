@@ -51,11 +51,12 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           case "filter": {
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
-            const closedLabel = (sec as any).closedLabel ?? "条件を追加して絞る";
+            const closedLabel = (sec as any).closedLabel ?? "まずは条件を追加して絞る";
 
             if (!state.isOpen) {
               return (
                 <DetailSection key={`filter-${i}`} title="条件で絞る">
+                  <p className="mb-2 text-xs text-slate-500">まずは条件を追加</p>
                   <button
                     type="button"
                     className="w-full rounded-xl border px-4 py-3 text-sm font-semibold"

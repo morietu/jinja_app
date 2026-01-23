@@ -50,7 +50,9 @@ export default function ConciergeLayout(props: Props) {
   // - 候補あり & ユーザー未発話 & 非送信中 → チャットを隠す（候補 + 条件 がデフォ）
   // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
 
-  const hideChatPanel = !embedMode && hasCandidates && !hasUserMessage && !sending;
+  
+  const isInitialBrowseMode = !hasUserMessage && hasCandidates;
+  const hideChatPanel = !embedMode && isInitialBrowseMode && !sending;
 
   return (
     <div className={rootClass}>
