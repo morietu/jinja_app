@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/components/ConciergeFilterPanel.tsx
 "use client";
 
 import type { GoriyakuTag, Element4 } from "@/features/concierge/sections/types";
@@ -27,6 +26,24 @@ type Props = {
   onExtraConditionChange: (v: string) => void;
 };
 
+const QUICK_PRESETS: readonly { label: string; value: string }[] = [
+  { label: "静かに整えたい", value: "静かな雰囲気で、気持ちを落ち着けて整理できる場所がいい" },
+  { label: "背中を押してほしい", value: "前向きになれる、活力が出る感じの場所がいい" },
+  { label: "人混みが苦手", value: "混雑しにくい、落ち着いた場所がいい" },
+  { label: "階段少なめ", value: "階段や坂が少なく、歩きやすいところがいい" },
+  { label: "近場優先", value: "できるだけ近い場所を優先して" },
+];
+
+function mergeExtra(prev: string, add: string) {
+  const p = (prev || "").trim();
+  const a = (add || "").trim();
+  if (!a) return p;
+  if (!p) return a;
+  // 既に含まれてたら重ねない（雑に効く）
+  if (p.includes(a)) return p;
+  return `${p}\n${a}`;
+}
+
 export default function ConciergeFilterPanel({
   isOpen,
   title = "条件を追加して絞る",
@@ -44,8 +61,6 @@ export default function ConciergeFilterPanel({
   extraCondition,
   onExtraConditionChange,
 }: Props) {
-  console.log("[FilterPanel.isOpen]", isOpen);
-  
   if (!isOpen) return null;
 
   const selected = new Set(selectedTagIds);
@@ -76,8 +91,38 @@ export default function ConciergeFilterPanel({
               あなたの傾向：<span className="font-semibold">{element4}</span>（参考）
             </div>
           ) : (
-            <div className="text-[11px] text-slate-500">入力するとおすすめ条件を提案します</div>
+            <div className="text-[11px] text-slate-500">誕生日なしでもOK。下の「気分チップ」でも絞れます</div>
           )}
+
+          {/* ✅ 誕生日なしでも押せる入口（気分プリセット） */}
+          <div className="space-y-1">
+            
+            <div className="text-[11px] font-semibold text-slate-600">気分チップ（タップで補足条件に追加）</div>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                  onClick={() => onExtraConditionChange(mergeExtra(extraCondition, p.value))}
+                  title={p.value}
+                >
+                  {p.label}
+                </button>
+              ))}
+
+              {/* 便利ボタン：一発で空にする */}
+              {extraCondition.trim() ? (
+                <button
+                  type="button"
+                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                  onClick={() => onExtraConditionChange("")}
+                >
+                  クリア
+                </button>
+              ) : null}
+            </div>
+          </div>
 
           {element4 && suggestedTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
