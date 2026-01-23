@@ -419,7 +419,7 @@ export default function ConciergeClientFull() {
         return;
 
       case "add_condition":
-        setIsFilterOpen((v) => !v);
+        setIsFilterOpen(true);
         return;
 
       case "filter_close":
