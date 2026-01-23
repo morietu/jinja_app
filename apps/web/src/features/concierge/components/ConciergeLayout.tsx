@@ -1,9 +1,10 @@
 // apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
-import * as React from "react";
+import { useMemo } from "react";
 import ChatPanel from "./ChatPanel";
 import type { ConciergeMessage } from "@/lib/api/concierge";
+import type { ReactNode } from "react";
 
 type Props = {
   messages: ConciergeMessage[];
@@ -14,15 +15,28 @@ type Props = {
   canSend: boolean;
 
   embedMode?: boolean;
-  children?: React.ReactNode;
+  
 
   // 互換用（呼び出し側に残ってても落とさない）
   onRetry?: () => void;
   lastQuery?: string;
+  hasCandidates?: boolean;
+
+  children?: ReactNode;
 };
 
 export default function ConciergeLayout(props: Props) {
-  const { messages, sending = false, error = null, onSend, onNewThread, canSend, embedMode = false, children } = props;
+  const {
+    messages,
+    sending = false,
+    error = null,
+    onSend,
+    onNewThread,
+    canSend,
+    embedMode = false,
+    children,
+    hasCandidates = false, // ✅ 追加
+  } = props;
 
   const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
   const rootClass = embedMode
@@ -30,20 +44,32 @@ export default function ConciergeLayout(props: Props) {
     : `${baseRootClass} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
   const mainClass = embedMode ? "flex flex-col w-full" : "flex flex-col flex-1 min-h-0 w-full h-full";
 
+  const hasUserMessage = useMemo(() => messages.some((m) => m.role === "user" && m.content.trim()), [messages]);
+
+  // ✅ 仕様：
+  // - 候補あり & ユーザー未発話 & 非送信中 → チャットを隠す（候補 + 条件 がデフォ）
+  // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
+
+  const hideChatPanel = !embedMode && hasCandidates && !hasUserMessage && !sending;
+
   return (
     <div className={rootClass}>
       <main className={mainClass}>
         {children}
-        <ChatPanel
-          messages={messages}
-          loading={sending}
-          sending={sending}
-          error={error}
-          onSend={onSend}
-          canSend={canSend}
-          onNewThread={onNewThread}
-          embedMode={embedMode}
-        />
+
+        {!hideChatPanel && (
+          <ChatPanel
+            messages={messages}
+            loading={sending}
+            sending={sending}
+            error={error}
+            onSend={onSend}
+            canSend={canSend}
+            onNewThread={onNewThread}
+            embedMode={embedMode}
+            hasCandidates={hasCandidates}
+          />
+        )}
       </main>
     </div>
   );
