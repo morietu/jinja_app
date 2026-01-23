@@ -79,7 +79,8 @@ export default function RecommendationSwitchList({ items, primaryIndex, onPick, 
       </div>
 
       {/* ✅ 今選択中のカード */}
-      <RecommendationUnit rec={current} index={idx} needTags={needTags} tid={tid} />
+      
+      <RecommendationUnit rec={current} isPrimary needTags={needTags} tid={tid} />
 
       <p className="text-[11px] text-neutral-500">タップすると表示中のおすすめを切り替えます</p>
     </div>
