@@ -63,16 +63,16 @@ export function buildPayloadFromUnified(
   const sections: ConciergeSection[] = [
     {
       type: "filter",
-      title: "条件を追加して絞る",
-      closedLabel: "条件を追加して絞る",
+      title: "条件を追加",
+      closedLabel: "条件を追加",
       state: filterState,
     },
-    { type: "guide", text: "状況を整理しました。必要なら条件を追加して絞れます。" },
-    { type: "recommendations", title: "おすすめ", items: items as any[] },
+    
+    { type: "recommendations", title: "候補", items: items as any[] },
     {
       type: "actions",
       items: [
-        { action: "add_condition", label: "条件を追加して絞る" },
+        { action: "add_condition", label: "条件を追加" },
         { action: "open_map", label: "地図で近くの神社を見る" },
       ],
     },

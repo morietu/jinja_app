@@ -10,7 +10,7 @@ export function buildDummySections(filterState: ConciergeFilterState): Concierge
         closedLabel: "条件を追加して絞る",
         state: filterState,
       },
-      { type: "guide", text: "状況を整理しました。必要なら条件を追加して絞れます。" },
+      
       {
         type: "actions",
         items: [{ action: "open_map", label: "地図で近くの神社を見る" }],

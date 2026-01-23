@@ -46,11 +46,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
       {payload.sections.map((sec: ConciergeSection, i: number) => {
         switch (sec.type) {
           case "guide":
-            return (
-              <DetailSection key={`guide-${i}`} title="ガイド">
-                <div className="text-sm text-slate-700">{(sec as any).text}</div>
-              </DetailSection>
-            );
+            return null;
 
           case "filter": {
             const state: ConciergeFilterState = (sec as any).state;
@@ -59,7 +55,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
 
             if (!state.isOpen) {
               return (
-                <DetailSection key={`filter-${i}`} title="絞り込み">
+                <DetailSection key={`filter-${i}`} title="条件で絞る">
                   <button
                     type="button"
                     className="w-full rounded-xl border px-4 py-3 text-sm font-semibold"
@@ -96,15 +92,9 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
 
           case "recommendations":
             return (
-              <DetailSection key={`recs-${i}`} title={(sec as any).title ?? "おすすめ"}>
+              <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
-                  <ModeBadge
-                    mode={payload?.meta?.mode}
-                    onExplain={() => {
-                      // ここは toast にするのがベスト。とりあえず console/alert でも可
-                      alert(payload?.meta?.mode?.ui_note_ja ?? "この並び順は、いまの状況に合う順です。");
-                    }}
-                  />
+                  <ModeBadge mode={payload?.meta?.mode} />
                 </div>
                 <div className="space-y-3">
                   {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {

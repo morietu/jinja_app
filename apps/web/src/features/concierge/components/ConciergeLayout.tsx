@@ -33,6 +33,7 @@ export default function ConciergeLayout(props: Props) {
   return (
     <div className={rootClass}>
       <main className={mainClass}>
+        {children}
         <ChatPanel
           messages={messages}
           loading={sending}
@@ -43,7 +44,6 @@ export default function ConciergeLayout(props: Props) {
           onNewThread={onNewThread}
           embedMode={embedMode}
         />
-        {children}
       </main>
     </div>
   );

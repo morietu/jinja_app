@@ -1,19 +1,21 @@
 "use client";
 
-
+import * as React from "react";
 import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 
 type Props = {
   mode?: ConciergeModeSignal | null;
-  onExplain?: () => void;
 };
 
-export default function ModeBadge({ mode, onExplain }: Props) {
+export default function ModeBadge({ mode }: Props) {
   const label = typeof mode?.ui_label_ja === "string" ? mode.ui_label_ja.trim() : "";
   const note = typeof mode?.ui_note_ja === "string" ? mode.ui_note_ja.trim() : "";
 
+  const [open, setOpen] = React.useState(false);
+
   if (!label && !note) return null;
 
+  // Flow B：従来どおり
   if (mode?.flow === "B") {
     if (!label) return null;
     return (
@@ -30,18 +32,42 @@ export default function ModeBadge({ mode, onExplain }: Props) {
     );
   }
 
-  // Flow A: note があるなら「ⓘ」だけ出す（押したら説明を表示）
+  // Flow A：説明専用
   if (!note) return null;
 
   return (
-    <button
-      type="button"
-      onClick={onExplain}
-      className="text-[11px] text-slate-400 hover:text-slate-600"
-      aria-label="おすすめの並べ替え方法"
-      title={note}
-    >
-      ⓘ
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        className="text-[11px] font-semibold text-slate-500 hover:text-slate-700"
+        aria-label="並び順について"
+        onClick={() => setOpen((v) => !v)}
+      >
+        並び順
+      </button>
+
+      {open && (
+        <div
+          className="
+            absolute right-0 z-20 mt-2 w-72
+            rounded-xl border bg-white p-3
+            text-sm text-slate-700 shadow-lg
+          "
+        >
+          <div className="text-xs font-semibold text-slate-900">並び順について</div>
+          <div className="mt-1 whitespace-pre-line">{note}</div>
+
+          <div className="mt-2 text-right">
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-slate-500 hover:underline"
+              onClick={() => setOpen(false)}
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
