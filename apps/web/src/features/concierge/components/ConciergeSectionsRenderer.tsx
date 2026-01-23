@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
@@ -41,6 +42,12 @@ type Props = {
 export default function ConciergeSectionsRenderer({ payload, onAction }: Props) {
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
+  useEffect(() => {
+    const onOpen = () => onAction?.({ type: "add_condition" });
+    window.addEventListener("concierge:open-filter", onOpen);
+    return () => window.removeEventListener("concierge:open-filter", onOpen);
+  }, [onAction]);
+
   return (
     <div className="mx-auto w-full max-w-md min-w-0 space-y-4">
       {payload.sections.map((sec: ConciergeSection, i: number) => {
@@ -54,15 +61,73 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
             const closedLabel = (sec as any).closedLabel ?? "まずは条件を追加して絞る";
 
             if (!state.isOpen) {
+              const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
+
+              const parts = (state.extraCondition || "")
+                .split(/\s+/)
+                .map((x) => x.trim())
+                .filter(Boolean);
+
+              const set = new Set(parts);
+
+              const togglePreset = (p: string) => {
+                const next = new Set(parts);
+                if (next.has(p)) next.delete(p);
+                else next.add(p);
+                onAction?.({ type: "filter_set_extra", extraCondition: Array.from(next).join(" ") });
+              };
+
+              const selectedPresets = presets.filter((p) => set.has(p));
+              const hasAny = selectedPresets.length > 0;
+
               return (
                 <DetailSection key={`filter-${i}`} title="条件で絞る">
                   <p className="mb-2 text-xs text-slate-500">まずは条件を追加</p>
+
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {presets.map((p) => {
+                      const active = set.has(p);
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          className={[
+                            "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                            active
+                              ? "bg-emerald-600 text-white border-emerald-600"
+                              : "bg-white text-slate-700 hover:bg-slate-50",
+                          ].join(" ")}
+                          onClick={() => togglePreset(p)} // ✅ チップは開かない。トグルだけ。
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedPresets.length > 0 && (
+                    <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      追加済み: {selectedPresets.join(" / ")}
+                    </div>
+                  )}
+
+                  {/* ✅ 1) この条件で即絞る */}
                   <button
                     type="button"
-                    className="w-full rounded-xl border px-4 py-3 text-sm font-semibold"
+                    className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                    disabled={!hasAny}
+                    onClick={() => onAction?.({ type: "filter_apply" })}
+                  >
+                    この条件で絞り込む
+                  </button>
+
+                  {/* ✅ 2) 細かく編集したい人用 */}
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
                     onClick={() => onAction?.({ type: "add_condition" })}
                   >
-                    {closedLabel}
+                    条件を編集する
                   </button>
                 </DetailSection>
               );
