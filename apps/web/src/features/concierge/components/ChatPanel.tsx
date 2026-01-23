@@ -70,7 +70,7 @@ export default function ChatPanel({
           <div className="space-y-1.5">
             {messages.length === 0 && !loading && !sending && (
               <div className="mt-4 rounded-xl bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
-                いまの状況や相談したいことを、自由に送ってください。
+                条件や希望があれば追加してください（例：静か／駅近／ひとりで／階段少なめ など）
               </div>
             )}
 
@@ -116,7 +116,12 @@ export default function ChatPanel({
 
         <div className={inputWrapClass}>
           <div className="rounded-xl border border-neutral-300 transition focus-within:border-neutral-500 focus-within:ring-1 focus-within:ring-neutral-300">
-            <ChatInput disabled={sending || loading || !canSend} onSend={handleSend} error={error} />
+            <ChatInput
+              disabled={sending || loading || !canSend}
+              onSend={handleSend}
+              error={error}
+              embedMode={embedMode}
+            />
           </div>
 
           {!canSend && (

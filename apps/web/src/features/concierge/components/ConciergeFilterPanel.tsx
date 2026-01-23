@@ -90,14 +90,12 @@ export default function ConciergeFilterPanel({
             <div className="text-xs text-slate-600">
               あなたの傾向：<span className="font-semibold">{element4}</span>（参考）
             </div>
-          ) : (
-            <div className="text-[11px] text-slate-500">誕生日なしでもOK。下の「気分チップ」でも絞れます</div>
-          )}
+          ) : null}
 
           {/* ✅ 誕生日なしでも押せる入口（気分プリセット） */}
           <div className="space-y-1">
-            
-            <div className="text-[11px] font-semibold text-slate-600">気分チップ（タップで補足条件に追加）</div>
+              <div className="text-[11px] font-semibold text-slate-600">気分チップ（誕生日なしでもOK）</div>
+              <div className="text-[11px] text-slate-500">タップで「補足条件」に追加されます</div>
             <div className="flex flex-wrap gap-2">
               {QUICK_PRESETS.map((p) => (
                 <button

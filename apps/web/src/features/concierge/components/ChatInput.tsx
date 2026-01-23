@@ -69,10 +69,10 @@ export default function ChatInput({ disabled, onSend, error = null, embedMode = 
   };
 
   const placeholder = embedMode
-    ? "条件を追加して絞り込み（例：静か／縁結び／駅近／ひとりで行きたい など）"
-    : "神社の相談内容を入力してください（例：仕事・恋愛・健康・お礼参りなど）";
+    ? "条件を追加（例：静か／縁結び／駅近／ひとりで行きたい など）"
+    : "条件を追加（例：静か／人混み少なめ／階段少なめ／縁結び など）";
 
-  const buttonLabel = embedMode ? "更新する" : "送信";
+  const buttonLabel = embedMode ? "更新" : "追加";
 
   return (
     <form
