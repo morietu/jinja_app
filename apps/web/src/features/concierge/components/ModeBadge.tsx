@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from "react";
+
 import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 
 type Props = {
   mode?: ConciergeModeSignal | null;
+  onClick?: () => void;
 };
 
-export default function ModeBadge({ mode }: Props) {
+export default function ModeBadge({ mode, onClick }: Props) {
   const label = typeof mode?.ui_label_ja === "string" ? mode.ui_label_ja.trim() : "";
   const note = typeof mode?.ui_note_ja === "string" ? mode.ui_note_ja.trim() : "";
 
@@ -29,12 +30,13 @@ export default function ModeBadge({ mode }: Props) {
     );
   }
 
-  // Flow A: バッジは出さず、説明があるならアイコンだけ
+  // Flow A: 説明があるならアイコンだけ（押したら filter を開く）
   if (!note) return null;
 
   return (
     <button
       type="button"
+      onClick={onClick}
       className="text-[11px] text-slate-400 hover:text-slate-600"
       title={note}
       aria-label="おすすめの並べ替え方法"
