@@ -17,12 +17,19 @@ function DisclosureSection({ title, children }: { title: string; children: React
 
 type Props = {
   rec: ConciergeRecommendation;
-  index: number;
+  isPrimary?: boolean;
+  showNeedChips?: boolean;
   needTags?: string[];
   tid?: string | null;
 };
 
-export default function RecommendationUnit({ rec, index, needTags = [], tid = null }: Props) {
+export default function RecommendationUnit({
+  rec,
+  isPrimary = false,
+  showNeedChips = false,
+  needTags = [],
+  tid = null,
+}: Props) {
   const safe: ConciergeRecommendation = {
     ...rec,
     name: (rec.name || rec.display_name || "（名称不明）").trim(),
@@ -61,13 +68,14 @@ export default function RecommendationUnit({ rec, index, needTags = [], tid = nu
 
   return (
     <div className="space-y-2">
-      {index === 0 && needTags.length > 0 && <NeedChips tags={needTags} />}
+      {showNeedChips && needTags.length > 0 && <NeedChips tags={needTags} />}
+
       <ConciergeCard
         title={title}
         address={address}
         imageUrl={imageUrl}
         description={description}
-        isPrimary={index === 0}
+        isPrimary={isPrimary}
         badges={finalBadges}
         detailHref={detailHref}
         disclosureTitle="おすすめ理由"

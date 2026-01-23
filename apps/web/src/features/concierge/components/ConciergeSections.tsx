@@ -82,7 +82,7 @@ function PrimarySection({
   return (
     <section className="rounded-xl border bg-white p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
           <ModeBadge mode={mode} />
         </div>
@@ -105,13 +105,7 @@ function PrimarySection({
       {items.length > 1 ? (
         <div className="mt-3">
           <DetailSection title="他の候補">
-            <RecommendationSwitchList
-              items={items}
-              primaryIndex={idx}
-              onPick={setPrimaryIndex}
-              needTags={needTags}
-              
-            />
+            <RecommendationSwitchList items={items} primaryIndex={idx} onPick={setPrimaryIndex} needTags={needTags} />
           </DetailSection>
         </div>
       ) : null}
