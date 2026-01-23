@@ -82,7 +82,7 @@ function PrimarySection({
   return (
     <section className="rounded-xl border bg-white p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <div className="text-xs font-semibold text-slate-700">{sec.title}</div>
           <ModeBadge mode={mode} />
         </div>
