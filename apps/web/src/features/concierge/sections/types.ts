@@ -1,6 +1,7 @@
 //apps / web / src / features / concierge / sections / types.ts;
 
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
+import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 
 /* =========================
  * filter state
@@ -103,6 +104,9 @@ export type ConciergeSection = GuideSection | FilterSection | RecommendationsSec
 export type ConciergeSectionsPayload = {
   version: 1;
   sections: readonly ConciergeSection[];
+  meta?: {
+    mode?: ConciergeModeSignal | null;
+  };
 };
 
 /* =========================

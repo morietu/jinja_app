@@ -4,6 +4,9 @@ import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
+import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import ModeBadge from "@/features/concierge/components/ModeBadge";
+
 
 import type {
   ConciergeSectionsPayload,
@@ -12,8 +15,7 @@ import type {
   RegisteredShrineItem,
   PlaceShrineItem,
   RendererAction,
-  ActionType,
-  ActionsSection,
+  
 } from "@/features/concierge/sections/types";
 
 // ✅ まずはここで AstroCard を定義（import 迷子を防ぐ）
@@ -95,16 +97,34 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           case "recommendations":
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? "おすすめ"}>
+                <div className="mb-2 flex items-center justify-end">
+                  <ModeBadge mode={payload?.meta?.mode} onClick={() => onAction?.({ type: "add_condition" })} />
+                </div>
                 <div className="space-y-3">
                   {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
+                    const isPrimary = idx === 0;
+
                     if (it.kind === "registered") {
+                      const oneLiner = it.breakdown ? buildOneLiner(it.breakdown) : null;
+                      const description =
+                        isPrimary && typeof oneLiner === "string" && oneLiner.trim() ? oneLiner.trim() : it.description;
+
+                      if (process.env.NODE_ENV !== "production" && isPrimary) {
+                        console.log("[RendererPrimary]", {
+                          hasBreakdown: !!it.breakdown,
+                          oneLiner,
+                          orig: it.description,
+                          final: description,
+                        });
+                      }
+
                       return (
                         <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">
                           <ShrineCard
                             shrineId={it.shrineId}
                             title={it.title}
                             address={it.address}
-                            description={it.description}
+                            description={description}
                             imageUrl={it.imageUrl}
                             initialFav={it.initialFav}
                             showFavorite
@@ -131,26 +151,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                 </div>
               </DetailSection>
             );
-
-          case "actions": {
-            const asec = sec as ActionsSection;
-            return (
-              <DetailSection key={`actions-${i}`} title="次の操作">
-                <div className="grid gap-2">
-                  {asec.items.map((a: { action: ActionType; label: string }, idx: number) => (
-                    <button
-                      key={`${a.action}-${idx}`}
-                      type="button"
-                      className="rounded-xl border px-4 py-3 text-sm font-semibold"
-                      onClick={() => onAction?.({ type: a.action })}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-              </DetailSection>
-            );
-          }
 
           // ✅ ここが本題
           case "astro":

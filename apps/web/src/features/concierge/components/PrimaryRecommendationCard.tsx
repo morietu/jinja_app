@@ -1,9 +1,9 @@
 // apps/web/src/features/concierge/components/PrimaryRecommendationCard.tsx
 "use client";
 
-import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
+import { buildOneLiner } from "@/lib/concierge/pickAClause";
 
 type Props = {
   rec: ConciergeRecommendation;
@@ -13,15 +13,35 @@ type Props = {
 };
 
 export default function PrimaryRecommendationCard({
+  
   rec,
   primaryIndex: _primaryIndex,
   needTags = [],
   tid: _tid,
 }: Props) {
+  console.log("[PrimaryCard] render");
+  const breakdown = (rec as any)?.breakdown ?? null;
+
+  const oneLiner = breakdown && typeof breakdown === "object" ? buildOneLiner(breakdown) : null;
+
+  const description =
+    (typeof oneLiner === "string" && oneLiner.trim()) ||
+    (typeof rec.reason === "string" && rec.reason.trim()) ||
+    "まずは代表的な候補から表示しています。";
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[PrimaryCard]", {
+      hasBreakdown: !!breakdown,
+      oneLiner,
+      reason: rec.reason,
+      final: description,
+    });
+  }
+
   return (
     <ConciergeCard
       title={(rec.display_name || rec.name || "").trim() || "（名称不明）"}
-      description={(typeof rec.reason === "string" && rec.reason.trim()) || "まずは代表的な候補から表示しています。"}
+      description={description}
       isPrimary
       badges={Array.isArray(needTags) ? needTags.filter((t) => typeof t === "string" && t.trim()) : []}
     />

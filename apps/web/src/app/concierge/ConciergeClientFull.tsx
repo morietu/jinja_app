@@ -454,6 +454,10 @@ export default function ConciergeClientFull() {
     }
   };
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[concierge] SHOW_NEW_RENDERER=", SHOW_NEW_RENDERER);
+  }
+
   return (
     <ConciergeLayout
       messages={messages}

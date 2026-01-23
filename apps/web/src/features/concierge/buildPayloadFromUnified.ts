@@ -21,7 +21,6 @@ export function buildPayloadFromUnified(
 
   const items = recs
     .map((r: any) => {
-      // place recommendation
       if (typeof r?.place_id === "string" && r.place_id.trim()) {
         const qs = new URLSearchParams(qsBase);
         return {
@@ -36,7 +35,6 @@ export function buildPayloadFromUnified(
         };
       }
 
-      // registered shrine recommendation
       const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? r?.id ?? null;
       const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
 
@@ -53,7 +51,6 @@ export function buildPayloadFromUnified(
           initialFav: false,
           breakdown: r.breakdown ?? null,
           detailHref: `/shrines/${shrineId}?${qs.toString()}`,
-          detailLabel: "神社の詳細を見る",
         };
       }
 
@@ -81,7 +78,7 @@ export function buildPayloadFromUnified(
     },
   ];
 
-  // ✅ astro: _signals 優先、無ければ _astro。変な型は弾く
+  // astro（既存のまま）
   const astroRaw = (u as any)?.data?._signals?.astro ?? (u as any)?.data?._astro ?? null;
   const astro = astroRaw && typeof astroRaw === "object" ? astroRaw : null;
 
@@ -99,5 +96,8 @@ export function buildPayloadFromUnified(
     });
   }
 
-  return { version: 1, sections };
+  // ✅ ここで meta.mode を積む
+  const mode = (u as any)?.data?._signals?.mode ?? null;
+
+  return { version: 1, sections, meta: { mode } };
 }
