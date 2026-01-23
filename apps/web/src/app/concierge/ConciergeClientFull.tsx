@@ -147,7 +147,7 @@ export default function ConciergeClientFull() {
   const [activeThreadId, setActiveThreadId] = useState(0);
   const activeThreadIdRef = useRef(0);
 
-  const [promotedTid, setPromotedTid] = useState<number | null>(null);
+  
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [extraCondition, setExtraCondition] = useState("");
@@ -174,11 +174,7 @@ export default function ConciergeClientFull() {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
 
-  useEffect(() => {
-    if (!promotedTid) return;
-    router.replace(`/concierge?tid=${promotedTid}`);
-    setPromotedTid(null);
-  }, [promotedTid, router]);
+  
 
   /* restore */
   useEffect(() => {
@@ -192,10 +188,9 @@ export default function ConciergeClientFull() {
     }
   }, []);
 
-  // URL tid -> activeThreadId
   useEffect(() => {
     if (!hydrated) return;
-    if (tidFromQuery === 0 && activeThreadIdRef.current !== 0) return;
+    if (tidFromQuery === activeThreadIdRef.current) return; // ✅ 上書き防止
     setActiveTid(tidFromQuery);
   }, [tidFromQuery, hydrated]);
 
@@ -287,6 +282,8 @@ export default function ConciergeClientFull() {
     return Array.isArray(recs) ? (recs as ConciergeRecommendation[]) : [];
   }, [liveRecs, displayUnified]);
 
+  const hasCandidates = displayRecommendations.length > 0;
+
   const thread: ConciergeThread | null = useMemo(() => {
     const t = displayUnified?.thread;
     return t && typeof t.id === "number" ? t : null;
@@ -368,6 +365,8 @@ export default function ConciergeClientFull() {
     [events, thread, activeThreadId],
   );
 
+
+
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     filters: baseFilters,
 
@@ -385,7 +384,7 @@ export default function ConciergeClientFull() {
 
       if (currentTid === 0 && nextTid !== 0) {
         setActiveTid(nextTid);
-        setPromotedTid(nextTid);
+        router.replace(`/concierge?tid=${nextTid}`);
       }
 
       setEventsByThread((prev) =>
@@ -476,6 +475,8 @@ export default function ConciergeClientFull() {
       }}
       canSend={canSend}
       embedMode={false}
+      hasCandidates={hasCandidates}
+      
     >
       {SHOW_NEW_RENDERER ? (
         <div className="p-4 space-y-3">

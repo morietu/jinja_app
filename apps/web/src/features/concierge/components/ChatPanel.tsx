@@ -16,6 +16,7 @@ type Props = {
   onNewThread?: () => void;
   embedMode?: boolean;
   lastQuery?: string;
+  hasCandidates?: boolean; // recs > 0
 };
 
 function pad2(n: number) {
@@ -30,6 +31,7 @@ export default function ChatPanel({
   onSend,
   canSend = true,
   embedMode = false,
+  hasCandidates = false,
 }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -63,12 +65,14 @@ export default function ChatPanel({
   const inputWrapClass =
     "shrink-0 border-t border-neutral-200 bg-white px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]";
 
+  const showEmptyHint = !hasCandidates && messages.length === 0 && !loading && !sending;
+
   return (
     <div className={outerClass}>
       <div className={frameClass}>
         <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2">
           <div className="space-y-1.5">
-            {messages.length === 0 && !loading && !sending && (
+            {showEmptyHint && (
               <div className="mt-4 rounded-xl bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
                 条件や希望があれば追加してください（例：静か／駅近／ひとりで／階段少なめ など）
               </div>
