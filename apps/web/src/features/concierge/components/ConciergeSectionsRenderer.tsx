@@ -98,7 +98,13 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? "おすすめ"}>
                 <div className="mb-2 flex items-center justify-end">
-                  <ModeBadge mode={payload?.meta?.mode} onClick={() => onAction?.({ type: "add_condition" })} />
+                  <ModeBadge
+                    mode={payload?.meta?.mode}
+                    onExplain={() => {
+                      // ここは toast にするのがベスト。とりあえず console/alert でも可
+                      alert(payload?.meta?.mode?.ui_note_ja ?? "この並び順は、いまの状況に合う順です。");
+                    }}
+                  />
                 </div>
                 <div className="space-y-3">
                   {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
@@ -108,15 +114,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                       const oneLiner = it.breakdown ? buildOneLiner(it.breakdown) : null;
                       const description =
                         isPrimary && typeof oneLiner === "string" && oneLiner.trim() ? oneLiner.trim() : it.description;
-
-                      if (process.env.NODE_ENV !== "production" && isPrimary) {
-                        console.log("[RendererPrimary]", {
-                          hasBreakdown: !!it.breakdown,
-                          oneLiner,
-                          orig: it.description,
-                          final: description,
-                        });
-                      }
 
                       return (
                         <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">

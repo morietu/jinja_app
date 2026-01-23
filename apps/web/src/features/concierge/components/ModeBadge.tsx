@@ -5,10 +5,10 @@ import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 
 type Props = {
   mode?: ConciergeModeSignal | null;
-  onClick?: () => void;
+  onExplain?: () => void;
 };
 
-export default function ModeBadge({ mode, onClick }: Props) {
+export default function ModeBadge({ mode, onExplain }: Props) {
   const label = typeof mode?.ui_label_ja === "string" ? mode.ui_label_ja.trim() : "";
   const note = typeof mode?.ui_note_ja === "string" ? mode.ui_note_ja.trim() : "";
 
@@ -30,16 +30,16 @@ export default function ModeBadge({ mode, onClick }: Props) {
     );
   }
 
-  // Flow A: 説明があるならアイコンだけ（押したら filter を開く）
+  // Flow A: note があるなら「ⓘ」だけ出す（押したら説明を表示）
   if (!note) return null;
 
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onExplain}
       className="text-[11px] text-slate-400 hover:text-slate-600"
-      title={note}
       aria-label="おすすめの並べ替え方法"
+      title={note}
     >
       ⓘ
     </button>
