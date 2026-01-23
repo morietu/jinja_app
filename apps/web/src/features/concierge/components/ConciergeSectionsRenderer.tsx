@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
-
 
 import type {
   ConciergeSectionsPayload,
@@ -16,10 +15,8 @@ import type {
   RegisteredShrineItem,
   PlaceShrineItem,
   RendererAction,
-  
 } from "@/features/concierge/sections/types";
 
-// ✅ まずはここで AstroCard を定義（import 迷子を防ぐ）
 function AstroCard(props: { sunSign?: string; element?: string; reason?: string }) {
   const { sunSign, element, reason } = props;
   return (
@@ -37,14 +34,33 @@ function AstroCard(props: { sunSign?: string; element?: string; reason?: string 
 type Props = {
   payload: ConciergeSectionsPayload;
   onAction?: (action: RendererAction) => void;
+  sending?: boolean;
 };
 
-export default function ConciergeSectionsRenderer({ payload, onAction }: Props) {
+function parseExtraTokens(extra: string | undefined | null): string[] {
+  return (extra || "")
+    .split(/[、,\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+export default function ConciergeSectionsRenderer({ payload, onAction, sending = false }: Props) {
+  // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
+
+
+  // ✅ filter state は map の外で1回だけ取る
+  const filterState: ConciergeFilterState | null = useMemo(() => {
+    const sec = payload.sections.find((s) => s.type === "filter") as any;
+    return (sec?.state ?? null) as ConciergeFilterState | null;
+  }, [payload]);
+
+  const appliedTokens = parseExtraTokens(filterState?.extraCondition);
+  const appliedLabel = appliedTokens.length ? `${appliedTokens.join(" / ")} で絞り込みました` : null;
 
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
@@ -58,16 +74,12 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
           case "filter": {
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
-            
 
+            // 閉じ状態（プリセット選択 + 即絞り）
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
 
-              const parts = (state.extraCondition || "")
-                .split(/\s+/)
-                .map((x) => x.trim())
-                .filter(Boolean);
-
+              const parts = parseExtraTokens(state.extraCondition);
               const set = new Set(parts);
 
               const togglePreset = (p: string) => {
@@ -97,7 +109,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                               ? "bg-emerald-600 text-white border-emerald-600"
                               : "bg-white text-slate-700 hover:bg-slate-50",
                           ].join(" ")}
-                          onClick={() => togglePreset(p)} // ✅ チップは開かない。トグルだけ。
+                          onClick={() => togglePreset(p)}
                         >
                           {p}
                         </button>
@@ -111,28 +123,27 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                     </div>
                   )}
 
-                  {/* ✅ 1) この条件で即絞る */}
                   <button
                     type="button"
                     className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                    disabled={!hasAny}
+                    disabled={!hasAny || sending}
                     onClick={() => onAction?.({ type: "filter_apply" })}
                   >
-                    この条件で絞り込む
+                    {sending ? "絞り込み中…" : "この条件で絞り込む"}
                   </button>
 
-                  {/* ✅ 2) 細かく編集したい人用 */}
                   <button
                     type="button"
                     className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
                     onClick={() => onAction?.({ type: "add_condition" })}
                   >
-                    条件を編集する
+                    詳細条件を設定する
                   </button>
                 </DetailSection>
               );
             }
 
+            // 開いた状態（既存のフィルタパネル）
             return (
               <DetailSection key={`filter-${i}`} title={title}>
                 <ConciergeFilterPanel
@@ -162,6 +173,11 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
                 <div className="mb-2 flex items-center justify-end">
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
+
+                {appliedLabel && (
+                  <div className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">{appliedLabel}</div>
+                )}
+
                 <div className="space-y-3">
                   {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     const isPrimary = idx === 0;
@@ -205,9 +221,15 @@ export default function ConciergeSectionsRenderer({ payload, onAction }: Props) 
               </DetailSection>
             );
 
-          // ✅ ここが本題
           case "astro":
-            return <AstroCard key={`astro-${i}`} sunSign={sec.sunSign} element={sec.element} reason={sec.reason} />;
+            return (
+              <AstroCard
+                key={`astro-${i}`}
+                sunSign={(sec as any).sunSign}
+                element={(sec as any).element}
+                reason={(sec as any).reason}
+              />
+            );
 
           default:
             return null;
