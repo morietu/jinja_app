@@ -167,6 +167,8 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
             );
           }
 
+          
+
           case "recommendations":
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
@@ -175,7 +177,16 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
                 </div>
 
                 {appliedLabel && (
-                  <div className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">{appliedLabel}</div>
+                  <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <span>{appliedLabel}</span>
+                    <button
+                      type="button"
+                      className="rounded-md px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100"
+                      onClick={() => onAction?.({ type: "filter_clear" })}
+                    >
+                      クリア
+                    </button>
+                  </div>
                 )}
 
                 <div className="space-y-3">

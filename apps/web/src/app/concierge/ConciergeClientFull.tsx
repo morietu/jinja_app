@@ -450,6 +450,12 @@ export default function ConciergeClientFull() {
       case "filter_set_extra":
         setExtraCondition(a.extraCondition);
         return;
+
+      case "filter_clear":
+        setExtraCondition("");
+        // ついでにやるなら
+        // setSelectedTagIds([]);
+        return;
     }
   };
 
@@ -474,11 +480,10 @@ export default function ConciergeClientFull() {
       canSend={canSend}
       embedMode={false}
       hasCandidates={hasCandidates}
-      
     >
       {SHOW_NEW_RENDERER ? (
         <div className="p-4 space-y-3">
-          <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} />
+          <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
         </div>
       ) : (
         <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} mode={mode} />
