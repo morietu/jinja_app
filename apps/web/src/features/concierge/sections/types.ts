@@ -113,10 +113,11 @@ export type ConciergeSectionsPayload = {
  * renderer -> client action
  * ========================= */
 export type RendererAction =
-  | { type: "add_condition" }
   | { type: "open_map" }
+  | { type: "add_condition" }
   | { type: "filter_close" }
   | { type: "filter_apply" }
   | { type: "filter_set_birthdate"; birthdate: string }
   | { type: "filter_toggle_tag"; tagId: number }
-  | { type: "filter_set_extra"; extraCondition: string };
+  | { type: "filter_set_extra"; extraCondition: string }
+  | { type: "filter_clear" };
