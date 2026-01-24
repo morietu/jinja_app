@@ -8,6 +8,7 @@ export type GoriyakuTag = {
 export type ShrineBase = {
   id: number;
   name_jp: string;
+  name_romaji?: string | null;
   address: string;
   lat?: number | null;
   lng?: number | null;

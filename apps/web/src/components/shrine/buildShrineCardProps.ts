@@ -1,5 +1,4 @@
-// apps/web/src/components/shrine/buildShrineCardProps.ts
-import type { Shrine } from "@/lib/api/shrines";
+import type { Shrine } from "@/lib/api/types"; // ← ここに統一
 
 export type ShrineCardAdapterProps = {
   shrineId: number;
@@ -10,27 +9,34 @@ export type ShrineCardAdapterProps = {
   badges?: string[];
 };
 
+function firstNonEmpty(...xs: Array<string | null | undefined>) {
+  for (const x of xs) {
+    const t = (x ?? "").trim();
+    if (t) return t;
+  }
+  return "";
+}
+
 export function buildShrineCardProps(s: Shrine): { cardProps: ShrineCardAdapterProps } {
-  const shrineId = typeof (s as any).id === "number" ? (s as any).id : Number((s as any).id ?? NaN);
+  const shrineId = s.id;
 
-  const fallbackTitle = typeof (s as any).name === "string" ? (s as any).name : "";
-  const title = (s.name_jp ?? fallbackTitle ?? "").trim() || `神社 #${shrineId}`;
+  const title = firstNonEmpty(s.name_jp, s.name_romaji) || `神社 #${shrineId}`;
+  const address = firstNonEmpty(s.address) || null;
 
-  const address = (s.address ?? "").trim() || null;
+  // 画像は現状レスポンスに無いので null でOK（無理に photo_url 読まない）
+  const imageUrl = null;
 
-  const imageUrl =
-    ((s as any).photo_url as string | null | undefined) ??
-    (Array.isArray((s as any).photos) ? (s as any).photos?.[0]?.url : null) ??
-    null;
+  const description =
+    firstNonEmpty(s.goriyaku) ||
+    (Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length
+      ? s.goriyaku_tags
+          .map((t) => t.name)
+          .filter(Boolean)
+          .slice(0, 3)
+          .join(" / ")
+      : "説明は準備中です。");
 
-  return {
-    cardProps: {
-      shrineId,
-      title,
-      address,
-      imageUrl,
-      description: "正式に登録されている神社です",
-      badges: ["正式登録"],
-    },
-  };
+  const badges = Array.isArray(s.goriyaku_tags) && s.goriyaku_tags.length ? ["ご利益あり"] : [];
+
+  return { cardProps: { shrineId, title, address, imageUrl, description, badges } };
 }
