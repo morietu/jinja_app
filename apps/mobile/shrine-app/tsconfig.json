@@ -5,7 +5,8 @@
       "ES2021",
       "DOM"
     ],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native"],
     "strict": true,
     "allowJs": true,
     "target": "ES2021",
