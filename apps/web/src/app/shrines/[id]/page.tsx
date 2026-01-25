@@ -8,6 +8,7 @@ import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
+import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import DetailSection from "@/components/shrine/DetailSection";
 
@@ -209,6 +210,15 @@ export default async function Page({ params, searchParams }: Props) {
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
       >
+        <ShrineDetailArticle
+          cardProps={cardProps}
+          benefitLabels={benefitLabels}
+          publicGoshuins={publicGoshuins}
+          addGoshuinHref={addGoshuinHref}
+          judge={{ title: judgeTitle, summary: judgeSummary, level: judgeLevel, hint: judgeHint }}
+          conciergeBreakdown={concierge}
+          exp={exp}
+        />
         <article className="space-y-4">
           {/* ✅ ShrineCardを使用 */}
           <ShrineCard

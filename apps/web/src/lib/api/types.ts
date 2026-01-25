@@ -1,4 +1,16 @@
 // src/lib/types.ts
+
+export type Goshuin = {
+  id: number;
+  shrine?: number | null;
+  shrine_name?: string | null;
+  title?: string | null;
+  is_public: boolean;
+  likes?: number | null;
+  created_at?: string | null;
+  image_url?: string | null;
+};
+
 export type GoriyakuTag = {
   id: number;
   name: string;

@@ -2,41 +2,37 @@
 import axios from "axios";
 import api from "./client";
 
-export type Goshuin = {
-  id: number;
-  shrine: number;
-  title?: string | null;
-  image_url?: string | null;
-  created_at?: string;
-  is_public: boolean;
-  shrine_name?: string;
-};
+export type { Goshuin } from "./types";
+import type { Goshuin as GoshuinType } from "./types";
+
+
+
+export type GoshuinCount = { count: number; limit: number; remaining: number; can_add: boolean };
 
 const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
 
 const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
 const MY_CANDIDATES = ["/my/goshuins/"] as const;
 
-
-function toList(data: any): Goshuin[] {
+function toList(data: any): GoshuinType[] {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data.results)) return data.results;
   return [];
 }
 
-async function fetchPublicFromBackend(): Promise<Goshuin[]> {
+async function fetchPublicFromBackend(): Promise<GoshuinType[]> {
   const base = BACKEND_ORIGIN.replace(/\/+$/, "");
   const url = `${base}/api/goshuins/`;
   const r = await axios.get<any>(url, { withCredentials: true });
   return toList(r.data);
 }
 
-export async function fetchPublicGoshuin(): Promise<Goshuin[]> {
+export async function fetchPublicGoshuin(): Promise<GoshuinType[]> {
   const r = await api.get<any>("/goshuins/");
   return toList(r.data);
 }
 
-export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
+export async function getGoshuinPublicAuto(): Promise<GoshuinType[]> {
   for (const path of PUBLIC_CANDIDATES) {
     try {
       const r = await api.get<any>(path);
@@ -59,7 +55,7 @@ export async function getGoshuinPublicAuto(): Promise<Goshuin[]> {
   return [];
 }
 
-export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
+export async function getMyGoshuinAuto(): Promise<GoshuinType[]> {
   for (const path of MY_CANDIDATES) {
     try {
       const r = await api.get<any>(path);
@@ -84,14 +80,19 @@ export async function getMyGoshuinAuto(): Promise<Goshuin[]> {
 export const getGoshuin = getGoshuinPublicAuto;
 export const getGoshuinAuto = getGoshuinPublicAuto;
 
-export async function fetchGoshuin(): Promise<Goshuin[]> {
+export async function fetchGoshuin(): Promise<GoshuinType[]> {
   return fetchPublicGoshuin();
 }
 
 // ✅ 自分の御朱印一覧（BFF /api/my/goshuins/ 経由）
-export async function fetchMyGoshuin(): Promise<Goshuin[]> {
+export async function fetchMyGoshuin(): Promise<GoshuinType[]> {
   const r = await api.get<any>("/my/goshuins/");
   return toList(r.data);
+}
+
+export async function fetchMyGoshuinCount(): Promise<GoshuinCount> {
+  const r = await api.get<GoshuinCount>("/my/goshuins/count/");
+  return r.data;
 }
 
 // ---- BFF 経由の POST / PATCH / DELETE ----
@@ -101,7 +102,7 @@ export async function uploadMyGoshuin(input: {
   title: string;
   isPublic: boolean;
   file: File;
-}): Promise<Goshuin> {
+}): Promise<GoshuinType> {
   const form = new FormData();
 
   // ✅ shrineId がある時だけ送る（undefined を "undefined" にしない）
@@ -113,14 +114,14 @@ export async function uploadMyGoshuin(input: {
   form.append("is_public", input.isPublic ? "true" : "false");
   form.append("image", input.file);
 
-  const r = await api.post<Goshuin>("/my/goshuins/", form);
+  const r = await api.post<GoshuinType>("/my/goshuins/", form);
   return r.data;
 }
 
 export const uploadGoshuin = uploadMyGoshuin;
 
-export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<Goshuin> {
-  const r = await api.patch<Goshuin>(`/my/goshuins/${id}/`, {
+export async function updateMyGoshuinVisibility(id: number, isPublic: boolean): Promise<GoshuinType> {
+  const r = await api.patch<GoshuinType>(`/my/goshuins/${id}/`, {
     is_public: isPublic,
   });
   return r.data;
