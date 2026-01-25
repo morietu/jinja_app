@@ -2,36 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+
+
 import type { Shrine } from "@/lib/api/shrines";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { LABELS } from "@/lib/ui/labels";
+import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
+import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
 
 
 
 type Props = { placeId: string; ctx?: "concierge" | "map" | null; tid?: string | null };
 
-type PublicGoshuin = {
-  id: number;
-  shrine: number;
-  title?: string | null;
-  is_public: boolean;
-  likes: number;
-  created_at: string;
-  image_url?: string | null;
-};
+
 
 
 
 export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
-  const sp = useSearchParams();
-  const urlTid = sp.get("tid");
-  const tidEffective = tid ?? urlTid;
 
-  const close = useMemo(() => buildShrineClose({ ctx: ctx ?? null, tid: tidEffective ?? null }), [ctx, tidEffective]);
+
+  const close = useMemo(() => buildShrineClose({ ctx: ctx ?? null, tid: tid ?? null }), [ctx, tid]);
 
   const [shrineId, setShrineId] = useState<number | null>(null);
   const [resolveState, setResolveState] = useState<"idle" | "loading" | "ok" | "unauth" | "error">("idle");
@@ -39,8 +31,15 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const [shrine, setShrine] = useState<Shrine | null>(null);
   const [loadingShrine, setLoadingShrine] = useState(false);
 
-  const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuin[]>([]);
+  const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuinItem[]>([]);
   const [loadingGoshuins, setLoadingGoshuins] = useState(false);
+
+  useEffect(() => {
+    setShrineId(null);
+    setShrine(null);
+    setPublicGoshuins([]);
+    setResolveState("idle");
+  }, [placeId]);
 
   // Google経路案内は一本化：
   // - shrine座標があれば座標優先（/shrines/:id と一致）
@@ -74,43 +73,22 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     (async () => {
       setResolveState("loading");
 
-      try {
-        const r = await fetch("/api/shrines/from-place", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ place_id: placeId }),
-        });
+      const res = await resolveShrineIdFromPlace(placeId);
+      if (!alive) return;
 
-        if (!alive) return;
-
-        if (r.status === 401 || r.status === 403) {
-          setResolveState("unauth");
-          setShrineId(null);
-          return;
-        }
-        if (!r.ok) {
-          setResolveState("error");
-          setShrineId(null);
-          return;
-        }
-
-        const data = (await r.json()) as { shrine_id: number };
-        const sid = typeof data?.shrine_id === "number" ? data.shrine_id : Number(data?.shrine_id ?? NaN);
-
-        if (!Number.isFinite(sid) || sid <= 0) {
-          setResolveState("error");
-          setShrineId(null);
-          return;
-        }
-
-        setShrineId(sid);
-        setResolveState("ok");
-      } catch {
-        if (!alive) return;
+      if (res.status === "unauth") {
+        setResolveState("unauth");
+        setShrineId(null);
+        return;
+      }
+      if (res.status === "error") {
         setResolveState("error");
         setShrineId(null);
+        return;
       }
+
+      setShrineId(res.shrineId);
+      setResolveState("ok");
     })();
 
     return () => {
@@ -123,8 +101,8 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     let alive = true;
 
     (async () => {
-      if (resolveState !== "ok" || shrineId == null) {
-        if (alive) setShrine(null);
+      if (shrineId == null) {
+        setShrine(null);
         return;
       }
 
@@ -144,14 +122,14 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     return () => {
       alive = false;
     };
-  }, [resolveState, shrineId]);
+  }, [shrineId]);
 
   // --- 3) 御朱印（公開） ---
   useEffect(() => {
     let alive = true;
 
     (async () => {
-      if (resolveState !== "ok" || shrineId == null) {
+      if (shrineId == null) {
         if (alive) setPublicGoshuins([]);
         return;
       }
@@ -159,11 +137,23 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
       setLoadingGoshuins(true);
       try {
         const r = await fetch(`/api/public/goshuins?limit=50&offset=0&shrine=${shrineId}`, { cache: "no-store" });
-        
         if (!r.ok) throw new Error("public goshuins failed");
+
         const json = await r.json();
-        const results = (Array.isArray(json) ? json : (json?.results ?? [])) as PublicGoshuin[];
-        if (alive) setPublicGoshuins(results);
+        const results = (Array.isArray(json) ? json : (json?.results ?? [])) as any[];
+
+        if (alive) {
+          setPublicGoshuins(
+            results
+              .map((g) => ({
+                id: Number(g.id),
+                title: g.title ?? null,
+                created_at: g.created_at,
+                image_url: g.image_url ?? null,
+              }))
+              .filter((g) => Number.isFinite(g.id)),
+          );
+        }
       } catch {
         if (alive) setPublicGoshuins([]);
       } finally {
@@ -174,12 +164,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     return () => {
       alive = false;
     };
-  }, [resolveState, shrineId]);
-
-  const matched = useMemo(() => {
-    if (shrineId == null) return [];
-    return publicGoshuins.filter((g) => g?.shrine === shrineId);
-  }, [publicGoshuins, shrineId]);
+  }, [shrineId]);
 
   // --- 共通UIに流し込む値 ---
 
@@ -190,43 +175,39 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   // ctx/tid を含んだ「このページ自身」のURL（ログイン誘導の戻り先もこれ）
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
-  if (tidEffective) qs.set("tid", String(tidEffective));
+  if (tid) qs.set("tid", String(tid));
 
   const selfPath = `/shrines/from-place/${encodeURIComponent(placeId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
-  
-  
   // ✅ 御朱印登録の入口は /shrines/[id] に統一するため、この画面では出さない
   const addGoshuinHref = null;
 
   // 保存ボタン（ログイン後も selfPath に戻す）
-  const saveNode =
-    resolveState === "ok" && shrineId != null ? <ShrineSaveButton shrineId={shrineId} nextPath={selfPath} /> : null;
+  const saveNode = shrineId != null ? <ShrineSaveButton shrineId={shrineId} nextPath={selfPath} /> : null;
 
   // 詳細ページ（確定ID）へ進む導線
   const detailHref =
-    resolveState === "ok" && shrineId != null
+    shrineId != null
       ? `/shrines/${shrineId}?${new URLSearchParams({
           ...(ctx ? { ctx } : {}),
-          ...(tidEffective ? { tid: String(tidEffective) } : {}),
+          ...(tid ? { tid: String(tid) } : {}),
         }).toString()}`
       : null;
-
   // 保存ボタンも解決できたときだけ
 
   // 状況説明
   const statusText =
     resolveState === "loading"
       ? "紐づけ（shrine_id）を確認中…"
-      : resolveState === "ok"
-        ? "紐づけ済み（この場で詳細を表示します）"
-        : resolveState === "unauth"
-          ? "ログインしていないため紐づけを解決できませんでした。Google経路案内のみ利用できます。"
-          : resolveState === "error"
-            ? "紐づけの解決に失敗しました（通信 or サーバー側）。Google経路案内のみ利用できます。"
+      : resolveState === "unauth"
+        ? "ログインしていないため紐づけを解決できませんでした。Google経路案内のみ利用できます。"
+        : resolveState === "error"
+          ? "紐づけの解決に失敗しました（通信 or サーバー側）。Google経路案内のみ利用できます。"
+          : shrineId != null
+            ? "紐づけ済み（この場で詳細を表示します）"
             : null;
 
-  const showFull = resolveState === "ok" && shrineId != null;
+  const showFull = shrineId != null;
 
   return (
     <ShrineDetailShell
@@ -261,34 +242,14 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
             ) : null}
 
             <div className="rounded-xl border bg-white p-3">
-              <div className="text-sm font-semibold">公開御朱印</div>
-
               {loadingGoshuins ? (
                 <div className="mt-2 text-xs text-slate-500">読み込み中…</div>
-              ) : matched.length === 0 ? (
-                <div className="mt-2 text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</div>
               ) : (
-                <div className="mt-3 space-y-3">
-                  {matched.map((g) => (
-                    <div key={g.id} className="rounded-xl border p-3">
-                      <div className="text-xs text-slate-500">
-                        #{g.id} / {g.created_at}
-                      </div>
-                      <div className="mt-1 text-sm font-semibold">{g.title?.trim() || "（タイトルなし）"}</div>
-
-                      {!!g.image_url && (
-                        <Image
-                          src={g.image_url}
-                          alt={g.title ?? "goshuin"}
-                          width={800}
-                          height={600}
-                          className="mt-2 w-full rounded-lg border"
-                          style={{ height: "auto" }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <PublicGoshuinSection
+                  items={publicGoshuins}
+                  addGoshuinHref={null}
+                  sendingLabel="この神社の公開分のみ"
+                />
               )}
             </div>
           </div>

@@ -16,7 +16,7 @@ export default function PublicGoshuinSection({
   sendingLabel = "この神社の公開分のみ",
 }: {
   items: PublicGoshuinItem[];
-  addGoshuinHref: string;
+  addGoshuinHref?: string | null;
   sendingLabel?: string;
 }) {
   return (
@@ -25,9 +25,14 @@ export default function PublicGoshuinSection({
       right={
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">{sendingLabel}</span>
-          <Link href={addGoshuinHref} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
-            + 追加
-          </Link>
+          {addGoshuinHref ? (
+            <Link
+              href={addGoshuinHref}
+              className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white"
+            >
+              + 追加
+            </Link>
+          ) : null}
         </div>
       }
     >
