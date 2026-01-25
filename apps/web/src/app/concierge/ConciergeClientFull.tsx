@@ -334,6 +334,15 @@ export default function ConciergeClientFull() {
     };
   }, [birthdate, selectedTagIds, extraCondition]);
 
+  const hasFilter =
+    (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
+
+  const selectedTagNames = useMemo(() => {
+    if (!goriyakuTags.length || !selectedTagIds.length) return [];
+    const set = new Set(selectedTagIds);
+    return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
+  }, [goriyakuTags, selectedTagIds]);
+
   // ✅ filterState は payload より先
   const filterState = useMemo(
     () => ({
@@ -406,10 +415,10 @@ export default function ConciergeClientFull() {
   });
 
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
-    const hasFilter =
+    const has =
       (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
-    if (!hasFilter) return null;
+    if (!has) return null;
 
     return {
       version: 1,
@@ -435,9 +444,14 @@ export default function ConciergeClientFull() {
         const p = buildFilterPayload();
         if (!p) return;
         setIsFilterOpen(false);
+
+        setLiveRecs([]);
+        setLiveUnified(null);
+
         void (send as any)(p);
         return;
       }
+
 
       case "filter_set_birthdate":
         setBirthdate(a.birthdate);
@@ -458,8 +472,13 @@ export default function ConciergeClientFull() {
 
       case "filter_clear":
         setExtraCondition("");
-        // ついでにやるなら
-        // setSelectedTagIds([]);
+        setSelectedTagIds([]);
+        setBirthdate("");
+        try {
+          localStorage.removeItem(LS_BIRTHDATE_KEY);
+        } catch {
+          // ignore (Safari private mode etc.)
+        }
         return;
     }
   };
@@ -486,6 +505,37 @@ export default function ConciergeClientFull() {
       embedMode={false}
       hasCandidates={hasCandidates}
     >
+      {hasFilter ? (
+        <div className="px-4 pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {baseFilters.birthdate ? (
+              <span className="rounded-full border bg-white px-3 py-1 text-xs font-semibold">
+                誕生日: {baseFilters.birthdate}
+              </span>
+            ) : null}
+
+            {selectedTagNames.length ? (
+              <span className="rounded-full border bg-white px-3 py-1 text-xs font-semibold">
+                ご利益: {selectedTagNames.slice(0, 2).join(" / ")}
+                {selectedTagNames.length > 2 ? ` 他${selectedTagNames.length - 2}` : ""}
+              </span>
+            ) : null}
+
+            {baseFilters.extra_condition ? (
+              <span className="rounded-full border bg-white px-3 py-1 text-xs font-semibold">補足: あり</span>
+            ) : null}
+
+            <button
+              type="button"
+              className="rounded-full border bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={() => onRendererAction({ type: "filter_clear" })}
+            >
+              クリア
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {SHOW_NEW_RENDERER ? (
         <div className="p-4 space-y-3">
           <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
