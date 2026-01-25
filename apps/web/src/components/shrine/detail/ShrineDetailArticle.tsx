@@ -3,6 +3,8 @@ import ShrineCard from "@/components/shrine/ShrineCard";
 import DetailSection from "@/components/shrine/DetailSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
+import GoshuinLimitBadge from "@/components/shrine/detail/GoshuinLimitBadge";
+
 
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -67,6 +69,7 @@ export default function ShrineDetailArticle({
           </div>
         )}
       </DetailSection>
+      <GoshuinLimitBadge />
 
       <PublicGoshuinSection items={publicGoshuins} addGoshuinHref={addGoshuinHref} />
     </article>

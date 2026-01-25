@@ -261,7 +261,7 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
 
 class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
