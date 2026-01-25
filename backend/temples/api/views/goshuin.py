@@ -9,13 +9,15 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.decorators import action
 
 from temples.models import Goshuin, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
+from temples.services.goshuin_limit import get_my_goshuin_limit
 
 log = logging.getLogger(__name__)
 
-MAX_MY_GOSHUINS = 10
+
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -69,12 +71,15 @@ class MyGoshuinViewSet(viewsets.ViewSet):
         return Response(GoshuinSerializer(obj, context={"request": request}).data)
 
     def create(self, request):
-        if self.get_queryset().count() >= MAX_MY_GOSHUINS:
+        limit = get_my_goshuin_limit(request.user)
+        count = self.get_queryset().count()
+
+        if count >= limit:
             return Response(
                 {
                     "code": "PLAN_LIMIT_EXCEEDED",
-                    "limit": MAX_MY_GOSHUINS,
-                    "detail": f"御朱印は最大 {MAX_MY_GOSHUINS} 件までです。",
+                    "limit": limit,
+                    "detail": f"御朱印は最大 {limit} 件までです。",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -110,3 +115,15 @@ class MyGoshuinViewSet(viewsets.ViewSet):
             goshuin.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["get"], url_path="count")
+    def count(self, request):
+        count = self.get_queryset().count()
+        limit = get_my_goshuin_limit(request.user)
+
+        return Response({
+            "count": count,
+            "limit": limit,
+            "remaining": max(limit - count, 0),
+            "can_add": count < limit,
+        })
