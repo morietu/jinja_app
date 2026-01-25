@@ -17,8 +17,10 @@ from temples.services.goshuin_limit import get_my_goshuin_limit
 
 log = logging.getLogger(__name__)
 
+MAX_MY_GOSHUINS_FREE = 10
 
-
+# ✅ 後方互換（tests が直importしてる）
+MAX_MY_GOSHUINS = MAX_MY_GOSHUINS_FREE
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
     """SessionAuthentication だけど CSRF チェックをスキップ（開発用）"""
