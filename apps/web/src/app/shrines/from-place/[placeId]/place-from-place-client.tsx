@@ -203,7 +203,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const showFull = shrineId != null;
   
   const benefitLabels = shrine ? getBenefitLabels(shrine) : [];
-  const publicCount = publicGoshuins.length;
+  
 
   const exp = shrine
     ? buildShrineExplanation({
