@@ -21,6 +21,12 @@ export function HomeMainClient() {
   };
 
   useEffect(() => {
+    const onPageShow = () => setConciergeOpen(false);
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  useEffect(() => {
     if (conciergeOpen) return;
     window.scrollTo({ top: savedScrollYRef.current, behavior: "auto" });
   }, [conciergeOpen]);

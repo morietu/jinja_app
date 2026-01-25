@@ -19,13 +19,10 @@ type Paginated<T> = {
   results: T[];
 };
 
-function normalizeBase(raw: string) {
-  const s = (raw ?? "").trim();
-  return s;
-}
+
 
 export async function GET(req: Request) {
-  const base = normalizeBase(process.env.DJANGO_API_BASE_URL ?? "");
+  const base = (process.env.DJANGO_API_BASE_URL ?? process.env.API_BASE ?? "http://127.0.0.1:8000").trim();
   if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
   const { searchParams } = new URL(req.url);
