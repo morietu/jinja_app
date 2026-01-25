@@ -161,6 +161,7 @@ export default function GoshuinNewClient() {
 
         {previewUrl ? (
           <div className="overflow-hidden rounded-2xl border bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewUrl} alt="preview" className="h-auto w-full" />
           </div>
         ) : (

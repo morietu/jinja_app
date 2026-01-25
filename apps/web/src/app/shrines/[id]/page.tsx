@@ -10,7 +10,7 @@ import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
-import { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
+
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import { getConciergeThread } from "@/lib/api/concierge"; 
@@ -188,12 +188,11 @@ export default async function Page({ params, searchParams }: Props) {
   const judgeLevel: SignalLevel = useConcierge ? "strong" : exp.signalLevel;
   
   const judgeSummary = useConcierge ? buildOneLiner(concierge) : exp.summary;
-  const judgeHint = useConcierge ? buildConciergeHint(concierge) : exp.strongHint;
-
+  
+ 
   return (
     <>
       <ShrineDetailToast shrineId={numericId} />
-
       <ShrineDetailShell
         title={pageTitle}
         subtitle={null}
@@ -212,18 +211,10 @@ export default async function Page({ params, searchParams }: Props) {
           benefitLabels={benefitLabels}
           publicGoshuins={publicGoshuins}
           addGoshuinHref={addGoshuinHref}
-          judge={{ title: judgeTitle, summary: judgeSummary, level: judgeLevel, hint: judgeHint }}
+          judge={{ title: judgeTitle, summary: judgeSummary, level: judgeLevel, hint: null }}
           conciergeBreakdown={concierge}
           exp={exp}
         />
-        
-          
-
-          
-
-
-          
-        
       </ShrineDetailShell>
     </>
   );

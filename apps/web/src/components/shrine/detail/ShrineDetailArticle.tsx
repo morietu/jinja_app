@@ -1,10 +1,9 @@
-// apps/web/src/components/shrine/detail/ShrineDetailArticle.tsx
 import ShrineCard from "@/components/shrine/ShrineCard";
 import DetailSection from "@/components/shrine/DetailSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import GoshuinLimitBadge from "@/components/shrine/detail/GoshuinLimitBadge";
-
+import { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
 
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -36,19 +35,17 @@ export default function ShrineDetailArticle({
     signalLevel: SignalLevel;
   };
 }) {
+  const hint = conciergeBreakdown ? buildConciergeHint(conciergeBreakdown) : exp.strongHint;
+
   return (
     <article className="space-y-4">
-      <ShrineCard
-        {...cardProps}
-        // 詳細ページは concierge の内訳が無いケースが多いので、出さないならここで切る
-        breakdown={null}
-      />
+      <ShrineCard {...cardProps} breakdown={null} />
 
       <ShrineJudgeSection
         judgeTitle={judge.title}
         judgeLevel={judge.level}
         judgeSummary={judge.summary}
-        judgeHint={judge.hint}
+        judgeHint={hint}
         concierge={conciergeBreakdown}
         exp={exp}
       />
@@ -69,6 +66,7 @@ export default function ShrineDetailArticle({
           </div>
         )}
       </DetailSection>
+
       <GoshuinLimitBadge />
 
       <PublicGoshuinSection items={publicGoshuins} addGoshuinHref={addGoshuinHref} />
