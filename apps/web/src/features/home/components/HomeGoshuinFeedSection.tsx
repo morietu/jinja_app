@@ -100,7 +100,6 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
             className="group block overflow-hidden rounded-lg border bg-white"
           >
             <div className="aspect-square bg-slate-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={g.image_url ?? ""}
                 alt={g.title ?? g.shrine_name ?? "御朱印"}
