@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { getShrines, type Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/shrine/ShrineCard";
-import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
+import { buildShrineListItemModel } from "@/lib/shrine/buildShrineListItemModel";
 
 export default function ShrinesPage() {
   const [shrines, setShrines] = useState<Shrine[]>([]);
@@ -27,11 +27,14 @@ export default function ShrinesPage() {
       <h1 className="text-xl font-bold mb-4">神社一覧</h1>
       {error && <p className="text-red-500">{error}</p>}
       <ul className="grid gap-4">
-        {shrines.map((shrine) => (
-          <li key={shrine.id}>
-            <ShrineCard {...buildShrineCardProps(shrine).cardProps} />
-          </li>
-        ))}
+        {shrines.map((shrine) => {
+          const model = buildShrineListItemModel(shrine);
+          return (
+            <li key={shrine.id}>
+              <ShrineCard {...model.cardProps} />
+            </li>
+          );
+        })}
       </ul>
     </main>
   );
