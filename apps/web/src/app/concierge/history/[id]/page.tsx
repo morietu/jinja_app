@@ -1,13 +1,24 @@
 // apps/web/src/app/concierge/history/[id]/page.tsx
 "use client";
 
+import Link from "next/link";
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+
 import { useConciergeThreadDetail } from "@/features/concierge/hooks";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
-import type { ConciergeMessage, ConciergeThread } from "@/lib/api/concierge";
-import Link from "next/link";
+
+import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
+
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
 import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
+
+import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
+import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
+import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
+import { buildDummySections } from "@/features/concierge/sections/dummy";
+import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
+import type { RendererAction } from "@/features/concierge/sections/types";
 
 export default function ConciergeHistoryDetailPage() {
   const params = useParams();
@@ -16,6 +27,49 @@ export default function ConciergeHistoryDetailPage() {
 
   const { detail, loading, error } = useConciergeThreadDetail(threadId);
 
+  // hooks（安全なデフォルトに寄せる）
+  const thread = (detail?.thread ?? null) as ConciergeThread | null;
+
+  const messages = useMemo(() => (detail?.messages ?? []) as ConciergeMessage[], [detail]);
+  const recommendations = useMemo(() => (detail?.recommendations ?? []) as ConciergeRecommendation[], [detail]);
+
+  const filterState = useMemo(
+    () => ({
+      isOpen: false,
+      birthdate: "",
+      element4: null,
+      goriyakuTags: [],
+      suggestedTags: [],
+      selectedTagIds: [],
+      tagsLoading: false,
+      tagsError: null,
+      extraCondition: "",
+    }),
+    [],
+  );
+
+  const unifiedForHistory = useMemo<UnifiedConciergeResponse | null>(() => {
+    if (!thread) return null;
+    return {
+      ok: true,
+      data: { recommendations } as any,
+      reply: null,
+      stop_reason: null,
+      note: null,
+      remaining_free: null,
+      thread: thread as any,
+    } as any;
+  }, [thread, recommendations]);
+
+  // nullを返さない（Rendererの型要求に合わせる）
+  const payload = useMemo(() => {
+    const built = unifiedForHistory ? buildPayloadFromUnified(unifiedForHistory, filterState) : null;
+    return built ?? buildDummySections(filterState);
+  }, [unifiedForHistory, filterState]);
+
+  const sections = useMemo(() => buildConciergeSections(recommendations as any, []), [recommendations]);
+
+  // return分岐
   if (loading) {
     return <main className="mx-auto max-w-md px-4 py-4 text-xs text-gray-500">相談履歴を読み込んでいます…</main>;
   }
@@ -24,19 +78,27 @@ export default function ConciergeHistoryDetailPage() {
     return <main className="mx-auto max-w-md px-4 py-4 text-xs text-red-700">履歴の取得に失敗しました。</main>;
   }
 
-  if (!detail) {
+  if (!detail || !thread) {
     return (
       <main className="mx-auto max-w-md px-4 py-4 text-xs text-gray-500">この相談履歴は見つかりませんでした。</main>
     );
   }
 
-  const thread: ConciergeThread = detail.thread;
-  const messages: ConciergeMessage[] = detail.messages;
-  const recommendations = detail.recommendations ?? [];
-  const sections = buildConciergeSections(recommendations as any, []);
-
   const handleContinue = () => {
     router.push(`/concierge?tid=${thread.id}`);
+  };
+
+  const onRendererAction = (a: RendererAction) => {
+    switch (a.type) {
+      case "open_map":
+        router.push("/map");
+        return;
+      case "add_condition":
+        handleContinue();
+        return;
+      default:
+        return;
+    }
   };
 
   return (
@@ -58,8 +120,15 @@ export default function ConciergeHistoryDetailPage() {
         canSend={false}
         embedMode={false}
       >
-        <ConciergeSections sections={sections} />
+        {SHOW_NEW_RENDERER ? (
+          <div className="p-4 space-y-3">
+            <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={false} />
+          </div>
+        ) : (
+          <ConciergeSections sections={sections} />
+        )}
       </ConciergeLayout>
+
       <button
         type="button"
         onClick={handleContinue}
