@@ -1,18 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 
-
+import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import type { Shrine } from "@/lib/api/shrines";
-import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
-import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
-import { buildShrineClose } from "@/lib/navigation/shrineClose";
-import { LABELS } from "@/lib/ui/labels";
-import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
-import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
 
+
+import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
+import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
+
+import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
 import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
@@ -38,7 +37,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const [loadingShrine, setLoadingShrine] = useState(false);
 
   const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuinItem[]>([]);
-  const [loadingGoshuins, setLoadingGoshuins] = useState(false);
+ 
 
   useEffect(() => {
     setShrineId(null);
@@ -140,7 +139,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
         return;
       }
 
-      setLoadingGoshuins(true);
+     
       try {
         const r = await fetch(`/api/public/goshuins?limit=50&offset=0&shrine=${shrineId}`, { cache: "no-store" });
         if (!r.ok) throw new Error("public goshuins failed");
@@ -162,9 +161,8 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
         }
       } catch {
         if (alive) setPublicGoshuins([]);
-      } finally {
-        if (alive) setLoadingGoshuins(false);
       }
+
     })();
 
     return () => {
@@ -191,14 +189,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   // 保存ボタン（ログイン後も selfPath に戻す）
   const saveNode = shrineId != null ? <ShrineSaveButton shrineId={shrineId} nextPath={selfPath} /> : null;
 
-  // 詳細ページ（確定ID）へ進む導線
-  const detailHref =
-    shrineId != null
-      ? `/shrines/${shrineId}?${new URLSearchParams({
-          ...(ctx ? { ctx } : {}),
-          ...(tid ? { tid: String(tid) } : {}),
-        }).toString()}`
-      : null;
+
   // 保存ボタンも解決できたときだけ
 
   // 状況説明

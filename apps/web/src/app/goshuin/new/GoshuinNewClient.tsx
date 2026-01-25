@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { uploadMyGoshuin, fetchMyGoshuinCount, type GoshuinCount } from "@/lib/api/goshuin";
+import Image from "next/image";
 
 function safeDecode(v: string) {
   try {
@@ -161,8 +162,8 @@ export default function GoshuinNewClient() {
 
         {previewUrl ? (
           <div className="overflow-hidden rounded-2xl border bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="preview" className="h-auto w-full" />
+            // eslint-disable-next-line @next/next/no-img-element
+            <Image src={previewUrl} alt="preview" className="h-auto w-full" />
           </div>
         ) : (
           <div className="rounded-2xl border bg-slate-50 p-4 text-xs text-slate-600">
