@@ -126,7 +126,10 @@ export default async function Page({ params, searchParams }: Props) {
     }
   }
 
-  const exp = buildShrineExplanation({ shrine: s, publicCount });
+  const exp = buildShrineExplanation({
+    shrine: s,
+    signals: { publicGoshuinsCount: publicCount },
+  });
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
  

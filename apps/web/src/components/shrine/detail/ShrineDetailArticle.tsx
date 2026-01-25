@@ -4,11 +4,9 @@ import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import GoshuinLimitBadge from "@/components/shrine/detail/GoshuinLimitBadge";
 
-
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
-
+import type { SignalLevel, ShrineExplanation } from "@/lib/shrine/buildShrineExplanation"; // ✅ ここ
 
 export default function ShrineDetailArticle({
   cardProps,
@@ -24,17 +22,8 @@ export default function ShrineDetailArticle({
   publicGoshuins: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
   judge: { title: string; summary: string; level: SignalLevel; hint: string | null };
-  conciergeBreakdown: ConciergeBreakdown | null;
-  exp: {
-    hasSignal: boolean;
-    fit: string;
-    unfit: string;
-    howto: string;
-    note: string;
-    summary: string;
-    strongHint: string | null;
-    signalLevel: SignalLevel;
-  };
+  conciergeBreakdown?: ConciergeBreakdown | null; // ✅ optional に
+  exp: ShrineExplanation;
 }) {
   return (
     <article className="space-y-4">
@@ -45,9 +34,10 @@ export default function ShrineDetailArticle({
         judgeLevel={judge.level}
         judgeSummary={judge.summary}
         judgeHint={judge.hint}
-        concierge={conciergeBreakdown}
+        concierge={conciergeBreakdown ?? null} // ✅ ここでnullに潰す
         exp={exp}
       />
+
       <DetailSection title="ご利益">
         {benefitLabels.length === 0 ? (
           <p className="text-xs text-slate-400">ご利益情報は準備中です。</p>
