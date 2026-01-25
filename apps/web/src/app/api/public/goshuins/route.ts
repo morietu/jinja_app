@@ -1,5 +1,6 @@
 // apps/web/src/app/api/public/goshuins/route.ts
 import { NextResponse } from "next/server";
+import { getDjangoOrigin } from "@/lib/bff/origin";
 
 type Goshuin = {
   id: number;
@@ -19,24 +20,20 @@ type Paginated<T> = {
   results: T[];
 };
 
-
-
 export async function GET(req: Request) {
-  const base = (process.env.DJANGO_API_BASE_URL ?? process.env.API_BASE ?? "http://127.0.0.1:8000").trim();
-  if (!base) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
+  const origin = getDjangoOrigin();
+  if (!origin) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
 
   const { searchParams } = new URL(req.url);
   const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
   const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
   const shrine = Number(searchParams.get("shrine") ?? "") || null;
 
-  // ✅ shrine 必須（「みんなの公開御朱印」を防ぐ）
   if (!shrine) {
     return NextResponse.json({ error: "shrine is required" }, { status: 400 });
   }
 
-  // ✅ upstream（Django/DRF）は /api/goshuins/ が正
-  const upstream = `${base}/api/goshuins/?is_public=true&shrine=${shrine}`;
+  const upstream = `${origin}/api/goshuins/?is_public=true&shrine=${shrine}`;
 
   try {
     const res = await fetch(upstream, { cache: "no-store" });
