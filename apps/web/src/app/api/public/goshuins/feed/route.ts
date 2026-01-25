@@ -1,6 +1,6 @@
-import type { NextRequest } from "next/server";
+
 import { NextResponse } from "next/server";
-import { djFetch } from "@/lib/server/backend";
+
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
