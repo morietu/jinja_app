@@ -1,5 +1,8 @@
 // apps/web/src/features/home/components/HomeGoshuinFeedSection.tsx
 "use client";
+// NOTE:
+// このコンポーネントは「公開情報の閲覧専用」
+// 認証状態・owner・公開切替ロジックは一切扱わない
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -100,12 +103,14 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
             className="group block overflow-hidden rounded-lg border bg-white"
           >
             <div className="aspect-square bg-slate-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={g.image_url ?? ""}
                 alt={g.title ?? g.shrine_name ?? "御朱印"}
                 className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
                 loading="lazy"
               />
+
             </div>
           </Link>
         ))}
@@ -121,10 +126,7 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
 
   return (
     <section className="space-y-2">
-      <div className="px-1">
-        <div className="text-sm font-semibold text-slate-800">最新の公開御朱印</div>
-        <div className="text-xs text-slate-500">タップで神社詳細へ</div>
-      </div>
+      
       {content}
     </section>
   );

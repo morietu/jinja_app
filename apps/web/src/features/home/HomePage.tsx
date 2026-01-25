@@ -1,4 +1,6 @@
 // apps/web/src/features/home/HomePage.tsx
+
+
 import { Suspense } from "react";
 import { HomeToastClient } from "@/features/home/components/HomeToastClient";
 import { HomeMainClient } from "@/features/home/components/HomeMainClient";
@@ -16,3 +18,6 @@ export default function HomePage() {
     </div>
   );
 }
+// HomePage (Server Component)
+// - データ取得や状態管理はしない
+// - HomeMainClient 等の Client を並べるだけ
