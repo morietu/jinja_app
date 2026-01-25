@@ -3,21 +3,21 @@ import Link from "next/link";
 
 import { getShrine, type Shrine } from "@/lib/api/shrines";
 
-import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
+
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 
-import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
 import { getConciergeThread } from "@/lib/api/concierge";
 import { fetchPublicGoshuinsForShrine } from "@/lib/api/publicGoshuins";
-import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
 
-import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
+
+
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 
 
@@ -104,12 +104,11 @@ export default async function Page({ params, searchParams }: Props) {
     lngNum <= 180;
 
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
-  const benefitLabels = getBenefitLabels(s);
+ 
 
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
-  // ✅ ShrineCard用のpropsを構築
-  const { cardProps } = buildShrineCardProps(s);
+
 
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
   
@@ -126,14 +125,11 @@ export default async function Page({ params, searchParams }: Props) {
     }
   }
 
-  const exp = buildShrineExplanation({
+  const model = buildShrineDetailModel({
     shrine: s,
-    signals: { publicGoshuinsCount: publicGoshuins.length },
+    publicGoshuins,
+    conciergeBreakdown,
   });
-  const judge = buildShrineJudge(exp, conciergeBreakdown);
-
-
-
 
   return (
     <>
@@ -151,15 +147,7 @@ export default async function Page({ params, searchParams }: Props) {
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
       >
-        <ShrineDetailArticle
-          cardProps={cardProps}
-          benefitLabels={benefitLabels}
-          publicGoshuins={publicGoshuins}
-          addGoshuinHref={addGoshuinHref}
-          judge={judge}
-          conciergeBreakdown={conciergeBreakdown}
-          exp={exp}
-        />
+        <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
       </ShrineDetailShell>
     </>
   );

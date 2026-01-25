@@ -5,17 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import type { Shrine } from "@/lib/api/shrines";
 
-
+import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
-import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
-import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
-import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
-import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
+
 
 // from-place は未確定ID（place_id）の暫定表示。concierge の理由説明は前提にしない。
 
@@ -191,21 +188,23 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
           : shrineId != null
             ? "紐づけ済み（この場で詳細を表示します）"
             : null;
-  
-  
+
   // ✅ “確定してる状態” の定義を先に置く（これが通行証）
-  const showFull = resolveState === "ok" && shrineId != null;
+  const showFull = resolveState === "ok" && shrineId != null && shrine != null;
+
+  // shrine が取れてる時だけモデル生成（TSが納得する形）
+  const model =
+    showFull && shrine
+      ? buildShrineDetailModel({
+          shrine,
+          publicGoshuins,
+          conciergeBreakdown: null,
+        })
+      : null;
   // ✅ 保存ボタンも showFull 前提に統一
   const saveNode = showFull ? <ShrineSaveButton shrineId={shrineId!} nextPath={selfPath} /> : null;
-  
-  const benefitLabels = shrine ? getBenefitLabels(shrine) : [];
 
-  const exp = shrine
-    ? buildShrineExplanation({ shrine, signals: { publicGoshuinsCount: publicGoshuins.length } })
-    : null;
-  const judge = exp ? buildShrineJudge(exp, null) : null;
 
-  const cardProps = shrine ? buildShrineCardProps(shrine).cardProps : null;
 
   return (
     <ShrineDetailShell
@@ -231,17 +230,9 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
         {loadingShrine ? <div className="mt-2 text-xs text-slate-500">神社情報を読み込み中…</div> : null}
 
-        {showFull && shrine && exp && judge && cardProps ? (
+        {model ? (
           <div className="mt-3">
-            <ShrineDetailArticle
-              cardProps={cardProps}
-              benefitLabels={benefitLabels}
-              publicGoshuins={publicGoshuins}
-              addGoshuinHref={null}
-              judge={judge}
-              conciergeBreakdown={null}
-              exp={exp}
-            />
+            <ShrineDetailArticle {...model} addGoshuinHref={null} />
           </div>
         ) : null}
       </div>
