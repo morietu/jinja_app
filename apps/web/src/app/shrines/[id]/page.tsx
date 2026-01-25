@@ -112,7 +112,7 @@ export default async function Page({ params, searchParams }: Props) {
   const { cardProps } = buildShrineCardProps(s);
 
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
-  const publicCount = publicGoshuins.length;  
+  
   
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
@@ -128,7 +128,7 @@ export default async function Page({ params, searchParams }: Props) {
 
   const exp = buildShrineExplanation({
     shrine: s,
-    signals: { publicGoshuinsCount: publicCount },
+    signals: { publicGoshuinsCount: publicGoshuins.length },
   });
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
