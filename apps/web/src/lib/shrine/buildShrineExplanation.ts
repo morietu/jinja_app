@@ -1,9 +1,12 @@
-// apps/web/src/lib/shrine/buildShrineExplanation.ts
 import type { Shrine } from "@/lib/api/shrines";
 
 type Args = {
   shrine: Shrine;
-  publicCount?: number;
+  signals?: {
+    publicGoshuinsCount?: number;
+    views30d?: number;
+    fav30d?: number;
+  };
 };
 
 export type SignalLevel = "weak" | "medium" | "strong";
@@ -32,15 +35,9 @@ function pickAClauseFromShrine(s: Shrine): string {
 
 // ✅ 固定3文言（この後触らない）
 function buildSummary(args: { hasSignal: boolean; level: SignalLevel }): string {
-  if (!args.hasSignal) {
-    return "情報が少ないため、現時点では判断材料の目安として表示しています。";
-  }
-  if (args.level === "strong") {
-    return "参考になる参拝例が複数あり、おすすめしやすい神社です。";
-  }
-  if (args.level === "medium") {
-    return "いくつかの傾向から、検討の参考として提案しています。";
-  }
+  if (!args.hasSignal) return "情報が少ないため、現時点では判断材料の目安として表示しています。";
+  if (args.level === "strong") return "参考になる参拝例が複数あり、おすすめしやすい神社です。";
+  if (args.level === "medium") return "いくつかの傾向から、検討の参考として提案しています。";
   return "情報が少ないため、現時点では判断材料の目安として表示しています。";
 }
 
@@ -55,8 +52,12 @@ function buildStrongHint(args: { publicCount: number; views30d: number; fav30d: 
 const BASE_UNFIT = "判断材料の一つとして、前提とあわせて参考にしてください。";
 const NUANCED_UNFIT = "判断の前提によっては、特徴の受け取り方が変わるため、判断材料の一つとして参考にしてください。";
 
-export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): ShrineExplanation {
+export function buildShrineExplanation({ shrine, signals }: Args): ShrineExplanation {
   const desc = hasText((shrine as any)?.description) ? String((shrine as any).description).trim() : "";
+
+  const publicCount = Number(signals?.publicGoshuinsCount ?? 0);
+  const views30d = Number(signals?.views30d ?? (shrine as any)?.views_30d ?? 0);
+  const fav30d = Number(signals?.fav30d ?? (shrine as any)?.favorites_30d ?? 0);
 
   const A = pickAClauseFromShrine(shrine);
 
@@ -64,9 +65,6 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Shrin
   const baseHowto = "判断を急がず、状況を整理するための参拝として使われることがあります。";
   const baseNote =
     "合うかどうかは、その日の状態や目的で変わることがあります。無理に意味づけせず、判断材料として使うのが自然です。";
-
-  const views30d = Number((shrine as any)?.views_30d ?? 0);
-  const fav30d = Number((shrine as any)?.favorites_30d ?? 0);
 
   const hasSignal =
     hasText((shrine as any)?.description) ||
@@ -77,30 +75,18 @@ export function buildShrineExplanation({ shrine, publicCount = 0 }: Args): Shrin
     (Number.isFinite(fav30d) && fav30d >= 3);
 
   const unfit = hasSignal ? NUANCED_UNFIT : BASE_UNFIT;
-
   const refHint = publicCount >= 3 ? "公開御朱印があるため、参拝のイメージをつかむ材料が比較的そろっています。" : null;
 
   const fit = desc ? `${baseFit}（要点：${desc.slice(0, 48)}${desc.length > 48 ? "…" : ""}）` : baseFit;
   const howto = refHint ? `${baseHowto} ${refHint}` : baseHowto;
 
   let signalLevel: SignalLevel = "weak";
-  if (publicCount >= 5 || fav30d >= 5 || views30d >= 100) {
-    signalLevel = "strong";
-  } else if (publicCount >= 3 || fav30d >= 3 || views30d >= 30 || hasText((shrine as any)?.description)) {
+  if (publicCount >= 5 || fav30d >= 5 || views30d >= 100) signalLevel = "strong";
+  else if (publicCount >= 3 || fav30d >= 3 || views30d >= 30 || hasText((shrine as any)?.description))
     signalLevel = "medium";
-  }
 
   const summary = buildSummary({ hasSignal, level: signalLevel });
   const strongHint = signalLevel === "strong" ? buildStrongHint({ publicCount, views30d, fav30d }) : null;
 
-  return {
-    fit,
-    unfit,
-    howto,
-    note: baseNote,
-    hasSignal,
-    signalLevel,
-    summary,
-    strongHint,
-  };
+  return { fit, unfit, howto, note: baseNote, hasSignal, signalLevel, summary, strongHint };
 }

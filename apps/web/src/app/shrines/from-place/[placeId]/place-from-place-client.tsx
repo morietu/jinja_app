@@ -17,13 +17,9 @@ import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
 import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
 
-
+// from-place は未確定ID（place_id）の暫定表示。concierge の理由説明は前提にしない。
 
 type Props = { placeId: string; ctx?: "concierge" | "map" | null; tid?: string | null };
-
-
-
-
 
 export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
@@ -209,7 +205,12 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const benefitLabels = shrine ? getBenefitLabels(shrine) : [];
   const publicCount = publicGoshuins.length;
 
-  const exp = shrine ? buildShrineExplanation({ shrine, publicCount }) : null;
+  const exp = shrine
+    ? buildShrineExplanation({
+        shrine,
+        signals: { publicGoshuinsCount: publicGoshuins.length },
+      })
+    : null;
   const judge = exp ? buildShrineJudge(exp, null) : null;
 
   const cardProps = shrine ? buildShrineCardProps(shrine).cardProps : null;
