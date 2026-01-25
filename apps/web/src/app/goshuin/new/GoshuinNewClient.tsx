@@ -86,7 +86,7 @@ export default function GoshuinNewClient() {
     router.push("/mypage?tab=goshuin");
   };
 
-  const canAdd = count ? count.can_add : true; // count取得失敗でも入力はさせる（submitで弾く）
+  
   const limitLabel = countLoading
     ? "御朱印数を確認中…"
     : count
@@ -239,4 +239,3 @@ export default function GoshuinNewClient() {
     </form>
   );
 }
-

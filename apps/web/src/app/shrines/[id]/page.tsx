@@ -1,8 +1,8 @@
 // apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
-import Image from "next/image";
+
 import { getShrine, type Shrine } from "@/lib/api/shrines";
-import ShrineCard from "@/components/shrine/ShrineCard";
+
 import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
@@ -10,18 +10,15 @@ import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
-import DetailSection from "@/components/shrine/DetailSection";
-
-import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
+import { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
-
-
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import { getConciergeThread } from "@/lib/api/concierge"; 
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
-
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import ConciergeBreakdownBody, { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
+
+
+
 
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
@@ -219,107 +216,14 @@ export default async function Page({ params, searchParams }: Props) {
           conciergeBreakdown={concierge}
           exp={exp}
         />
-        <article className="space-y-4">
-          {/* ✅ ShrineCardを使用 */}
-          <ShrineCard
-            {...cardProps}
-            // 詳細ページは下に「ご利益」セクションがあるので、disclosure側は消す
+        
+          
 
-            // 詳細ページは concierge の内訳が無いケースが多いので、出さないならここで切る
-            breakdown={null}
-          />
+          
 
-          {/* 説明セクション（固定テンプレ） */}
-          <DetailSection title="説明">
-            <DetailDisclosureBlock title={judgeTitle} summary={judgeSummary} level={judgeLevel} hint={judgeHint}>
-              {useConcierge ? (
-                <div className="space-y-2 text-sm text-slate-800">
-                  <div className="text-xs font-semibold text-slate-500">おすすめ理由（内訳）</div>
-                  <ConciergeBreakdownBody breakdown={concierge!} />
-                </div>
-              ) : (
-                <div className="space-y-3 text-sm text-slate-800">
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">合う人</div>
-                    <p className="line-clamp-3">{exp.fit}</p>
-                  </div>
 
-                  {exp.hasSignal ? (
-                    <>
-                      <div>
-                        <div className="text-xs font-semibold text-slate-500">合いにくい人</div>
-                        <p className="mt-1 line-clamp-3">{exp.unfit}</p>
-                      </div>
-
-                      <div>
-                        <div className="text-xs font-semibold text-slate-500">参拝の使い方</div>
-                        <p className="mt-1 line-clamp-3">{exp.howto}</p>
-                      </div>
-
-                      <div>
-                        <div className="text-xs font-semibold text-slate-500">注意</div>
-                        <p className="mt-1 line-clamp-3">{exp.note}</p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2 text-sm text-slate-800">
-                      <p className="text-xs text-slate-500">情報が少ないため、現時点では目安として扱ってください。</p>
-                      <p className="line-clamp-3">{exp.note}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </DetailDisclosureBlock>
-          </DetailSection>
-
-          {/* ご利益セクション */}
-          <DetailSection title="ご利益">
-            {benefitLabels.length === 0 ? (
-              <p className="text-xs text-slate-400">ご利益情報は準備中です。</p>
-            ) : (
-              <div className="flex flex-wrap gap-1">
-                {benefitLabels.map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </DetailSection>
-
-          {/* 公開御朱印セクション */}
-          <DetailSection title="公開御朱印" right="この神社の公開分のみ">
-            {publicGoshuins.length === 0 ? (
-              <p className="text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
-            ) : (
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {publicGoshuins.map((g) => (
-                  <div key={g.id} className="overflow-hidden rounded-xl border bg-white">
-                    <div className="aspect-[4/5] bg-slate-100">
-                      {g.image_url ? (
-                        <Image
-                          src={g.image_url}
-                          alt={g.title ?? "goshuin"}
-                          width={600}
-                          height={750}
-                          className="h-full w-full object-cover"
-                          unoptimized
-                        />
-                      ) : null}
-                    </div>
-                    <div className="p-2">
-                      <p className="truncate text-xs text-slate-700">{(g.title ?? "").trim() || "（タイトルなし）"}</p>
-                      {g.created_at ? <p className="truncate text-[11px] text-slate-500">{g.created_at}</p> : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </DetailSection>
-        </article>
+          
+        
       </ShrineDetailShell>
     </>
   );
