@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { getShrines, type Shrine } from "@/lib/api/shrines";
 import ShrineCard from "@/components/shrine/ShrineCard";
-import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { buildShrineListItemModel } from "@/lib/shrine/buildShrineListItemModel";
 
 export default function ShrinesPage() {

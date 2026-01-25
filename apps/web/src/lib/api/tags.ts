@@ -1,5 +1,4 @@
 // apps/web/src/lib/api/tags.ts
-import api from "./client";
 
 export type GoriyakuTag = { id: number; name: string };
 
