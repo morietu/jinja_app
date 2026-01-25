@@ -4,6 +4,8 @@ import api from "./client";
 export type GoriyakuTag = { id: number; name: string };
 
 export async function getGoriyakuTags() {
-  const res = await api.get("/api/goriyaku-tags/");
-  return res.data as GoriyakuTag[];
+  const r = await fetch("/api/goriyaku-tags/", { cache: "no-store" });
+  if (!r.ok) throw new Error(`tags fetch failed: ${r.status}`);
+  const data = await r.json();
+  return Array.isArray(data) ? (data as GoriyakuTag[]) : [];
 }

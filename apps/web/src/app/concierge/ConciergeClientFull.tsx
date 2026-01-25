@@ -230,22 +230,27 @@ export default function ConciergeClientFull() {
     }
   }, [birthdate]);
 
-  /* フィルター開いたタイミングでタグ取得 */
   useEffect(() => {
     if (!isFilterOpen) return;
-    if (goriyakuTags.length > 0) return;
+    if (tagsLoading || goriyakuTags.length > 0) return;
 
     let alive = true;
     setTagsLoading(true);
+    setTagsError(null);
 
     (async () => {
       try {
+        console.log("[tags] fetching...");
         const res = await getGoriyakuTags();
+        console.log("[tags] res", res);
+
         if (!alive) return;
         setGoriyakuTags(Array.isArray(res) ? res : []);
         setTagsError(null);
-      } catch {
+      } catch (e) {
+        console.log("[tags] failed", e);
         if (!alive) return;
+        setGoriyakuTags([]);
         setTagsError("ご利益タグの取得に失敗しました");
       } finally {
         if (alive) setTagsLoading(false);
@@ -255,7 +260,7 @@ export default function ConciergeClientFull() {
     return () => {
       alive = false;
     };
-  }, [isFilterOpen, goriyakuTags.length]);
+  }, [isFilterOpen, tagsLoading, goriyakuTags.length]);
 
   
 
