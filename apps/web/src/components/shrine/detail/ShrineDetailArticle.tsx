@@ -22,7 +22,7 @@ export default function ShrineDetailArticle({
   cardProps: ShrineCardAdapterProps;
   benefitLabels: string[];
   publicGoshuins: PublicGoshuinItem[];
-  addGoshuinHref: string;
+  addGoshuinHref?: string | null;
   judge: { title: string; summary: string; level: SignalLevel; hint: string | null };
   conciergeBreakdown: ConciergeBreakdown | null;
   exp: {
@@ -36,8 +36,6 @@ export default function ShrineDetailArticle({
     signalLevel: SignalLevel;
   };
 }) {
-
-
   return (
     <article className="space-y-4">
       <ShrineCard {...cardProps} breakdown={null} />
@@ -69,7 +67,7 @@ export default function ShrineDetailArticle({
 
       <GoshuinLimitBadge />
 
-      <PublicGoshuinSection items={publicGoshuins} addGoshuinHref={addGoshuinHref} />
+      <PublicGoshuinSection items={publicGoshuins} addGoshuinHref={addGoshuinHref ?? null} />
     </article>
   );
 }

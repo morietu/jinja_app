@@ -12,6 +12,12 @@ import { LABELS } from "@/lib/ui/labels";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
 
+import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
+import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
+import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
+import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
+import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
+
 
 
 type Props = { placeId: string; ctx?: "concierge" | "map" | null; tid?: string | null };
@@ -208,6 +214,15 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
             : null;
 
   const showFull = shrineId != null;
+  
+  const benefitLabels = shrine ? getBenefitLabels(shrine) : [];
+  const publicCount = publicGoshuins.length;
+
+  const exp = shrine ? buildShrineExplanation({ shrine, publicCount }) : null;
+  const judge = exp ? buildShrineJudge(exp, null) : null;
+
+  const cardProps = shrine ? buildShrineCardProps(shrine).cardProps : null;
+
 
   return (
     <ShrineDetailShell
@@ -225,33 +240,17 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
         {loadingShrine ? <div className="mt-2 text-xs text-slate-500">神社情報を読み込み中…</div> : null}
 
-        {showFull && shrine ? (
-          <div className="mt-3 space-y-2">
-            <div className="rounded-xl border bg-white p-3">
-              <div className="text-sm font-semibold">{shrine.name_jp}</div>
-              {!!shrine.address && <div className="mt-1 text-xs text-slate-600">{shrine.address}</div>}
-            </div>
-
-            {detailHref ? (
-              <Link
-                href={detailHref}
-                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-              >
-                {LABELS.shrineDetail} {/* ✅ 置換 */}
-              </Link>
-            ) : null}
-
-            <div className="rounded-xl border bg-white p-3">
-              {loadingGoshuins ? (
-                <div className="mt-2 text-xs text-slate-500">読み込み中…</div>
-              ) : (
-                <PublicGoshuinSection
-                  items={publicGoshuins}
-                  addGoshuinHref={null}
-                  sendingLabel="この神社の公開分のみ"
-                />
-              )}
-            </div>
+        {showFull && shrine && exp && judge && cardProps ? (
+          <div className="mt-3">
+            <ShrineDetailArticle
+              cardProps={cardProps}
+              benefitLabels={benefitLabels}
+              publicGoshuins={publicGoshuins}
+              addGoshuinHref={null}
+              judge={judge}
+              conciergeBreakdown={null}
+              exp={exp}
+            />
           </div>
         ) : null}
       </div>
