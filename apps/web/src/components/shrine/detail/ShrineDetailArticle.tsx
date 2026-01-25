@@ -3,11 +3,12 @@ import DetailSection from "@/components/shrine/DetailSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import GoshuinLimitBadge from "@/components/shrine/detail/GoshuinLimitBadge";
-import { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
+
 
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
+
 
 export default function ShrineDetailArticle({
   cardProps,
@@ -35,7 +36,7 @@ export default function ShrineDetailArticle({
     signalLevel: SignalLevel;
   };
 }) {
-  const hint = conciergeBreakdown ? buildConciergeHint(conciergeBreakdown) : exp.strongHint;
+
 
   return (
     <article className="space-y-4">
@@ -45,11 +46,10 @@ export default function ShrineDetailArticle({
         judgeTitle={judge.title}
         judgeLevel={judge.level}
         judgeSummary={judge.summary}
-        judgeHint={hint}
+        judgeHint={judge.hint}
         concierge={conciergeBreakdown}
         exp={exp}
       />
-
       <DetailSection title="ご利益">
         {benefitLabels.length === 0 ? (
           <p className="text-xs text-slate-400">ご利益情報は準備中です。</p>

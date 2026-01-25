@@ -1,8 +1,7 @@
 // apps/web/src/components/shrine/detail/ShrineJudgeSection.tsx
 import DetailSection from "@/components/shrine/DetailSection";
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
-import ConciergeBreakdownBody, { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
-import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import ConciergeBreakdownBody from "@/components/concierge/ConciergeBreakdownBody";
 
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
@@ -33,13 +32,9 @@ export default function ShrineJudgeSection({
 }) {
   const useConcierge = concierge !== null;
 
-  // 念のため: 呼び出し側が summary/hint を作ってても壊れないように整形
-  const summary = judgeSummary || (useConcierge ? buildOneLiner(concierge!) : exp.summary);
-  const hint = judgeHint ?? (useConcierge ? buildConciergeHint(concierge!) : exp.strongHint);
-
   return (
     <DetailSection title="説明">
-      <DetailDisclosureBlock title={judgeTitle} summary={summary} level={judgeLevel} hint={hint}>
+      <DetailDisclosureBlock title={judgeTitle} summary={judgeSummary} level={judgeLevel} hint={judgeHint}>
         {useConcierge ? (
           <div className="space-y-2 text-sm text-slate-800">
             <div className="text-xs font-semibold text-slate-500">おすすめ理由（内訳）</div>
