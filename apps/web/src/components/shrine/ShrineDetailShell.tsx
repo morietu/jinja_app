@@ -29,6 +29,13 @@ type Props = {
   children?: ReactNode;
 };
 
+type HeaderAction = {
+  label: string;
+  href: string;
+  ariaLabel?: string;
+  kind: "primary" | "secondary" | "tertiary";
+};
+
 export default function ShrineDetailShell({
   title,
   subtitle = null,
@@ -57,19 +64,10 @@ export default function ShrineDetailShell({
         <div className="w-[64px]" />
       </header>
 
-      
       {/* ✅ CTA（御朱印 → 経路案内 → 保存）を DetailSection トーンに統一 */}
       <DetailSection title="操作">
         <div className="grid gap-2">
-          {addGoshuinHref ? (
-            <Link
-              href={addGoshuinHref}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
-            >
-              {LABELS.addGoshuin}
-            </Link>
-          ) : null}
-
+          {/* primary: 経路案内 */}
           {googleDirHref ? (
             <a
               href={googleDirHref}
@@ -83,7 +81,18 @@ export default function ShrineDetailShell({
             <div className="text-xs text-slate-500">{googleDirFallbackText}</div>
           )}
 
+          {/* secondary: 保存 */}
           {saveAction?.node ? <div>{saveAction.node}</div> : null}
+
+          {/* tertiary: 御朱印追加（条件付き） */}
+          {addGoshuinHref ? (
+            <Link
+              href={addGoshuinHref}
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+            >
+              {LABELS.addGoshuin}
+            </Link>
+          ) : null}
         </div>
       </DetailSection>
 
