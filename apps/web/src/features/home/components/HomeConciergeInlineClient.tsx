@@ -2,7 +2,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const ConciergeClient = dynamic(() => import("@/app/concierge/ConciergeClient"), {
   ssr: false,
@@ -11,17 +11,26 @@ const ConciergeClient = dynamic(() => import("@/app/concierge/ConciergeClient"),
 
 type Props = {
   className?: string;
-  onToggle?: (open: boolean) => void;
-  defaultOpen?: boolean;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
 };
 
-export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = false }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+export function HomeConciergeInlineClient({ className, open, onOpen, onClose }: Props) {
   const topRef = useRef<HTMLDivElement | null>(null);
 
-  const onOpen = () => {
-    setOpen(true);
-    onToggle?.(true);
+  // ✅ closeイベント受けたら確実に閉じる（親へ委譲）
+  useEffect(() => {
+    const onCloseEvt = () => {
+      console.log("[jinja] close event received (HomeConciergeInlineClient)");
+      onClose();
+    };
+    window.addEventListener("jinja:close-concierge", onCloseEvt);
+    return () => window.removeEventListener("jinja:close-concierge", onCloseEvt);
+  }, [onClose]);
+
+  const handleOpen = () => {
+    onOpen();
 
     requestAnimationFrame(() => {
       topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -36,7 +45,7 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
       {!open ? (
         <button
           type="button"
-          onClick={onOpen}
+          onClick={handleOpen}
           className="w-full rounded-full bg-amber-500 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
         >
           今の気持ちから神社を探す
@@ -46,6 +55,9 @@ export function HomeConciergeInlineClient({ className, onToggle, defaultOpen = f
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-800">今の気持ちから神社を探す</p>
+              <button type="button" onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800">
+                閉じる
+              </button>
             </div>
 
             <ConciergeClient embedMode />

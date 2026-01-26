@@ -11,21 +11,33 @@ export function HomeMainClient() {
   const [conciergeOpen, setConciergeOpen] = useState(false);
   const savedScrollYRef = useRef(0);
 
-  const handleToggle = (open: boolean) => {
-    if (open) {
-      savedScrollYRef.current = window.scrollY;
-      setConciergeOpen(true);
-      return;
-    }
+  const openConcierge = () => {
+    savedScrollYRef.current = window.scrollY;
+    setConciergeOpen(true);
+  };
+
+  const closeConcierge = () => {
     setConciergeOpen(false);
   };
 
+  // ✅ ロゴ等から送られる close をホームで受ける
   useEffect(() => {
-    const onPageShow = () => setConciergeOpen(false);
+    const onClose = () => {
+      console.log("[jinja] close event received (HomeMainClient)");
+      closeConcierge();
+    };
+    window.addEventListener("jinja:close-concierge", onClose);
+    return () => window.removeEventListener("jinja:close-concierge", onClose);
+  }, []);
+
+  // ✅ 戻る/復帰時も閉じる（Safari系の変挙動対策）
+  useEffect(() => {
+    const onPageShow = () => closeConcierge();
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
+  // ✅ 閉じたら元のスクロールに戻す（“戻った感”を作る）
   useEffect(() => {
     if (conciergeOpen) return;
     window.scrollTo({ top: savedScrollYRef.current, behavior: "auto" });
@@ -34,12 +46,11 @@ export function HomeMainClient() {
   return (
     <>
       <SectionCard>
-        <HomeConciergeInlineClient onToggle={handleToggle} />
+        <HomeConciergeInlineClient open={conciergeOpen} onOpen={openConcierge} onClose={closeConcierge} />
       </SectionCard>
 
       {!conciergeOpen && (
         <>
-          {/* 御朱印フィード（カードで囲みたいなら SectionCard の中へ） */}
           <SectionCard title="最新の公開御朱印" description="タップで神社詳細へ">
             <HomeGoshuinFeedSection limit={12} />
           </SectionCard>
