@@ -29,12 +29,7 @@ type Props = {
   children?: ReactNode;
 };
 
-type HeaderAction = {
-  label: string;
-  href: string;
-  ariaLabel?: string;
-  kind: "primary" | "secondary" | "tertiary";
-};
+
 
 export default function ShrineDetailShell({
   title,
