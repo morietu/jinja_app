@@ -6,30 +6,29 @@ import ConciergeBreakdownBody from "@/components/concierge/ConciergeBreakdownBod
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
 
-export default function ShrineJudgeSection({
-  judgeTitle,
-  judgeLevel,
-  judgeSummary,
-  judgeHint,
-  concierge,
-  exp,
-}: {
+type Exp = {
+  hasSignal: boolean;
+  fit: string;
+  unfit: string;
+  howto: string;
+  note: string;
+  summary: string;
+  strongHint: string | null;
+  signalLevel: SignalLevel;
+};
+
+type Props = {
   judgeTitle: string;
-  judgeLevel: SignalLevel;
+  judgeLevel: SignalLevel | "low"; // ← "low" が混じる現実に合わせる
   judgeSummary: string;
   judgeHint: string | null;
+
   concierge: ConciergeBreakdown | null;
-  exp: {
-    hasSignal: boolean;
-    fit: string;
-    unfit: string;
-    howto: string;
-    note: string;
-    summary: string;
-    strongHint: string | null;
-    signalLevel: SignalLevel;
-  };
-}) {
+  exp: Exp;
+};
+
+export default function ShrineJudgeSection(props: Props) {
+  const { judgeTitle, judgeLevel, judgeSummary, judgeHint, concierge, exp } = props;
   const useConcierge = concierge !== null;
 
   return (

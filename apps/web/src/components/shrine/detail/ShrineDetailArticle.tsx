@@ -37,7 +37,11 @@ export default function ShrineDetailArticle({
 
       {/* 3) それ以外（情報は折りたたみ） */}
       <div className="space-y-2">
-        <DetailDisclosureBlock title="相性の根拠" defaultOpen={false}>
+        <DetailDisclosureBlock
+          title="相性の根拠"
+          summary={judge.summary || "おすすめの根拠を確認できます"}
+          defaultOpen={false}
+        >
           <ShrineJudgeSection
             judgeTitle={judge.title}
             judgeLevel={judge.level}
@@ -48,7 +52,11 @@ export default function ShrineDetailArticle({
           />
         </DetailDisclosureBlock>
 
-        <DetailDisclosureBlock title="ご利益" defaultOpen={false}>
+        <DetailDisclosureBlock
+          title="ご利益"
+          summary={benefitLabels.length ? benefitLabels.slice(0, 2).join(" / ") : "準備中"}
+          defaultOpen={false}
+        >
           {benefitLabels.length === 0 ? (
             <p className="text-xs text-slate-400">ご利益情報は準備中です。</p>
           ) : (
