@@ -10,21 +10,39 @@ export type PublicGoshuinItem = {
   image_url?: string | null;
 };
 
+
+
 export default function PublicGoshuinSection({
   items,
   addGoshuinHref,
   sendingLabel = "この神社の公開分のみ",
+  limit,
+  seeAllHref,
+  seeAllLabel = "すべて見る",
 }: {
   items: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
   sendingLabel?: string;
+  limit?: number;
+  seeAllHref?: string | null;
+  seeAllLabel?: string;
 }) {
+  const shown = typeof limit === "number" ? items.slice(0, limit) : items;
+  const hasMore = typeof limit === "number" && items.length > limit;
+
   return (
     <DetailSection
       title="公開御朱印"
       right={
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">{sendingLabel}</span>
+
+          {hasMore && seeAllHref ? (
+            <Link href={seeAllHref} className="text-xs font-semibold text-slate-700 hover:underline">
+              {seeAllLabel}
+            </Link>
+          ) : null}
+
           {addGoshuinHref ? (
             <Link
               href={addGoshuinHref}
@@ -36,11 +54,11 @@ export default function PublicGoshuinSection({
         </div>
       }
     >
-      {items.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
       ) : (
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {items.map((g) => (
+          {shown.map((g) => (
             <div key={g.id} className="overflow-hidden rounded-xl border bg-white">
               <div className="aspect-[4/5] bg-slate-100">
                 {g.image_url ? (

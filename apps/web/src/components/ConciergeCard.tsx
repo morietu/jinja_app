@@ -89,6 +89,7 @@ export default function ConciergeCard(props: BaseCardProps) {
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 600px"
             priority={isPrimary}
+            unoptimized
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-neutral-100 to-neutral-50" />

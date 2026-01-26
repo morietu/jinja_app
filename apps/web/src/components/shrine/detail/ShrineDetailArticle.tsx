@@ -10,6 +10,7 @@ import type { SignalLevel, ShrineExplanation } from "@/lib/shrine/buildShrineExp
 
 export default function ShrineDetailArticle({
   cardProps,
+  heroImageUrl,
   benefitLabels,
   publicGoshuins,
   addGoshuinHref,
@@ -18,6 +19,7 @@ export default function ShrineDetailArticle({
   exp,
 }: {
   cardProps: ShrineCardAdapterProps;
+  heroImageUrl?: string | null;
   benefitLabels: string[];
   publicGoshuins: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
@@ -25,14 +27,36 @@ export default function ShrineDetailArticle({
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
 }) {
+
+  
+
+  const heroCardProps = {
+    ...cardProps,
+    imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
+  };
+
+  const seeAllHref = cardProps?.shrineId ? `/shrines/${cardProps.shrineId}/goshuins` : null;
+
+
+ 
+
   return (
     <article className="space-y-4">
+      {process.env.NODE_ENV !== "production" ? (
+        <div className="text-[11px] text-slate-500 break-all">heroImageUrl: {String(heroImageUrl)}</div>
+      ) : null}
+
       {/* 1) Hero（常に見せる / 詳細では静かに） */}
-      <ShrineCard {...cardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
+      <ShrineCard {...heroCardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
 
       {/* 2) 公開御朱印（常に見せる） */}
       <section id="goshuins">
-        <PublicGoshuinSection items={publicGoshuins} addGoshuinHref={addGoshuinHref ?? null} />
+        <PublicGoshuinSection
+          items={publicGoshuins}
+          addGoshuinHref={addGoshuinHref ?? null}
+          limit={3}
+          seeAllHref={seeAllHref}
+        />
       </section>
 
       {/* 3) それ以外（情報は折りたたみ） */}

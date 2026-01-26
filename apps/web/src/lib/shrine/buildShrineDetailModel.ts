@@ -22,6 +22,16 @@ export function buildShrineDetailModel({ shrine, publicGoshuins, conciergeBreakd
   const { cardProps } = buildShrineCardProps(shrine);
   const benefitLabels = getBenefitLabels(shrine);
 
+  const latestGoshuinImage =
+    publicGoshuins
+      .filter((g) => typeof g?.image_url === "string" && g.image_url.trim().length > 0)
+      .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]?.image_url ?? null;
+
+  const heroImageUrl = latestGoshuinImage ?? cardProps.imageUrl ?? null;
+
+  
+
+
   const exp = buildShrineExplanation({
     shrine,
     signals: {
@@ -34,7 +44,9 @@ export function buildShrineDetailModel({ shrine, publicGoshuins, conciergeBreakd
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
   return {
+    shrineId: shrine.id,
     cardProps,
+    heroImageUrl,
     benefitLabels,
     publicGoshuins,
     judge,

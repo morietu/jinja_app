@@ -1,3 +1,5 @@
+//apps / web / src / app / api / shrines / [id] / data / route.ts;
+
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
