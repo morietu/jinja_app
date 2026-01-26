@@ -1,6 +1,6 @@
 // apps/web/src/app/api/public/goshuins/route.ts
 import { NextResponse } from "next/server";
-import { getDjangoOrigin } from "@/lib/bff/origin";
+import { clampLimit, getDjangoOrigin } from "@/lib/bff/origin";
 
 type Goshuin = {
   id: number;
@@ -21,33 +21,41 @@ type Paginated<T> = {
 };
 
 export async function GET(req: Request) {
-  const origin = getDjangoOrigin();
-  if (!origin) return NextResponse.json({ error: "DJANGO_API_BASE_URL is not set" }, { status: 500 });
-
-  const { searchParams } = new URL(req.url);
-  const limit = Math.max(1, Math.min(48, Number(searchParams.get("limit") ?? "12") || 12));
-  const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
-  const shrine = Number(searchParams.get("shrine") ?? "") || null;
-
-  if (!shrine) {
-    return NextResponse.json({ error: "shrine is required" }, { status: 400 });
-  }
-
-  const upstream = `${origin}/api/goshuins/?is_public=true&shrine=${shrine}`;
-
   try {
-    const res = await fetch(upstream, { cache: "no-store" });
-    const contentType = res.headers.get("content-type") ?? "application/json";
+    const origin = getDjangoOrigin();
+    const { searchParams } = new URL(req.url);
 
-    if (!res.ok) {
-      const text = await res.text();
+    const limit = clampLimit(searchParams.get("limit"), 12, 48);
+    const offset = Math.max(0, Number(searchParams.get("offset") ?? "0") || 0);
+    const shrine = Number(searchParams.get("shrine") ?? "") || null;
+
+    if (!shrine) {
+      return NextResponse.json({ error: "shrine is required" }, { status: 400 });
+    }
+
+    const upstream = `${origin}/api/goshuins/?is_public=true&shrine=${shrine}`;
+
+    const r = await fetch(upstream, { cache: "no-store", headers: { Accept: "application/json" } });
+
+    const contentType = r.headers.get("content-type") ?? "";
+    const text = await r.text();
+
+    // ✅ HTML混入を遮断
+    if (!contentType.includes("application/json")) {
       return NextResponse.json(
-        { error: "upstream not ok", upstream, status: res.status, body: text.slice(0, 300) },
+        { error: "upstream returned non-json", upstream, status: r.status, contentType, body: text.slice(0, 300) },
         { status: 502 },
       );
     }
 
-    const data = (await res.json()) as unknown;
+    if (!r.ok) {
+      return NextResponse.json(
+        { error: "upstream not ok", upstream, status: r.status, body: text.slice(0, 300) },
+        { status: 502 },
+      );
+    }
+
+    const data = JSON.parse(text) as unknown;
     const allRaw = Array.isArray(data) ? (data as Goshuin[]) : [];
     const results = allRaw.slice(offset, offset + limit);
 
@@ -64,10 +72,7 @@ export async function GET(req: Request) {
       results,
     };
 
-    return new NextResponse(JSON.stringify(body), {
-      status: 200,
-      headers: { "content-type": contentType },
-    });
+    return NextResponse.json(body, { status: 200 });
   } catch (e) {
     return NextResponse.json(
       { error: "public goshuins route failed", message: e instanceof Error ? e.message : String(e) },

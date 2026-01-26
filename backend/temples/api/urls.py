@@ -9,6 +9,7 @@ from temples.api.views.public_profile import public_profile
 from temples.api.views.search import places_find
 from temples.api.views.shrine import PopularShrineListView
 from temples.api.views.tags import goriyaku_tags_list
+from temples.api.views.goshuin_feed import PublicGoshuinFeedView
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.shrine_from_place import shrine_from_place
@@ -197,6 +198,7 @@ urlpatterns = [
     path("profiles/<str:username>/", public_profile, name="public_profile"),
     
     path("goriyaku-tags/", goriyaku_tags_list, name="goriyaku-tags"),
+    path("goshuins/feed/", PublicGoshuinFeedView.as_view(), name="public-goshuin-feed"),
     
     
     # ---- Places（kebab-case & {id} 統一） -----------------------------------

@@ -30,13 +30,26 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
         const r = await fetch(`/api/public/goshuins/feed?limit=${limit}`, { cache: "no-store" });
         if (!r.ok) throw new Error("feed fetch failed");
 
-        const json = (await r.json()) as FeedItem[];
+        const json = (await r.json()) as unknown;
+        if (!alive) return;
+
+        const raw = Array.isArray(json) ? json : Array.isArray((json as any)?.results) ? (json as any).results : [];
+
+
+        const items: FeedItem[] = raw
+          .filter((x: any) => Number.isFinite(x?.id) && Number.isFinite(x?.shrine) && x?.image_url)
+          .map((x: any) => ({
+            id: Number(x.id),
+            shrine: Number(x.shrine),
+            shrine_name: x.shrine_name ?? null,
+            title: x.title ?? null,
+            image_url: x.image_url ?? null,
+            created_at: x.created_at,
+          }));
 
         if (!alive) return;
 
-        const items = Array.isArray(json)
-          ? json.filter((x) => Number.isFinite(x?.id) && Number.isFinite(x?.shrine) && x?.image_url)
-          : [];
+        
 
         if (items.length === 0) setState({ kind: "empty" });
         else setState({ kind: "success", items });

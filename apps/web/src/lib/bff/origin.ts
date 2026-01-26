@@ -1,13 +1,16 @@
 // apps/web/src/lib/bff/origin.ts
-export function toOrigin(raw: string | undefined | null, fallback: string) {
+export function toOrigin(raw: string, fallback: string) {
   const s = (raw ?? "").trim();
-  const base = s || fallback;
-
-  // 末尾の /api を剥がす（事故の温床をここで潰す）
-  // さらに末尾スラッシュも統一で剥がす
-  return base.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+  if (!s) return fallback;
+  return s.replace(/\/api\/?$/, ""); // /api を剥がす
 }
 
-export function getDjangoOrigin() {
-  return toOrigin(process.env.DJANGO_API_BASE_URL ?? process.env.API_BASE, "http://127.0.0.1:8000");
+export function clampLimit(v: string | null, def: number, max: number) {
+  const n = v ? Number(v) : def;
+  const m = Number.isFinite(n) ? Math.floor(n) : def;
+  return Math.max(1, Math.min(max, m));
+}
+
+export function getDjangoOrigin(fallback = "http://127.0.0.1:8000") {
+  return toOrigin(process.env.DJANGO_API_BASE_URL ?? process.env.API_BASE ?? "", fallback);
 }
