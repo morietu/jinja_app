@@ -147,7 +147,7 @@ export default async function Page({ params, searchParams }: Props) {
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
       >
-        <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
+        <ShrineDetailArticle {...model} addGoshuinHref={null} />
       </ShrineDetailShell>
     </>
   );

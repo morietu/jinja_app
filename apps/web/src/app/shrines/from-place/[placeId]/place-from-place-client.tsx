@@ -1,7 +1,7 @@
+// apps/web/src/app/shrines/from-place/[placeId]/place-from-place-client.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/lib/auth/AuthProvider";
 
 import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import type { Shrine } from "@/lib/api/shrines";
@@ -27,9 +27,6 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
 
   const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuinItem[]>([]);
 
-  const auth = useAuth();
-  const isLoggedIn = Boolean((auth as any)?.user ?? (auth as any)?.isLoggedIn);
-
   useEffect(() => {
     setShrineId(null);
     setShrine(null);
@@ -37,6 +34,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     setResolveState("idle");
   }, [placeId]);
 
+  // Google経路案内（座標優先 → place_id fallback）
   const googleDirHref = useMemo(() => {
     const latNum = Number((shrine as any)?.lat ?? (shrine as any)?.latitude ?? NaN);
     const lngNum = Number((shrine as any)?.lng ?? (shrine as any)?.longitude ?? NaN);
@@ -89,7 +87,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     };
   }, [placeId]);
 
-  // --- 2) shrine 情報取得 ---
+  // --- 2) shrine 情報 ---
   useEffect(() => {
     let alive = true;
 
@@ -117,31 +115,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     };
   }, [shrineId]);
 
-  // ✅ “確定してる状態”
-  const showFull = resolveState === "ok" && shrineId != null && shrine != null;
-
-  // selfPath（ログイン誘導の戻り先にも使う）
-  const qs = new URLSearchParams();
-  if (ctx) qs.set("ctx", ctx);
-  if (tid) qs.set("tid", String(tid));
-  const selfPath = `/shrines/from-place/${encodeURIComponent(placeId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
-
-  const from = useMemo(() => {
-    if (ctx) return ctx;
-    if (tid) return "concierge";
-    return "map";
-  }, [ctx, tid]);
-
-  const addGoshuinHref = useMemo(() => {
-    if (!showFull) return null;
-
-    const next = `/goshuin/new?shrine=${shrineId!}&from=${encodeURIComponent(from)}`;
-
-    if (!isLoggedIn) return `/login?next=${encodeURIComponent(next)}`;
-    return next;
-  }, [showFull, shrineId, from, isLoggedIn]);
-
-  // --- 3) 御朱印（公開） ---
+  // --- 3) 公開御朱印 ---
   useEffect(() => {
     let alive = true;
 
@@ -180,8 +154,33 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
     };
   }, [resolveState, shrineId]);
 
-  const title = shrine?.name_jp ? shrine.name_jp : "神社の詳細";
-  const subtitle = `place_id: ${placeId}`;
+  // ctx/tid 付き selfPath（保存/ログイン導線の戻り先）
+  const qs = new URLSearchParams();
+  if (ctx) qs.set("ctx", ctx);
+  if (tid) qs.set("tid", String(tid));
+  const selfPath = `/shrines/from-place/${encodeURIComponent(placeId)}${qs.toString() ? `?${qs.toString()}` : ""}`;
+
+  // ✅ “確定してる状態”
+  const showFull = resolveState === "ok" && shrineId != null && shrine != null;
+
+  const title = (shrine?.name_jp ?? "").trim() || "神社の詳細";
+
+  // ✅ production UI からデバッグ subtitle を消す
+  const subtitle = null;
+
+  // ✅ from-place では「御朱印追加」導線を出さない（/shrines/[id] に寄せる）
+  const addGoshuinHref = null;
+
+  const model =
+    showFull && shrine
+      ? buildShrineDetailModel({
+          shrine,
+          publicGoshuins,
+          conciergeBreakdown: null,
+        })
+      : null;
+
+  const saveNode = showFull ? <ShrineSaveButton shrineId={shrineId!} nextPath={selfPath} /> : null;
 
   const statusText =
     resolveState === "loading"
@@ -190,19 +189,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
         ? "ログインしていないため紐づけを解決できませんでした。Google経路案内のみ利用できます。"
         : resolveState === "error"
           ? "紐づけの解決に失敗しました（通信 or サーバー側）。Google経路案内のみ利用できます。"
-          : shrineId != null
-            ? "紐づけ済み（この場で詳細を表示します）"
-            : null;
-
-  const model = showFull
-    ? buildShrineDetailModel({
-        shrine: shrine!,
-        publicGoshuins,
-        conciergeBreakdown: null,
-      })
-    : null;
-
-  const saveNode = showFull ? <ShrineSaveButton shrineId={shrineId!} nextPath={selfPath} /> : null;
+          : null;
 
   return (
     <ShrineDetailShell
@@ -210,21 +197,32 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
       subtitle={subtitle}
       close={close}
       addGoshuinHref={addGoshuinHref}
-      saveAction={showFull && saveNode ? { shrineId: shrineId!, nextPath: selfPath, node: saveNode } : null}
       googleDirHref={googleDirHref}
       googleDirLabel="Googleマップで経路案内"
+      saveAction={
+        showFull && saveNode
+          ? {
+              shrineId: shrineId!,
+              nextPath: selfPath,
+              node: saveNode,
+            }
+          : null
+      }
       googleDirFallbackText="経路案内を準備できませんでした。"
     >
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
-        {statusText ? <div className="text-xs text-slate-600">{statusText}</div> : null}
-        {loadingShrine ? <div className="mt-2 text-xs text-slate-500">神社情報を読み込み中…</div> : null}
+      {statusText ? (
+        <div className="rounded-2xl border bg-white p-4 text-xs text-slate-600 shadow-sm">{statusText}</div>
+      ) : null}
 
-        {model ? (
-          <div className="mt-3">
-            <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
+      {model ? (
+        <ShrineDetailArticle {...model} addGoshuinHref={null} />
+      ) : (
+        !statusText && (
+          <div className="rounded-2xl border bg-white p-4 text-sm text-slate-700 shadow-sm">
+            神社情報を表示できませんでした。
           </div>
-        ) : null}
-      </div>
+        )
+      )}
     </ShrineDetailShell>
   );
 }

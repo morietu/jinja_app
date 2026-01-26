@@ -6,7 +6,6 @@ import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
-
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 
 type Props = {
@@ -15,26 +14,24 @@ type Props = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
+
   showFavorite?: boolean;
-
-  /** 表示制御 */
-
   readOnly?: boolean;
-
-  /** お気に入り初期値 */
   initialFav?: boolean;
 
-  /**
-   * 詳細リンクを上書きできるようにする（map/concierge対策）
-   * 例: `/shrines/from-place/${placeId}?ctx=map`
-   */
   detailHref?: string;
-
-  /** concierge のおすすめ内訳（任意） */
   breakdown?: ConciergeBreakdown | null;
-  badgesOverride?: string[];
-};
 
+  badgesOverride?: string[];
+
+  hideDetailLink?: boolean;
+
+  /** list: 一覧用 / detail: 詳細用 */
+  variant?: "list" | "detail";
+
+  /** 強制的にdisclosureを消したい場合 */
+  hideDisclosure?: boolean;
+};
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -57,6 +54,9 @@ export default function ShrineCard({
   detailHref,
   breakdown,
   badgesOverride,
+  hideDetailLink = false,
+  hideDisclosure = false,
+  variant = "list",
 }: Props) {
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
@@ -74,13 +74,9 @@ export default function ShrineCard({
   );
 
   const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
+  const cardDetailHref = hideDetailLink ? undefined : safeDetailHref;
 
-
-
-  // ✅ バッジは “要約” に寄せる（重複感を減らす）
   const reasonLabel = pickReasonLabel(breakdown);
-  
-  
   const defaultBadges = ["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null]
     .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
     .slice(0, 2);
@@ -90,6 +86,24 @@ export default function ShrineCard({
 
   const addr = (address ?? "").trim() || "住所情報は準備中です。";
 
+  // ✅ ここだけ見れば挙動がわかる（未来の自分救済）
+  const shouldHideDisclosure = hideDisclosure || variant === "detail";
+
+  const disclosureTitle = shouldHideDisclosure ? undefined : "おすすめ理由を見る";
+  const disclosureBody = shouldHideDisclosure ? undefined : (
+    <div className="space-y-3">
+      {breakdown ? (
+        <DisclosureSection title="おすすめ理由（内訳）">
+          <ConciergeBreakdownBody breakdown={breakdown} />
+        </DisclosureSection>
+      ) : null}
+
+      <DisclosureSection title="要点">
+        <p className="text-sm text-slate-700 line-clamp-2">{buildOneLiner(breakdown)}</p>
+      </DisclosureSection>
+    </div>
+  );
+
   return (
     <ConciergeCard
       title={title}
@@ -98,22 +112,10 @@ export default function ShrineCard({
       description={description}
       isPrimary
       badges={badges}
-      detailHref={safeDetailHref}
+      detailHref={cardDetailHref}
       headerRight={favButton}
-      disclosureTitle="おすすめ理由を見る"
-      disclosureBody={
-        <div className="space-y-3">
-          {breakdown ? (
-            <DisclosureSection title="おすすめ理由（内訳）">
-              <ConciergeBreakdownBody breakdown={breakdown} />
-            </DisclosureSection>
-          ) : null}
-
-          <DisclosureSection title="要点">
-            <p className="text-sm text-slate-700 line-clamp-2">{buildOneLiner(breakdown)}</p>
-          </DisclosureSection>
-        </div>
-      }
+      disclosureTitle={disclosureTitle}
+      disclosureBody={disclosureBody}
     />
   );
 }
