@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ClientToaster } from "./ClientToaster";
+import HomeLogoLink from "@/components/layout/HomeLogoLink";
 
 import Link from "next/link";
 
@@ -50,11 +51,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ClientBootstrap />
 
-          <header className="shrink-0 border-b bg-white">
+          <header className="sticky top-0 z-[100] bg-white">
             <nav className="mx-auto flex max-w-5xl items-center gap-4 p-3">
-              <Link href="/" className="text-base font-bold">
-                Jinja
-              </Link>
+              <HomeLogoLink />
 
               <div className="ml-auto flex items-center gap-4">
                 <Link
@@ -64,8 +63,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 >
                   <span aria-hidden>🔍</span>
                 </Link>
-
-                
 
                 <Suspense fallback={null}>
                   <HeaderAuthButtons />

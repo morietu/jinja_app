@@ -22,6 +22,13 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
+    console.log("[HomeGoshuinFeedSection] mount");
+    return () => console.log("[HomeGoshuinFeedSection] unmount");
+  }, []);
+  
+  
+  useEffect(() => {
+    console.log("[HomeGoshuinFeedSection] fetch start", { limit });
     let alive = true;
     setState({ kind: "loading" });
 

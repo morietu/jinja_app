@@ -23,6 +23,8 @@ import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
 
+
+
 /* ========================================
  * types / consts
  * ====================================== */
@@ -141,6 +143,9 @@ export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
+  const isClosingRef = useRef(false);
+
+
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
@@ -173,6 +178,24 @@ export default function ConciergeClientFull() {
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [sp]);
+
+  useEffect(() => {
+    const onClose = () => {
+      console.log("[jinja] close -> go home (ConciergeClientFull)");
+      if (isClosingRef.current) return; // ✅ 二重防止
+      isClosingRef.current = true;
+
+      setLiveUnified(null);
+      setLiveRecs([]);
+      setIsFilterOpen(false);
+
+      router.push("/");
+      router.refresh();
+    };
+
+    window.addEventListener("jinja:close-concierge", onClose);
+    return () => window.removeEventListener("jinja:close-concierge", onClose);
+  }, [router]);
 
   
 
@@ -386,10 +409,13 @@ export default function ConciergeClientFull() {
 
     // ✅ 初回で cards 出すために保持
     onRecommendations: (recs) => {
+      if (isClosingRef.current) return;
       setLiveRecs(Array.isArray(recs) ? recs : []);
     },
 
     onUnified: (u) => {
+      if (isClosingRef.current) return;
+
       setLiveUnified(u);
 
       const now = new Date().toISOString();
