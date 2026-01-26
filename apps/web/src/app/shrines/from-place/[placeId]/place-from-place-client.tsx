@@ -23,7 +23,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
   const [resolveState, setResolveState] = useState<"idle" | "loading" | "ok" | "unauth" | "error">("idle");
 
   const [shrine, setShrine] = useState<Shrine | null>(null);
-  const [loadingShrine, setLoadingShrine] = useState(false);
+  
 
   const [publicGoshuins, setPublicGoshuins] = useState<PublicGoshuinItem[]>([]);
 
@@ -97,7 +97,7 @@ export default function PlaceFromPlaceClient({ placeId, ctx, tid }: Props) {
         return;
       }
 
-      setLoadingShrine(true);
+
       try {
         const r = await fetch(`/api/shrines/${shrineId}`, { cache: "no-store" });
         if (!r.ok) throw new Error("shrine fetch failed");
