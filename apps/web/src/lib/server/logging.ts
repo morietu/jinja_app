@@ -11,9 +11,7 @@ export const DEBUG_LOG = process.env.NODE_ENV !== "production" && process.env.DE
  * - NextRequest でも Request でも OK
  */
 export function getRequestId(req: Request | NextRequest): string {
-  // 代表的な「リクエスト追跡系ヘッダ」を優先順で拾う
   const fromHeader = req.headers.get("x-request-id") || req.headers.get("x-vercel-id") || req.headers.get("cf-ray");
-
   return fromHeader || crypto.randomUUID();
 }
 
