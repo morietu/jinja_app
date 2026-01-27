@@ -1,15 +1,25 @@
-// apps/web/src/app/api/favorites/route.ts
 import { NextRequest } from "next/server";
 import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
+import { serverLog, getRequestId } from "@/lib/server/logging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
+
 export async function GET(req: NextRequest) {
-  console.log("[/api/favorites GET] cookieLen=", req.headers.get("cookie")?.length ?? 0);
-  console.log("[/api/favorites GET] hasAccess=", req.cookies.has("access_token"));
-  console.log("[/api/favorites GET] hasRefresh=", req.cookies.has("refresh_token"));
+  const requestId = getRequestId(req);
+
+  if (DEBUG) {
+    serverLog("debug", "BFF_FAVORITES_GET", {
+      requestId,
+      cookieLen: req.headers.get("cookie")?.length ?? 0,
+      hasAccess: req.cookies.has("access_token"),
+      hasRefresh: req.cookies.has("refresh_token"),
+    });
+  }
+
   return bffFetchWithAuthFromReq(req, "/api/favorites/", { method: "GET" });
 }
 

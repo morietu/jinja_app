@@ -1,10 +1,18 @@
 // apps/web/src/app/map/error.tsx
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { clientLog } from "@/lib/client/logging";
 
 export default function MapError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  console.error("Map page error:", error);
+  useEffect(() => {
+    clientLog("error", "MAP_ERROR_BOUNDARY", {
+      message: error.message,
+      digest: error.digest ?? null,
+      stack: error.stack ?? null,
+    });
+  }, [error]);
 
   return (
     <main className="p-4 max-w-md mx-auto space-y-4">

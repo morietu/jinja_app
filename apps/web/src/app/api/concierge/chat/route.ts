@@ -2,9 +2,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
+import { serverLog, getRequestId } from "@/lib/server/logging";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.CONCIERGE_DEBUG === "1";
 
 async function refreshAccess(req: NextRequest): Promise<string | null> {
   const refresh = req.cookies.get("refresh_token")?.value;
@@ -23,22 +26,25 @@ async function refreshAccess(req: NextRequest): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req);
   let payload: any = null;
   try {
     payload = await req.json();
-    console.log("[api/concierge/chat] forward body =", payload);
-    console.log("[api/concierge/chat] payload.filters.birthdate=", payload?.filters?.birthdate);
-    console.log("[api/concierge/chat] payload.birthdate=", payload?.birthdate);
   } catch {
-    // noop: body is not JSON (or already consumed)
+    // noop
   }
 
-  // 1st try
   const accessCookie = req.cookies.get("access_token")?.value;
   const headerAuth = req.headers.get("authorization");
 
-  console.log("[api/concierge/chat] hasCookieAccess=", !!req.cookies.get("access_token")?.value);
-  console.log("[api/concierge/chat] hasAuthHeader=", !!req.headers.get("authorization"));
+  if (DEBUG) {
+    serverLog("debug", "BFF_CONCIERGE_CHAT", {
+      requestId,
+      hasCookieAccess: !!accessCookie,
+      hasAuthHeader: !!headerAuth,
+      hasPayload: payload != null,
+    });
+  }
 
   const auth1 = headerAuth ?? (accessCookie ? `Bearer ${accessCookie}` : null);
 
@@ -52,7 +58,6 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(payload ?? {}),
   });
 
-  // 401 → refresh → retry
   if (r1.status === 401) {
     const nextAccess = await refreshAccess(req);
     if (nextAccess) {
@@ -71,7 +76,6 @@ export async function POST(req: NextRequest) {
       try {
         body2 = JSON.parse(text2);
       } catch {
-        // noop: backend returned non-JSON
         body2 = { raw: text2 };
       }
 
@@ -80,7 +84,6 @@ export async function POST(req: NextRequest) {
         headers: { "Content-Type": "application/json" },
       });
 
-      // ✅ access_token cookie を更新（ここが超重要）
       res.cookies.set("access_token", nextAccess, {
         httpOnly: true,
         sameSite: "lax",
@@ -95,7 +98,6 @@ export async function POST(req: NextRequest) {
   try {
     body1 = JSON.parse(text1);
   } catch {
-    // noop: backend returned non-JSON
     body1 = { raw: text1 };
   }
 

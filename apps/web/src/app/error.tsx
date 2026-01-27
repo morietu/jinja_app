@@ -1,10 +1,17 @@
+// apps/web/src/app/error.tsx
 "use client";
 
 import { useEffect } from "react";
+import { clientLog } from "@/lib/client/logging";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("[app/error.tsx]", error);
+    clientLog("error", "APP_ERROR_BOUNDARY", {
+      message: error.message,
+      digest: error.digest ?? null,
+      // stack は環境で出たり出なかったりするけど、取れるなら便利
+      stack: error.stack ?? null,
+    });
   }, [error]);
 
   return (

@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { devLog } from "@/lib/client/logging";
 
 import axios from "axios";
 import type { Goshuin } from "@/lib/api/goshuin";
@@ -69,7 +70,7 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     } catch (e) {
       setItems(snapshot ?? null); // ★丸ごとロールバック
       setError("削除に失敗しました。時間をおいて再度お試しください。");
-      console.error(e);
+      devLog("MyGoshuin:DELETE_FAILED", { message: e instanceof Error ? e.message : String(e) });
     }
   }, []);
 
@@ -84,7 +85,7 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     } catch (e) {
       setItems(snapshot ?? null); // ★丸ごとロールバック（これが一番堅い）
       setError("公開設定の更新に失敗しました。時間をおいて再度お試しください。");
-      console.error(e);
+      devLog("MyGoshuin:VISIBILITY_FAILED", { message: e instanceof Error ? e.message : String(e) });
     }
   }, []);
 
@@ -113,7 +114,7 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
     } catch (e) {
       setItems(null);
       setError("御朱印一覧の取得に失敗しました。");
-      console.error(e);
+      devLog("MyGoshuin:LOAD_FAILED", { message: e instanceof Error ? e.message : String(e) });
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ export function useMyGoshuin(options: UseMyGoshuinOptions = {}) {
           return null;
         }
         setError("アップロードに失敗しました。時間をおいて再度お試しください。");
-        console.error(e);
+        devLog("MyGoshuin:UPLOAD_FAILED", { message: e instanceof Error ? e.message : String(e) });
         return null;
       }
     },
