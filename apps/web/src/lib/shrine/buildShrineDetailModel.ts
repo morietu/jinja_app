@@ -11,6 +11,8 @@ type Args = {
   shrine: Shrine;
   publicGoshuins: PublicGoshuinItem[];
   conciergeBreakdown?: ConciergeBreakdown | null;
+  ctx?: "map" | "concierge" | null;
+  tid?: string | null;
   signals?: {
     publicGoshuinsCount?: number;
     views30d?: number;
@@ -18,8 +20,27 @@ type Args = {
   };
 };
 
-export function buildShrineDetailModel({ shrine, publicGoshuins, conciergeBreakdown = null, signals }: Args) {
+export function buildShrineDetailModel({
+  shrine,
+  publicGoshuins,
+  conciergeBreakdown = null,
+  ctx = null,
+  tid = null,
+  signals,
+}: Args) {
   const { cardProps } = buildShrineCardProps(shrine);
+
+  const publicGoshuinsPreview = publicGoshuins.slice(0, 3);
+  const publicGoshuinsHasMore = publicGoshuins.length > 3;
+
+  const qs = new URLSearchParams();
+  if (ctx) qs.set("ctx", ctx);
+  if (tid) qs.set("tid", String(tid));
+
+  const publicGoshuinsViewAllHref = qs.toString()
+    ? `/shrines/${shrine.id}/goshuins?${qs.toString()}`
+    : `/shrines/${shrine.id}/goshuins`;
+
   const benefitLabels = getBenefitLabels(shrine);
 
   const latestGoshuinImage =
@@ -28,9 +49,6 @@ export function buildShrineDetailModel({ shrine, publicGoshuins, conciergeBreakd
       .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]?.image_url ?? null;
 
   const heroImageUrl = latestGoshuinImage ?? cardProps.imageUrl ?? null;
-
-  
-
 
   const exp = buildShrineExplanation({
     shrine,
@@ -43,14 +61,28 @@ export function buildShrineDetailModel({ shrine, publicGoshuins, conciergeBreakd
 
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
+  // dev only（必要なら）
+  // devLog("ShrineDetailModel", {
+  //   shrineId: shrine.id,
+  //   publicLen: publicGoshuins.length,
+  //   previewLen: publicGoshuinsPreview.length,
+  //   hasMore: publicGoshuinsHasMore,
+  //   ctx,
+  //   tid,
+  // });
+
+
   return {
     shrineId: shrine.id,
     cardProps,
     heroImageUrl,
     benefitLabels,
-    publicGoshuins,
     judge,
     conciergeBreakdown,
     exp,
+
+    publicGoshuinsPreview,
+    publicGoshuinsHasMore,
+    publicGoshuinsViewAllHref,
   };
 }

@@ -1,6 +1,9 @@
 // apps/web/src/app/api/public/goshuins/route.ts
 import { NextResponse } from "next/server";
 import { clampLimit, getDjangoOrigin } from "@/lib/bff/origin";
+import { serverLog, getRequestId } from "@/lib/server/logging";
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
+
 
 type Goshuin = {
   id: number;
@@ -55,12 +58,28 @@ export async function GET(req: Request) {
       );
     }
 
-    const data = JSON.parse(text) as unknown;
-    const allRaw = Array.isArray(data) ? (data as Goshuin[]) : [];
+    const data = JSON.parse(text) as any;
+
+    const allRaw: Goshuin[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+    
     const results = allRaw.slice(offset, offset + limit);
+    const requestId = getRequestId(req);
+
+
+
+    if (DEBUG) {
+      serverLog("debug", "BFF_PUBLIC_GOSHUINS", {
+        requestId,
+        shrine,
+        status: r.status,
+        contentType,
+        upstreamLen: Array.isArray(allRaw) ? allRaw.length : null,
+        firstId: allRaw?.[0]?.id ?? null,
+      });
+    }
 
     const body: Paginated<Goshuin> = {
-      count: allRaw.length,
+      count: Number.isFinite(Number(data?.count)) ? Number(data.count) : allRaw.length,
       previous:
         offset > 0
           ? `/api/public/goshuins?limit=${limit}&offset=${Math.max(0, offset - limit)}&shrine=${shrine}`
