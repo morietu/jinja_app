@@ -13,21 +13,26 @@ export async function findPlace(payload: PlaceFindPayload) {
 export type NearbyParams = { lat: number; lng: number; limit?: number };
 
 export type NearbyShrine = {
-  id: string;
-  name: string;
-  address?: string;
-  distance_meters: number;
-  duration_minutes?: number;
+  id: number;
+  kind: "shrine" | "temple";
+  name_jp: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  distance: number; // meters
+  distance_text?: string; // "368 m" など
+  location?: { lat: number; lng: number };
+  kyusei?: string | null;
 };
 
 export async function getNearbyShrines({ lat, lng, limit = 20 }: NearbyParams) {
   const ctrl = new AbortController();
-  const url = `/api/places/nearby?lat=${lat}&lng=${lng}&limit=${limit}`;
+  const url = `/api/shrines/nearby?lat=${lat}&lng=${lng}&limit=${limit}`;
   const res = await fetch(url, { signal: ctrl.signal });
   if (!res.ok) {
     const msg = await res.text().catch(() => "");
     throw new Error(msg || `Failed: ${res.status}`);
   }
-  const data: NearbyShrine[] = await res.json();
+  const data = (await res.json()) as NearbyShrine[];
   return { data, abort: () => ctrl.abort() };
 }

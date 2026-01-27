@@ -266,14 +266,29 @@ class ConciergeChatView(APIView):
 
     def post(self, request, *args, **kwargs):
         data = request.data or {}
+        
+        # ✅ 受信（マージ前）
+        log.info("[concierge_chat] keys=%s", list(data.keys()))
+        log.info("[concierge_chat] thread_id=%r", data.get("thread_id"))
+        log.info("[concierge_chat] filters_raw=%r", data.get("filters"))
 
-        # --- debug: request 受け取り ---
+        # ✅ v1: filters をトップレベルに畳む（互換）
+        filters = data.get("filters") or {}
+        if isinstance(filters, dict):
+            if not data.get("birthdate") and filters.get("birthdate"):
+                data["birthdate"] = filters.get("birthdate")
+            if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
+                data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
+            if not data.get("extra_condition") and filters.get("extra_condition"):
+                data["extra_condition"] = filters.get("extra_condition")
+
+        # ✅ マージ後
         log.info(
-            "[api/chat] keys=%s filters=%r birthdate_top=%r",
-            list((request.data or {}).keys()),
-            (request.data or {}).get("filters"),
-            (request.data or {}).get("birthdate"),
-        )
+            "[concierge_chat] merged birthdate=%r goriyaku_tag_ids=%r extra_condition=%r",
+            data.get("birthdate"),
+            data.get("goriyaku_tag_ids"),
+            data.get("extra_condition"),
+            )
 
         # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
         filters = data.get("filters") or {}
@@ -406,6 +421,8 @@ class ConciergeChatView(APIView):
 
         flow = "B" if (has_goriyaku or has_extra) else "A"
 
+        before_n = len(candidates)
+
         recs = build_chat_recommendations(
             query=query,
             language=language,
@@ -417,9 +434,17 @@ class ConciergeChatView(APIView):
             flow=flow,
         )
 
+        after_n = len(recs.get("recommendations") or [])
+        applied = []
+        if data.get("goriyaku_tag_ids"): applied.append("goriyaku_tag_ids")
+        if (data.get("extra_condition") or "").strip(): applied.append("extra_condition")
+
+
         
 
         body = {"ok": True, "intent": intent, "data": recs}
+        body["_debug"] = {"before": before_n, "after": after_n, "applied": applied, "flow": flow}
+        return Response(body, status=200)
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
         if user is not None and not is_premium:
