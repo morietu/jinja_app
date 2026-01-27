@@ -13,7 +13,8 @@ from temples.api.views.goshuin_feed import PublicGoshuinFeedView
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.shrine_from_place import shrine_from_place
-
+from django.urls import path
+from temples.api.views.shrines_nearby import shrines_nearby
 
 
 from temples.api_views import FavoriteViewSet
@@ -149,6 +150,7 @@ urlpatterns = [
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
+    path("shrines/nearby/", shrines_nearby),
 
     path("shrines/from-place/", shrine_from_place, name="shrines-from-place"),
 

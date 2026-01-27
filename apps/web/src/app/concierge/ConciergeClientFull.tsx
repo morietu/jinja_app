@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
 import { buildConciergeSections } from "@/features/concierge/sectionsBuilder";
-
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
+
 import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
@@ -16,14 +16,11 @@ import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/co
 import { buildDummySections } from "@/features/concierge/sections/dummy";
 
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
-
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
 import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
-
-
 
 /* ========================================
  * types / consts
@@ -31,13 +28,11 @@ import { getGoriyakuTags } from "@/lib/api/tags";
 type Element4 = "火" | "地" | "風" | "水";
 type Tag = { id: number; name: string };
 
-// ✅ ChatEvent に assistant_state が無い環境でも崩れないよう、このファイル内だけ拡張
 type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeResponse; at: string };
 type LocalEvent = ChatEvent | AssistantStateEvent;
 
 type EventsByThread = Record<number, LocalEvent[]>;
 const STORAGE_KEY = "concierge:eventsByThread";
-
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
 
 const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
@@ -109,7 +104,6 @@ function deriveMessages(events: LocalEvent[], threadId: number): ConciergeMessag
       } as ConciergeMessage);
     }
   }
-
   return out;
 }
 
@@ -145,14 +139,11 @@ export default function ConciergeClientFull() {
 
   const isClosingRef = useRef(false);
 
-
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
   const [activeThreadId, setActiveThreadId] = useState(0);
   const activeThreadIdRef = useRef(0);
-
-  
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [extraCondition, setExtraCondition] = useState("");
@@ -164,7 +155,7 @@ export default function ConciergeClientFull() {
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
-  // ✅ 初回レスポンス保持（2回送信問題対策）
+  // 初回レスポンス保持（2回送信問題対策）
   const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
 
@@ -181,8 +172,7 @@ export default function ConciergeClientFull() {
 
   useEffect(() => {
     const onClose = () => {
-    
-      if (isClosingRef.current) return; // ✅ 二重防止
+      if (isClosingRef.current) return;
       isClosingRef.current = true;
 
       setLiveUnified(null);
@@ -191,13 +181,16 @@ export default function ConciergeClientFull() {
 
       router.push("/");
       router.refresh();
+
+      // たまに「押しても戻れない」対策（ルーティングが詰まった時の再押下を許す）
+      window.setTimeout(() => {
+        isClosingRef.current = false;
+      }, 800);
     };
 
     window.addEventListener("jinja:close-concierge", onClose);
     return () => window.removeEventListener("jinja:close-concierge", onClose);
   }, [router]);
-
-  
 
   /* restore */
   useEffect(() => {
@@ -213,7 +206,7 @@ export default function ConciergeClientFull() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (tidFromQuery === activeThreadIdRef.current) return; // ✅ 上書き防止
+    if (tidFromQuery === activeThreadIdRef.current) return;
     setActiveTid(tidFromQuery);
   }, [tidFromQuery, hydrated]);
 
@@ -230,27 +223,19 @@ export default function ConciergeClientFull() {
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  /* 生年月日 restore */
+  /* birthdate restore/save */
   useEffect(() => {
     try {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
       if (v && isValidISODate(v)) setBirthdate(v);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
-  /* 生年月日 save */
   useEffect(() => {
     try {
-      if (birthdate && isValidISODate(birthdate)) {
-        localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
-      } else {
-        localStorage.removeItem(LS_BIRTHDATE_KEY);
-      }
-    } catch {
-      // ignore
-    }
+      if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
+      else localStorage.removeItem(LS_BIRTHDATE_KEY);
+    } catch {}
   }, [birthdate]);
 
   useEffect(() => {
@@ -263,15 +248,10 @@ export default function ConciergeClientFull() {
 
     (async () => {
       try {
-       
         const res = await getGoriyakuTags();
-      
-
         if (!alive) return;
         setGoriyakuTags(Array.isArray(res) ? res : []);
-        setTagsError(null);
       } catch {
-      
         if (!alive) return;
         setGoriyakuTags([]);
         setTagsError("ご利益タグの取得に失敗しました");
@@ -284,8 +264,6 @@ export default function ConciergeClientFull() {
       alive = false;
     };
   }, [isFilterOpen, tagsLoading, goriyakuTags.length]);
-
-  
 
   /* dev force */
   const force = sp.get("force");
@@ -301,7 +279,6 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
-  // ✅ 表示ソースは displayUnified に統一
   const displayUnified = useMemo(() => liveUnified ?? lastUnified, [lastUnified, liveUnified]);
 
   const displayRecommendations = useMemo(() => {
@@ -320,7 +297,7 @@ export default function ConciergeClientFull() {
   const mode = useMemo(() => displayUnified?.data?._signals?.mode, [displayUnified]);
 
   const chatThreadId =
-    typeof thread?.id === "number" ? String(thread.id) : activeThreadId !== 0 ? String(activeThreadId) : null;
+    activeThreadId !== 0 ? String(activeThreadId) : typeof thread?.id === "number" ? String(thread.id) : null;
 
   const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
 
@@ -350,10 +327,20 @@ export default function ConciergeClientFull() {
     const bd = normalizeISODate(birthdate) ?? undefined;
     const extra = extraCondition.trim() || undefined;
 
+    const crowd: ConciergeChatFilters["crowd"] = [];
+    let duration_max_min: number | undefined;
+
+    if (extra?.includes("ひとり") || extra?.includes("空いて")) crowd.push("quiet");
+    if (extra?.includes("駅近")) duration_max_min = 30;
+
     return {
       birthdate: bd,
       goriyaku_tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
       extra_condition: extra,
+
+      crowd: crowd.length ? crowd : undefined,
+      duration_max_min,
+      free_text: extra,
     };
   }, [birthdate, selectedTagIds, extraCondition]);
 
@@ -366,7 +353,6 @@ export default function ConciergeClientFull() {
     return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
   }, [goriyakuTags, selectedTagIds]);
 
-  // ✅ filterState は payload より先
   const filterState = useMemo(
     () => ({
       isOpen: isFilterOpen,
@@ -392,7 +378,6 @@ export default function ConciergeClientFull() {
     ],
   );
 
-  // ✅ payload は 1回だけ（displayUnified + filterState）
   const payload = useMemo(() => {
     return buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState);
   }, [displayUnified, filterState]);
@@ -402,12 +387,11 @@ export default function ConciergeClientFull() {
     [events, thread, activeThreadId],
   );
 
-
-
+  // ✅ useConciergeChat は1回だけ
   const { send, sending, error } = useConciergeChat(chatThreadId, {
+    debugLabel: "ConciergeClientFull",
     filters: baseFilters,
 
-    // ✅ 初回で cards 出すために保持
     onRecommendations: (recs) => {
       if (isClosingRef.current) return;
       setLiveRecs(Array.isArray(recs) ? recs : []);
@@ -424,7 +408,7 @@ export default function ConciergeClientFull() {
 
       if (currentTid === 0 && nextTid !== 0) {
         setActiveTid(nextTid);
-        router.replace(`/concierge?tid=${nextTid}`);
+        router.replace(`/concierge?tid=${nextTid}`); // ✅ seed を消す
       }
 
       setEventsByThread((prev) =>
@@ -440,16 +424,59 @@ export default function ConciergeClientFull() {
     },
   });
 
+  // 追加：mode を読む
+  const modeFromQuery = useMemo(() => (sp.get("mode") ?? "").trim(), [sp]);
+
+  // 追加：初回プロンプト（feel入口用）
+  const initialPrompt = useMemo(() => {
+    if (modeFromQuery === "feel") {
+      return "今の気持ちから合う神社を探したいです。まず確認したいことがあれば質問を1つだけしてください。";
+    }
+    return "";
+  }, [modeFromQuery]);
+
+  const didInitialRef = useRef(false);
+
+  // ✅ feel入口：初回だけ開始
+  useEffect(() => {
+    if (isClosingRef.current) return;
+    if (!hydrated) return;
+
+    // tid 指定があるなら初回発火しない（既存スレ優先）
+    if (tidFromQuery && tidFromQuery !== 0) return;
+
+    const seed = initialPrompt;
+    if (!seed) return;
+
+    // すでに開始してたら二重送信しない
+    if (didInitialRef.current) return;
+
+    const currentTid = activeThreadIdRef.current; // たぶん0
+    const currentEvents = getThreadEvents(eventsByThread, currentTid);
+
+    // ✅ 通常は「新規スレ(0)が空の時だけ」だが、
+    // feel入口は「新規開始」なので thread=0 の残骸は無視して開始する
+    if (modeFromQuery !== "feel" && currentEvents.length > 0) return;
+
+    didInitialRef.current = true;
+
+    // ✅ feel時は thread=0 の残骸を掃除（任意だけど推奨）
+    if (modeFromQuery === "feel" && currentTid === 0) {
+      setEventsByThread((prev) => ({ ...prev, 0: [] }));
+    }
+
+    setLiveRecs([]);
+    setLiveUnified(null);
+
+    void send(seed);
+  }, [hydrated, tidFromQuery, eventsByThread, initialPrompt, send, modeFromQuery]);
+
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const has =
       (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
     if (!has) return null;
-
-    return {
-      version: 1,
-      query: "条件を追加して絞り込みたいです。",
-    };
+    return { version: 1, query: "条件を追加して絞り込みたいです。" };
   }, [baseFilters]);
 
   const onRendererAction = (a: RendererAction) => {
@@ -492,7 +519,7 @@ export default function ConciergeClientFull() {
         return;
 
       case "filter_set_extra":
-        setExtraCondition(a.extraCondition);
+        setExtraCondition((a.extraCondition ?? "").toString());
         return;
 
       case "filter_clear":
@@ -501,14 +528,10 @@ export default function ConciergeClientFull() {
         setBirthdate("");
         try {
           localStorage.removeItem(LS_BIRTHDATE_KEY);
-        } catch {
-          // ignore (Safari private mode etc.)
-        }
+        } catch {}
         return;
     }
   };
-
-  
 
   return (
     <ConciergeLayout
@@ -525,6 +548,12 @@ export default function ConciergeClientFull() {
         setLiveUnified(null);
         setLiveRecs([]);
         setActiveTid(0);
+
+        // ✅ URLの tid を消して “新規スレ” を確定させる
+        router.replace("/concierge");
+
+        // ✅ 初回ガードも解除（次の入口開始に備える）
+        didInitialRef.current = false;
       }}
       canSend={canSend}
       embedMode={false}

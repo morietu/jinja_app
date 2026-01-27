@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
   const headerAuth = req.headers.get("authorization");
 
   if (DEBUG) {
-    serverLog("debug", "BFF_CONCIERGE_CHAT", {
+    serverLog("debug", "BFF_CONCIERGE_CHAT_PAYLOAD", {
       requestId,
-      hasCookieAccess: !!accessCookie,
-      hasAuthHeader: !!headerAuth,
-      hasPayload: payload != null,
+      keys: Object.keys(payload ?? {}),
+      thread_id: payload?.thread_id,
+      filters: payload?.filters,
     });
   }
 

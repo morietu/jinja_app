@@ -185,6 +185,14 @@ class Shrine(dj_models.Model):
     last_popular_calc_at = models.DateTimeField(null=True, blank=True)
     astro_elements = models.JSONField(default=list, blank=True, help_text="西洋占星術エレメント: ['火','土','風','水']")
 
+    place_ref = models.OneToOneField(
+        "PlaceRef",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shrine",
+    )
+
     def __str__(self) -> str:
         return self.name_jp
 
@@ -211,12 +219,12 @@ class Shrine(dj_models.Model):
             # --- Partial unique (DB と宣言を一致) ---
             UniqueConstraint(
                 fields=["name_jp", "address", "location"],
-                condition=Q(location__isnull=False),
+                condition=Q(location__isnull=False) & Q(place_ref__isnull=True),
                 name="uq_shrine_name_loc",
             ),
             UniqueConstraint(
                 fields=["name_jp", "address"],
-                condition=Q(location__isnull=True),
+                condition=Q(location__isnull=True) & Q(place_ref__isnull=True),
                 name="uq_shrine_name_addr_when_loc_null",
             ),
             models.CheckConstraint(

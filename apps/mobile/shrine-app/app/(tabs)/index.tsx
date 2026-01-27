@@ -53,7 +53,7 @@ export default function PopularList() {
       contentContainerStyle={{ padding: 12 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       renderItem={({ item }) => (
-        <Link href={`/shrine/${item.id}`} asChild>
+        <Link href={`/shrines/${item.id}`} asChild>
           <TouchableOpacity style={{ padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 8 }}>
             <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.name_jp || `#${item.id}`}</Text>
             {item.address ? <Text style={{ marginTop: 4, opacity: 0.7 }}>{item.address}</Text> : null}

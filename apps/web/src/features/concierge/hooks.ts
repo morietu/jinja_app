@@ -94,6 +94,7 @@ export function useConciergeThreadDetail(threadId: string | null) {
 /* ====== チャット送信（/concierge/chat/） ====== */
 
 export type UseConciergeChatOptions = {
+  debugLabel?: string;
   filters?: ConciergeChatFilters;
   onUnified?: (u: UnifiedConciergeResponse) => void;
 
@@ -172,14 +173,54 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           : { ...input, version: 1, thread_id: threadId ?? undefined };
 
       // ✅ filters を必ず合成（input 側が優先、無ければ base）
-      const mergedFilters = {
+      const mergedFiltersRaw: Record<string, any> = {
         ...(baseFilters ?? {}),
         ...((req as any).filters ?? {}),
       };
 
+      // ✅ undefined / null / 空文字 / 空配列 を落とす
+      const mergedFiltersClean = Object.fromEntries(
+        Object.entries(mergedFiltersRaw).filter(([, v]) => {
+          if (v === undefined || v === null) return false;
+          if (typeof v === "string" && !v.trim()) return false;
+          if (Array.isArray(v) && v.length === 0) return false;
+          return true;
+        }),
+      ) as any;
+
+      // ✅ 送信時のみ：互換フィールドを補完
+      const compat: Record<string, any> = { ...mergedFiltersClean };
+
+      // free_text → extra_condition（未設定なら）
+      if (!compat.extra_condition && typeof compat.free_text === "string" && compat.free_text.trim()) {
+        compat.extra_condition = compat.free_text.trim();
+      }
+
+      // crowd → extra_condition に“意味語”を足す（暫定）
+      if (Array.isArray(compat.crowd) && compat.crowd.includes("quiet")) {
+        const t = (compat.extra_condition ?? "").trim();
+        // 既に入ってたら重複させない
+        if (!t.includes("空いて") && !t.includes("ひとり")) {
+          compat.extra_condition = `${t} 空いている ひとり向け`.trim();
+        }
+      }
+
       // ✅ 空なら付けない（ログ汚し防止）
-      if (Object.keys(mergedFilters).length > 0) {
-        (req as any).filters = mergedFilters;
+      if (Object.keys(compat).length > 0) {
+        (req as any).filters = compat;
+      } else {
+        delete (req as any).filters;
+      }
+
+      // ✅ 暫定：トップレベルにも互換コピー（route/apiPostでfiltersが落ちても backend が拾える）
+      if (typeof compat.extra_condition === "string" && compat.extra_condition.trim()) {
+        (req as any).extra_condition = compat.extra_condition.trim();
+      }
+      if (Array.isArray(compat.goriyaku_tag_ids) && compat.goriyaku_tag_ids.length > 0) {
+        (req as any).goriyaku_tag_ids = compat.goriyaku_tag_ids;
+      }
+      if (typeof compat.birthdate === "string" && compat.birthdate.trim()) {
+        (req as any).birthdate = compat.birthdate.trim();
       }
 
       // query は必須（空なら送らない）
@@ -187,6 +228,38 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
 
       setSending(true);
       setError(null);
+
+      const label = options?.debugLabel ?? "useConciergeChat";
+
+      console.log(`[concierge] ${label} filters-build`, {
+        threadId,
+        baseFilters,
+        mergedFiltersRaw,
+        mergedFiltersClean,
+        compat,
+        finalReq: req, // ← これが一番大事
+        finalReqFilters: (req as any).filters,
+        topLevelCompat: {
+          birthdate: (req as any).birthdate,
+          goriyaku_tag_ids: (req as any).goriyaku_tag_ids,
+          extra_condition: (req as any).extra_condition,
+        },
+      });
+
+      console.debug(`[concierge] ${label} POST /chat`, {
+        threadId,
+        query: req.query,
+        filters: (req as any).filters,
+        req, // ✅ 最終形（version/query/thread_id/filters）を丸ごと出す
+      });
+
+      console.log("[concierge] filters-build", {
+        baseFilters,
+        mergedFiltersRaw,
+        mergedFiltersClean,
+        compat,
+        finalReq: { ...req, filters: (req as any).filters },
+      });
 
       try {
         const res = await postConciergeChat(req);
@@ -205,10 +278,6 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         if (signals && typeof signals === "object" && !Array.isArray(signals)) {
           (unified as any).data._signals = signals;
         }
-
-
-
-       
 
         options?.onUnified?.(unified);
         options?.onRecommendations?.(recs);
