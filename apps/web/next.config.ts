@@ -16,49 +16,22 @@ const nextConfig: NextConfig = {
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
-      // ローカル開発用
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "8000",
-        pathname: "/media/goshuin/**",
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "8000",
-        pathname: "/media/icons/**",
-      },
+      // ローカル開発（Django media）
+      { protocol: "http", hostname: "127.0.0.1", port: "8000", pathname: "/media/**" },
+      { protocol: "http", hostname: "localhost", port: "8000", pathname: "/media/**" },
 
-      // 本番バックエンド用
-      {
-        protocol: "https",
-        hostname: "jinja-backend.onrender.com",
-        pathname: "/media/goshuin/**",
-      },
+      // 本番バックエンド
+      { protocol: "https", hostname: "jinja-backend.onrender.com", pathname: "/media/**" },
 
-      {
-        protocol: "https",
-        hostname: "pub-2bcf3477e26d46f6ab5031df3b436f92.r2.dev",
-        pathname: "/**",
-      },
+      // R2固定（直URL使うなら）
+      { protocol: "https", hostname: "pub-2bcf3477e26d46f6ab5031df3b436f92.r2.dev", pathname: "/**" },
 
-      { protocol: "https", hostname: "your-cdn.example.com" },
-      { protocol: "https", hostname: "your-backend.example.com" },
+      // 例（使ってないなら消してOK）
+      { protocol: "https", hostname: "your-cdn.example.com", pathname: "/**" },
+      { protocol: "https", hostname: "your-backend.example.com", pathname: "/**" },
 
-      { protocol: "http", hostname: "127.0.0.1", port: "8000", pathname: "/**" },
-      { protocol: "http", hostname: "localhost", port: "8000", pathname: "/**" },
-
-      // R2のパブリックURLが設定されている場合のみ追加
-      ...(r2Hostname
-        ? [
-            {
-              protocol: "https" as const,
-              hostname: r2Hostname,
-              pathname: "/**",
-            },
-          ]
-        : []),
+      // envで渡すR2
+      ...(r2Hostname ? [{ protocol: "https" as const, hostname: r2Hostname, pathname: "/**" }] : []),
     ],
   },
 

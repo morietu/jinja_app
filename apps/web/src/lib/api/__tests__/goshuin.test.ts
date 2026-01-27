@@ -110,8 +110,8 @@ describe("goshuin api client", () => {
     expect(res).toEqual([]);
   });
 
-  it("getMyGoshuinAuto は 404 の場合、空配列を返し warn する", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("getMyGoshuinAuto は 404 の場合、空配列を返す", async () => {
+    
     apiGetMock().mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } });
 
     const res = await getMyGoshuinAuto();
@@ -119,9 +119,9 @@ describe("goshuin api client", () => {
     expect(apiGetMock()).toHaveBeenCalledTimes(1);
     expect(apiGetMock()).toHaveBeenCalledWith("/my/goshuins/");
     expect(res).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
+   
 
-    warnSpy.mockRestore();
+
   });
 
   it("getMyGoshuinAuto はネットワークエラー（response なし）の場合も空配列を返す", async () => {

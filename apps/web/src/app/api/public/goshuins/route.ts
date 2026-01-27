@@ -61,11 +61,9 @@ export async function GET(req: Request) {
     const data = JSON.parse(text) as any;
 
     const allRaw: Goshuin[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
-    
+
     const results = allRaw.slice(offset, offset + limit);
     const requestId = getRequestId(req);
-
-
 
     if (DEBUG) {
       serverLog("debug", "BFF_PUBLIC_GOSHUINS", {
@@ -93,6 +91,16 @@ export async function GET(req: Request) {
 
     return NextResponse.json(body, { status: 200 });
   } catch (e) {
+    serverLog("error", "BFF_PUBLIC_GOSHUINS_FAILED", {
+      requestId: (() => {
+        try {
+          return getRequestId(req);
+        } catch {
+          return null;
+        }
+      })(),
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json(
       { error: "public goshuins route failed", message: e instanceof Error ? e.message : String(e) },
       { status: 500 },

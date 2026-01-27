@@ -1,6 +1,8 @@
 // apps/web/src/lib/api/goshuin.ts
 import axios from "axios";
 import api from "./client";
+import { devLog } from "@/lib/client/logging";
+
 
 export type { Goshuin } from "./types";
 import type { Goshuin as GoshuinType } from "./types";
@@ -49,7 +51,9 @@ export async function getGoshuinPublicAuto(): Promise<GoshuinType[]> {
           return [];
         }
       }
-      if (status !== 404) return [];
+      if (status !== 404) {
+        devLog("getMyGoshuinAuto:NON_404_ERROR", { status });
+      }
     }
   }
   return [];
@@ -62,18 +66,22 @@ export async function getMyGoshuinAuto(): Promise<GoshuinType[]> {
       return toList(r.data);
     } catch (err: any) {
       if (!axios.isAxiosError(err)) {
-        console.warn?.("[getMyGoshuinAuto] unexpected error", err);
+        devLog("getMyGoshuinAuto:UNEXPECTED_ERROR", {
+          message: err instanceof Error ? err.message : String(err),
+        });
         return [];
       }
+
       const status = err.response?.status;
       if (status === 401 || status === 403) return [];
       if (status !== 404) {
-        console.warn?.("[getMyGoshuinAuto] non-404 error", status);
+        devLog("getMyGoshuinAuto:NON_404_ERROR", { status });
         return [];
       }
     }
   }
-  console.warn?.("[getMyGoshuinAuto] all candidates returned 404");
+
+  devLog("getMyGoshuinAuto:ALL_404", {});
   return [];
 }
 
