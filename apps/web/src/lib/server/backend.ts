@@ -1,17 +1,15 @@
-// apps/web/src/lib/server/backend.ts
 import type { NextRequest } from "next/server";
+import { serverLog } from "@/lib/server/logging";
 
-// 開発中は必ずローカル Django を見る
-// 本番(Vercel)だけ環境変数 or Render を使う
 const BACKEND_ORIGIN =
   process.env.NODE_ENV === "production"
-    ? (
-        process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.BACKEND_ORIGIN ||
-        "https://jinja-backend.onrender.com"
-      )
+    ? process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.BACKEND_ORIGIN ||
+      "https://jinja-backend.onrender.com"
     : "http://127.0.0.1:8000";
+
+const DJ_FETCH_DEBUG = process.env.NODE_ENV !== "production" && process.env.DJ_FETCH_DEBUG === "1";
 
 export async function djFetch(
   reqOrPath: NextRequest | string,
@@ -42,25 +40,17 @@ export async function djFetch(
     const cookie = req.headers.get("cookie") || "";
     const contentType = req.headers.get("content-type");
 
-    console.log("[djFetch] url:", url);
-    console.log("[djFetch] incoming cookie:", cookie || "<none>");
-    console.log("[djFetch] incoming auth:", incomingAuth || "<none>");
-    console.log("[djFetch] incoming content-type:", contentType || "<none>");
-
     if (incomingAuth && !headers.has("Authorization")) {
       headers.set("Authorization", incomingAuth);
     }
 
-    // cookie -> Authorization（access_token を優先）
+    // cookie -> Authorization（access_token 優先）
     if (!headers.has("Authorization")) {
       const access = req.cookies.get("access_token")?.value;
-
-      // req.cookies が取れない環境の保険（今まで通り）
       const fallback = (() => {
         const m = cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : null;
       })();
-
       const token = access || fallback;
       if (token) headers.set("Authorization", `Bearer ${token}`);
     }
@@ -78,18 +68,21 @@ export async function djFetch(
     const referer = req.headers.get("referer");
     if (referer && !headers.has("referer")) headers.set("referer", referer);
 
-    // ⚠️ multipart のとき Content-Type を自前で set しない（boundary が壊れる）
-    // もし djFetch 内で content-type を固定してたら削除する
-    // upstreamHeaders.delete("content-type");
-
+    // multipart のとき Content-Type は set しない（boundaryが壊れる）
     const isFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
-
     if (contentType && !headers.has("Content-Type") && !isFormDataBody) {
       headers.set("Content-Type", contentType);
     }
 
-    console.log("[djFetch] forwarded Authorization:", headers.get("Authorization") || "<none>");
-    console.log("[djFetch] forwarded Content-Type:", headers.get("Content-Type") || "<none>");
+    // ✅ 最終状態だけログ（値は出さない）
+    if (DJ_FETCH_DEBUG) {
+      serverLog("debug", "DJ_FETCH_FORWARD", {
+        url,
+        hasAuth: !!headers.get("Authorization"),
+        hasCookie: !!headers.get("cookie"),
+        contentType: headers.get("Content-Type") || null,
+      });
+    }
   }
 
   const finalInit: RequestInit & { duplex?: "half" } = {
@@ -103,7 +96,7 @@ export async function djFetch(
     (finalInit as any).duplex = "half";
   }
 
-  // 開発時のみ Host を固定（CSRF / localhost 用）
+  // dev のみ Host 固定
   if (process.env.NODE_ENV !== "production") {
     headers.set("Host", "127.0.0.1");
   }

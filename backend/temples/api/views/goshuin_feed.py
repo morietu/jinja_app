@@ -10,13 +10,16 @@ class PublicGoshuinFeedView(ListAPIView):
     serializer_class = GoshuinSerializer
 
     def get_queryset(self):
-        return (
+        qs = (
             Goshuin.objects
             .filter(is_public=True)
-            .filter(images__isnull=False)     # ✅ 画像があるものだけ
+            .filter(images__isnull=False)
             .select_related("shrine")
             .prefetch_related("images")
             .distinct()
             .order_by("-created_at", "-id")
         )
-
+        shrine = self.request.query_params.get("shrine")
+        if shrine and str(shrine).isdigit():
+            qs = qs.filter(shrine_id=int(shrine))
+        return qs

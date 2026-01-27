@@ -1,10 +1,12 @@
-// apps/web/src/app/api/users/me/icon/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
+import { serverLog, getRequestId } from "@/lib/server/logging";
 
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req);
   try {
     const incoming = await req.formData();
     const outgoing = new FormData();
@@ -15,28 +17,34 @@ export async function POST(req: NextRequest) {
     const upstream = await djFetch(req, "/api/users/me/icon/", {
       method: "POST",
       body: outgoing,
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
 
     const text = await upstream.text();
 
-    console.log("[BFF] /api/users/me/icon upstream status:", upstream.status);
-    console.log("[BFF] /api/users/me/icon upstream body snippet:", text.slice(0, 200));
+    if (DEBUG) {
+      serverLog("debug", "BFF_USER_ICON_UPSTREAM", {
+        requestId,
+        status: upstream.status,
+        textLen: text.length,
+      });
+    }
 
+    // upstream の Content-Type は headers.get は小文字で取るのが安全
     return new NextResponse(text, {
       status: upstream.status,
       headers: {
-        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
       },
     });
   } catch (err: unknown) {
-    console.error("[BFF] /api/users/me/icon error:", err);
+    serverLog("error", "BFF_USER_ICON_FAILED", {
+      requestId,
+      message: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
       {
         detail: "BFF /api/users/me/icon でエラーが発生しました",
-        message: err instanceof Error ? err.message : String(err),
       },
       { status: 500 },
     );

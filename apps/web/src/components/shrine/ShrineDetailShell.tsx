@@ -6,7 +6,6 @@ import ShrineCloseLink from "@/components/shrine/ShrineCloseLink";
 import { LABELS } from "@/lib/ui/labels";
 import DetailSection from "@/components/shrine/DetailSection";
 
-
 type SaveAction = {
   shrineId: number;
   nextPath: string;
@@ -29,8 +28,6 @@ type Props = {
   children?: ReactNode;
 };
 
-
-
 export default function ShrineDetailShell({
   title,
   subtitle = null,
@@ -38,10 +35,12 @@ export default function ShrineDetailShell({
   addGoshuinHref = null,
   googleDirHref = null,
   googleDirLabel = LABELS.googleDirections,
-  googleDirFallbackText = "位置情報が未登録のため、経路案内を表示できません。",
+  googleDirFallbackText: _googleDirFallbackText,
   saveAction = null,
   children,
 }: Props) {
+  const hasActions = Boolean(googleDirHref || saveAction?.node || addGoshuinHref);
+
   return (
     <main className="mx-auto min-h-[calc(100vh-64px)] max-w-md space-y-4 p-4">
       {/* ✅ Close をヘッダー左固定 */}
@@ -59,39 +58,40 @@ export default function ShrineDetailShell({
         <div className="w-[64px]" />
       </header>
 
-      {/* ✅ CTA（御朱印 → 経路案内 → 保存）を DetailSection トーンに統一 */}
-      <DetailSection title="操作">
-        <div className="grid gap-2">
-          {/* primary: 経路案内 */}
-          {googleDirHref ? (
-            <a
-              href={googleDirHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              {googleDirLabel}
-            </a>
-          ) : (
-            <div className="text-xs text-slate-500">{googleDirFallbackText}</div>
-          )}
+      {/* ✅ 操作は「何かできる」時だけ表示 */}
+      {hasActions ? (
+        <DetailSection title="操作">
+          <div className="grid gap-2">
+            {/* primary: 経路案内 */}
+            {
+              googleDirHref ? (
+                <a
+                  href={googleDirHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  {googleDirLabel}
+                </a>
+              ) : null /* ← fallback は出さない */
+            }
 
-          {/* secondary: 保存 */}
-          {saveAction?.node ? <div>{saveAction.node}</div> : null}
+            {/* secondary: 保存 */}
+            {saveAction?.node ? <div>{saveAction.node}</div> : null}
 
-          {/* tertiary: 御朱印追加（条件付き） */}
-          {addGoshuinHref ? (
-            <Link
-              href={addGoshuinHref}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-            >
-              {LABELS.addGoshuin}
-            </Link>
-          ) : null}
-        </div>
-      </DetailSection>
+            {/* tertiary: 御朱印追加 */}
+            {addGoshuinHref ? (
+              <Link
+                href={addGoshuinHref}
+                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                {LABELS.addGoshuin}
+              </Link>
+            ) : null}
+          </div>
+        </DetailSection>
+      ) : null}
 
-      {/* 本文 */}
       {children}
     </main>
   );

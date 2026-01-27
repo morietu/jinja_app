@@ -1,4 +1,3 @@
-// apps/web/src/features/home/components/HomeGoshuinFeedSection.tsx
 "use client";
 // NOTE:
 // このコンポーネントは「公開情報の閲覧専用」
@@ -22,26 +21,22 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    console.log("[HomeGoshuinFeedSection] mount");
-    return () => console.log("[HomeGoshuinFeedSection] unmount");
-  }, []);
-  
-  
-  useEffect(() => {
-    console.log("[HomeGoshuinFeedSection] fetch start", { limit });
     let alive = true;
-    setState({ kind: "loading" });
 
     (async () => {
+      setState({ kind: "loading" });
       try {
         const r = await fetch(`/api/public/goshuins/feed?limit=${limit}`, { cache: "no-store" });
         if (!r.ok) throw new Error("feed fetch failed");
 
-        const json = (await r.json()) as unknown;
+        const json: unknown = await r.json();
         if (!alive) return;
 
-        const raw = Array.isArray(json) ? json : Array.isArray((json as any)?.results) ? (json as any).results : [];
-
+        const raw: any[] = Array.isArray(json)
+          ? json
+          : Array.isArray((json as any)?.results)
+            ? (json as any).results
+            : [];
 
         const items: FeedItem[] = raw
           .filter((x: any) => Number.isFinite(x?.id) && Number.isFinite(x?.shrine) && x?.image_url)
@@ -55,8 +50,6 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
           }));
 
         if (!alive) return;
-
-        
 
         if (items.length === 0) setState({ kind: "empty" });
         else setState({ kind: "success", items });
@@ -108,15 +101,13 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
       );
     }
 
-    // success
     const items = state.items;
     const show = items.slice(0, Math.min(12, limit));
     const need = Math.max(0, 3 - show.length);
 
-
     return (
       <div className="grid grid-cols-3 gap-2">
-        {show.map((g) => (
+        {show.map((g: FeedItem) => (
           <Link
             key={g.id}
             href={`/shrines/${g.shrine}`}
@@ -130,11 +121,10 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
                 className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
                 loading="lazy"
               />
-
             </div>
           </Link>
         ))}
-        {/* ✅ 足りない分は薄いプレースホルダで埋める */}
+
         {Array.from({ length: need }).map((_, i) => (
           <div key={`ph-${i}`} className="aspect-square rounded-lg border bg-white">
             <div className="h-full w-full bg-slate-50" />
@@ -144,10 +134,5 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
     );
   }, [state, limit]);
 
-  return (
-    <section className="space-y-2">
-      
-      {content}
-    </section>
-  );
+  return <section className="space-y-2">{content}</section>;
 }

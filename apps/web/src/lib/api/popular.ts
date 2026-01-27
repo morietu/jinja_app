@@ -43,7 +43,7 @@ export async function fetchPopular(opts: FetchPopularOptions) {
   const query = searchParams.toString();
   const url = query.length > 0 ? `${POPULARS_API_BASE}?${query}` : POPULARS_API_BASE;
 
-  console.log("fetchPopular URL =", url);
+  
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {

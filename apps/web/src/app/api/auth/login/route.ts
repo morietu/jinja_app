@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
+import { serverLog, getRequestId } from "@/lib/server/logging";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
 const isSecureCookie =
   process.env.NODE_ENV === "production" && (process.env.NEXT_PUBLIC_APP_ORIGIN || "").startsWith("https");
@@ -45,6 +48,8 @@ async function readCredentialsRaw(req: NextRequest): Promise<Creds> {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req);
+
   const { usernameRaw, passwordRaw } = await readCredentialsRaw(req);
 
   // 1) 未入力は 400（従来どおり）
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Invalid credentials", { status: 400 });
   }
 
-  // 2) 前後スペース混入は 400 で弾く（ここがA案の本体）
+  // 2) 前後スペース混入は 400
   if (usernameRaw !== usernameRaw.trim() || passwordRaw !== passwordRaw.trim()) {
     return NextResponse.json({ detail: "ユーザー名/パスワードに余計な空白があります" }, { status: 400 });
   }
@@ -60,14 +65,11 @@ export async function POST(req: NextRequest) {
   // 3) ここから先は「そのまま」backend に渡す（trimしない）
   const username = usernameRaw;
   const password = passwordRaw;
-  
-  console.log(
-    "[login] DJ URL =",
-    process.env.API_BASE,
-    process.env.NEXT_PUBLIC_BACKEND_ORIGIN,
-    process.env.NEXT_PUBLIC_API_BASE_URL,
-  );
-  console.log("[login] payload username len =", username.length);
+
+  if (DEBUG) {
+    serverLog("debug", "AUTH_LOGIN_ATTEMPT", { requestId, usernameLen: username.length });
+  }
+
   try {
     const r = await djFetch(`/api/auth/jwt/create/`, {
       method: "POST",
@@ -77,7 +79,11 @@ export async function POST(req: NextRequest) {
 
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
-      console.error("[login] upstream status", r.status, "body", txt.slice(0, 200));
+      serverLog("warn", "AUTH_LOGIN_UPSTREAM_NOT_OK", {
+        requestId,
+        status: r.status,
+        textLen: txt.length,
+      });
       return new NextResponse(txt || "Login failed", { status: r.status });
     }
 
@@ -99,7 +105,11 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
     });
     return res;
-  } catch {
+  } catch (e) {
+    serverLog("error", "AUTH_LOGIN_ROUTE_FAILED", {
+      requestId,
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json({ detail: "バックエンドに接続できません" }, { status: 503 });
   }
 }

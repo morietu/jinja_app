@@ -22,7 +22,7 @@ export function HomeConciergeInlineClient({ className, open, onOpen, onClose }: 
   // ✅ closeイベント受けたら確実に閉じる（親へ委譲）
   useEffect(() => {
     const onCloseEvt = () => {
-      console.log("[jinja] close event received (HomeConciergeInlineClient)");
+   
       onClose();
     };
     window.addEventListener("jinja:close-concierge", onCloseEvt);

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { serverLog } from "@/lib/server/logging";
+
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
-console.log("[bff billing] API_BASE =", API_BASE);
+if (DEBUG) serverLog("debug", "BFF_BILLING_API_BASE", { hasApiBase: !!API_BASE });
 
 const STUB = {
   plan: "free",
@@ -74,7 +77,9 @@ export async function GET() {
       return NextResponse.json(STUB, { status: 200, headers: { "x-billing-stub": "1" } });
     }
   } catch (e) {
-    console.error("[billing/status] route failed:", e);
+    serverLog("error", "BFF_BILLING_STATUS_FAILED", {
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json(STUB, { status: 200, headers: { "x-billing-stub": "1" } });
   }
 }

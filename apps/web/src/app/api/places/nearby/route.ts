@@ -1,12 +1,14 @@
-// apps/web/src/app/api/places/nearby/route.ts
 import { NextResponse } from "next/server";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
+import { serverLog, getRequestId } from "@/lib/server/logging";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
 type MaybePlace = PlacesNearbyResult | null;
 
 export async function GET(req: Request) {
+  const requestId = getRequestId(req);
   const url = new URL(req.url);
   const qs = url.searchParams.toString();
 
@@ -17,30 +19,38 @@ export async function GET(req: Request) {
       headers: { Accept: "application/json" },
     });
   } catch (e) {
-    console.error("[nearby] upstream fetch failed:", e);
+    serverLog("warn", "BFF_NEARBY_UPSTREAM_FETCH_FAILED", {
+      requestId,
+      message: e instanceof Error ? e.message : String(e),
+    });
     const body: PlacesNearbyResponse = { results: [] };
     return NextResponse.json(body, { status: 200 });
   }
 
-  // 404 は「近く無し」扱い
   if (upstream.status === 404) {
     const body: PlacesNearbyResponse = { results: [] };
     return NextResponse.json(body, { status: 200 });
   }
 
-  // upstream がエラーなら UI は壊さず empty に倒す（ログだけ出す）
   if (!upstream.ok) {
     const txt = await upstream.text().catch(() => "");
-    console.error("[nearby] upstream not ok:", upstream.status, txt.slice(0, 300));
+    serverLog("warn", "BFF_NEARBY_UPSTREAM_NOT_OK", {
+      requestId,
+      status: upstream.status,
+      textLen: txt.length,
+    });
     const body: PlacesNearbyResponse = { results: [] };
     return NextResponse.json(body, { status: 200 });
   }
 
-  const raw = await upstream.json().catch(async () => {
-    const txt = await upstream.text().catch(() => "");
-    console.error("[nearby] upstream json parse failed:", txt.slice(0, 300));
-    return null;
-  });
+  const text = await upstream.text().catch(() => "");
+  let raw: any = null;
+  try {
+    raw = text ? JSON.parse(text) : null;
+  } catch {
+    serverLog("warn", "BFF_NEARBY_JSON_PARSE_FAILED", { requestId, textLen: text.length });
+    raw = null;
+  }
 
   const resultsRaw: any[] = Array.isArray(raw?.results) ? raw.results : [];
 
@@ -68,6 +78,10 @@ export async function GET(req: Request) {
   });
 
   const results = mapped.filter((x): x is PlacesNearbyResult => x !== null);
+
+  if (DEBUG) {
+    serverLog("debug", "BFF_NEARBY_OK", { requestId, count: results.length });
+  }
 
   const body: PlacesNearbyResponse = { results };
   return NextResponse.json(body, { status: 200 });

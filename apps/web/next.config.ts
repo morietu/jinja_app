@@ -46,6 +46,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "your-cdn.example.com" },
       { protocol: "https", hostname: "your-backend.example.com" },
 
+      { protocol: "http", hostname: "127.0.0.1", port: "8000", pathname: "/**" },
+      { protocol: "http", hostname: "localhost", port: "8000", pathname: "/**" },
+
       // R2のパブリックURLが設定されている場合のみ追加
       ...(r2Hostname
         ? [

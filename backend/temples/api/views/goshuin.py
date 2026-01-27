@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 import logging
-
 from django.db import transaction
+
 from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.decorators import action
 
 from temples.models import Goshuin, GoshuinImage
 from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
@@ -29,21 +30,31 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 
 
 class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = (
-        Goshuin.objects.filter(is_public=True)
-        .select_related("shrine", "user")
-        .order_by("-created_at")
-    )
+    permission_classes = [AllowAny]
     serializer_class = GoshuinSerializer
-    permission_classes = [permissions.AllowAny]
     pagination_class = None
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        username = self.request.query_params.get("username")
-        if username:
-            qs = qs.filter(user__username=username)
+        shrine = self.request.query_params.get("shrine")
+
+        qs = (
+            Goshuin.objects
+            .filter(is_public=True)
+            .filter(images__isnull=False)  # 画像があるものだけ
+            .select_related("shrine")
+            .prefetch_related("images")
+            .distinct()
+            .order_by("-created_at", "-id")
+        )
+
+        if shrine:
+            qs = qs.filter(shrine_id=shrine)
+
+        
+
         return qs
+    
+
 
 
 class MyGoshuinViewSet(viewsets.ViewSet):

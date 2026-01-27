@@ -1,4 +1,3 @@
-// apps/web/src/components/shrine/detail/ShrineDetailArticle.tsx
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
@@ -12,54 +11,45 @@ export default function ShrineDetailArticle({
   cardProps,
   heroImageUrl,
   benefitLabels,
-  publicGoshuins,
   addGoshuinHref,
   judge,
   conciergeBreakdown = null,
   exp,
+  publicGoshuinsPreview = [],
+  publicGoshuinsHasMore = false,
+  publicGoshuinsViewAllHref = "",
 }: {
   cardProps: ShrineCardAdapterProps;
   heroImageUrl?: string | null;
   benefitLabels: string[];
-  publicGoshuins: PublicGoshuinItem[];
+
+  publicGoshuinsPreview: PublicGoshuinItem[];
+  publicGoshuinsHasMore: boolean;
+  publicGoshuinsViewAllHref: string;
+
   addGoshuinHref?: string | null;
   judge: { title: string; summary: string; level: SignalLevel; hint: string | null };
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
 }) {
-
-  
-
-  const heroCardProps = {
-    ...cardProps,
-    imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
-  };
-
-  const seeAllHref = cardProps?.shrineId ? `/shrines/${cardProps.shrineId}/goshuins` : null;
+  const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
 
 
- 
 
   return (
     <article className="space-y-4">
-      {process.env.NODE_ENV !== "production" ? (
-        <div className="text-[11px] text-slate-500 break-all">heroImageUrl: {String(heroImageUrl)}</div>
-      ) : null}
-
-      {/* 1) Hero（常に見せる / 詳細では静かに） */}
       <ShrineCard {...heroCardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
 
-      {/* 2) 公開御朱印（常に見せる） */}
+      {/* 公開御朱印（3枚 + 条件付きで「すべて見る」） */}
       <section id="goshuins">
         <PublicGoshuinSection
-          items={publicGoshuins}
+          items={publicGoshuinsPreview}
           addGoshuinHref={addGoshuinHref ?? null}
           limit={3}
-          seeAllHref={seeAllHref}
+          seeAllHref={publicGoshuinsHasMore && publicGoshuinsViewAllHref ? publicGoshuinsViewAllHref : null}
         />
       </section>
 
-      {/* 3) それ以外（情報は折りたたみ） */}
       <div className="space-y-2">
         <DetailDisclosureBlock
           title="相性の根拠"

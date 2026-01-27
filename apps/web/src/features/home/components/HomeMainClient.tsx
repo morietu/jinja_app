@@ -23,7 +23,6 @@ export function HomeMainClient() {
   // ✅ ロゴ等から送られる close をホームで受ける
   useEffect(() => {
     const onClose = () => {
-      console.log("[jinja] close event received (HomeMainClient)");
       closeConcierge();
     };
     window.addEventListener("jinja:close-concierge", onClose);
