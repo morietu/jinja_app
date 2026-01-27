@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
+import { devLog } from "@/lib/client/logging";
 
 export type InitialSelect = {
   shrineId: number | null;
@@ -42,7 +43,7 @@ function makeSnapFromKey(spKey: string): UrlSnap {
 
   return {
     pathname: window.location.pathname,
-    search: window.location.search,
+    search: spKey ? `?${spKey}` : "",
 
     pick: params.get("pick"),
     returnTo: params.get("return"),
@@ -68,27 +69,39 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
   const lastSnapRef = useRef<UrlSnap | null>(null);
 
-  useEffect(() => {
-    console.log("[MapScreenLayout] MOUNT", {
-      mountId: mountIdRef.current,
-      snap: null,
-    });
 
-    return () => {
-      console.log("[MapScreenLayout] UNMOUNT", {
+
+  useEffect(() => {
+    const next = makeSnapFromKey(spKey);
+    const prev = lastSnapRef.current;
+
+    // 初回はprevがnullなので、初期化だけして必要ならログ
+    if (!prev) {
+      lastSnapRef.current = next;
+      devLog("MapScreenLayout:INIT", { mountId: mountIdRef.current, snap: next });
+      return;
+    }
+
+    // 変化点だけ出す（騒音削減）
+    const changed =
+      prev.pathname !== next.pathname ||
+      prev.search !== next.search ||
+      prev.pick !== next.pick ||
+      prev.returnTo !== next.returnTo ||
+      prev.returnHash !== next.returnHash ||
+      prev.place_id !== next.place_id ||
+      prev.shrine_id !== next.shrine_id ||
+      prev.tid !== next.tid;
+
+    if (changed) {
+      devLog("MapScreenLayout:URL_CHANGED", {
         mountId: mountIdRef.current,
-        snap: lastSnapRef.current,
+        prev,
+        next,
       });
-    };
-  }, []);
+    }
 
-  useEffect(() => {
-    lastSnapRef.current = makeSnapFromKey(spKey);
-
-    console.log("[MapScreenLayout] URL_CHANGED", {
-      mountId: mountIdRef.current,
-      snap: lastSnapRef.current,
-    });
+    lastSnapRef.current = next;
   }, [spKey]);
 
   // =========================

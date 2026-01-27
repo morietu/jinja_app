@@ -178,7 +178,6 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
               }}
               type="button"
               onClick={() => {
-                console.log("[MapNearbyPicker] pick", { place_id: x.place_id, name: x.name });
                 onSelectPlaceId(x.place_id);
               }}
               className={`w-full rounded-xl border p-3 text-left ${

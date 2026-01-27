@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { serverLog } from "@/lib/server/logging";
 
 type SP = { place_id?: string; locationbias?: string };
 
@@ -14,8 +15,11 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
   const proto = h.get("x-forwarded-proto") ?? "http";
   const baseUrl = `${proto}://${host}`;
 
-  // ★これが肝：ユーザーの cookie を “そのまま” BFF に転送
-  console.log("[resolve] cookieHeader len =", cookieHeader.length);
+  const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
+  if (DEBUG) {
+    serverLog("debug", "RESOLVE_COOKIE_HEADER", { cookieHeaderLen: cookieHeader.length });
+  }
+
 
   const res = await fetch(`${baseUrl}/api/shrines/from-place/`, {
     method: "POST",
