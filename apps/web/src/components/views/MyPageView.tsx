@@ -12,7 +12,7 @@ import Link from "next/link";
 type Props = { initialFavorites: Favorite[] };
 
 export default function MyPageView({ initialFavorites }: Props) {
-  console.log("[MyPageView] initialFavorites", initialFavorites);
+
   
   const router = useRouter();
   const sp = useSearchParams();

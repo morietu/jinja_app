@@ -2,7 +2,7 @@
 import Link from "next/link";
 
 import { getShrine, type Shrine } from "@/lib/api/shrines";
-
+import { serverLog } from "@/lib/server/logging";
 
 import { gmapsDirUrl } from "@/lib/maps";
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
@@ -66,7 +66,11 @@ export default async function Page({ params, searchParams }: Props) {
   let shrine: Shrine | null = null;
   try {
     shrine = await getShrine(numericId);
-  } catch {
+  } catch (e) {
+    serverLog("error", "GET_SHRINE_FAILED", {
+      shrineId: numericId,
+      message: e instanceof Error ? e.message : String(e),
+    });
     shrine = null;
   }
 
@@ -92,7 +96,6 @@ export default async function Page({ params, searchParams }: Props) {
 
   const pageTitle = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
 
-  
   const latNum = Number(s.lat ?? s.latitude ?? NaN);
   const lngNum = Number(s.lng ?? s.longitude ?? NaN);
   const hasLocation =
@@ -104,15 +107,11 @@ export default async function Page({ params, searchParams }: Props) {
     lngNum <= 180;
 
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
- 
 
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
-
-
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
-  
-  
+  // no log (or dev-only structured)
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
 
@@ -129,6 +128,8 @@ export default async function Page({ params, searchParams }: Props) {
     shrine: s,
     publicGoshuins,
     conciergeBreakdown,
+    ctx,
+    tid,
   });
 
   return (
@@ -147,7 +148,7 @@ export default async function Page({ params, searchParams }: Props) {
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
       >
-        <ShrineDetailArticle {...model} addGoshuinHref={null} />
+        <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
       </ShrineDetailShell>
     </>
   );
