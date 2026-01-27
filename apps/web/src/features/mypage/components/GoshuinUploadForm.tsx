@@ -65,7 +65,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    console.log("[GoshuinUploadForm] submit", { shrineId, file, loading });
+    
     if (loading) return;
 
     setError(null);
@@ -113,9 +113,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="text-[11px] text-slate-500">
-        debug: shrineId={String(shrineId)} file={file ? file.name : "null"} loading={String(loading)}
-      </div>
 
       <div className="rounded-2xl border bg-white p-4 space-y-2">
         <p className="text-xs font-semibold text-slate-500">アップロード対象</p>

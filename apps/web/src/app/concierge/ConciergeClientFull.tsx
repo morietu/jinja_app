@@ -181,7 +181,7 @@ export default function ConciergeClientFull() {
 
   useEffect(() => {
     const onClose = () => {
-      console.log("[jinja] close -> go home (ConciergeClientFull)");
+    
       if (isClosingRef.current) return; // ✅ 二重防止
       isClosingRef.current = true;
 
@@ -263,15 +263,15 @@ export default function ConciergeClientFull() {
 
     (async () => {
       try {
-        console.log("[tags] fetching...");
+       
         const res = await getGoriyakuTags();
-        console.log("[tags] res", res);
+      
 
         if (!alive) return;
         setGoriyakuTags(Array.isArray(res) ? res : []);
         setTagsError(null);
-      } catch (e) {
-        console.log("[tags] failed", e);
+      } catch {
+      
         if (!alive) return;
         setGoriyakuTags([]);
         setTagsError("ご利益タグの取得に失敗しました");
@@ -477,7 +477,6 @@ export default function ConciergeClientFull() {
         void (send as any)(p);
         return;
       }
-
 
       case "filter_set_birthdate":
         setBirthdate(a.birthdate);
