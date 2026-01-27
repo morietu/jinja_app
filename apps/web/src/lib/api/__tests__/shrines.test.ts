@@ -1,6 +1,7 @@
 // apps/web/src/lib/api/__tests__/shrines.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getShrines, getPopularShrines, fetchNearestShrines } from "../shrines";
+import { getShrines, fetchNearestShrines, getPopularShrines } from "../shrines";
+
 import api from "../client";
 
 beforeEach(() => {
@@ -55,8 +56,9 @@ describe("shrines api", () => {
       }) as any,
     );
 
-    const res = await getPopularShrines({ limit: 5 });
-    expect(res).toHaveLength(1);
+    const res = await getPopularShrines({});
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].id).toBe(1);
   });
 
   it("getPopularShrines: items を返す", async () => {
@@ -69,7 +71,8 @@ describe("shrines api", () => {
     );
 
     const res = await getPopularShrines({});
-    expect(res[0].id).toBe(2);
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].id).toBe(2);
   });
 
   it("fetchNearestShrines: 配列レスポンスを Paginated に変換", async () => {

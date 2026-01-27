@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { ShrineRankingItem } from "../types";
 import { RankingList } from "./RankingList";
 import type { Shrine } from "@/lib/api/shrines";
-import { getPopularShrines } from "@/lib/api/shrines";
+import { fetchPopular } from "@/lib/api/popular";
 
 type Period = "weekly" | "monthly" | "yearly";
 
@@ -27,11 +27,11 @@ export default function RankingPage() {
     setLoading(true);
     setError(null);
 
-    getPopularShrines({ limit: 10 })
-      .then((shrines: Shrine[]) => {
+    fetchPopular({ limit: 10 })
+      .then(({ items }: { items: Shrine[] }) => {
         if (cancelled) return;
 
-        const mapped: ShrineRankingItem[] = shrines.map((s: Shrine, index: number) => ({
+        const mapped: ShrineRankingItem[] = items.map((s: Shrine, index: number) => ({
           id: s.id, // ★ String(...) をやめて number のまま
           name: (s as any).name_jp ?? (s as any).name ?? "",
           address: (s as any).address ?? "",

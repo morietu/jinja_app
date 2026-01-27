@@ -43,7 +43,7 @@ export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
 export async function fetchRanking(period: Period): Promise<RankingItem[]> {
   const url = `${POPULARS_API_BASE}?period=${period}&limit=10`;
 
-  console.log("fetchRanking URL =", url);
+ 
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
