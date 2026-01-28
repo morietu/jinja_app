@@ -63,7 +63,7 @@ export default function MapNearbyPicker(props: Props) {
         if ((e as any)?.name === "AbortError") return;
         setItems([]);
       } finally {
-        if (!ac.signal.aborted) setPhase("ready"); // ✅ これ
+        if (!ac.signal.aborted) setPhase("ready");
       }
     })();
 
@@ -87,13 +87,14 @@ export default function MapNearbyPicker(props: Props) {
   useEffect(() => {
     if (!isPickMode) return;
     if (!selectedPlaceId) return;
+
     const el = rowRefs.current[selectedPlaceId];
     if (!el) return;
+
     const id = window.setTimeout(() => {
-      try {
-        el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
-      } catch {}
+      el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     }, 0);
+
     return () => window.clearTimeout(id);
   }, [isPickMode, selectedPlaceId, items.length]);
 
