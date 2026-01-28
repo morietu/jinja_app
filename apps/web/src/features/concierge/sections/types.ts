@@ -54,6 +54,7 @@ export type PlaceShrineItem = {
 
   detailHref?: string;
   detailLabel?: string;
+  breakdown?: ConciergeBreakdown | null;
 };
 
 /* =========================

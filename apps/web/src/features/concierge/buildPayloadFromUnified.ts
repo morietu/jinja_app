@@ -1,3 +1,4 @@
+//apps/web/src/features/concierge/buildPayloadFromUnified.ts;
 import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type {
   ConciergeSectionsPayload,
@@ -27,15 +28,16 @@ export function buildPayloadFromUnified(
           kind: "place" as const,
           placeId: r.place_id,
           title: String(r.display_name ?? r.name ?? "名称不明"),
-          address: r.display_address ?? null,
+          address: r.display_address ?? r.location ?? r.address ?? null,
           description: String(r.reason ?? ""),
           imageUrl: r.photo_url ?? null,
+          breakdown: r.breakdown ?? null, // ← 追加（ここが“落ちてる”）
           detailHref: `/shrines/from-place/${encodeURIComponent(r.place_id)}?${qs.toString()}`,
           detailLabel: "神社の詳細を見る",
         };
       }
 
-      const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? r?.id ?? null;
+      const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? null;
       const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
 
       if (typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0) {
@@ -67,7 +69,7 @@ export function buildPayloadFromUnified(
       closedLabel: "条件を追加",
       state: filterState,
     },
-    
+
     { type: "recommendations", title: "候補", items: items as any[] },
     {
       type: "actions",

@@ -88,7 +88,9 @@ export default function RecommendationUnit({
             ) : null}
 
             <DisclosureSection title="要点">
-              <p className="text-sm text-slate-700 line-clamp-2">{buildOneLiner(breakdown)}</p>
+              <p className="text-sm text-slate-700 line-clamp-2">
+                {breakdown ? buildOneLiner(breakdown) : "条件に合う候補から選びました。"}
+              </p>
             </DisclosureSection>
           </div>
         }
