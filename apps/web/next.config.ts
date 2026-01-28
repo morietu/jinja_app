@@ -26,7 +26,9 @@ const nextConfig: NextConfig = {
       // R2固定（直URL使うなら）
       { protocol: "https", hostname: "pub-2bcf3477e26d46f6ab5031df3b436f92.r2.dev", pathname: "/**" },
 
-      
+      { protocol: "http", hostname: "127.0.0.1", port: "8000", pathname: "/media/**" },
+      { protocol: "http", hostname: "localhost", port: "8000", pathname: "/media/**" },
+    
 
       // envで渡すR2
       ...(r2Hostname ? [{ protocol: "https" as const, hostname: r2Hostname, pathname: "/**" }] : []),

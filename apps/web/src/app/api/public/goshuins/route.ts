@@ -1,9 +1,8 @@
-// apps/web/src/app/api/public/goshuins/route.ts
 import { NextResponse } from "next/server";
 import { clampLimit, getDjangoOrigin } from "@/lib/bff/origin";
 import { serverLog, getRequestId } from "@/lib/server/logging";
-const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
+const DEBUG = process.env.NODE_ENV !== "production";
 
 type Goshuin = {
   id: number;
@@ -38,12 +37,20 @@ export async function GET(req: Request) {
 
     const upstream = `${origin}/api/goshuins/?is_public=true&shrine=${shrine}`;
 
-    const r = await fetch(upstream, { cache: "no-store", headers: { Accept: "application/json" } });
+    const r = await fetch(upstream, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
 
     const contentType = r.headers.get("content-type") ?? "";
     const text = await r.text();
 
-    // ✅ HTML混入を遮断
+    if (DEBUG) {
+      console.log("[bff/public/goshuins] upstream =", upstream);
+      console.log("[bff/public/goshuins] status =", r.status, "ct =", contentType);
+      console.log("[bff/public/goshuins] text_head =", text.slice(0, 120));
+    }
+
     if (!contentType.includes("application/json")) {
       return NextResponse.json(
         { error: "upstream returned non-json", upstream, status: r.status, contentType, body: text.slice(0, 300) },
@@ -59,22 +66,14 @@ export async function GET(req: Request) {
     }
 
     const data = JSON.parse(text) as any;
-
     const allRaw: Goshuin[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
 
-    const results = allRaw.slice(offset, offset + limit);
-    const requestId = getRequestId(req);
-
     if (DEBUG) {
-      serverLog("debug", "BFF_PUBLIC_GOSHUINS", {
-        requestId,
-        shrine,
-        status: r.status,
-        contentType,
-        upstreamLen: Array.isArray(allRaw) ? allRaw.length : null,
-        firstId: allRaw?.[0]?.id ?? null,
-      });
+      console.log("[bff/public/goshuins] results_len =", allRaw.length);
+      console.log("[bff/public/goshuins] first =", allRaw[0]?.id ?? null);
     }
+
+    const results = allRaw.slice(offset, offset + limit);
 
     const body: Paginated<Goshuin> = {
       count: Number.isFinite(Number(data?.count)) ? Number(data.count) : allRaw.length,
