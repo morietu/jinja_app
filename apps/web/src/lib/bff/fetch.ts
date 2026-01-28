@@ -11,6 +11,20 @@ export type BffFetchOptions = {
   setAccessCookie?: boolean; // default true
 };
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessViaBackendMutex(refresh: string): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = refreshAccessViaBackend(refresh).finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+
+
 async function refreshAccessViaBackend(refresh: string): Promise<string | null> {
   const r = await fetch(`${API_BASE}/api/auth/jwt/refresh/`, {
     method: "POST",
@@ -46,28 +60,30 @@ export async function bffFetchWithAuthFromReq(
     return null;
   };
 
-    const doFetch = (overrideAccess?: string | null) => {
-      const auth = buildAuth(overrideAccess);
-      const cookieHeader = req.headers.get("cookie");
+  const doFetch = (overrideAccess?: string | null) => {
+    const auth = buildAuth(overrideAccess);
+    const cookieHeader = req.headers.get("cookie");
 
-
-      return fetch(`${API_BASE}${upstreamPath}`, {
-        ...init,
-        cache: "no-store",
-        headers: {
-          ...(init.headers ?? {}),
-          ...(auth ? { Authorization: auth } : {}),
-          ...(cookieHeader ? { cookie: cookieHeader } : {}),
-        },
-      });
-    };
+    return fetch(`${API_BASE}${upstreamPath}`, {
+      ...init,
+      cache: "no-store",
+      headers: {
+        ...(init.headers ?? {}),
+        ...(auth ? { Authorization: auth } : {}),
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+    });
+  };
 
   let upstream = await doFetch(null);
 
   // 3) 401 なら refresh_token で refresh → retry
   let newAccess: string | null = null;
-  if (upstream.status === 401 && retryOn401 && refresh) {
-    newAccess = await refreshAccessViaBackend(refresh);
+  if ((upstream.status === 401 || upstream.status === 403) && retryOn401 && refresh) {
+    // ❌ newAccess = await refreshAccessViaBackend(refresh);
+    // ✅ 同時 refresh を 1 回に束ねる
+    newAccess = await refreshAccessViaBackendMutex(refresh);
+
     if (newAccess) {
       upstream = await doFetch(newAccess);
     }
