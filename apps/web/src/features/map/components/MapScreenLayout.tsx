@@ -10,7 +10,6 @@ import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 import { devLog } from "@/lib/client/logging";
 import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
 
-
 export type InitialSelect = {
   shrineId: number | null;
   placeId: string | null;
@@ -21,8 +20,6 @@ export type InitialSelect = {
 };
 
 const FALLBACK_CENTER = { lat: 35.681236, lng: 139.767125 };
-
-
 
 function parseNum(v: string | null): number | null {
   if (!v) return null;
@@ -58,6 +55,8 @@ function makeSnapFromKey(spKey: string): UrlSnap {
   };
 }
 
+type PickPayload = { placeId: string; lat?: number | null; lng?: number | null };
+
 export default function MapScreenLayout({ initialSelect }: { initialSelect?: InitialSelect }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -71,6 +70,8 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     if (centerOverride) return centerOverride;
     return coords ?? FALLBACK_CENTER;
   }, [coords, centerOverride]);
+
+  const isWaitingCoords = coords == null && centerOverride == null;
 
   // =========================
   // ✅ Debug: remount 判定ログ
@@ -124,7 +125,6 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
   const tid = useMemo(() => new URLSearchParams(spKey).get("tid"), [spKey]);
 
-  
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const qpPlaceId = sp.get("place_id");
@@ -155,11 +155,12 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     router.push(`/shrines/${shrine_id}?${qs.toString()}`);
   }, [pick, selectedPlaceId, ensureShrine, router, tid]);
 
-  const loadByPlaceId = useCallback((placeId: string, fallback?: { lat?: number | null; lng?: number | null }) => {
-    setSelectedPlaceId(placeId);
+  // ✅ 選択の単一入口（選択 + 中心寄せ）
+  const onPickPlace = useCallback((x: PickPayload) => {
+    setSelectedPlaceId(x.placeId);
 
-    const lat = fallback?.lat ?? null;
-    const lng = fallback?.lng ?? null;
+    const lat = x.lat ?? null;
+    const lng = x.lng ?? null;
     if (typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)) {
       setCenterOverride({ lat, lng });
     }
@@ -208,7 +209,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     if (!init) return;
 
     if (init.placeId) {
-      loadByPlaceId(init.placeId, { lat: init.lat, lng: init.lng });
+      onPickPlace({ placeId: init.placeId, lat: init.lat, lng: init.lng });
       return;
     }
 
@@ -220,7 +221,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     if (typeof init.lat === "number" && typeof init.lng === "number") {
       setCenterOverride({ lat: init.lat, lng: init.lng });
     }
-  }, [initialSelect, loadByPlaceId, loadByShrineId, qpAddr, qpLat, qpLng, qpName, qpPlaceId, qpShrineId]);
+  }, [initialSelect, onPickPlace, loadByShrineId, qpAddr, qpLat, qpLng, qpName, qpPlaceId, qpShrineId]);
 
   const markers: { id: string; position: { lat: number; lng: number }; label?: string }[] = [];
 
@@ -228,6 +229,12 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     <div className="flex flex-col rounded-2xl border bg-white shadow-sm">
       <div className="relative z-0 h-[48vh] min-h-[260px] w-full overflow-hidden rounded-t-2xl border-b pointer-events-none">
         <GoogleMap center={center} zoom={13} markers={markers} className="h-full w-full" />
+
+        {isWaitingCoords && (
+          <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-slate-700 shadow">
+            位置情報を取得中…
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col">
@@ -253,9 +260,9 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
         <div className="relative z-20 px-2 pb-3 pointer-events-auto">
           <MapNearbyPicker
             limit={10}
-            coords={coords} // ✅ 追加
+            coords={coords}
             selectedPlaceId={selectedPlaceId}
-            onSelectPlaceId={setSelectedPlaceId}
+            onSelect={onPickPlace}
             initialSelectedPlace={{
               place_id: qpPlaceId ?? initialSelect?.placeId ?? null,
               name: qpName ?? initialSelect?.name ?? null,

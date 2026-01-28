@@ -9,7 +9,7 @@ type Props = {
   limit?: number;
   coords: { lat: number; lng: number } | null;
   selectedPlaceId: string | null;
-  onSelectPlaceId: (pid: string | null) => void;
+  onSelect: (x: { placeId: string; lat?: number | null; lng?: number | null }) => void;
   initialSelectedPlace?: {
     place_id: string | null;
     name: string | null;
@@ -17,100 +17,93 @@ type Props = {
   };
 };
 
+export default function MapNearbyPicker(props: Props) {
+  const { limit = 10, coords, selectedPlaceId, onSelect, initialSelectedPlace } = props;
 
-export default function MapNearbyPicker({
-  limit = 10,
-  coords,
-  selectedPlaceId,
-  onSelectPlaceId,
-  initialSelectedPlace,
-}: Props) {
   const sp = useSearchParams();
   const isPickMode = sp.get("pick") === "goshuin";
-
-  const [items, setItems] = useState<PlacesNearbyResponse["results"]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const la = coords?.lat ?? null;
   const ln = coords?.lng ?? null;
 
-  
+  const [phase, setPhase] = useState<"waiting_coords" | "loading" | "ready">("waiting_coords");
+  const [items, setItems] = useState<PlacesNearbyResponse["results"]>([]);
+  const rowRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const lastKeyRef = useRef<string>("");
+
+  // ✅ fetch effect（phaseもここで管理）
   useEffect(() => {
+    console.log("nearby effect", { la, ln, limit });
+
     if (la == null || ln == null) {
-      setLoading(true);
+      lastKeyRef.current = ""; // ✅ リセット（好みだけど安定する）
+      setPhase("waiting_coords");
+      setItems([]); // 残像消したいなら
       return;
     }
 
+    const key = `${la},${ln},${limit}`;
+    if (lastKeyRef.current === key) return;
+    lastKeyRef.current = key;
+
     const ac = new AbortController();
-    let alive = true;
+    setPhase("loading");
 
     (async () => {
-      setLoading(true);
       try {
         const r = await fetch(`/api/places/nearby?lat=${la}&lng=${ln}&limit=${limit}`, {
           cache: "no-store",
-          signal: ac.signal, // ✅ ここ
+          signal: ac.signal,
         });
         if (!r.ok) throw new Error(`nearby failed: ${r.status}`);
         const data = (await r.json()) as PlacesNearbyResponse;
-        if (alive) setItems(data.results ?? []);
+        setItems(data.results ?? []);
       } catch (e) {
-        // ✅ abortは「エラー扱いしない」方がログが静か
         if ((e as any)?.name === "AbortError") return;
-        if (alive) setItems([]);
+        setItems([]);
       } finally {
-        if (alive) setLoading(false);
+        if (!ac.signal.aborted) setPhase("ready"); // ✅ これ
       }
     })();
 
-    return () => {
-      alive = false;
-      ac.abort(); // ✅ cleanupで中断
-    };
+    return () => ac.abort();
   }, [la, ln, limit]);
 
-  // ✅ 選択中が近隣候補にいるか？
+  // ✅ useMemo 群（itemsが空でもOK）
   const hasSelectedInList = useMemo(() => {
     if (!selectedPlaceId) return false;
     return items.some((x) => x.place_id === selectedPlaceId);
   }, [items, selectedPlaceId]);
 
-  // ✅ 「選択中カード（固定表示）」を出す条件：
-  // - selectedPlaceId がある
-  // - 近隣候補に無い
-  // - initialSelectedPlace が place_id を持っていて selected と一致
   const showPinnedSelected = useMemo(() => {
     if (!selectedPlaceId) return false;
     if (hasSelectedInList) return false;
-
     const pid = initialSelectedPlace?.place_id ?? null;
-    if (!pid) return false;
-
-    return pid === selectedPlaceId;
+    return !!pid && pid === selectedPlaceId;
   }, [selectedPlaceId, hasSelectedInList, initialSelectedPlace?.place_id]);
 
-  // ✅ pickモードのときだけ：初期選択・選択変更時に、その行へスクロール
+  // ✅ scroll effect（phaseと無関係に宣言してOK）
   useEffect(() => {
     if (!isPickMode) return;
     if (!selectedPlaceId) return;
-
     const el = rowRefs.current[selectedPlaceId];
     if (!el) return;
-
     const id = window.setTimeout(() => {
       try {
         el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
-      } catch {
-        // ignore
-      }
+      } catch {}
     }, 0);
-
     return () => window.clearTimeout(id);
   }, [isPickMode, selectedPlaceId, items.length]);
 
-  if (loading) return <div className="rounded-xl border bg-slate-50 p-3 text-xs text-slate-500">読み込み中…</div>;
+  // ✅ ここから return 分岐（hooksの後）
+  if (phase === "waiting_coords") {
+    return <div className="rounded-xl border bg-slate-50 p-3 text-xs text-slate-500">位置情報を取得中…</div>;
+  }
+  if (phase === "loading") {
+    return <div className="rounded-xl border bg-slate-50 p-3 text-xs text-slate-500">読み込み中…</div>;
+  }
 
   if (!items.length && !showPinnedSelected) {
     return (
@@ -142,7 +135,7 @@ export default function MapNearbyPicker({
             return (
               <button
                 type="button"
-                onClick={() => onSelectPlaceId(pid)}
+                onClick={() => onSelect({ placeId: pid })}
                 className="w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
               >
                 <div className="text-[11px] font-semibold text-emerald-700">選択中</div>
@@ -182,7 +175,7 @@ export default function MapNearbyPicker({
               }}
               type="button"
               onClick={() => {
-                onSelectPlaceId(x.place_id);
+                onSelect({ placeId: x.place_id, lat: x.lat ?? null, lng: x.lng ?? null });
               }}
               className={`w-full rounded-xl border p-3 text-left ${
                 active ? "border-emerald-400 bg-emerald-50" : "bg-white"
