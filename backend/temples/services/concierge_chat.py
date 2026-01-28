@@ -7,6 +7,9 @@ import logging
 
 from temples.llm import backfill as bf
 
+from temples.services.concierge_candidate_normalize import normalize_candidate
+
+
 log = logging.getLogger(__name__)
 
 FLOW_DEFINITIONS = {
@@ -38,6 +41,61 @@ ASTRO_ELEMENT_ALIASES = {
     "地": "earth",
     "風": "air",
 }
+
+
+def _normalize_candidates_for_chat(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    normalized = [normalize_candidate(c) for c in (candidates or []) if isinstance(c, dict)]
+
+    total = len(normalized)
+    if total == 0:
+        log.info("[svc/chat] candidates normalized: total=0")
+        return normalized
+
+    try:
+        sample = normalized[0]
+        log.info("[svc/chat] candidate sample keys=%s", sorted(sample.keys())[:40])
+    except Exception:
+        pass
+
+    def miss(key: str) -> int:
+        return sum(1 for c in normalized if not c.get(key))
+
+    miss_name = miss("name")
+    miss_lat = sum(1 for c in normalized if c.get("lat") is None or c.get("lng") is None)
+    miss_addr = sum(1 for c in normalized if not (c.get("formatted_address") or c.get("address")))
+    miss_place = miss("place_id")
+
+    vals = [(c.get("place_id") or "") for c in normalized]
+    nonempty = [v for v in vals if str(v).strip()]
+    log.info(
+        "[svc/chat] place_id stats: nonempty=%d/%d sample_nonempty=%r sample_empty=%r",
+        len(nonempty),
+        len(vals),
+        (nonempty[0][:12] if nonempty else None),
+        (vals[0] if vals else None),
+    )
+
+    def _none_if_blank(x: Any) -> Any:
+        if x is None:
+            return None
+        if isinstance(x, str) and not x.strip():
+            return None
+        return x
+
+    for c in normalized:
+        if not isinstance(c, dict):
+            continue
+        
+
+    log.info(
+        "[svc/chat] candidates normalized: total=%d miss(name)=%d miss(latlng)=%d miss(addr)=%d miss(place_id)=%d",
+        total,
+        miss_name,
+        miss_lat,
+        miss_addr,
+        miss_place,
+    )
+    return normalized
 
 
 def _normalize_astro_elements(values: Any) -> list[str]:
@@ -597,6 +655,40 @@ def build_chat_recommendations(
     - popular は使わない
     - UI で「占星術を強く反映」と明示される前提
     """
+
+    # --- DEBUG: raw candidates snapshot (before normalize) ---
+    try:
+        raw0 = next((c for c in (candidates or []) if isinstance(c, dict)), None)
+        if raw0:
+            log.info("[svc/chat] raw candidate sample keys=%s", sorted(list(raw0.keys()))[:60])
+            log.info(
+                "[svc/chat] raw candidate place-ish values: place_id=%r placeId=%r placeID=%r google_place_id=%r",
+                raw0.get("place_id"),
+                raw0.get("placeId"),
+                raw0.get("placeID"),
+                raw0.get("google_place_id"),
+            )
+    except Exception:
+        pass
+
+    # --- DEBUG: raw place-id stats (before normalize) ---
+    def _nonempty(d: dict, k: str) -> bool:
+        v = d.get(k)
+        return isinstance(v, str) and bool(v.strip())
+
+    try:
+        raw = [c for c in (candidates or []) if isinstance(c, dict)]
+        if raw:
+            for k in ("place_id", "placeId", "placeID", "google_place_id"):
+                n = sum(1 for c in raw if _nonempty(c, k))
+                log.info("[svc/chat] raw %s nonempty=%d/%d", k, n, len(raw))
+    except Exception:
+        pass
+
+    # 0. candidates 正規化（入口で一度だけ）
+    candidates = _normalize_candidates_for_chat(candidates)
+    valid_candidates = [c for c in candidates if (c.get("name") or "").strip()]
+
     log.info(
         "[svc/chat] birthdate=%r goriyaku=%r extra=%r query=%r candidates=%d",
         birthdate,
@@ -605,10 +697,6 @@ def build_chat_recommendations(
         (query or "")[:40],
         len(candidates or []),
     )
-
-    valid_candidates = [
-        c for c in (candidates or []) if isinstance(c, dict) and (c.get("name") or "").strip()
-    ]
 
     # 2. LLMで初期推薦を取得
     try:
@@ -685,6 +773,7 @@ def build_chat_recommendations(
             continue
         if r.get("location"):
             continue
+
         nm = (r.get("name") or "").strip()
         if not nm:
             continue
@@ -708,7 +797,7 @@ def build_chat_recommendations(
             except Exception:
                 r["location"] = addr
 
-    # 候補情報の補完（id, lat/lng, address等）
+    # 6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
     def _key(n: str) -> str:
         return _clean_display_name(n).replace(" ", "")
 
@@ -718,7 +807,7 @@ def build_chat_recommendations(
         if nm:
             cand_by_name[_key(nm)] = c
 
-    for r in recs.get("recommendations", []):
+    for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
         nm = (r.get("name") or "").strip()
@@ -729,12 +818,14 @@ def build_chat_recommendations(
         if not isinstance(c, dict):
             continue
 
-        if r.get("id") is None and c.get("id") is not None:
-            r["id"] = c.get("id")
         if r.get("lat") is None and c.get("lat") is not None:
             r["lat"] = c.get("lat")
         if r.get("lng") is None and c.get("lng") is not None:
             r["lng"] = c.get("lng")
+        if r.get("place_id") is None and c.get("place_id") is not None:
+            r["place_id"] = c.get("place_id")
+        if r.get("shrine_id") is None and c.get("shrine_id") is not None:
+            r["shrine_id"] = c.get("shrine_id")
 
         addr2 = c.get("formatted_address") or c.get("address")
         if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
@@ -753,7 +844,22 @@ def build_chat_recommendations(
                 except Exception:
                     r["location"] = addr
 
-    # 6. ユーザーフィルタ
+    # --- Step6が終わった後: id を最終確定（registeredのみ） ---
+    for r in recs.get("recommendations", []) or []:
+        if not isinstance(r, dict):
+            continue
+
+        shrine_id = r.get("shrine_id")
+        if not shrine_id:
+            r.pop("id", None)
+            continue
+
+        try:
+            r["id"] = int(shrine_id)
+        except Exception:
+            r.pop("id", None)
+
+    # 7. ユーザーフィルタ
     try:
         recs = _apply_user_filters(recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition)
     except Exception:
@@ -764,14 +870,14 @@ def build_chat_recommendations(
     except Exception:
         log.exception("[concierge] _ensure_pool_size after filters crashed -> continue")
 
-    # 7. 占星術（astro_onのみ）
+    # 8. 占星術（astro_onのみ）
     if pre_limit >= 12:
         try:
             recs = _maybe_apply_astrology(recs, birthdate=birthdate)
         except Exception:
             log.exception("[concierge][astro] _maybe_apply_astrology crashed -> continue")
 
-    # 8. スコアリング
+    # 9. スコアリング
     flow_def = FLOW_DEFINITIONS.get(flow, FLOW_DEFINITIONS["A"])
     WEIGHTS = dict(flow_def["weights"])
     astro_bonus_enabled = bool(flow_def["astro_bonus_enabled"])
@@ -807,7 +913,7 @@ def build_chat_recommendations(
 
     recs["recommendations"] = sorted(recs.get("recommendations") or [], key=_score_key, reverse=True)
 
-    # 9. lat/lng必須（ただし3件未満になるならスキップ）
+    # 10. lat/lng必須（ただし3件未満になるならスキップ）
     if valid_candidates:
         before_geo = list(recs.get("recommendations") or [])
         filtered = [
@@ -817,7 +923,7 @@ def build_chat_recommendations(
         ]
         recs["recommendations"] = filtered if len(filtered) >= 3 else before_geo
 
-    # 10. 最終3件確定
+    # 11. 最終3件確定
     pool_all = list(recs.get("recommendations") or [])
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
     items = recs.get("recommendations") or []
@@ -836,7 +942,7 @@ def build_chat_recommendations(
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
         return recs
 
-    # 11. 表示用整形
+    # 12. 表示用整形
     for r in items:
         if not isinstance(r, dict):
             continue
@@ -863,7 +969,7 @@ def build_chat_recommendations(
         except Exception:
             r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
 
-    # 12. astro picked
+    # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
         picked: list[str] = []
         for r in items:
@@ -880,7 +986,7 @@ def build_chat_recommendations(
             1 for r in pool_all if isinstance(r, dict) and r.get("astro_matched") is True
         )
 
-    # 13. signals（contract）
+    # 14. signals（contract）
     _ensure_signals_base(
         recs,
         flow=flow,

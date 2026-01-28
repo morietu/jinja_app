@@ -14,11 +14,12 @@ import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 
 
 import { getConciergeThread } from "@/lib/api/concierge";
-import { fetchPublicGoshuinsForShrine } from "@/lib/api/publicGoshuins";
 
+import { fetchPublicGoshuinsForShrine } from "../../../lib/api/publicGoshuins";
 
 
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
+
 
 
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -111,6 +112,11 @@ export default async function Page({ params, searchParams }: Props) {
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
+
+  console.log("[shrines/[id]] publicGoshuins len=", publicGoshuins?.length);
+  console.log("[shrines/[id]] sample=", publicGoshuins?.[0]);
+
+
   // no log (or dev-only structured)
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;

@@ -38,8 +38,9 @@ export default function GoshuinNewClient() {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(true);
 
   // ✅ 枚数カウント（初回ロードで1回）
   const [count, setCount] = useState<GoshuinCount | null>(null);

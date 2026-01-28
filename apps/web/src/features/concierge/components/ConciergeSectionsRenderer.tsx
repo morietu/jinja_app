@@ -190,41 +190,35 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
                 )}
 
                 <div className="space-y-3">
-                  {(sec as any).items.map((it: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
+                  {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     const isPrimary = idx === 0;
 
-                    if (it.kind === "registered") {
-                      const oneLiner = it.breakdown ? buildOneLiner(it.breakdown) : null;
-                      const description =
-                        isPrimary && typeof oneLiner === "string" && oneLiner.trim() ? oneLiner.trim() : it.description;
-
+                    if (item.kind === "registered") {
                       return (
-                        <div key={`reg-${it.shrineId}-${idx}`} className="space-y-2">
-                          <ShrineCard
-                            shrineId={it.shrineId}
-                            title={it.title}
-                            address={it.address}
-                            description={description}
-                            imageUrl={it.imageUrl}
-                            initialFav={it.initialFav}
-                            showFavorite
-                            breakdown={it.breakdown ?? null}
-                            detailHref={it.detailHref}
-                          />
-                        </div>
+                        <ShrineCard
+                          key={`rec-${i}-${idx}`}
+                          shrineId={item.shrineId}
+                          title={item.title}
+                          address={item.address}
+                          description={item.description}
+                          imageUrl={item.imageUrl}
+                          breakdown={item.breakdown ?? null} // ✅ registeredのみ
+                          detailHref={item.detailHref}
+                          // isPrimary 使うならここで渡す（ShrineCardが受けるなら）
+                        />
                       );
                     }
 
                     return (
                       <PlaceShrineCard
-                        key={`place-${it.placeId}-${idx}`}
-                        placeId={it.placeId}
-                        title={it.title}
-                        address={it.address}
-                        description={it.description}
-                        imageUrl={it.imageUrl}
-                        detailHref={it.detailHref}
-                        detailLabel={it.detailLabel}
+                        key={`rec-${i}-${idx}`}
+                        placeId={item.placeId}
+                        title={item.title}
+                        address={item.address}
+                        description={item.description}
+                        imageUrl={item.imageUrl}
+                        detailHref={item.detailHref}
+                        detailLabel={item.detailLabel}
                       />
                     );
                   })}
