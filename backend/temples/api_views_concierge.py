@@ -436,15 +436,16 @@ class ConciergeChatView(APIView):
 
         after_n = len(recs.get("recommendations") or [])
         applied = []
-        if data.get("goriyaku_tag_ids"): applied.append("goriyaku_tag_ids")
-        if (data.get("extra_condition") or "").strip(): applied.append("extra_condition")
+        if data.get("goriyaku_tag_ids"):
+            applied.append("goriyaku_tag_ids")
+        if (data.get("extra_condition") or "").strip():
+            applied.append("extra_condition")
 
 
         
 
         body = {"ok": True, "intent": intent, "data": recs}
         body["_debug"] = {"before": before_n, "after": after_n, "applied": applied, "flow": flow}
-        return Response(body, status=200)
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
         if user is not None and not is_premium:
@@ -461,22 +462,18 @@ class ConciergeChatView(APIView):
                         names.append(nm)
             body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
         else:
-            # ✅ queryモードでも reply キーは常に返す（テスト契約）
-            body["reply"] = None if not candidates else "おすすめを表示します。"
+            # query モードは契約次第。とりあえず常にキーは返す
+            body["reply"] = None
 
         # --- thread 保存（認証ユーザーのみ）---
         thread_obj = None
         if user is not None and getattr(user, "is_authenticated", False):
-            # ✅ thread_id / threadId 両対応
             thread_id_raw = data.get("thread_id") or data.get("threadId")
-
-            # ✅ int 変換 + 0/"" は None 扱い
             try:
                 thread_id = int(thread_id_raw) if thread_id_raw not in (None, "", 0, "0") else None
             except Exception:
                 thread_id = None
 
-            # ✅ 保存したい返信文（無ければ None）
             reply_text = body.get("reply")
             if not isinstance(reply_text, str):
                 reply_text = None
@@ -485,7 +482,6 @@ class ConciergeChatView(APIView):
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=thread_id)
                 thread_obj = saved.thread
             except ConciergeThread.DoesNotExist:
-                # 不正な thread_id が来たら新規で作る
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
                 thread_obj = saved.thread
 
