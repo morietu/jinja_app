@@ -22,6 +22,17 @@ type Paginated<T> = {
   results: T[];
 };
 
+function normalizeImageUrl(url: string | null | undefined, origin: string) {
+  const u = (url ?? "").trim();
+  if (!u) return null;
+
+  const base = origin.replace(/\/+$/, "");
+  if (u.startsWith("http://127.0.0.1:8000/")) return `${base}${u.slice("http://127.0.0.1:8000".length)}`;
+  if (u.startsWith("http://localhost:8000/")) return `${base}${u.slice("http://localhost:8000".length)}`;
+  if (u.startsWith("/media/")) return `${base}${u}`;
+  return u;
+}
+
 export async function GET(req: Request) {
   try {
     const origin = getDjangoOrigin();
@@ -73,7 +84,10 @@ export async function GET(req: Request) {
       console.log("[bff/public/goshuins] first =", allRaw[0]?.id ?? null);
     }
 
-    const results = allRaw.slice(offset, offset + limit);
+    const results = allRaw.slice(offset, offset + limit).map((g) => ({
+      ...g,
+      image_url: normalizeImageUrl(g.image_url ?? null, origin),
+    }));
 
     const body: Paginated<Goshuin> = {
       count: Number.isFinite(Number(data?.count)) ? Number(data.count) : allRaw.length,
