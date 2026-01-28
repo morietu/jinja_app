@@ -1,6 +1,8 @@
 // apps/web/src/lib/api/users.ts
 /* istanbul ignore file */
 import api from "@/lib/api/client";
+import { fetchOnce } from "@/lib/api/inflight";
+
 
 export type UpdateMePayload = Partial<{
   nickname: string;
@@ -51,23 +53,24 @@ export type UserMe = {
   } | null;
 };
 
-// ここ以下はそのままでOK
 export async function getCurrentUser(signal?: AbortSignal): Promise<UserMe | null> {
-  const res = await fetch("/api/users/me/", {
-    method: "GET",
-    credentials: "same-origin",
-    cache: "no-store",
-    signal,
-  });
-  if (res.status === 401) return null;
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || `getCurrentUser failed: ${res.status}`);
-  }
+  return fetchOnce("GET:/api/users/me/", async () => {
+    const res = await fetch("/api/users/me/", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+    });
+    if (res.status === 401) return null;
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || `getCurrentUser failed: ${res.status}`);
+    }
 
-  const json = await res.json();
-  const data = (json as any).user ?? json;
-  return data as UserMe;
+    const json = await res.json();
+    const data = (json as any).user ?? json;
+    return data as UserMe;
+  });
 }
 
 export async function updateUser(patch: Partial<UserMe>): Promise<UserMe> {
