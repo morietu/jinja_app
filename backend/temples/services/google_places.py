@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import requests
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,30 +42,30 @@ def _push_req_history(url: str, params: dict) -> None:
 # ------------------------------------------------------------
 # API キー
 # ------------------------------------------------------------
-def _resolve_api_key() -> Optional[str]:
-    candidates = [
-        # settings.*
-        getattr(settings, "GOOGLE_PLACES_API_KEY", None),
-        getattr(settings, "GOOGLE_MAPS_API_KEY", None),
-        getattr(settings, "GOOGLE_API_KEY", None),
-        # env
-        os.getenv("GOOGLE_PLACES_API_KEY"),
-        os.getenv("GOOGLE_MAPS_API_KEY"),
-        os.getenv("GOOGLE_API_KEY"),
-        os.getenv("MAPS_API_KEY"),
-        os.getenv("PLACES_API_KEY"),
-    ]
-    for k in candidates:
-        if not k:
-            continue
-        k = str(k).strip()
-        if k and not k.startswith("${"):  # プレースホルダ弾き
-            return k
-    return None
+def _get_setting(name: str):
+    # settings 未設定なら触らない（import-time crash を避ける）
+    try:
+        if not getattr(settings, "configured", False):
+            return None
+        return getattr(settings, name, None)
+    except ImproperlyConfigured:
+        return None
 
+def _resolve_api_key() -> str | None:
+    return (
+        _get_setting("GOOGLE_MAPS_API_KEY")
+        or _get_setting("GOOGLE_API_KEY")
+        or _get_setting("GOOGLE_PLACES_API_KEY")
+        or os.getenv("GOOGLE_MAPS_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("GOOGLE_PLACES_API_KEY")
+        or os.getenv("MAPS_API_KEY")
+        or os.getenv("PLACES_API_KEY")
+    )
 
-# 低レイヤ/クライアント双方が参照
-API_KEY: Optional[str] = _resolve_api_key()
+# --- module-level compat ---
+API_KEY: str | None = _resolve_api_key()
+
 
 
 # ------------------------------------------------------------
@@ -637,4 +639,5 @@ __all__ = [
     "find_place_text",
     # テスト用フック
     "req_history",
+    "API_KEY",
 ]

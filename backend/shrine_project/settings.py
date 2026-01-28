@@ -475,3 +475,31 @@ else:
     # local
     MEDIA_URL = "/media/"
     MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+
+
+# --- Logging ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "%(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        # あなたが見たいものだけ INFO で出す
+        "temples.services.concierge_chat": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # （任意）候補正規化まわり全般も見たいなら
+        # "temples.services": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
