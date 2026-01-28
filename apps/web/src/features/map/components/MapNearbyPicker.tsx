@@ -1,22 +1,15 @@
 // apps/web/src/features/map/components/MapNearbyPicker.tsx
 "use client";
-
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useGeolocation } from "@/hooks/useGeolocation";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 import Link from "next/link";
 
-
-
 type Props = {
   limit?: number;
+  coords: { lat: number; lng: number } | null;
   selectedPlaceId: string | null;
   onSelectPlaceId: (pid: string | null) => void;
-
-
-  // ✅ MapScreenLayout から渡される「初期選択の見た目用」
   initialSelectedPlace?: {
     place_id: string | null;
     name: string | null;
@@ -24,37 +17,48 @@ type Props = {
   };
 };
 
-const FALLBACK = { lat: 35.681236, lng: 139.767125 };
 
-export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectPlaceId, initialSelectedPlace }: Props) {
-
+export default function MapNearbyPicker({
+  limit = 10,
+  coords,
+  selectedPlaceId,
+  onSelectPlaceId,
+  initialSelectedPlace,
+}: Props) {
   const sp = useSearchParams();
-
-  // ✅ pick=goshuin のときだけ「選択して戻る」モード
   const isPickMode = sp.get("pick") === "goshuin";
 
-  const { coords } = useGeolocation();
   const [items, setItems] = useState<PlacesNearbyResponse["results"]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ 行ref（place_id -> button）
-  
   const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const la = coords?.lat ?? FALLBACK.lat;
-  const ln = coords?.lng ?? FALLBACK.lng;
+  const la = coords?.lat ?? null;
+  const ln = coords?.lng ?? null;
 
+  
   useEffect(() => {
+    if (la == null || ln == null) {
+      setLoading(true);
+      return;
+    }
+
+    const ac = new AbortController();
     let alive = true;
 
     (async () => {
       setLoading(true);
       try {
-        const r = await fetch(`/api/places/nearby?lat=${la}&lng=${ln}&limit=${limit}`, { cache: "no-store" });
+        const r = await fetch(`/api/places/nearby?lat=${la}&lng=${ln}&limit=${limit}`, {
+          cache: "no-store",
+          signal: ac.signal, // ✅ ここ
+        });
         if (!r.ok) throw new Error(`nearby failed: ${r.status}`);
         const data = (await r.json()) as PlacesNearbyResponse;
         if (alive) setItems(data.results ?? []);
-      } catch {
+      } catch (e) {
+        // ✅ abortは「エラー扱いしない」方がログが静か
+        if ((e as any)?.name === "AbortError") return;
         if (alive) setItems([]);
       } finally {
         if (alive) setLoading(false);
@@ -63,9 +67,9 @@ export default function MapNearbyPicker({ limit = 10, selectedPlaceId, onSelectP
 
     return () => {
       alive = false;
+      ac.abort(); // ✅ cleanupで中断
     };
   }, [la, ln, limit]);
-
 
   // ✅ 選択中が近隣候補にいるか？
   const hasSelectedInList = useMemo(() => {

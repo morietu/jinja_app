@@ -22,6 +22,8 @@ export type InitialSelect = {
 
 const FALLBACK_CENTER = { lat: 35.681236, lng: 139.767125 };
 
+
+
 function parseNum(v: string | null): number | null {
   if (!v) return null;
   const n = Number(v);
@@ -61,6 +63,15 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   const sp = useSearchParams();
   const spKey = sp.toString();
 
+  const { coords } = useGeolocation({ roundDigits: 4, minMoveM: 50, minIntervalMs: 1000 });
+
+  const [centerOverride, setCenterOverride] = useState<{ lat: number; lng: number } | null>(null);
+
+  const center = useMemo(() => {
+    if (centerOverride) return centerOverride;
+    return coords ?? FALLBACK_CENTER;
+  }, [coords, centerOverride]);
+
   // =========================
   // ✅ Debug: remount 判定ログ
   // =========================
@@ -70,8 +81,6 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   }
 
   const lastSnapRef = useRef<UrlSnap | null>(null);
-
-
 
   useEffect(() => {
     const next = makeSnapFromKey(spKey);
@@ -115,15 +124,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
 
   const tid = useMemo(() => new URLSearchParams(spKey).get("tid"), [spKey]);
 
-  const { coords } = useGeolocation();
-
-  const [centerOverride, setCenterOverride] = useState<{ lat: number; lng: number } | null>(null);
-
-  const center = useMemo(() => {
-    if (centerOverride) return centerOverride;
-    return coords ?? FALLBACK_CENTER;
-  }, [coords, centerOverride]);
-
+  
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const qpPlaceId = sp.get("place_id");
@@ -252,6 +253,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
         <div className="relative z-20 px-2 pb-3 pointer-events-auto">
           <MapNearbyPicker
             limit={10}
+            coords={coords} // ✅ 追加
             selectedPlaceId={selectedPlaceId}
             onSelectPlaceId={setSelectedPlaceId}
             initialSelectedPlace={{

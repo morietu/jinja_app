@@ -23,8 +23,6 @@ async function refreshAccessViaBackendMutex(refresh: string): Promise<string | n
   return refreshInFlight;
 }
 
-
-
 async function refreshAccessViaBackend(refresh: string): Promise<string | null> {
   const r = await fetch(`${API_BASE}/api/auth/jwt/refresh/`, {
     method: "POST",
@@ -38,6 +36,8 @@ async function refreshAccessViaBackend(refresh: string): Promise<string | null> 
   return typeof data?.access === "string" ? data.access : null;
 }
 
+// apps/web/src/lib/bff/fetch.ts
+
 export async function bffFetchWithAuthFromReq(
   req: NextRequest,
   upstreamPath: string,
@@ -46,16 +46,28 @@ export async function bffFetchWithAuthFromReq(
 ): Promise<NextResponse> {
   const { retryOn401 = true, setAccessCookie = true } = opts;
 
-  // 1) Authorization が来てたら優先
   const headerAuth = req.headers.get("authorization") ?? null;
-
-  // 2) なければ cookie の access_token から Bearer を作る
   const access = req.cookies.get("access_token")?.value ?? null;
   const refresh = req.cookies.get("refresh_token")?.value ?? null;
 
+  // ✅ access が「無い」or「期限切れ/期限間近」なら先に refresh（Django の 401 ログを踏みにくくする）
+  let preRefreshedAccess: string | null = null;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = access ? readJwtExp(access) : null;
+  const skewSec = 20; // 15〜30秒くらい。好みで。
+
+  const shouldPreRefresh =
+    retryOn401 && refresh && !headerAuth && (!access || (exp != null && exp <= nowSec + skewSec));
+
+  if (shouldPreRefresh) {
+    preRefreshedAccess = await refreshAccessViaBackendMutex(refresh);
+  }
+
   const buildAuth = (override?: string | null) => {
-    if (headerAuth) return headerAuth;
-    if (override) return `Bearer ${override}`;
+    if (headerAuth) return headerAuth; // 明示Authorizationは最優先
+    if (override) return `Bearer ${override}`; // retry等のoverride
+    if (preRefreshedAccess) return `Bearer ${preRefreshedAccess}`; // ✅ここ
     if (access) return `Bearer ${access}`;
     return null;
   };
@@ -75,21 +87,15 @@ export async function bffFetchWithAuthFromReq(
     });
   };
 
-  let upstream = await doFetch(null);
+  // ✅ 最初のfetchにpreRefreshedAccessを使う
+  let upstream = await doFetch(preRefreshedAccess);
 
-  // 3) 401 なら refresh_token で refresh → retry
   let newAccess: string | null = null;
   if ((upstream.status === 401 || upstream.status === 403) && retryOn401 && refresh) {
-    // ❌ newAccess = await refreshAccessViaBackend(refresh);
-    // ✅ 同時 refresh を 1 回に束ねる
     newAccess = await refreshAccessViaBackendMutex(refresh);
-
-    if (newAccess) {
-      upstream = await doFetch(newAccess);
-    }
+    if (newAccess) upstream = await doFetch(newAccess);
   }
 
-  // 5) body / content-type を素直にパススルー
   const text = upstream.status === 204 ? "" : await upstream.text().catch(() => "");
   const res =
     upstream.status === 204
@@ -99,14 +105,14 @@ export async function bffFetchWithAuthFromReq(
           headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
         });
 
-  // 4) refresh 成功したら access_token cookie を更新
-  if (newAccess && setAccessCookie) {
-    res.cookies.set("access_token", newAccess, {
+  // ✅ cookie更新は「実際にrefreshしたトークン」を保存
+  const tokenToSet = newAccess ?? preRefreshedAccess;
+  if (tokenToSet && setAccessCookie) {
+    res.cookies.set("access_token", tokenToSet, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60,
-      // secure: true, // 本番HTTPSなら有効化
     });
   }
 
@@ -129,4 +135,28 @@ export async function bffPostJsonWithAuthFromReq(
     },
     opts,
   );
+}
+
+function readJwtExp(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+
+    const payload = parts[1];
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+    const b64p = b64 + pad;
+
+    // base64 -> bytes
+    const bin = typeof atob === "function" ? atob(b64p) : null;
+    if (bin == null) return null;
+
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+
+    const obj = JSON.parse(json) as any;
+    return typeof obj?.exp === "number" ? obj.exp : null;
+  } catch {
+    return null;
+  }
 }
