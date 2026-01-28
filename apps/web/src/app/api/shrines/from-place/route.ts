@@ -1,3 +1,4 @@
+// apps/web/src/app/api/shrines/from-place/route.ts
 import { NextRequest } from "next/server";
 import { bffPostJsonWithAuthFromReq } from "@/lib/bff/fetch";
 
