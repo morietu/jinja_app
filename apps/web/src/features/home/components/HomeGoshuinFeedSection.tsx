@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 
 type FeedItem = {
   id: number;
@@ -113,13 +114,14 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
             href={`/shrines/${g.shrine}`}
             className="group block overflow-hidden rounded-lg border bg-white"
           >
-            <div className="aspect-square bg-slate-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+            <div className="aspect-square bg-slate-50 relative overflow-hidden">
+              <Image
                 src={g.image_url ?? ""}
                 alt={g.title ?? g.shrine_name ?? "御朱印"}
-                className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-                loading="lazy"
+                fill
+                sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 200px"
+                className="object-cover transition-opacity group-hover:opacity-90"
+                unoptimized
               />
             </div>
           </Link>

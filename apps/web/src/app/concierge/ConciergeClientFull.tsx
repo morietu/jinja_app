@@ -228,14 +228,18 @@ export default function ConciergeClientFull() {
     try {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
       if (v && isValidISODate(v)) setBirthdate(v);
-    } catch {}
+    } catch {
+      // 何もしない
+    }
   }, []);
 
   useEffect(() => {
     try {
       if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
       else localStorage.removeItem(LS_BIRTHDATE_KEY);
-    } catch {}
+    } catch  {
+      // 何もしない
+    }
   }, [birthdate]);
 
   useEffect(() => {
@@ -528,7 +532,9 @@ export default function ConciergeClientFull() {
         setBirthdate("");
         try {
           localStorage.removeItem(LS_BIRTHDATE_KEY);
-        } catch {}
+        } catch {
+          // 何もしない
+        }
         return;
     }
   };

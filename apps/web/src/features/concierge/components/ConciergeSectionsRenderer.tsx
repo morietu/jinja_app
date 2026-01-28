@@ -5,7 +5,6 @@ import DetailSection from "@/components/shrine/DetailSection";
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
-import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 
 import type {
@@ -191,7 +190,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
 
                 <div className="space-y-3">
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
-                    const isPrimary = idx === 0;
+                    
 
                     if (item.kind === "registered") {
                       return (

@@ -14,7 +14,9 @@ function toHeadersLike(h: any): { get: (k: string) => string | null } {
   if (typeof it === "function") {
     try {
       return new Headers(Array.from(h as Iterable<[string, string]>));
-    } catch {}
+    } catch {
+      // headers()/req 情報が取れない環境があるので握りつぶす（fallbackに落とす）
+    }
   }
 
   // plain object -> Headers
@@ -30,7 +32,9 @@ function toHeadersLike(h: any): { get: (k: string) => string | null } {
         }
       }
       return new Headers(entries);
-    } catch {}
+    } catch {
+      // headers()/req 情報が取れない環境があるので握りつぶす（fallbackに落とす）
+    }
   }
 
   return new Headers();
