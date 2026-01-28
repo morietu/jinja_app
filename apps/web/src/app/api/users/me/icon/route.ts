@@ -1,9 +1,13 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
-export const dynamic = "force-dynamic";
+
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);

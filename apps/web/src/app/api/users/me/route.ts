@@ -1,9 +1,11 @@
-import { NextRequest } from "next/server";
-import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
+//apps/web/src/app/api/users/me/route.ts;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+import type { NextRequest } from "next/server";
+import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
 
 export async function GET(req: NextRequest) {
   return bffFetchWithAuthFromReq(req, "/api/users/me/", { method: "GET" });
