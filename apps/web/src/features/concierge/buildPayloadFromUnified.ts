@@ -6,6 +6,8 @@ import type {
   ConciergeFilterState,
 } from "@/features/concierge/sections/types";
 
+import { shrineDetailHref } from "@/lib/navigation/shrineHref";
+
 export function buildPayloadFromUnified(
   u: UnifiedConciergeResponse | null,
   filterState: ConciergeFilterState,
@@ -22,8 +24,19 @@ export function buildPayloadFromUnified(
 
   const items = recs
     .map((r: any) => {
+      const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? null;
+      const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
+      const placeId = (r?.place_id ?? null)?.toString().trim() || null;
+
+      const detailHref = shrineDetailHref({
+        shrineId,
+        placeId,
+        ctx: "concierge",
+        tid,
+      });
+
       if (typeof r?.place_id === "string" && r.place_id.trim()) {
-        const qs = new URLSearchParams(qsBase);
+
         return {
           kind: "place" as const,
           placeId: r.place_id,
@@ -32,16 +45,16 @@ export function buildPayloadFromUnified(
           description: String(r.reason ?? ""),
           imageUrl: r.photo_url ?? null,
           breakdown: r.breakdown ?? null, // ← 追加（ここが“落ちてる”）
-          detailHref: `/shrines/from-place/${encodeURIComponent(r.place_id)}?${qs.toString()}`,
+          detailHref,
           detailLabel: "神社の詳細を見る",
         };
       }
 
-      const rawShrineId = r?.shrine_id ?? r?.shrine?.id ?? null;
-      const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
+    
+      
 
       if (typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0) {
-        const qs = new URLSearchParams(qsBase);
+
         return {
           kind: "registered" as const,
           shrineId,
@@ -52,7 +65,7 @@ export function buildPayloadFromUnified(
           goriyakuTags: [],
           initialFav: false,
           breakdown: r.breakdown ?? null,
-          detailHref: `/shrines/${shrineId}?${qs.toString()}`,
+          detailHref,
         };
       }
 

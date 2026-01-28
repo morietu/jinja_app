@@ -8,6 +8,8 @@ import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 import { devLog } from "@/lib/client/logging";
+import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
+
 
 export type InitialSelect = {
   shrineId: number | null;
@@ -132,13 +134,11 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   const qpAddr = sp.get("addr");
 
   const ensureShrine = useCallback(async (placeId: string) => {
-    const r = await fetch("/api/shrines/from-place", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ place_id: placeId }),
-    });
-    if (!r.ok) throw new Error("from-place failed");
-    return (await r.json()) as { shrine_id: number };
+    const res = await resolveShrineIdFromPlace(placeId);
+
+    if (res.status === "ok") return { shrine_id: res.shrineId };
+    if (res.status === "unauth") throw new Error("from-place unauth");
+    throw new Error("from-place failed");
   }, []);
 
   const goPicked = useCallback(async () => {

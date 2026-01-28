@@ -5,6 +5,8 @@ import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import NeedChips from "@/features/concierge/components/NeedChips";
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import { shrineDetailHref } from "@/lib/navigation/shrineHref";
+
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -42,18 +44,14 @@ export default function RecommendationUnit({
 
   const rawShrineId = (safe as any).shrine_id ?? null;
   const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
-  const placeId = (safe.place_id ?? null)?.toString() || null;
+  const placeId = (safe.place_id ?? null)?.toString().trim() || null;
 
-  const qs = new URLSearchParams();
-  qs.set("ctx", "concierge");
-  if (tid) qs.set("tid", tid);
-
-  const detailHref =
-    typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0
-      ? `/shrines/${shrineId}?${qs.toString()}`
-      : placeId
-        ? `/shrines/from-place/${encodeURIComponent(placeId)}?${qs.toString()}`
-        : undefined;
+  const detailHref = shrineDetailHref({
+    shrineId,
+    placeId,
+    ctx: "concierge",
+    tid,
+  });
 
   const badges = [...(Array.isArray(safe.tags) ? safe.tags : []), ...(Array.isArray(needTags) ? needTags : [])].filter(
     (t): t is string => typeof t === "string" && t.trim().length > 0,

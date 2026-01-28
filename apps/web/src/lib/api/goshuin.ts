@@ -2,7 +2,7 @@
 import axios from "axios";
 import api from "./client";
 import { devLog } from "@/lib/client/logging";
-
+import { fetchOnce, invalidateOnce } from "@/lib/api/inflight";
 
 export type { Goshuin } from "./types";
 import type { Goshuin as GoshuinType } from "./types";
@@ -94,13 +94,17 @@ export async function fetchGoshuin(): Promise<GoshuinType[]> {
 
 // ✅ 自分の御朱印一覧（BFF /api/my/goshuins/ 経由）
 export async function fetchMyGoshuin(): Promise<GoshuinType[]> {
-  const r = await api.get<any>("/my/goshuins/");
-  return toList(r.data);
+  return fetchOnce("GET:/api/my/goshuins/", async () => {
+    const r = await api.get<any>("/my/goshuins/");
+    return toList(r.data);
+  });
 }
 
 export async function fetchMyGoshuinCount(): Promise<GoshuinCount> {
-  const r = await api.get<GoshuinCount>("/my/goshuins/count/");
-  return r.data;
+  return fetchOnce("GET:/api/my/goshuins/count/", async () => {
+    const r = await api.get<GoshuinCount>("/my/goshuins/count/");
+    return r.data;
+  });
 }
 
 // ---- BFF 経由の POST / PATCH / DELETE ----
@@ -111,18 +115,22 @@ export async function uploadMyGoshuin(input: {
   isPublic: boolean;
   file: File;
 }): Promise<GoshuinType> {
+  // ✅ これから変わるので、先に無効化（保険）
+  invalidateOnce("GET:/api/my/goshuins/");
+  invalidateOnce("GET:/api/my/goshuins/count/");
+
   const form = new FormData();
-
-  // ✅ shrineId がある時だけ送る（undefined を "undefined" にしない）
-  if (input.shrineId != null) {
-    form.append("shrine", String(input.shrineId));
-  }
-
+  if (input.shrineId != null) form.append("shrine", String(input.shrineId));
   form.append("title", input.title);
   form.append("is_public", input.isPublic ? "true" : "false");
   form.append("image", input.file);
 
   const r = await api.post<GoshuinType>("/my/goshuins/", form);
+
+  // ✅ 念のためもう一回無効化（UIが直後に読むなら効く）
+  invalidateOnce("GET:/api/my/goshuins/");
+  invalidateOnce("GET:/api/my/goshuins/count/");
+
   return r.data;
 }
 

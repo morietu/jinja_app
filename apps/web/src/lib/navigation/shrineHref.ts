@@ -10,14 +10,19 @@ export function shrineDetailHref(args: {
   if (args.tid) q.set("tid", args.tid);
 
   // ✅ DBの shrine_id があるなら /shrines/:id
-  if (typeof args.shrineId === "number" && Number.isFinite(args.shrineId)) {
+  if (
+    typeof args.shrineId === "number" &&
+    Number.isFinite(args.shrineId) &&
+    args.shrineId > 0
+  ) {
     const base = `/shrines/${args.shrineId}`;
     return q.toString() ? `${base}?${q.toString()}` : base;
   }
 
   // ✅ place_id しかないなら /shrines/from-place/:placeId
-  if (args.placeId) {
-    const base = `/shrines/from-place/${encodeURIComponent(args.placeId)}`;
+  const placeId = (args.placeId ?? "").trim();
+  if (placeId) {
+    const base = `/shrines/from-place/${encodeURIComponent(placeId)}`;
     return q.toString() ? `${base}?${q.toString()}` : base;
   }
 
