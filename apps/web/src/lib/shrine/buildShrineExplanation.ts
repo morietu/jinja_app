@@ -75,7 +75,7 @@ export function buildShrineExplanation({ shrine, signals }: Args): ShrineExplana
     (Number.isFinite(fav30d) && fav30d >= 3);
 
   const unfit = hasSignal ? NUANCED_UNFIT : BASE_UNFIT;
-  const refHint = publicCount >= 3 ? "公開御朱印があるため、参拝のイメージをつかむ材料が比較的そろっています。" : null;
+  const refHint = publicCount >= 3 ? "公開御朱印があるため、参拝の雰囲気をつかむ手がかりがあります。" : null;
 
   const fit = desc ? `${baseFit}（要点：${desc.slice(0, 48)}${desc.length > 48 ? "…" : ""}）` : baseFit;
   const howto = refHint ? `${baseHowto} ${refHint}` : baseHowto;
