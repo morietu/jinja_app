@@ -321,7 +321,9 @@ def build_bullets_for_chat(rec: dict, *, query: str) -> list[str]:
 
     while len(bullets) < 3:
         bullets.append(
-            ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"][len(bullets)]
+            ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"][
+                len(bullets)
+            ]
         )
     return bullets[:3]
 
@@ -381,7 +383,7 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     log.info("[concierge][astro] enter birthdate=%r items=%d", birthdate, items_n)
 
     try:
-        from temples.domain.astrology import sun_sign_and_element, element_priority, element_code
+        from temples.domain.astrology import element_code, element_priority, sun_sign_and_element
         from temples.models import Shrine
     except Exception as e:
         log.exception("[concierge][astro] import failed -> skip: %s", e)
@@ -389,7 +391,9 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
 
     prof = sun_sign_and_element(birthdate)
     if not prof:
-        log.info("[concierge][astro] sun_sign_and_element returned None -> skip birthdate=%r", birthdate)
+        log.info(
+            "[concierge][astro] sun_sign_and_element returned None -> skip birthdate=%r", birthdate
+        )
         return recs
 
     ELEMENT_LABEL_JA = {
@@ -434,7 +438,7 @@ def _maybe_apply_astrology(recs: Dict[str, Any], *, birthdate: Optional[str]) ->
     for r in only_dicts:
         pri = int(element_priority(prof.element, r.get("astro_elements")))
         r["astro_priority"] = pri
-        r["astro_matched"] = (pri == 2)
+        r["astro_matched"] = pri == 2
 
     label_ja = ELEMENT_LABEL_JA.get(prof.element, str(prof.element))
     recs["_astro"] = {
@@ -513,7 +517,7 @@ def _attach_breakdown(
         pri = 0
         try:
             if birthdate:
-                from temples.domain.astrology import sun_sign_and_element, element_priority
+                from temples.domain.astrology import element_priority, sun_sign_and_element
 
                 prof = sun_sign_and_element(birthdate)
                 if prof:
@@ -639,7 +643,7 @@ def _astro_enabled(birthdate: Optional[str]) -> bool:
 # A) no candidates & no astro -> passthrough top3
 # B) no candidates & astro_on -> astrology pool
 # C) candidates present -> full flow
-def build_chat_recommendations(
+def build_chat_recommendations(     # noqa: C901
     *,
     query: str,
     language: str,
@@ -651,19 +655,10 @@ def build_chat_recommendations(
     flow: str = "A",  # "A" or "B"
 ) -> Dict[str, Any]:
     """
-    チャット用の神社推薦を構築する。
-
-    Flow A:
-    - チャット文脈ベースの総合推薦
-    - need / popular を含めたバランス型
-    - astrology は補助的（説明要素）
-
-    Flow B:
-    - タグ・条件指定ベースの探索モード
-    - astrology（element）を主軸に順位決定
-    - popular は使わない
-    - UI で「占星術を強く反映」と明示される前提
+    ... docstring ...
     """
+    # ✅ リクエスト値を退避（後で flow を倒しても追跡できる）
+    requested_flow = flow
 
     # 距離順 key（distance_m 無しは最後）
     def _dist_key(c: dict) -> tuple[int, float]:
@@ -704,7 +699,26 @@ def build_chat_recommendations(
 
     # 0. candidates 正規化（入口で一度だけ）
     candidates = _normalize_candidates_for_chat(candidates)
-    valid_candidates = [c for c in candidates if (c.get("name") or "").strip()]
+
+    def _is_test_candidate(c: dict) -> bool:
+        try:
+            if int(c.get("shrine_id") or 0) == 1:
+                return True
+        except Exception:
+            pass
+        name = str(c.get("name") or "")
+        addr = str(c.get("address") or "") + " " + str(c.get("formatted_address") or "")
+        if "テスト" in name:
+            return True
+        if "東京都テスト区" in addr:
+            return True
+        return False
+
+    valid_candidates = [
+        c
+        for c in candidates
+        if isinstance(c, dict) and (c.get("name") or "").strip() and not _is_test_candidate(c)
+    ]
 
     # 距離順（distance_m 無しは最後）
     valid_candidates.sort(key=_dist_key)
@@ -738,6 +752,7 @@ def build_chat_recommendations(
     # Orchestrator結果を正規化（dedupe）
     items0 = recs.get("recommendations") or []
     items0 = [r for r in items0 if isinstance(r, dict)]
+    items0 = [r for r in items0 if not _is_test_candidate(r)]
     items0 = _dedupe_by_name(items0)
 
     for r in items0:
@@ -753,6 +768,11 @@ def build_chat_recommendations(
     # flow=B なのに birthdate 無効なら A に倒す（contract簡略）
     if flow == "B" and not astro_on:
         flow = "A"
+
+    # debugに最終値を入れる
+    recs["_debug"] = recs.get("_debug") if isinstance(recs.get("_debug"), dict) else {}
+    recs["_debug"]["requested_flow"] = requested_flow
+    recs["_debug"]["flow"] = flow
 
     # candidates が無い & astro も無い -> passthrough top3（テスト契約）
     if not valid_candidates and not astro_on:
@@ -772,7 +792,11 @@ def build_chat_recommendations(
             try:
                 r["bullets"] = build_bullets_for_chat(r, query=query)
             except Exception:
-                r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
+                r["bullets"] = [
+                    "落ち着いて参拝しやすい",
+                    "混雑しにくい可能性",
+                    "雰囲気が希望に合う可能性",
+                ]
 
         recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
         recs["_signals"]["empty_reason"] = None
@@ -955,11 +979,12 @@ def build_chat_recommendations(
     # -----------------------------
     before_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
     try:
-        recs = _apply_user_filters(recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition)
+        recs = _apply_user_filters(
+            recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition
+        )
     except Exception:
         pass
     after_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
-    is_fallback = (after_filters == 0)
     log.info(
         "[svc/chat] filters applied before=%d after=%d goriyaku=%r extra=%r",
         before_filters,
@@ -1011,6 +1036,7 @@ def build_chat_recommendations(
     # -----------------------------
     # 9. スコアリング（flow weights）
     # -----------------------------
+
     flow_def = FLOW_DEFINITIONS.get(flow, FLOW_DEFINITIONS["A"])
     WEIGHTS = dict(flow_def["weights"])
     astro_bonus_enabled = bool(flow_def["astro_bonus_enabled"])
@@ -1044,8 +1070,30 @@ def build_chat_recommendations(
             astro_pri = 0
         return (score_total, astro_pri)
 
-    recs["recommendations"] = sorted(recs.get("recommendations") or [], key=_score_key, reverse=True)
+    # 通常はスコア順
+    recs["recommendations"] = sorted(
+        recs.get("recommendations") or [], key=_score_key, reverse=True
+    )
 
+    # fallback時だけ距離順に上書き（distance_m無しは最後、同距離はnameで安定化）
+    def _dist_key(x: dict) -> tuple[int, float, str]:
+        d = x.get("distance_m")
+        name = str(x.get("name") or "")
+        try:
+            return (0, float(d), name)
+        except Exception:
+            return (1, 1e18, name)
+
+    rs = (
+        recs.get("_signals", {}).get("result_state")
+        if isinstance(recs.get("_signals"), dict)
+        else None
+    )
+    if isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered":
+        recs["recommendations"] = sorted(
+            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+            key=_dist_key,
+        )
     # -----------------------------
     # 10. lat/lng必須（ただし3件未満になるならスキップ）: 痩せ検知ログ
     # -----------------------------
@@ -1070,7 +1118,9 @@ def build_chat_recommendations(
     # 11. 最終3件確定（痩せ検知ログ）
     # -----------------------------
     pool_all = list(recs.get("recommendations") or [])
-    log.info("[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)]))
+    log.info(
+        "[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)])
+    )
 
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
     items = recs.get("recommendations") or []
@@ -1116,7 +1166,11 @@ def build_chat_recommendations(
         try:
             r["bullets"] = build_bullets_for_chat(r, query=query)
         except Exception:
-            r["bullets"] = ["落ち着いて参拝しやすい", "混雑しにくい可能性", "雰囲気が希望に合う可能性"]
+            r["bullets"] = [
+                "落ち着いて参拝しやすい",
+                "混雑しにくい可能性",
+                "雰囲気が希望に合う可能性",
+            ]
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
