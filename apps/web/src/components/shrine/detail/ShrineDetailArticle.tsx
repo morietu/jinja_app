@@ -45,13 +45,13 @@ export default function ShrineDetailArticle({
     <article className="space-y-4">
       <ShrineCard {...heroCardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
 
-      
-
       {/* 公開御朱印（3枚 + 条件付きで「すべて見る」） */}
       <section id="goshuins">
         <PublicGoshuinSection
           items={publicGoshuinsPreview}
           addGoshuinHref={addGoshuinHref}
+          sendingLabel="最新3枚（公開）"
+          hasMore={publicGoshuinsHasMore}
           seeAllHref={publicGoshuinsHasMore ? publicGoshuinsViewAllHref : null}
           seeAllLabel="すべて見る"
         />
