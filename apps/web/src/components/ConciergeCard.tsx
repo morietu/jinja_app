@@ -68,6 +68,8 @@ export default function ConciergeCard(props: BaseCardProps) {
   // disclosureBody が無いカードは「isPrimary ならclampしない / それ以外clamp」
   const clampDesc = disclosureBody ? !open : !isPrimary;
 
+  const desc = (description ?? "").trim();
+
   return (
     <div
       className={cn(
@@ -141,14 +143,17 @@ export default function ConciergeCard(props: BaseCardProps) {
             <h3 className="text-[15px] font-semibold leading-snug text-neutral-900">{title}</h3>
             {address ? <p className="mt-1 truncate text-xs text-neutral-600">{address}</p> : null}
 
-            <p
-              className={cn(
-                "mt-2 text-sm leading-relaxed text-neutral-800",
-                clampDesc && "line-clamp-2 text-neutral-700",
-              )}
-            >
-              {description}
-            </p>
+            {/* ✅ ここを変更：desc が空なら p を出さない */}
+            {desc ? (
+              <p
+                className={cn(
+                  "mt-2 text-sm leading-relaxed text-neutral-800",
+                  clampDesc && "line-clamp-2 text-neutral-700",
+                )}
+              >
+                {desc}
+              </p>
+            ) : null}
 
             {!isPrimary ? (
               <span className="mt-2 inline-flex items-center rounded-full bg-neutral-50 px-2 py-0.5 text-[10px] text-neutral-600 ring-1 ring-inset ring-neutral-200/60">
