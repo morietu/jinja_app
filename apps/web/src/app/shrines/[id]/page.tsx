@@ -21,7 +21,6 @@ function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
 }
 
-
 type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
@@ -32,6 +31,9 @@ export default async function Page({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const ctx = normalizeCtx(sp.ctx ?? null);
   const tid = sp.tid ?? null;
+
+  // ✅ 3点セット固定（conciergeから来たときだけ操作群を隠す）
+  const hideActions = ctx === "concierge";
 
   const close = buildShrineClose({ ctx, tid });
 
@@ -77,6 +79,7 @@ export default async function Page({ params, searchParams }: Props) {
         saveAction={null}
         googleDirHref={null}
         googleDirFallbackText="神社情報が見つからなかったため、経路案内を表示できません。"
+        hideActions={hideActions} // ✅追加（一応渡しておく）
       >
         <div className="rounded-2xl border bg-white p-4 text-sm text-slate-700">
           神社の詳細情報が見つかりませんでした。
@@ -105,10 +108,7 @@ export default async function Page({ params, searchParams }: Props) {
 
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
 
-  // no log (or dev-only structured)
-
   let conciergeBreakdown: ConciergeBreakdown | null = null;
-
   if (ctx === "concierge" && tid) {
     try {
       const thread = await getConciergeThread(String(tid));
@@ -141,6 +141,7 @@ export default async function Page({ params, searchParams }: Props) {
           nextPath,
           node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
         }}
+        hideActions={hideActions} // ✅追加
       >
         <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
       </ShrineDetailShell>

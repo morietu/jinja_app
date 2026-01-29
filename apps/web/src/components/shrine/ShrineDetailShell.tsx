@@ -26,6 +26,9 @@ type Props = {
   saveAction?: SaveAction | null;
 
   children?: ReactNode;
+
+  // ✅ concierge 等で「操作」を消すためのスイッチ
+  hideActions?: boolean;
 };
 
 export default function ShrineDetailShell({
@@ -38,8 +41,9 @@ export default function ShrineDetailShell({
   googleDirFallbackText: _googleDirFallbackText,
   saveAction = null,
   children,
+  hideActions = false,
 }: Props) {
-  const hasActions = Boolean(googleDirHref || saveAction?.node || addGoshuinHref);
+  const shouldShowActions = !hideActions && Boolean(googleDirHref || saveAction?.node || addGoshuinHref);
 
   return (
     <main className="mx-auto min-h-[calc(100vh-64px)] max-w-md space-y-4 p-4">
@@ -58,23 +62,21 @@ export default function ShrineDetailShell({
         <div className="w-[64px]" />
       </header>
 
-      {/* ✅ 操作は「何かできる」時だけ表示 */}
-      {hasActions ? (
+      {/* ✅ 操作は「何かできる」時だけ表示 + concierge では強制非表示 */}
+      {shouldShowActions ? (
         <DetailSection title="操作">
           <div className="grid gap-2">
             {/* primary: 経路案内 */}
-            {
-              googleDirHref ? (
-                <a
-                  href={googleDirHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-                >
-                  {googleDirLabel}
-                </a>
-              ) : null /* ← fallback は出さない */
-            }
+            {googleDirHref ? (
+              <a
+                href={googleDirHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                {googleDirLabel}
+              </a>
+            ) : null}
 
             {/* secondary: 保存 */}
             {saveAction?.node ? <div>{saveAction.node}</div> : null}
