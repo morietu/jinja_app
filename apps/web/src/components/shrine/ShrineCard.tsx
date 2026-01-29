@@ -15,10 +15,8 @@ type Props = {
   description: string;
   imageUrl?: string | null;
 
-  // ✅ 既存
   hideDescription?: boolean;
 
-  // ✅ passthrough（追加）
   subtitle?: string;
   hideBadges?: boolean;
   hideLeftMark?: boolean;
@@ -31,8 +29,9 @@ type Props = {
   breakdown?: ConciergeBreakdown | null;
   badgesOverride?: string[];
   hideDetailLink?: boolean;
-  variant?: "list" | "detail";
+
   hideDisclosure?: boolean;
+  variant?: "list" | "detail" | "hero";
 };
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -53,7 +52,6 @@ export default function ShrineCard({
 
   hideDescription = false,
 
-  // ✅ passthrough（追加）
   subtitle,
   hideBadges = false,
   hideLeftMark = false,
@@ -66,13 +64,35 @@ export default function ShrineCard({
   breakdown,
   badgesOverride,
   hideDetailLink = false,
+
   hideDisclosure = false,
   variant = "list",
 }: Props) {
-  const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
-  const safeDescription = hideDescription ? "" : description;
+  const isHero = variant === "hero";
 
-  const favButton = !showFavorite ? null : (
+  // ✅ Hero強制（散らかり防止）
+  const effHideDescription = isHero ? true : hideDescription;
+  const effHideBadges = isHero ? true : hideBadges;
+  const effHideLeftMark = isHero ? true : hideLeftMark;
+  const effHideAddress = isHero ? true : hideAddress;
+  const effShowFavorite = isHero ? false : showFavorite;
+  const effHideDetailLink = isHero ? true : hideDetailLink;
+  const effHideDisclosure = isHero ? true : hideDisclosure;
+
+  const effBreakdown = isHero ? null : breakdown;
+  const effBadgesOverride = isHero ? [] : badgesOverride;
+
+  // hook（条件分岐不可なので常に呼ぶ）
+  const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
+
+  // description/address/detail
+  const safeDescription = effHideDescription ? "" : (description ?? "");
+  const addr = effHideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
+  const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
+  const cardDetailHref = effHideDetailLink ? undefined : safeDetailHref;
+
+  // favorite button
+  const favButton = !effShowFavorite ? null : (
     <button
       onClick={toggle}
       disabled={busy || readOnly}
@@ -85,33 +105,29 @@ export default function ShrineCard({
     </button>
   );
 
-  const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
-  const cardDetailHref = hideDetailLink ? undefined : safeDetailHref;
-
-  const reasonLabel = pickReasonLabel(breakdown);
+  // badges
+  const reasonLabel = pickReasonLabel(effBreakdown);
   const defaultBadges = ["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null]
     .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
     .slice(0, 2);
 
   const badges =
-    badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
+    effBadgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
 
-  const addr = hideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
-
-  const shouldHideDisclosure = hideDisclosure || variant === "detail";
-
+  // disclosure（hero は eff で潰れる）
+  const shouldHideDisclosure = effHideDisclosure || variant === "detail";
   const disclosureTitle = shouldHideDisclosure ? undefined : "おすすめ理由を見る";
   const disclosureBody = shouldHideDisclosure ? undefined : (
     <div className="space-y-3">
-      {breakdown ? (
+      {effBreakdown ? (
         <DisclosureSection title="おすすめ理由（内訳）">
-          <ConciergeBreakdownBody breakdown={breakdown} />
+          <ConciergeBreakdownBody breakdown={effBreakdown} />
         </DisclosureSection>
       ) : null}
 
       <DisclosureSection title="要点">
         <p className="text-sm text-slate-700 line-clamp-2">
-          {breakdown ? buildOneLiner(breakdown) : "条件に合う候補から選びました。"}
+          {effBreakdown ? buildOneLiner(effBreakdown) : "条件に合う候補から選びました。"}
         </p>
       </DisclosureSection>
     </div>
@@ -124,8 +140,8 @@ export default function ShrineCard({
       imageUrl={imageUrl}
       description={safeDescription}
       subtitle={subtitle}
-      hideBadges={hideBadges}
-      hideLeftMark={hideLeftMark}
+      hideBadges={effHideBadges}
+      hideLeftMark={effHideLeftMark}
       isPrimary
       badges={badges}
       detailHref={cardDetailHref}

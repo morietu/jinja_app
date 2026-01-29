@@ -1,3 +1,4 @@
+// apps/web/src/components/shrine/detail/ShrineDetailArticle.tsx
 import ShrineCard from "@/components/shrine/ShrineCard";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
@@ -39,11 +40,9 @@ export default function ShrineDetailArticle({
   cardProps: ShrineCardAdapterProps;
   heroImageUrl?: string | null;
   benefitLabels: string[];
-
   publicGoshuinsPreview: PublicGoshuinItem[];
   publicGoshuinsHasMore: boolean;
   publicGoshuinsViewAllHref: string;
-
   addGoshuinHref?: string | null;
   judge: { title: string; summary: string; level: SignalLevel; hint: string | null };
   conciergeBreakdown?: ConciergeBreakdown | null;
@@ -54,38 +53,26 @@ export default function ShrineDetailArticle({
     imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
   };
 
-    const subtitle = pickHeroSubtitle(exp, cardProps?.description);
-
-
+  const subtitle = pickHeroSubtitle(exp, cardProps?.description);
 
   return (
     <article className="space-y-4">
-      <ShrineCard
-        {...heroCardProps}
-        breakdown={null}
-        variant="detail"
-        hideDetailLink
-        showFavorite={false}
-        hideDescription
-        badgesOverride={[]}
-        hideBadges
-        hideLeftMark
-        hideAddress
-        subtitle={subtitle}
-      />
+      {/* ① Hero（3点セット） */}
+      <ShrineCard {...heroCardProps} variant="hero" subtitle={subtitle} />
 
-      {/* 公開御朱印（3枚 + 条件付きで「すべて見る」） */}
+      {/* ② 公開御朱印（3枚 + すべて見る） */}
       <section id="goshuins">
         <PublicGoshuinSection
           items={publicGoshuinsPreview}
           addGoshuinHref={addGoshuinHref}
-          sendingLabel="最新3枚（公開）"
+          sendingLabel={undefined} // 弱める/消す
           hasMore={publicGoshuinsHasMore}
           seeAllHref={publicGoshuinsHasMore ? publicGoshuinsViewAllHref : null}
           seeAllLabel="すべて見る"
         />
       </section>
 
+      {/* ③ Disclosure 2つ */}
       <div className="space-y-2">
         <DetailDisclosureBlock
           title="相性の根拠"
