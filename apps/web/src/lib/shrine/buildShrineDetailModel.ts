@@ -1,5 +1,6 @@
 // apps/web/src/lib/shrine/buildShrineDetailModel.ts
 import type { Shrine } from "@/lib/api/shrines";
+import type { ShrineTag } from "@/lib/shrine/tags/types";
 import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
@@ -19,6 +20,21 @@ type Args = {
     fav30d?: number;
   };
 };
+
+function toBenefitTag(label: string): ShrineTag {
+  const v = label.trim();
+  return {
+    id: `benefit:${encodeURIComponent(v)}`,
+    label: v,
+    type: "benefit",
+    source: "official",
+    confidence: "high",
+  };
+}
+
+
+
+
 
 export function buildShrineDetailModel({
   shrine,
@@ -42,6 +58,8 @@ export function buildShrineDetailModel({
     : `/shrines/${shrine.id}/goshuins`;
 
   const benefitLabels = getBenefitLabels(shrine);
+
+  const tags: ShrineTag[] = benefitLabels.map(toBenefitTag);
 
   const latestGoshuinImage =
     publicGoshuins
@@ -71,16 +89,15 @@ export function buildShrineDetailModel({
   //   tid,
   // });
 
-
   return {
     shrineId: shrine.id,
     cardProps,
     heroImageUrl,
-    benefitLabels,
+    benefitLabels, // 既存（互換）
+    tags, // ✅追加（新規）
     judge,
     conciergeBreakdown,
     exp,
-
     publicGoshuinsPreview,
     publicGoshuinsHasMore,
     publicGoshuinsViewAllHref,
