@@ -4,7 +4,7 @@ import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
 
 export function buildShrineJudge(
-  exp: { hasSignal: boolean; summary: string; strongHint: string | null; signalLevel: SignalLevel },
+  exp: { hasSignal: boolean; summary: string; strongHint?: string; signalLevel: SignalLevel },
   concierge: ConciergeBreakdown | null,
 ) {
   const use = concierge !== null;
