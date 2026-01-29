@@ -1,13 +1,6 @@
 import type { Shrine } from "@/lib/api/shrines";
 
-type Args = {
-  shrine: Shrine;
-  signals?: {
-    publicGoshuinsCount?: number;
-    views30d?: number;
-    fav30d?: number;
-  };
-};
+
 
 export type SignalLevel = "weak" | "medium" | "strong";
 
@@ -46,12 +39,13 @@ function buildSummary(args: { hasSignal: boolean; level: SignalLevel }): string 
   return "情報が少ないため、現時点では判断材料の目安として表示しています。";
 }
 
-function buildStrongHint(args: { publicCount: number; views30d: number; fav30d: number }): string | null {
+function buildStrongHint(args: { publicCount: number; views30d: number; fav30d: number }): string | undefined {
   const reasons: string[] = [];
   if (args.publicCount >= 5) reasons.push("公開御朱印が複数あります");
   if (args.views30d >= 100) reasons.push("閲覧が多い傾向があります");
   if (args.fav30d >= 5) reasons.push("お気に入りが多い傾向があります");
-  return reasons.length ? reasons.join(" / ") : null;
+
+  return reasons.length ? reasons.join(" / ") : undefined; // ✅ null をやめる
 }
 
 const BASE_UNFIT = "判断材料の一つとして、前提とあわせて参考にしてください。";
@@ -93,7 +87,7 @@ export function buildShrineExplanation(args: { shrine: Shrine; signals?: ShrineE
     signalLevel = "medium";
 
   const summary = buildSummary({ hasSignal, level: signalLevel });
-  const strongHint = signalLevel === "strong" ? buildStrongHint({ publicCount, views30d, fav30d }) : null;
+  const strongHint = signalLevel === "strong" ? buildStrongHint({ publicCount, views30d, fav30d }) : undefined;
 
   return {
     fit,

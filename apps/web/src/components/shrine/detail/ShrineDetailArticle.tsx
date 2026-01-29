@@ -50,7 +50,7 @@ export default function ShrineDetailArticle({
   publicGoshuinsViewAllHref: string;
 
   addGoshuinHref?: string | null;
-  judge: { title: string; summary: string; level: SignalLevel; hint: string | null };
+  judge: { title: string; summary: string; level: SignalLevel; hint?: string | null };
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
 }) {

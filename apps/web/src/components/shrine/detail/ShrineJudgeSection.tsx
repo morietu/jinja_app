@@ -8,7 +8,7 @@ type Props = {
   judgeTitle: string;
   judgeLevel: SignalLevel | "low"; // 現実を受け止める
   judgeSummary: string;
-  judgeHint: string | null;
+  judgeHint?: string | null;
 
   concierge: ConciergeBreakdown | null;
   exp: ShrineExplanation;
