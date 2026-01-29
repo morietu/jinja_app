@@ -97,6 +97,8 @@ export default function ShrineDetailArticle({
           title="相性の根拠"
           summary={judge.summary || "おすすめの根拠を確認できます"}
           defaultOpen={false}
+          level={judge.level} // ✅ optional
+          hint={judge.hint} // ✅ optional
         >
           <ShrineJudgeSection
             judgeTitle={judge.title}

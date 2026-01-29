@@ -12,7 +12,6 @@ type Props = {
   defaultOpen?: boolean;
   children: React.ReactNode;
 
-  // ✅ 追加（エラー解消）
   level?: LevelLike;
   hint?: string | null;
 };
@@ -23,18 +22,10 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 function levelLabel(level?: LevelLike) {
   if (!level) return null;
-  switch (level) {
-    case "strong":
-      return "強";
-    case "medium":
-      return "中";
-    case "weak":
-      return "弱";
-    case "low":
-      return "低";
-    default:
-      return null;
-  }
+  if (level === "low") return "低";
+  if (level === "strong") return "高";
+  if (level === "medium") return "中";
+  return "低"; // weak
 }
 
 export default function DetailDisclosureBlock({ title, summary, defaultOpen = false, children, level, hint }: Props) {
