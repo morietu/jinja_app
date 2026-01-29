@@ -32,7 +32,8 @@ export default function PublicGoshuinSection({
       title="公開御朱印"
       right={
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">{sendingLabel}</span>
+          {/* sendingLabel は必要な時だけ（デフォは出さない運用推奨） */}
+          {sendingLabel ? <span className="text-xs text-slate-500">{sendingLabel}</span> : null}
 
           {hasMore && seeAllHref ? (
             <Link href={seeAllHref} className="text-xs font-semibold text-slate-700 hover:underline">
