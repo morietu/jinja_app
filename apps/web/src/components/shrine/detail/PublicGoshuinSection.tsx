@@ -13,14 +13,15 @@ export type PublicGoshuinItem = {
 export default function PublicGoshuinSection({
   items,
   addGoshuinHref,
-  sendingLabel = "この神社の公開分のみ",
+  // ✅ ヘッダ密度を上げないため、原則 undefined 運用
+  sendingLabel, // 必要なら「補助テキスト」でのみ使用（ヘッダには出さない）
   hasMore = false,
   seeAllHref,
   seeAllLabel = "すべて見る",
 }: {
   items: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
-  sendingLabel?: string;
+  sendingLabel?: string; // ← default を持たせない（呼び出し側が出したい時だけ渡す）
   hasMore?: boolean;
   seeAllHref?: string | null;
   seeAllLabel?: string;
@@ -32,9 +33,6 @@ export default function PublicGoshuinSection({
       title="公開御朱印"
       right={
         <div className="flex items-center gap-2">
-          {/* sendingLabel は必要な時だけ（デフォは出さない運用推奨） */}
-          {sendingLabel ? <span className="text-xs text-slate-500">{sendingLabel}</span> : null}
-
           {hasMore && seeAllHref ? (
             <Link href={seeAllHref} className="text-xs font-semibold text-slate-700 hover:underline">
               {seeAllLabel}
@@ -52,6 +50,9 @@ export default function PublicGoshuinSection({
         </div>
       }
     >
+      {/* ✅ 補助テキストは中に落とす（ヘッダに乗せない） */}
+      {sendingLabel ? <p className="text-xs text-slate-500">{sendingLabel}</p> : null}
+
       {shown.length === 0 ? (
         <p className="text-xs text-slate-500">この神社に紐づく公開御朱印はまだありません。</p>
       ) : (
