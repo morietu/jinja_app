@@ -106,7 +106,12 @@ export default async function Page({ params, searchParams }: Props) {
 
   const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
 
+  // page.tsx（publicGoshuins の取得直後あたり）
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
+
+  const signals = {
+    publicGoshuinsCount: publicGoshuins.length,
+  } satisfies NonNullable<Parameters<typeof buildShrineDetailModel>[0]["signals"]>;
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
   if (ctx === "concierge" && tid) {
@@ -124,6 +129,7 @@ export default async function Page({ params, searchParams }: Props) {
     conciergeBreakdown,
     ctx,
     tid,
+    signals,
   });
 
   return (

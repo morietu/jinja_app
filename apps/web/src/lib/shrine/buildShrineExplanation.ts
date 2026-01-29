@@ -19,7 +19,12 @@ export type ShrineExplanation = {
   hasSignal: boolean;
   signalLevel: SignalLevel;
   summary: string;
-  strongHint: string | null;
+  strongHint?: string;
+  signals?: {
+    publicGoshuinsCount?: number;
+    views30d?: number;
+    fav30d?: number;
+  };
 };
 
 function hasText(v: unknown): v is string {
@@ -52,7 +57,9 @@ function buildStrongHint(args: { publicCount: number; views30d: number; fav30d: 
 const BASE_UNFIT = "判断材料の一つとして、前提とあわせて参考にしてください。";
 const NUANCED_UNFIT = "判断の前提によっては、特徴の受け取り方が変わるため、判断材料の一つとして参考にしてください。";
 
-export function buildShrineExplanation({ shrine, signals }: Args): ShrineExplanation {
+
+export function buildShrineExplanation(args: { shrine: Shrine; signals?: ShrineExplanation["signals"] }) {
+  const { shrine, signals } = args;
   const desc = hasText((shrine as any)?.description) ? String((shrine as any).description).trim() : "";
 
   const publicCount = Number(signals?.publicGoshuinsCount ?? 0);
@@ -88,5 +95,15 @@ export function buildShrineExplanation({ shrine, signals }: Args): ShrineExplana
   const summary = buildSummary({ hasSignal, level: signalLevel });
   const strongHint = signalLevel === "strong" ? buildStrongHint({ publicCount, views30d, fav30d }) : null;
 
-  return { fit, unfit, howto, note: baseNote, hasSignal, signalLevel, summary, strongHint };
+  return {
+    fit,
+    unfit,
+    howto,
+    note: baseNote,
+    hasSignal,
+    signalLevel,
+    summary,
+    strongHint,
+    signals,
+  } satisfies ShrineExplanation;
 }
