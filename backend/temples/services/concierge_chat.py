@@ -1,13 +1,20 @@
 # backend/temples/services/concierge_chat.py
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any, Dict, List, Optional
 
-import logging
-
 from temples.llm import backfill as bf
-
 from temples.services.concierge_candidate_normalize import normalize_candidate
+
+
+def _none_if_blank(x: Any) -> Any:
+    if x is None:
+        return None
+    if isinstance(x, str) and not x.strip():
+        return None
+    return x
 
 
 log = logging.getLogger(__name__)
@@ -75,18 +82,6 @@ def _normalize_candidates_for_chat(candidates: List[Dict[str, Any]]) -> List[Dic
         (vals[0] if vals else None),
     )
 
-    def _none_if_blank(x: Any) -> Any:
-        if x is None:
-            return None
-        if isinstance(x, str) and not x.strip():
-            return None
-        return x
-
-    for c in normalized:
-        if not isinstance(c, dict):
-            continue
-        
-
     log.info(
         "[svc/chat] candidates normalized: total=%d miss(name)=%d miss(latlng)=%d miss(addr)=%d miss(place_id)=%d",
         total,
@@ -132,6 +127,12 @@ def _ensure_signals_base(
     extra_condition: Optional[str],
 ) -> None:
     """_signals に mode/need/astro/user_filters の骨組みを必ず入れる（contract）"""
+
+    # ✅ 先に退避（dictじゃない場合もある）
+    prev_result_state = None
+    if isinstance(recs.get("_signals"), dict):
+        prev_result_state = recs["_signals"].get("result_state")
+
     if not isinstance(recs.get("_signals"), dict):
         recs["_signals"] = {}
 
@@ -153,6 +154,10 @@ def _ensure_signals_base(
         "extra_condition": extra_condition,
     }
 
+    # ✅ 保険：result_state が消えてたら戻す（将来のsignals全置換事故に備える）
+    if prev_result_state is not None and "result_state" not in recs["_signals"]:
+        recs["_signals"]["result_state"] = prev_result_state
+
 
 def _clean_display_name(name: Any) -> str:
     """(ダミー)などの補助フラグを表示から外す"""
@@ -160,6 +165,10 @@ def _clean_display_name(name: Any) -> str:
         return str(name)
     n = name.replace("(ダミー)", "").replace("（ダミー）", "")
     return n.strip()
+
+
+def _key(n: str) -> str:
+    return re.sub(r"\s+", "", _clean_display_name(n))
 
 
 def _is_noise_reason(text: str, name: str, tags_concat: str) -> bool:
@@ -656,6 +665,14 @@ def build_chat_recommendations(
     - UI で「占星術を強く反映」と明示される前提
     """
 
+    # 距離順 key（distance_m 無しは最後）
+    def _dist_key(c: dict) -> tuple[int, float]:
+        d = c.get("distance_m")
+        try:
+            return (0, float(d))
+        except Exception:
+            return (1, 1e18)
+
     # --- DEBUG: raw candidates snapshot (before normalize) ---
     try:
         raw0 = next((c for c in (candidates or []) if isinstance(c, dict)), None)
@@ -689,8 +706,13 @@ def build_chat_recommendations(
     candidates = _normalize_candidates_for_chat(candidates)
     valid_candidates = [c for c in candidates if (c.get("name") or "").strip()]
 
+    # 距離順（distance_m 無しは最後）
+    valid_candidates.sort(key=_dist_key)
+
+    dist_sample = [c.get("distance_m") for c in valid_candidates[:5]]
     log.info(
-        "[svc/chat] birthdate=%r goriyaku=%r extra=%r query=%r candidates=%d",
+        "[svc/chat] dist_sample=%r birthdate=%r goriyaku=%r extra=%r query=%r candidates=%d",
+        dist_sample,
         birthdate,
         goriyaku_tag_ids,
         extra_condition,
@@ -716,6 +738,13 @@ def build_chat_recommendations(
     # Orchestrator結果を正規化（dedupe）
     items0 = recs.get("recommendations") or []
     items0 = [r for r in items0 if isinstance(r, dict)]
+    items0 = _dedupe_by_name(items0)
+
+    for r in items0:
+        for k in ("place_id", "shrine_id", "location", "address", "formatted_address", "name"):
+            if k in r:
+                r[k] = _none_if_blank(r.get(k))
+
     recs["recommendations"] = _dedupe_by_name(items0)
 
     # birthdate の妥当性（astro on/off）
@@ -758,7 +787,15 @@ def build_chat_recommendations(
     pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
 
-    # 5. location埋め
+    # -----------------------------
+    # Step5: location埋め（観測ログ込み）
+    # -----------------------------
+    # ※確認フェーズ: cache key から bias を外す（検証を嘘にしない）
+    lookup_addr_cache: dict[str, Optional[str]] = {}
+
+    # cand_addr は「正規化キーに寄せる（挙動を単純化）」:
+    # - 候補側は必ず _key(name) で持つ
+    # - "完全一致"の生キーは持たない（ここを残すと挙動が分岐して観測がブレる）
     cand_addr: dict[str, str] = {}
     for c in valid_candidates:
         nm = (c.get("name") or "").strip()
@@ -766,41 +803,91 @@ def build_chat_recommendations(
             continue
         addr = c.get("formatted_address") or c.get("address")
         if isinstance(addr, str) and addr.strip():
-            cand_addr[nm] = addr.strip()
+            cand_addr[_key(nm)] = addr.strip()
 
-    for r in recs.get("recommendations", []):
+    # cand_addr 構築ログ
+    try:
+        sample_keys = list(cand_addr.keys())[:3]
+    except Exception:
+        sample_keys = []
+    log.info("[svc/chat] cand_addr size=%d sample_keys=%r", len(cand_addr), sample_keys)
+
+    # Step5 counters
+    cand_hit = 0
+    cache_hit = 0
+    bf_called = 0
+    miss = 0
+    eligible = 0
+
+    for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
-        if r.get("location"):
+
+        loc = r.get("location")
+        if isinstance(loc, str) and loc.strip():
             continue
 
         nm = (r.get("name") or "").strip()
         if not nm:
             continue
 
-        if nm in cand_addr:
-            addr = cand_addr[nm]
-            try:
-                r["location"] = bf._shorten_japanese_address(addr) or addr
-            except Exception:
-                r["location"] = addr
-            continue
+        eligible += 1
+        nk = _key(nm)
 
-        try:
-            addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
-        except Exception:
-            addr = None
+        # 1) candidates から引けるか
+        addr = cand_addr.get(nk)
+        if addr:
+            cand_hit += 1
+        else:
+            # missログ
+            miss += 1
+            log.info("[svc/chat] lookup_address_by_name miss name=%r key=%r", nm, nk)
+
+            # 候補側に近いキーがあるか（軽量ヒント: contains）
+            try:
+                cand_keys = list(cand_addr.keys())
+                # nk が含まれる / nk を含む のどちらか
+                near = [k for k in cand_keys if (nk and nk in k) or (k and k in nk)]
+                if near:
+                    log.info("[svc/chat] miss near_keys name=%r key=%r near=%r", nm, nk, near[:5])
+            except Exception:
+                pass
+
+            # 2) cache hit?
+            ck = f"{nk}|lang={language}"  # biasは外す（確認フェーズ）
+            if ck in lookup_addr_cache:
+                cache_hit += 1
+                addr = lookup_addr_cache.get(ck)
+            else:
+                # 3) BF 呼び出し（本当に 1回/rec か観測する）
+                bf_called += 1
+                try:
+                    addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
+                except Exception:
+                    addr = None
+                lookup_addr_cache[ck] = addr
 
         if isinstance(addr, str) and addr.strip():
+            a = addr.strip()
             try:
-                r["location"] = bf._shorten_japanese_address(addr) or addr
+                r["location"] = bf._shorten_japanese_address(a) or a
             except Exception:
-                r["location"] = addr
+                r["location"] = a
 
+    log.info(
+        "[svc/chat] step5 location_fill eligible=%d cand_hit=%d cache_hit=%d bf_called=%d miss=%d cand_addr=%d cache_size=%d",
+        eligible,
+        cand_hit,
+        cache_hit,
+        bf_called,
+        miss,
+        len(cand_addr),
+        len(lookup_addr_cache),
+    )
+
+    # -----------------------------
     # 6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
-    def _key(n: str) -> str:
-        return _clean_display_name(n).replace(" ", "")
-
+    # -----------------------------
     cand_by_name: dict[str, dict] = {}
     for c in valid_candidates:
         nm = (c.get("name") or "").strip()
@@ -818,14 +905,18 @@ def build_chat_recommendations(
         if not isinstance(c, dict):
             continue
 
+        if not r.get("place_id") and c.get("place_id"):
+            r["place_id"] = c.get("place_id")
+
+        if not r.get("shrine_id") and c.get("shrine_id"):
+            r["shrine_id"] = c.get("shrine_id")
+
         if r.get("lat") is None and c.get("lat") is not None:
             r["lat"] = c.get("lat")
         if r.get("lng") is None and c.get("lng") is not None:
             r["lng"] = c.get("lng")
-        if r.get("place_id") is None and c.get("place_id") is not None:
-            r["place_id"] = c.get("place_id")
-        if r.get("shrine_id") is None and c.get("shrine_id") is not None:
-            r["shrine_id"] = c.get("shrine_id")
+        if r.get("distance_m") is None and c.get("distance_m") is not None:
+            r["distance_m"] = c.get("distance_m")
 
         addr2 = c.get("formatted_address") or c.get("address")
         if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
@@ -859,25 +950,67 @@ def build_chat_recommendations(
         except Exception:
             r.pop("id", None)
 
-    # 7. ユーザーフィルタ
+    # -----------------------------
+    # 7. ユーザーフィルタ（痩せ検知ログ）
+    # -----------------------------
+    before_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
     try:
         recs = _apply_user_filters(recs, goriyaku_tag_ids=goriyaku_tag_ids, extra_condition=extra_condition)
     except Exception:
         pass
+    after_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
+    is_fallback = (after_filters == 0)
+    log.info(
+        "[svc/chat] filters applied before=%d after=%d goriyaku=%r extra=%r",
+        before_filters,
+        after_filters,
+        goriyaku_tag_ids,
+        (extra_condition or "").strip() or None,
+    )
+
+    # ★追加: 0件だった事実をUIへ伝える（フォールバック表示の根拠）
+    if not isinstance(recs.get("_signals"), dict):
+        recs["_signals"] = {}
+    if after_filters == 0:
+        extra = (extra_condition or "").strip() or None
+        msg = "条件に一致する神社が見つかりませんでした（0件）"
+        if extra:
+            msg = f"「{extra}」に一致する神社が見つかりませんでした（0件）"
+
+        recs["_signals"]["result_state"] = {
+            "matched_count": 0,
+            "fallback_mode": "nearby_unfiltered",
+            "fallback_reason_ja": msg,
+            "ui_disclaimer_ja": "代わりに近い神社を表示しています（条件は反映されていません）",
+            "requested_extra_condition": extra,
+        }
+    else:
+        # 0件じゃないときも一応入れておくとUIが安定する（任意）
+        recs["_signals"]["result_state"] = {
+            "matched_count": after_filters,
+            "fallback_mode": "none",
+            "fallback_reason_ja": None,
+            "ui_disclaimer_ja": None,
+            "requested_extra_condition": (extra_condition or "").strip() or None,
+        }
 
     try:
         recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
     except Exception:
         log.exception("[concierge] _ensure_pool_size after filters crashed -> continue")
 
+    # -----------------------------
     # 8. 占星術（astro_onのみ）
+    # -----------------------------
     if pre_limit >= 12:
         try:
             recs = _maybe_apply_astrology(recs, birthdate=birthdate)
         except Exception:
             log.exception("[concierge][astro] _maybe_apply_astrology crashed -> continue")
 
-    # 9. スコアリング
+    # -----------------------------
+    # 9. スコアリング（flow weights）
+    # -----------------------------
     flow_def = FLOW_DEFINITIONS.get(flow, FLOW_DEFINITIONS["A"])
     WEIGHTS = dict(flow_def["weights"])
     astro_bonus_enabled = bool(flow_def["astro_bonus_enabled"])
@@ -886,7 +1019,7 @@ def build_chat_recommendations(
     need_tags = list((recs.get("_need") or {}).get("tags") or [])
     need_tags = [t for t in need_tags if isinstance(t, str) and t.strip()]
 
-    for r in recs.get("recommendations", []):
+    for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
         _attach_breakdown(
@@ -913,20 +1046,36 @@ def build_chat_recommendations(
 
     recs["recommendations"] = sorted(recs.get("recommendations") or [], key=_score_key, reverse=True)
 
-    # 10. lat/lng必須（ただし3件未満になるならスキップ）
+    # -----------------------------
+    # 10. lat/lng必須（ただし3件未満になるならスキップ）: 痩せ検知ログ
+    # -----------------------------
     if valid_candidates:
         before_geo = list(recs.get("recommendations") or [])
+        before_geo_n = len([x for x in before_geo if isinstance(x, dict)])
         filtered = [
             r
             for r in (recs.get("recommendations") or [])
             if isinstance(r, dict) and r.get("lat") is not None and r.get("lng") is not None
         ]
-        recs["recommendations"] = filtered if len(filtered) >= 3 else before_geo
+        filtered_n = len(filtered)
+        recs["recommendations"] = filtered if filtered_n >= 3 else before_geo
+        log.info(
+            "[svc/chat] geo_filter before=%d after=%d applied=%s",
+            before_geo_n,
+            filtered_n,
+            "yes" if filtered_n >= 3 else "no(kept_before)",
+        )
 
-    # 11. 最終3件確定
+    # -----------------------------
+    # 11. 最終3件確定（痩せ検知ログ）
+    # -----------------------------
     pool_all = list(recs.get("recommendations") or [])
+    log.info("[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)]))
+
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
     items = recs.get("recommendations") or []
+
+    log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
 
     if not isinstance(items, list) or len(items) < 3:
         _ensure_signals_base(
