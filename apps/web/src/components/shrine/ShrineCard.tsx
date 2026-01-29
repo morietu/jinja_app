@@ -15,8 +15,14 @@ type Props = {
   description: string;
   imageUrl?: string | null;
 
-  // ✅ 追加
+  // ✅ 既存
   hideDescription?: boolean;
+
+  // ✅ passthrough（追加）
+  subtitle?: string;
+  hideBadges?: boolean;
+  hideLeftMark?: boolean;
+  hideAddress?: boolean;
 
   showFavorite?: boolean;
   readOnly?: boolean;
@@ -44,7 +50,15 @@ export default function ShrineCard({
   address,
   description,
   imageUrl,
-  hideDescription = false, // ✅ 追加
+
+  hideDescription = false,
+
+  // ✅ passthrough（追加）
+  subtitle,
+  hideBadges = false,
+  hideLeftMark = false,
+  hideAddress = false,
+
   showFavorite = true,
   initialFav = false,
   readOnly = false,
@@ -82,9 +96,8 @@ export default function ShrineCard({
   const badges =
     badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
 
-  const addr = (address ?? "").trim() || "住所情報は準備中です。";
+  const addr = hideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
 
-  // ✅ ここだけ見れば挙動がわかる（未来の自分救済）
   const shouldHideDisclosure = hideDisclosure || variant === "detail";
 
   const disclosureTitle = shouldHideDisclosure ? undefined : "おすすめ理由を見る";
@@ -107,9 +120,12 @@ export default function ShrineCard({
   return (
     <ConciergeCard
       title={title}
-      address={addr}
+      address={addr || undefined}
       imageUrl={imageUrl}
-      description={safeDescription} // ✅ ここだけ変える
+      description={safeDescription}
+      subtitle={subtitle}
+      hideBadges={hideBadges}
+      hideLeftMark={hideLeftMark}
       isPrimary
       badges={badges}
       detailHref={cardDetailHref}
