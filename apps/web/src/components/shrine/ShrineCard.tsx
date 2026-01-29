@@ -15,21 +15,17 @@ type Props = {
   description: string;
   imageUrl?: string | null;
 
+  // ✅ 追加
+  hideDescription?: boolean;
+
   showFavorite?: boolean;
   readOnly?: boolean;
   initialFav?: boolean;
-
   detailHref?: string;
   breakdown?: ConciergeBreakdown | null;
-
   badgesOverride?: string[];
-
   hideDetailLink?: boolean;
-
-  /** list: 一覧用 / detail: 詳細用 */
   variant?: "list" | "detail";
-
-  /** 強制的にdisclosureを消したい場合 */
   hideDisclosure?: boolean;
 };
 
@@ -48,6 +44,7 @@ export default function ShrineCard({
   address,
   description,
   imageUrl,
+  hideDescription = false, // ✅ 追加
   showFavorite = true,
   initialFav = false,
   readOnly = false,
@@ -59,6 +56,7 @@ export default function ShrineCard({
   variant = "list",
 }: Props) {
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
+  const safeDescription = hideDescription ? "" : description;
 
   const favButton = !showFavorite ? null : (
     <button
@@ -111,7 +109,7 @@ export default function ShrineCard({
       title={title}
       address={addr}
       imageUrl={imageUrl}
-      description={description}
+      description={safeDescription} // ✅ ここだけ変える
       isPrimary
       badges={badges}
       detailHref={cardDetailHref}

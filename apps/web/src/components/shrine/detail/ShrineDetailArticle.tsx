@@ -32,13 +32,20 @@ export default function ShrineDetailArticle({
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
 }) {
-  const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
+  const heroCardProps = {
+    ...cardProps,
+    imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
+    description: "", // ← ここで被りを止める
+    badges: [], // ← バッジも被るなら消す
+  };
   
 
 
   return (
     <article className="space-y-4">
       <ShrineCard {...heroCardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
+
+      
 
       {/* 公開御朱印（3枚 + 条件付きで「すべて見る」） */}
       <section id="goshuins">
