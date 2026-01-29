@@ -3,8 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import type { NextRequest } from "next/server";
-import { bffPostJsonWithAuthFromReq } from "@/lib/bff/fetch";
+
 
 export async function POST(req: Request) {
   const payload = await req.text(); // まずは生で取る（壊れてても落ちない）
