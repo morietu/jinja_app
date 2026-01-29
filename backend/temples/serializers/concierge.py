@@ -14,7 +14,7 @@ class LocationSerializer(serializers.Serializer):
 
 
 class PlaceLiteSerializer(serializers.Serializer):
-    place_id = serializers.CharField()
+    place_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     name = serializers.CharField()
     address = serializers.CharField(allow_null=True, required=False)
     location = LocationSerializer()
