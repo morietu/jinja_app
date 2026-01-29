@@ -54,19 +54,13 @@ export default function ShrineDetailArticle({
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
 }) {
-  const heroCardProps = {
-    ...cardProps,
-    imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
-  };
-
+  const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
   const subtitle = pickHeroSubtitle(exp, cardProps?.description);
 
-  // 1) benefit tags（表示用オブジェクト）
   const benefitTagObjs = _tags.filter(
     (t) => t.type === "benefit" && (t.confidence === "high" || t.confidence === "mid"),
   );
 
-  // 2) benefit summary（Disclosureのサマリ）
   const benefitSummary =
     benefitTagObjs.length > 0
       ? benefitTagObjs
@@ -78,78 +72,30 @@ export default function ShrineDetailArticle({
         ? benefitLabels.slice(0, 2).join(" / ")
         : "準備中";
 
-  // 3) materials 用の derived 一致
-  const needTags = Array.isArray(conciergeBreakdown?.matched_need_tags)
-    ? conciergeBreakdown.matched_need_tags.filter(Boolean)
-    : [];
-
-  const benefitTagLabels = benefitTagObjs.map((t) => t.label).filter(Boolean);
-
-  const norm = (s: string) => s.trim();
-  const benefitSet = new Set(benefitTagLabels.map(norm));
-  const intersection = needTags.map(norm).filter((t) => benefitSet.has(t));
-
-  const matchedText =
-    intersection.length > 0
-      ? `${intersection.slice(0, 3).join(" / ")}${intersection.length > 3 ? " ほか" : ""}`
-      : needTags.length > 0
-        ? `${needTags.slice(0, 3).join(" / ")}${needTags.length > 3 ? " ほか" : ""}`
-        : "なし";
-
-  const goshuinsCount = exp?.signals?.publicGoshuinsCount;
-  const goshuinsText = typeof goshuinsCount === "number" ? `${goshuinsCount}件` : "未計測";
-
-  const basisText = intersection.length > 0 ? "ご利益タグが一致" : needTags.length > 0 ? "希望条件に合う" : "情報が少ない";
-
-  const materials = [
-    { label: "一致", value: matchedText },
-    { label: "公開御朱印", value: goshuinsText },
-    { label: "根拠", value: basisText },
-  ];
-
-  // 4) derivedLevel（材料が揃った後に決める）
-  const hasNeed = needTags.length > 0;
-  const hasBenefit = (typeof goshuinsCount === "number" && goshuinsCount >= 3) || exp?.hasSignal;
-
-  let derivedLevel: SignalLevel | "low" = exp.signalLevel;
-  if (hasNeed && derivedLevel === "weak") derivedLevel = "medium";
-  if (!hasNeed && !hasBenefit) derivedLevel = "low";
-
   return (
     <article className="space-y-4">
-      {/* ① Hero（3点セット） */}
       <ShrineCard {...heroCardProps} variant="hero" subtitle={subtitle} />
 
-      {/* ② 公開御朱印（3枚 + すべて見る） */}
       <section id="goshuins">
         <PublicGoshuinSection
           items={publicGoshuinsPreview}
           addGoshuinHref={addGoshuinHref}
-          sendingLabel={undefined} // 原則出さない
+          sendingLabel={undefined}
           hasMore={publicGoshuinsHasMore}
           seeAllHref={publicGoshuinsHasMore ? publicGoshuinsViewAllHref : null}
           seeAllLabel="すべて見る"
         />
       </section>
 
-      {/* ③ Disclosure 2つ */}
       <div className="space-y-2">
         <DetailDisclosureBlock
           title="相性の根拠"
           summary={judge.summary || "おすすめの根拠を確認できます"}
           defaultOpen={false}
-          level={derivedLevel} // ✅ judge.level じゃなく derived を渡す
+          level={judge.level}
           hint={judge.hint}
-          materials={materials} // ✅ これを忘れると「材料」が出ない
         >
-          <ShrineJudgeSection
-            judgeTitle={judge.title}
-            judgeLevel={derivedLevel} // ✅ 表示レベルを揃える
-            judgeSummary={judge.summary}
-            judgeHint={judge.hint}
-            concierge={conciergeBreakdown}
-            exp={exp}
-          />
+          <ShrineJudgeSection concierge={conciergeBreakdown} exp={exp} />
         </DetailDisclosureBlock>
 
         <DetailDisclosureBlock title="ご利益" summary={benefitSummary} defaultOpen={false}>
