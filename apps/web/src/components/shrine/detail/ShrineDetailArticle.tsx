@@ -33,7 +33,7 @@ export default function ShrineDetailArticle({
   exp: ShrineExplanation;
 }) {
   const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
-
+  
 
 
   return (
@@ -44,9 +44,9 @@ export default function ShrineDetailArticle({
       <section id="goshuins">
         <PublicGoshuinSection
           items={publicGoshuinsPreview}
-          addGoshuinHref={addGoshuinHref ?? null}
-          limit={3}
-          seeAllHref={publicGoshuinsHasMore && publicGoshuinsViewAllHref ? publicGoshuinsViewAllHref : null}
+          addGoshuinHref={addGoshuinHref}
+          seeAllHref={publicGoshuinsHasMore ? publicGoshuinsViewAllHref : null}
+          seeAllLabel="すべて見る"
         />
       </section>
 

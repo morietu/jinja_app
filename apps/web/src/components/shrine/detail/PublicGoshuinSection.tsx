@@ -10,25 +10,22 @@ export type PublicGoshuinItem = {
   image_url?: string | null;
 };
 
-
-
 export default function PublicGoshuinSection({
   items,
   addGoshuinHref,
   sendingLabel = "この神社の公開分のみ",
-  limit,
+  hasMore = false,
   seeAllHref,
   seeAllLabel = "すべて見る",
 }: {
   items: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
   sendingLabel?: string;
-  limit?: number;
+  hasMore?: boolean;
   seeAllHref?: string | null;
   seeAllLabel?: string;
 }) {
-  const shown = typeof limit === "number" ? items.slice(0, limit) : items;
-  const hasMore = typeof limit === "number" && items.length > limit;
+  const shown = Array.isArray(items) ? items : [];
 
   return (
     <DetailSection
