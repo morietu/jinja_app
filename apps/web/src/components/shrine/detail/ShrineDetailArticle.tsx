@@ -7,6 +7,23 @@ import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCard
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel, ShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
+function pickHeroSubtitle(
+  exp: ShrineExplanation | null | undefined,
+  desc: string | null | undefined,
+): string | undefined {
+  const strong = (exp?.strongHint ?? "").trim();
+  if (strong) return strong.slice(0, 28);
+
+  const summary = (exp?.summary ?? "").trim();
+  if (summary && !summary.includes("判断材料") && !summary.includes("目安") && !summary.includes("情報が少ない"))
+    return summary.slice(0, 28);
+
+  const d = (desc ?? "").trim();
+  if (d && !d.includes("準備中")) return d.slice(0, 28);
+
+  return undefined;
+}
+
 export default function ShrineDetailArticle({
   cardProps,
   heroImageUrl,
@@ -35,15 +52,27 @@ export default function ShrineDetailArticle({
   const heroCardProps = {
     ...cardProps,
     imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null,
-    description: "", // ← ここで被りを止める
-    badges: [], // ← バッジも被るなら消す
   };
-  
+
+    const subtitle = pickHeroSubtitle(exp, cardProps?.description);
+
 
 
   return (
     <article className="space-y-4">
-      <ShrineCard {...heroCardProps} breakdown={null} variant="detail" hideDetailLink showFavorite={false} />
+      <ShrineCard
+        {...heroCardProps}
+        breakdown={null}
+        variant="detail"
+        hideDetailLink
+        showFavorite={false}
+        hideDescription
+        badgesOverride={[]}
+        hideBadges
+        hideLeftMark
+        hideAddress
+        subtitle={subtitle}
+      />
 
       {/* 公開御朱印（3枚 + 条件付きで「すべて見る」） */}
       <section id="goshuins">

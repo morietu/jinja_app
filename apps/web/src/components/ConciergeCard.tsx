@@ -1,3 +1,4 @@
+
 // apps/web/src/components/ConciergeCard.tsx
 "use client";
 
@@ -11,9 +12,13 @@ export type BaseCardProps = {
   imageUrl?: string | null;
 
   description: string;
+  subtitle?: string;
+
   isPrimary?: boolean;
 
   badges?: string[];
+  hideBadges?: boolean;
+  hideLeftMark?: boolean;
 
   detailHref?: string;
   detailLabel?: string;
@@ -53,8 +58,11 @@ export default function ConciergeCard(props: BaseCardProps) {
     address,
     imageUrl,
     description,
+    subtitle,
     isPrimary = false,
     badges = [],
+    hideBadges = false,
+    hideLeftMark = false,
     detailHref,
     detailLabel = "詳細を見る",
     headerRight,
@@ -68,16 +76,14 @@ export default function ConciergeCard(props: BaseCardProps) {
   // disclosureBody が無いカードは「isPrimary ならclampしない / それ以外clamp」
   const clampDesc = disclosureBody ? !open : !isPrimary;
 
+  const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
 
   return (
     <div
       className={cn(
-        // いまどきの「薄い境界 + 影 + 角丸」
         "overflow-hidden rounded-2xl bg-white ring-1 ring-neutral-200/70",
-        "shadow-sm",
-        "transition",
-        // primaryはちょい“主役感”
+        "shadow-sm transition",
         isPrimary && "shadow-md ring-neutral-200",
       )}
     >
@@ -105,7 +111,8 @@ export default function ConciergeCard(props: BaseCardProps) {
       </div>
 
       <div className={cn("px-4", isPrimary ? "py-4" : "py-3")}>
-        {(badges.length > 0 || headerRight) && (
+        {/* badges row */}
+        {!hideBadges && (badges.length > 0 || headerRight) ? (
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex flex-wrap gap-2">
               {badges.map((badge) => (
@@ -123,34 +130,32 @@ export default function ConciergeCard(props: BaseCardProps) {
             </div>
             {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
           </div>
-        )}
+        ) : null}
 
         <div className="flex items-start gap-3">
-          {/* 左の丸アイコン（チープな記号感を少し抑える） */}
-          <div
-            className={cn(
-              "mt-0.5 flex size-9 items-center justify-center rounded-full",
-              "bg-neutral-100 ring-1 ring-inset ring-neutral-200/60",
-            )}
-            aria-hidden="true"
-          >
-            <span className={cn("text-xs font-semibold", isPrimary ? "text-neutral-800" : "text-neutral-600")}>
-              {isPrimary ? "TOP" : "ALT"}
-            </span>
-          </div>
+          {/* left mark */}
+          {!hideLeftMark ? (
+            <div
+              className={cn(
+                "mt-0.5 flex size-9 items-center justify-center rounded-full",
+                "bg-neutral-100 ring-1 ring-inset ring-neutral-200/60",
+              )}
+              aria-hidden="true"
+            >
+              <span className={cn("text-xs font-semibold", isPrimary ? "text-neutral-800" : "text-neutral-600")}>
+                {isPrimary ? "TOP" : "ALT"}
+              </span>
+            </div>
+          ) : null}
 
           <div className="min-w-0 flex-1">
             <h3 className="text-[15px] font-semibold leading-snug text-neutral-900">{title}</h3>
             {address ? <p className="mt-1 truncate text-xs text-neutral-600">{address}</p> : null}
 
-            {/* ✅ ここを変更：desc が空なら p を出さない */}
+            {sub ? <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-800 line-clamp-1">{sub}</p> : null}
+
             {desc ? (
-              <p
-                className={cn(
-                  "mt-2 text-sm leading-relaxed text-neutral-800",
-                  clampDesc && "line-clamp-2 text-neutral-700",
-                )}
-              >
+              <p className={cn("mt-2 text-sm leading-relaxed text-neutral-800", clampDesc && "line-clamp-2 text-neutral-700")}>
                 {desc}
               </p>
             ) : null}
@@ -170,8 +175,7 @@ export default function ConciergeCard(props: BaseCardProps) {
                     "text-sm font-semibold",
                     "bg-neutral-900 text-white",
                     "ring-1 ring-inset ring-black/10",
-                    "transition active:scale-[0.99]",
-                    "hover:bg-neutral-800",
+                    "transition active:scale-[0.99] hover:bg-neutral-800",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
                   )}
                 >
@@ -199,9 +203,7 @@ export default function ConciergeCard(props: BaseCardProps) {
             <Chevron open={open} />
           </button>
 
-          {open ? (
-            <div className="px-4 pb-4 pt-1 text-sm leading-relaxed text-neutral-800">{disclosureBody}</div>
-          ) : null}
+          {open ? <div className="px-4 pb-4 pt-1 text-sm leading-relaxed text-neutral-800">{disclosureBody}</div> : null}
         </div>
       ) : null}
     </div>
