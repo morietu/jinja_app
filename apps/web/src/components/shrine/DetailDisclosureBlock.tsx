@@ -11,9 +11,9 @@ type Props = {
   summary: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
-
   level?: LevelLike;
   hint?: string | null;
+  materials?: Array<{ label: string; value: string }>;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -28,7 +28,15 @@ function levelLabel(level?: LevelLike) {
   return "低"; // weak
 }
 
-export default function DetailDisclosureBlock({ title, summary, defaultOpen = false, children, level, hint }: Props) {
+export default function DetailDisclosureBlock({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+  level,
+  hint,
+  materials = [],
+}: Props) {
   const [open, setOpen] = React.useState(defaultOpen);
   const lv = levelLabel(level);
 
@@ -40,7 +48,20 @@ export default function DetailDisclosureBlock({ title, summary, defaultOpen = fa
         className={cn("w-full px-4 py-3 text-left", "flex items-start justify-between gap-3", "hover:bg-slate-50")}
         aria-expanded={open}
       >
-        <div className="min-w-0">
+        {materials.length ? (
+          <div className="shrink-0 rounded-xl border bg-white p-3">
+            <div className="text-xs font-semibold text-slate-700">材料</div>
+            <ul className="mt-2 space-y-1 text-xs text-slate-700">
+              {materials.map((m) => (
+                <li key={m.label}>
+                  {m.label}：{m.value}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <div className="truncate text-sm font-semibold text-slate-900">{title}</div>
             {lv ? (
