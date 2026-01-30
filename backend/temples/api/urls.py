@@ -12,7 +12,7 @@ from temples.api.views.tags import goriyaku_tags_list
 from temples.api.views.goshuin_feed import PublicGoshuinFeedView
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
-from temples.api.views.shrine_from_place import shrine_from_place
+
 from django.urls import path
 from temples.api.views.shrines_nearby import shrines_nearby
 from temples.api.views.places_resolve import PlacesResolveView
@@ -133,7 +133,7 @@ urlpatterns = [
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
-    path("shrines/from-place/", shrine_from_place, name="shrines-from-place"),
+    
 
     # --- My Goshuin（単数形互換） ---
     path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
