@@ -101,13 +101,13 @@ class ORSAdapter(BaseRouteAdapter):
     def get_leg(self, mode: Mode, a: Point, b: Point) -> Dict:
         if not _allow():
             return {
-                "from": {"lat": a.lat, "lng": a.lng},
-                "to": {"lat": b.lat, "lng": b.lng},
-                "distance_m": 0,  # ← None ではなく 0
-                "duration_s": 0,  # ← None ではなく 0
-                "geometry": [],  # ← 空配列
-                "provider": "throttled",
-            }
+               "from": {"lat": a.lat, "lng": a.lng},
+               "to": {"lat": b.lat, "lng": b.lng},
+               "distance_m": 0,
+               "duration_s": 0,
+               "geometry": [],
+               "provider": "throttled",
+              }
         profile = "foot-walking" if mode == "walking" else "driving-car"
         payload = {"coordinates": [[a.lng, a.lat], [b.lng, b.lat]]}
         ckey = _ck(f"ors:{profile}", payload)
