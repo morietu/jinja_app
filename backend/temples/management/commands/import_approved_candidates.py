@@ -34,18 +34,27 @@ class Command(BaseCommand):
 
             # 2) 重複判定（place_id 優先）
             if place_ref_obj:
-                if Shrine.objects.filter(place_ref=place_ref_obj).exists():
+                existing = Shrine.objects.filter(place_ref=place_ref_obj).values_list("id", flat=True).first()
+                if existing:
                     skipped += 1
+                    self.stdout.write(
+                        f"[import_approved_candidates] skip reason=existing_place_ref "
+                        f"candidate_id={c.id} place_id={place_id} shrine_id={existing} name={c.name_jp}"
+                    )
                     c.status = ShrineCandidate.Status.IMPORTED
                     c.save(update_fields=["status"])
                     continue
             else:
-                if Shrine.objects.filter(name_jp=c.name_jp, address=c.address).exists():
+                existing = Shrine.objects.filter(name_jp=c.name_jp, address=c.address).values_list("id", flat=True).first()
+                if existing:
                     skipped += 1
+                    self.stdout.write(
+                        f"[import_approved_candidates] skip reason=existing_name_address "
+                        f"candidate_id={c.id} place_id={place_id or '-'} shrine_id={existing} name={c.name_jp}"
+                    )
                     c.status = ShrineCandidate.Status.IMPORTED
                     c.save(update_fields=["status"])
                     continue
-
             # 3) Shrine 作成
             data = {
                 "name_jp": c.name_jp,
@@ -57,8 +66,12 @@ class Command(BaseCommand):
             }
             data = {k: v for k, v in data.items() if v is not None}
 
-            Shrine.objects.create(**data)
+            shrine = Shrine.objects.create(**data)
             created += 1
+            self.stdout.write(
+                f"[import_approved_candidates] created candidate_id={c.id} place_id={place_id or '-'} "
+                f"shrine_id={shrine.id} name={c.name_jp}"
+            )
 
             # 4) approved を残さない
             c.status = ShrineCandidate.Status.IMPORTED
