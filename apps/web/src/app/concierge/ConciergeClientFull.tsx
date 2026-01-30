@@ -244,30 +244,33 @@ export default function ConciergeClientFull() {
 
   useEffect(() => {
     if (!isFilterOpen) return;
-    if (tagsLoading || goriyakuTags.length > 0) return;
+    if (goriyakuTags.length > 0) return;
 
-    let alive = true;
-    setTagsLoading(true);
-    setTagsError(null);
+    let cancelled = false;
 
     (async () => {
+      setTagsLoading(true);
+      setTagsError(null);
+
       try {
         const res = await getGoriyakuTags();
-        if (!alive) return;
+        if (cancelled) return;
         setGoriyakuTags(Array.isArray(res) ? res : []);
-      } catch {
-        if (!alive) return;
+      } catch (e) {
+        if (cancelled) return;
         setGoriyakuTags([]);
         setTagsError("ご利益タグの取得に失敗しました");
+        console.warn("getGoriyakuTags failed", e);
       } finally {
-        if (alive) setTagsLoading(false);
+        if (!cancelled) setTagsLoading(false);
       }
     })();
 
     return () => {
-      alive = false;
+      cancelled = true;
     };
-  }, [isFilterOpen, tagsLoading, goriyakuTags.length]);
+    // ✅ tagsLoading を deps に入れない
+  }, [isFilterOpen, goriyakuTags.length]);
 
   /* dev force */
   const force = sp.get("force");
