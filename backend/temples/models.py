@@ -530,14 +530,19 @@ class ConciergeUsage(models.Model):
 # deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
 
 
-class ShrineCandidate(models.Model):
+class ShrineCandidate(dj_models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
+        AUTO = "auto", "Auto"
         APPROVED = "approved", "Approved"
-        REJECTED = "rejected", "Rejected"
         IMPORTED = "imported", "Imported"
+        REJECTED = "rejected", "Rejected"
 
-    # できれば place_id を主キー級に扱う（Google Placesを使うなら）
+    class Source(models.TextChoices):
+        RESOLVE = "resolve", "Resolve"
+        MANUAL = "manual", "Manual"
+        PLACES_FIND = "places_find", "PlacesFind"
+        STUB = "stub", "Stub (legacy)"
+
     place_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 
     name_jp = models.CharField(max_length=255)
@@ -545,30 +550,36 @@ class ShrineCandidate(models.Model):
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
 
-    # goriyaku はまずは文字列でOK（あとで推定/付与するなら拡張）
     goriyaku = models.CharField(max_length=255, blank=True, default="")
 
-    # 取得元メタ
-    source = models.CharField(max_length=64, default="manual")  # places|manual|etc
+    source = models.CharField(
+        max_length=64,
+        choices=Source.choices,
+        default=Source.MANUAL,
+        db_index=True,
+    )
     raw = models.JSONField(default=dict, blank=True)
 
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.AUTO,
+        db_index=True,
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-
     synced_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["status", "created_at"]),
         ]
-        # place_id があるならユニーク寄りにすると重複が激減する
         constraints = [
             models.UniqueConstraint(
-                fields=["place_id"],
+                fields=["place_id", "status"],
                 name="uniq_candidate_place_id",
-                condition=models.Q(place_id__isnull=False),
+                condition=Q(place_id__isnull=False),
             )
         ]
 
