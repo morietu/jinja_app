@@ -11,10 +11,9 @@ const WEB_BASE = process.env.PLAYWRIGHT_BASE_URL || process.env.NEXT_PUBLIC_WEB_
 
 const WEB_API_BASE = `${WEB_BASE}/api`;
 
-// ✅ 詳細は backend の /data/ を叩く（/api/shrines/:id/ は 404/blocked のため）
+// ✅ 詳細は Next の /api 経由で叩く（直叩き禁止）
 export async function getShrine(id: number): Promise<Shrine> {
-  const backend = process.env.BACKEND_URL || "http://127.0.0.1:8000";
-  const url = `${backend}/api/shrines/${id}/data/`;
+  const url = `${WEB_API_BASE}/shrines/${id}/data/`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`failed to fetch shrine(data): ${res.status}`);
@@ -53,5 +52,3 @@ export async function createShrine(payload: Partial<Shrine> & Record<string, any
   const res = await api.post("/shrines/", payload);
   return res.data as Shrine;
 }
-
-
