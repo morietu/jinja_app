@@ -8,7 +8,7 @@ import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 import { devLog } from "@/lib/client/logging";
-import { resolveShrineIdFromPlace } from "@/lib/api/shrineFromPlace";
+
 
 export type InitialSelect = {
   shrineId: number | null;
@@ -135,12 +135,31 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
   const qpAddr = sp.get("addr");
 
   const ensureShrine = useCallback(async (placeId: string) => {
-    const res = await resolveShrineIdFromPlace(placeId);
+    const pid = (placeId ?? "").trim();
+    if (!pid) throw new Error("resolve missing place_id");
 
-    if (res.status === "ok") return { shrine_id: res.shrineId };
-    if (res.status === "unauth") throw new Error("from-place unauth");
-    throw new Error("from-place failed");
+    const r = await fetch("/api/places/resolve/", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ place_id: pid }),
+    });
+
+    if (r.status === 401 || r.status === 403) throw new Error("resolve unauth");
+    if (!r.ok) throw new Error(`resolve failed: ${r.status}`);
+
+    const data = await r.json().catch(() => null);
+
+    const shrineId = Number(data?.shrine_id ?? data?.shrineId ?? data?.id ?? NaN);
+    if (!Number.isFinite(shrineId) || shrineId <= 0) throw new Error("resolve no shrine");
+
+    return { shrine_id: shrineId };
   }, []);
+
 
   const goPicked = useCallback(async () => {
     if (pick !== "goshuin") return;

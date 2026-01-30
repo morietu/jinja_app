@@ -36,3 +36,16 @@ export async function getNearbyShrines({ lat, lng, limit = 20 }: NearbyParams) {
   const data = (await res.json()) as NearbyShrine[];
   return { data, abort: () => ctrl.abort() };
 }
+
+export async function resolvePlace(place_id: string): Promise<{
+  shrine_id: number;
+  place_id: string;
+  candidate_id?: number;
+}> {
+  const res = await apiPost<any>("/places/resolve/", { place_id }); // ← backend に合わせる
+  return {
+    shrine_id: Number(res.shrine_id ?? res.id),
+    place_id: String(res.place_id ?? place_id),
+    candidate_id: res.candidate_id ? Number(res.candidate_id) : undefined,
+  };
+}

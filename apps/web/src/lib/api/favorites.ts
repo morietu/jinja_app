@@ -1,19 +1,11 @@
-// apps/web/src/lib/api/favorites.ts
 import api from "./client";
 
 export type Favorite = {
   id: number;
-
-  // 旧形式（既存互換）
   shrine_id?: number | null;
   place_id?: string | null;
-
-  // 新形式（現状のAPIレスポンスに合わせる）
   target_type?: "shrine" | "place" | string;
   target_id?: number | string | null;
-  
-
-  // ネストで shrine が返るケース（あなたのプレビューにある）
   shrine?: { id?: number | null; name_jp?: string | null; address?: string | null } | null;
 };
 
@@ -34,7 +26,9 @@ export async function createFavoriteByShrineId(shrineId: number): Promise<Favori
   };
 }
 
+// ✅ place_id で作成し、バックエンドが薄くてもフロント側で最低限補完する
 export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
+  // シンプルに place_id で作成し、バックエンドが何も返さなくても自前で補完する
   const r = await api.post("/favorites/", { place_id: placeId });
   const raw = r.data as Favorite;
   return {
@@ -54,13 +48,12 @@ export async function removeFavoriteByShrineId(shrineId: number) {
 }
 
 export async function removeFavoriteByPlaceId(placeId: string) {
+  // 互換用に残す。将来的に消したいなら呼び出し側を全部 shrine_id 化してから。
   await api.delete(`/favorites/by-place/${placeId}/`);
 }
 
 export type ImportResult = { imported: number; shrine_id?: number };
 export async function importFromPlace(placeId: string): Promise<ImportResult> {
-  const r = await api.post(`/favorites/import-from-place/`, {
-    place_id: placeId,
-  });
+  const r = await api.post(`/favorites/import-from-place/`, { place_id: placeId });
   return r.data;
 }

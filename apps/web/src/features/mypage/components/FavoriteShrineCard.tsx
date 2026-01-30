@@ -32,9 +32,9 @@ export function FavoriteShrineCard({
   const href = shrineId
     ? `/shrines/${shrineId}`
     : placeId
-      ? `/shrines/from-place/${encodeURIComponent(placeId)}`
-      : null;
-
+      ? `/shrines/resolve?place_id=${encodeURIComponent(placeId)}`
+      : "/map";
+      
   const title =
     (favorite.shrine?.name_jp && favorite.shrine.name_jp.trim()) ||
     (shrineId ? `神社 #${shrineId}` : placeId ? `place_id: ${placeId}` : `id: ${favorite.id}`);
