@@ -581,10 +581,11 @@ class PlacesFindPlaceView(APIView):
                 return Response({"detail": "place has no geometry on PlaceRef"}, status=502)
 
             shrine = Shrine.objects.create(
-                name_jp=name,
-                address=address,
-                latitude=lat,
-                longitude=lng,
+                name_jp=getattr(pr, "name", "") or "",
+                address=getattr(pr, "address", "") or "",
+                latitude=getattr(pr, "latitude", None),
+                longitude=getattr(pr, "longitude", None),
+                place_ref=pr,
             )
 
             # 4) PlaceRef に Shrine をひも付け（FK がある前提）
