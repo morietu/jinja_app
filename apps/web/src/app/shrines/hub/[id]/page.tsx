@@ -21,9 +21,9 @@ export default async function Page({ params, searchParams }: Props) {
     redirect(dest);
   }
 
-  // 数値じゃなければ place_id とみなして from-place へ
-  const dest = q.toString()
-    ? `/shrines/from-place/${encodeURIComponent(id)}?${q.toString()}`
-    : `/shrines/from-place/${encodeURIComponent(id)}`;
-  redirect(dest);
+  // 数値じゃなければ place_id とみなして resolve へ
+  const q2 = new URLSearchParams(q);
+  q2.set("place_id", id);
+
+  redirect(`/shrines/resolve?${q2.toString()}`);
 }

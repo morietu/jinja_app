@@ -10,7 +10,6 @@ type Props = {
   description: string;
   imageUrl?: string | null;
 
-  // ✅ 追加：concierge から来た時に ctx/tid を保持する
   detailHref?: string;
   detailLabel?: string;
 };
@@ -24,7 +23,7 @@ export default function PlaceShrineCard({
   detailHref,
   detailLabel = "詳細を見る",
 }: Props) {
-  const href = detailHref ?? `/shrines/from-place/${encodeURIComponent(placeId)}`;
+  const href = detailHref ?? `/shrines/resolve?place_id=${encodeURIComponent(placeId)}`;
 
   return (
     <ConciergeCard
@@ -34,7 +33,7 @@ export default function PlaceShrineCard({
       description={description}
       badges={["未登録"]}
       detailHref={href}
-      detailLabel={detailLabel} // ✅ 追加
+      detailLabel={detailLabel}
     />
   );
 }

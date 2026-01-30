@@ -1,19 +1,12 @@
-// apps/web/src/lib/api/favorites.ts
 import api from "./client";
+import { resolvePlace } from "@/lib/api/places";
 
 export type Favorite = {
   id: number;
-
-  // 旧形式（既存互換）
   shrine_id?: number | null;
   place_id?: string | null;
-
-  // 新形式（現状のAPIレスポンスに合わせる）
   target_type?: "shrine" | "place" | string;
   target_id?: number | string | null;
-  
-
-  // ネストで shrine が返るケース（あなたのプレビューにある）
   shrine?: { id?: number | null; name_jp?: string | null; address?: string | null } | null;
 };
 
@@ -34,15 +27,10 @@ export async function createFavoriteByShrineId(shrineId: number): Promise<Favori
   };
 }
 
+// ✅ place は resolve して shrine に正規化して作る（ここが本題）
 export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
-  const r = await api.post("/favorites/", { place_id: placeId });
-  const raw = r.data as Favorite;
-  return {
-    ...raw,
-    place_id: raw.place_id ?? placeId,
-    target_type: raw.target_type ?? "place",
-    target_id: raw.target_id ?? placeId,
-  };
+  const resolved = await resolvePlace(placeId);
+  return createFavoriteByShrineId(resolved.shrine_id);
 }
 
 export async function removeFavoriteByPk(pk: number) {
@@ -54,13 +42,12 @@ export async function removeFavoriteByShrineId(shrineId: number) {
 }
 
 export async function removeFavoriteByPlaceId(placeId: string) {
+  // 互換用に残す。将来的に消したいなら呼び出し側を全部 shrine_id 化してから。
   await api.delete(`/favorites/by-place/${placeId}/`);
 }
 
 export type ImportResult = { imported: number; shrine_id?: number };
 export async function importFromPlace(placeId: string): Promise<ImportResult> {
-  const r = await api.post(`/favorites/import-from-place/`, {
-    place_id: placeId,
-  });
+  const r = await api.post(`/favorites/import-from-place/`, { place_id: placeId });
   return r.data;
 }
