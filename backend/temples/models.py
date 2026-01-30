@@ -4,6 +4,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+from django.db import models
+from django.utils import timezone
 
 
 
@@ -526,3 +528,49 @@ class ConciergeUsage(models.Model):
 
 # Shrine に ManyToMany を追加（既存 Shrine クラス内）
 # deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
+
+
+class ShrineCandidate(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        IMPORTED = "imported", "Imported"
+
+    # できれば place_id を主キー級に扱う（Google Placesを使うなら）
+    place_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+
+    name_jp = models.CharField(max_length=255)
+    address = models.CharField(max_length=512, blank=True, default="")
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
+
+    # goriyaku はまずは文字列でOK（あとで推定/付与するなら拡張）
+    goriyaku = models.CharField(max_length=255, blank=True, default="")
+
+    # 取得元メタ
+    source = models.CharField(max_length=64, default="manual")  # places|manual|etc
+    raw = models.JSONField(default=dict, blank=True)
+
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    synced_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+        ]
+        # place_id があるならユニーク寄りにすると重複が激減する
+        constraints = [
+            models.UniqueConstraint(
+                fields=["place_id"],
+                name="uniq_candidate_place_id",
+                condition=models.Q(place_id__isnull=False),
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.status}] {self.name_jp}"
