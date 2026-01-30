@@ -28,7 +28,6 @@ export function usePopularShrines(opts: {
             limit,
             near,
             radius_km: radiusKm,
-            urlOverride,
           });
           setItems((prev) => [...prev, ...got]);
           setNext(next ?? null);
@@ -41,14 +40,12 @@ export function usePopularShrines(opts: {
           limit,
           near,
           radius_km: radiusKm,
-          urlOverride: null,
         });
 
         // 近傍指定あり ＋ 0件 → 全国人気TOPにフォールバック
         if (near && radiusKm && first.length === 0) {
           const { items: fbItems, next: fbNext } = await fetchPopular({
             limit,
-            urlOverride: null, // near 指定なし
           });
           setItems(fbItems);
           setNext(fbNext ?? null);

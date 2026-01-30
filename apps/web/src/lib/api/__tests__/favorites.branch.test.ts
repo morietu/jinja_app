@@ -16,10 +16,9 @@ import api from "../client";
 import {
   getFavorites,
   createFavoriteByShrineId,
-  createFavoriteByPlaceId,
+  
   removeFavoriteByPk,
   removeFavoriteByShrineId,
-  removeFavoriteByPlaceId,
 } from "../favorites";
 
 describe("favorites api branches", () => {
@@ -58,25 +57,15 @@ describe("favorites api branches", () => {
     expect(res.shrine?.id).toBe(123);
   });
 
-  it("createFavoriteByPlaceId: raw が空でも fallback で place_id/target を埋める", async () => {
-    (api.post as any).mockResolvedValue({ data: { id: 11 } });
-    const res = await createFavoriteByPlaceId("pid_abc");
-
-    expect(api.post).toHaveBeenCalledWith("/favorites/", { place_id: "pid_abc" });
-
-    expect(res.place_id).toBe("pid_abc");
-    expect(res.target_type).toBe("place");
-    expect(res.target_id).toBe("pid_abc");
-  });
+ 
 
   it("removeFavorite* は正しいURLで delete を呼ぶ", async () => {
     (api.delete as any).mockResolvedValue({});
     await removeFavoriteByPk(1);
     await removeFavoriteByShrineId(2);
-    await removeFavoriteByPlaceId("pid");
+
 
     expect(api.delete).toHaveBeenNthCalledWith(1, "/favorites/1/");
     expect(api.delete).toHaveBeenNthCalledWith(2, "/favorites/by-shrine/2/");
-    expect(api.delete).toHaveBeenNthCalledWith(3, "/favorites/by-place/pid/");
   });
 });
