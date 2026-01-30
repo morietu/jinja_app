@@ -52,8 +52,4 @@ export async function removeFavoriteByPlaceId(placeId: string) {
   await api.delete(`/favorites/by-place/${placeId}/`);
 }
 
-export type ImportResult = { imported: number; shrine_id?: number };
-export async function importFromPlace(placeId: string): Promise<ImportResult> {
-  const r = await api.post(`/favorites/import-from-place/`, { place_id: placeId });
-  return r.data;
-}
+
