@@ -20,7 +20,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:contract": "vitest run --reporter=dot --pool=threads"
+    "test:contract": "vitest run --reporter=dot --pool=threads",
+    "guard:no-backend-direct": "rg -n \"(BACKEND_URL|https?://127\\\\.0\\\\.0\\\\.1:8000|https?://localhost:8000|https?://[^\\s'\\\"]+:8000)\" src --glob \"!src/app/api/**\" --glob \"!src/app/**/route.ts\" --glob \"!src/lib/server/**\" --glob \"!src/lib/bff/**\" --glob \"!src/**/*.test.*\" --glob \"!src/**/__tests__/**\" && (echo \"❌ Direct backend access found\" && exit 1) || exit 0"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

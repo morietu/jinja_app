@@ -83,15 +83,15 @@ describe("goshuin api client", () => {
     expect(res).toEqual([{ id: 20 }]);
   });
 
-  it("getGoshuinPublicAuto はレスポンスなしの AxiosError の場合、絶対URLで axios.get を叩く", async () => {
+  it("getGoshuinPublicAuto はレスポンスなしの AxiosError の場合も直叩きせず空配列を返す", async () => {
     apiGetMock().mockRejectedValueOnce({ isAxiosError: true, response: undefined });
 
-    const axiosSpy = vi.spyOn(axios, "get").mockResolvedValueOnce({ data: [{ id: 30 }] } as any);
+    const axiosSpy = vi.spyOn(axios, "get");
 
     const res = await getGoshuinPublicAuto();
 
-    expect(axiosSpy).toHaveBeenCalledTimes(1);
-    expect(res).toEqual([{ id: 30 }]);
+    expect(axiosSpy).toHaveBeenCalledTimes(0);
+    expect(res).toEqual([]);
   });
 
   it("getGoshuinPublicAuto は 401/403 の場合は空配列を返す", async () => {

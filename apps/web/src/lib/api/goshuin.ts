@@ -11,9 +11,9 @@ import type { Goshuin as GoshuinType } from "./types";
 
 export type GoshuinCount = { count: number; limit: number; remaining: number; can_add: boolean };
 
-const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
 
-const PUBLIC_CANDIDATES = ["/goshuin/", "/goshuin/public/"] as const;
+
+const PUBLIC_CANDIDATES = ["/goshuins/", "/goshuin/", "/goshuin/public/"] as const;
 const MY_CANDIDATES = ["/my/goshuins/"] as const;
 
 function toList(data: any): GoshuinType[] {
@@ -22,17 +22,13 @@ function toList(data: any): GoshuinType[] {
   return [];
 }
 
-async function fetchPublicFromBackend(): Promise<GoshuinType[]> {
-  const base = BACKEND_ORIGIN.replace(/\/+$/, "");
-  const url = `${base}/api/goshuins/`;
-  const r = await axios.get<any>(url, { withCredentials: true });
-  return toList(r.data);
-}
+
 
 export async function fetchPublicGoshuin(): Promise<GoshuinType[]> {
   const r = await api.get<any>("/goshuins/");
   return toList(r.data);
 }
+
 
 export async function getGoshuinPublicAuto(): Promise<GoshuinType[]> {
   for (const path of PUBLIC_CANDIDATES) {
@@ -41,18 +37,19 @@ export async function getGoshuinPublicAuto(): Promise<GoshuinType[]> {
       return toList(r.data);
     } catch (err: any) {
       if (!axios.isAxiosError(err)) return [];
+
       const status = err.response?.status;
 
+      // 認証エラーは「見せない」でOK
       if (status === 401 || status === 403) return [];
-      if (!err.response) {
-        try {
-          return await fetchPublicFromBackend();
-        } catch {
-          return [];
-        }
-      }
+
+      // ネットワークエラー等（err.response が無い）も直叩きしない
+      if (!err.response) return [];
+
+      // 404 は候補を次へ。それ以外はログだけ出して終了
       if (status !== 404) {
-        devLog("getMyGoshuinAuto:NON_404_ERROR", { status });
+        devLog("getGoshuinPublicAuto:NON_404_ERROR", { status });
+        return [];
       }
     }
   }

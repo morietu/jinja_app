@@ -1,9 +1,6 @@
-// src/lib/api/ranking.ts
-
+// apps/web/src/lib/api/ranking.ts
+import api from "./client";
 import type { GoriyakuTag } from "./types";
-
-// 固定でバックエンドの絶対 URL を指定して、localhost:3000 のプロキシ経由にならないようにする
-const POPULARS_API_BASE = "http://127.0.0.1:8000/api/populars/";
 
 export type RankingItem = {
   id: number;
@@ -19,12 +16,8 @@ export type RankingItem = {
 
 export type Period = "monthly" | "yearly";
 
-/**
- * Normalize raw API items into our RankingItem shape.
- */
 export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
   if (!Array.isArray(rawItems)) return [];
-
   return rawItems.map(
     (s: any): RankingItem => ({
       id: s.id,
@@ -41,18 +34,9 @@ export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
 }
 
 export async function fetchRanking(period: Period): Promise<RankingItem[]> {
-  const url = `${POPULARS_API_BASE}?period=${period}&limit=10`;
+  const r = await api.get("/populars/", { params: { period, limit: 10 } });
 
- 
-
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("failed to fetch ranking");
-  }
-
-  const data = await res.json();
-
-  // API may return either array directly or paginated shape { results: [...] } or { items: [...] }
+  const data = r.data;
   const items = Array.isArray(data)
     ? data
     : Array.isArray(data.results)

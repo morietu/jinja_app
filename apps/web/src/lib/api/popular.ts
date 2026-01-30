@@ -6,22 +6,42 @@ export type { Shrine } from "./types";
 type FetchPopularOptions = {
   limit?: number;
   near?: string; // "lat,lng"
-  radius_km?: number; // backend 側と同じ param 名にしておく
+  radius_km?: number;
   urlOverride?: string | null;
 };
 
-const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://127.0.0.1:8000";
-const POPULARS_API_BASE = `${BACKEND_ORIGIN}/api/populars/`;
+// ✅ BFF 経由に統一（直叩き禁止）
+const POPULARS_API_BASE = "/api/populars/";
+
+/**
+ * backend の next がフルURLで返ってきても、BFF 経由に正規化して叩く。
+ * - "/api/..." はそのまま
+ * - "http(s)://.../api/..." は "/api/..." に落とす
+ */
+function normalizeNextUrl(u: string): string {
+  if (u.startsWith("/api/")) return u;
+
+  try {
+    const parsed = new URL(u);
+    const idx = parsed.pathname.indexOf("/api/");
+    if (idx >= 0) {
+      const pathAndQuery = parsed.pathname.slice(idx) + (parsed.search ?? "");
+      return pathAndQuery; // "/api/..."
+    }
+  } catch {
+    // ignore
+  }
+  return u; // 最後の保険（ただし基本ここには来ない想定）
+}
 
 export async function fetchPopular(opts: FetchPopularOptions) {
   const { limit, near, radius_km, urlOverride } = opts;
 
-  // next ページ用に、backend から返ってきた next のフル URL をそのまま叩くパス
+  // next ページ用: 返ってきた next を正規化して BFF 経由で叩く
   if (urlOverride) {
-    const res = await fetch(urlOverride, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error("failed to fetch popular shrines");
-    }
+    const url = normalizeNextUrl(urlOverride);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("failed to fetch popular shrines");
     const data = await res.json();
     const items = Array.isArray(data)
       ? data
@@ -34,21 +54,15 @@ export async function fetchPopular(opts: FetchPopularOptions) {
     return { items: items as Shrine[], next };
   }
 
-  // ✅ 通常パス: Django(8000) の /api/populars/ を直接叩く
-  const searchParams = new URLSearchParams();
-  if (limit != null) searchParams.set("limit", String(limit));
-  if (near) searchParams.set("near", near);
-  if (radius_km != null) searchParams.set("radius_km", String(radius_km));
+  const sp = new URLSearchParams();
+  if (limit != null) sp.set("limit", String(limit));
+  if (near) sp.set("near", near);
+  if (radius_km != null) sp.set("radius_km", String(radius_km));
 
-  const query = searchParams.toString();
-  const url = query.length > 0 ? `${POPULARS_API_BASE}?${query}` : POPULARS_API_BASE;
-
-  
+  const url = sp.toString() ? `${POPULARS_API_BASE}?${sp.toString()}` : POPULARS_API_BASE;
 
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("failed to fetch popular shrines");
-  }
+  if (!res.ok) throw new Error("failed to fetch popular shrines");
 
   const data = await res.json();
   const items = Array.isArray(data)
