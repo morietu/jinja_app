@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
-function rewritePageLink(v: unknown, req: NextRequest): string | null {
-  if (typeof v !== "string" || v.length === 0) return null;
+function rewritePageLink(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
 
   try {
-    const u = new URL(v, req.nextUrl.origin);
-
-    // ✅ populars 以外は触らない（事故防止）
-    if (!u.pathname.includes("/api/populars/")) return v;
-
-    // ✅ クエリだけ抜き出して、BFF の /api/populars/ に寄せる
-    return `${req.nextUrl.origin}/api/populars/${u.search}`;
+    // upstream は絶対URLを返しがちなので URL としてパース
+    // 相対が来ても parse できるように base は適当に噛ませる
+    const u = new URL(value, "http://example.local");
+    const qs = u.search; // "?limit=...&offset=..." など
+    return `/api/populars/${qs}`;
   } catch {
-    // 壊れたURLは握りつぶさず、そのまま返す方がデバッグしやすい
-    return typeof v === "string" ? v : null;
+    return null;
   }
 }
 
@@ -23,7 +20,7 @@ export async function GET(req: NextRequest) {
   const upstream = await djFetch(req, upstreamPath, { method: "GET" });
 
   if (!upstream.ok) {
-    const text = await upstream.text();
+    const text = await upstream.text().catch(() => "");
     return NextResponse.json(
       {
         error: "upstream_failed",
@@ -35,7 +32,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // ✅ JSONとして取得（パースも型も素直）
+  // ✅ JSONとして扱う（文字列→JSON→再JSON で変換漏れが減る）
   let data: any;
   try {
     data = await upstream.json();
@@ -44,8 +41,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (data && typeof data === "object") {
-    data.next = rewritePageLink(data.next, req);
-    data.previous = rewritePageLink(data.previous, req);
+    const next = rewritePageLink(data.next);
+    const prev = rewritePageLink(data.previous);
+
+    // 方針：変換できないものは null に倒す（BFF境界の外は見せない）
+    if ("next" in data) data.next = next;
+    if ("previous" in data) data.previous = prev;
   }
 
   return NextResponse.json(data);

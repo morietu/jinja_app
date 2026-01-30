@@ -33,3 +33,18 @@ export async function fetchPopular(opts: FetchPopularOptions) {
     next: typeof data.next === "string" ? data.next : null, // ← BFF が /api/populars/?... に直してくれる前提
   };
 }
+
+export async function fetchPopularPage(nextUrl: string) {
+  if (typeof nextUrl !== "string" || !nextUrl.startsWith("/api/populars/")) {
+    throw new Error("invalid populars next url");
+  }
+
+  const res = await fetch(nextUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error("failed to fetch popular shrines");
+
+  const data = await res.json();
+  return {
+    items: toItems(data),
+    next: typeof data.next === "string" ? data.next : null,
+  };
+}
