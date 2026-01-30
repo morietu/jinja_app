@@ -1,8 +1,7 @@
-// apps/web/src/hooks/usePopularShrines.ts
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchPopular, type Shrine } from "@/lib/api/popular";
+import { fetchPopular, fetchPopularPage, type Shrine } from "@/lib/api/popular";
 
 export function usePopularShrines(opts: {
   limit?: number;
@@ -17,58 +16,54 @@ export function usePopularShrines(opts: {
   const [error, setError] = useState<string | null>(null);
   const [isFallback, setIsFallback] = useState(false);
 
-  const load = useCallback(
-    async (urlOverride?: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        // ▼ next ページ用：backend から返ってきた URL をそのまま叩く
-        if (urlOverride) {
-          const { items: got, next } = await fetchPopular({
-            limit,
-            near,
-            radius_km: radiusKm,
-          });
-          setItems((prev) => [...prev, ...got]);
-          setNext(next ?? null);
-          // ページング時はフォールバック状態そのまま
-          return;
-        }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-        // ▼ 1ページ目：近傍付きで取得
-        const { items: first, next: firstNext } = await fetchPopular({
-          limit,
-          near,
-          radius_km: radiusKm,
-        });
+    try {
+      const { items: first, next: firstNext } = await fetchPopular({
+        limit,
+        near,
+        radius_km: radiusKm,
+      });
 
-        // 近傍指定あり ＋ 0件 → 全国人気TOPにフォールバック
-        if (near && radiusKm && first.length === 0) {
-          const { items: fbItems, next: fbNext } = await fetchPopular({
-            limit,
-          });
-          setItems(fbItems);
-          setNext(fbNext ?? null);
-          setIsFallback(true);
-        } else {
-          setItems(first);
-          setNext(firstNext ?? null);
-          setIsFallback(false);
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "failed to fetch popular shrines");
-      } finally {
-        setLoading(false);
+      if (near && radiusKm && first.length === 0) {
+        const { items: fbItems, next: fbNext } = await fetchPopular({ limit });
+        setItems(fbItems);
+        setNext(fbNext ?? null);
+        setIsFallback(true);
+      } else {
+        setItems(first);
+        setNext(firstNext ?? null);
+        setIsFallback(false);
       }
-    },
-    [limit, near, radiusKm],
-  );
+    } catch (e: any) {
+      setError(e?.message ?? "failed to fetch popular shrines");
+    } finally {
+      setLoading(false);
+    }
+  }, [limit, near, radiusKm]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const loadMore = useCallback(() => (next ? load(next) : undefined), [next, load]);
+  const loadMore = useCallback(async () => {
+    if (!next) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { items: got, next: n2 } = await fetchPopularPage(next);
+      setItems((prev) => [...prev, ...got]);
+      setNext(n2 ?? null);
+    } catch (e: any) {
+      setError(e?.message ?? "failed to fetch popular shrines");
+    } finally {
+      setLoading(false);
+    }
+  }, [next]);
 
   return { items, loading, error, next, loadMore, isFallback };
 }
