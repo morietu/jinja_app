@@ -53,6 +53,10 @@ jobs:
         working-directory: apps/web
         run: pnpm exec tsc -p tsconfig.json --noEmit
 
+      - name: Guard - no direct backend access in client code
+        working-directory: apps/web
+        run: pnpm guard:no-backend-direct
+
       - name: Test with coverage
         working-directory: apps/web
         run: pnpm test:cov
