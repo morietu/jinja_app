@@ -15,7 +15,7 @@ from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.shrine_from_place import shrine_from_place
 from django.urls import path
 from temples.api.views.shrines_nearby import shrines_nearby
-
+from temples.api.views.places_resolve import PlacesResolveView
 
 from temples.api_views import FavoriteViewSet
 
@@ -99,6 +99,7 @@ except Exception:
         return detail(dj_req, id, *args, **kwargs)
 
 
+
 app_name = "temples"
 
 router = DefaultRouter()
@@ -106,104 +107,61 @@ router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuins")
 router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
-urlpatterns = router.urls
 
 # ★ MyGoshuinViewSet のエイリアス（単数形パス用）
-my_goshuin_list_view = MyGoshuinViewSet.as_view({
-    "get": "list",
-    "post": "create",
-})
-
-my_goshuin_detail_view = MyGoshuinViewSet.as_view({
-    "get": "retrieve",
-    "patch": "partial_update",
-    "delete": "destroy",
-})
-
-
-def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
-    # temples 側の詳細 API は別口（またはブロック）という仕様なので 404
-    raise Http404()
+my_goshuin_list_view = MyGoshuinViewSet.as_view({"get": "list", "post": "create"})
+my_goshuin_detail_view = MyGoshuinViewSet.as_view(
+    {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
+)
 
 # ViewSet の明示エイリアス（reverse 名称の安定化）
 shrine_list_view = ShrineViewSet.as_view({"get": "list"})
-shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # 参照される可能性があるため維持
+shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # /data/ 用
 
-
-def _legacy_redirect(path):
-    def _view(request, *args, **kwargs):
-        return HttpResponsePermanentRedirect(path)
-
-    return _view
-
+def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
+    raise Http404()
 
 urlpatterns = [
-    # ---- Routes（複数形: 正規） --------------------------------------------
+    # ---- Routes -----------------------------------------------------------
     path("routes/", RouteAPIView.as_view(), name="routes"),
     path("shrines/<int:pk>/route/", RouteView.as_view(), name="shrine_route"),
-    # ---- Shrines -----------------------------------------------------------
-    path("shrines/", shrine_list_view, name="shrine_list"),
-    # 既存 API 名 'shrine_detail' はブロック用のまま維持（テスト用）
-    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
-    
-    # Web 用の実データエンドポイント（新設）
-    path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
-    
-    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
-    path("shrines/nearby/", shrines_nearby),
+    path("routes/health/", route_health, name="route_health"),
+    path("route/", RouteAPIView.as_view(), name="route-legacy"),
 
+    # ---- Shrines ----------------------------------------------------------
+    path("shrines/", shrine_list_view, name="shrine_list"),
+    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
+    path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
+    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     path("shrines/from-place/", shrine_from_place, name="shrines-from-place"),
 
-    
-    # --- My Goshuin（単数形 /api/my/goshuin/... 互換） ---
+    # --- My Goshuin（単数形互換） ---
     path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
     path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),
 
-    # ---- Popular（複数形に） ------------------------------------------------
-    # ※ テストは 'popular-shrines' を参照するため、name は従来に合わせる
+    # ---- Popular ----------------------------------------------------------
     path("populars/", PopularShrineListView.as_view(), name="popular-shrines"),
 
-    # ---- Concierge（複数形: 正規） ---------------------------------------
+    # ---- Concierge --------------------------------------------------------
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
     path("concierge/chat", concierge_chat_compat, name="concierge-chat-noslash"),
-
-    # plan はこれまで通り
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
 
-    path(
-        "concierge-threads/",
-        ConciergeThreadListView.as_view(),
-        name="concierge-thread-list",
-    ),
-    path(
-        "concierge-threads",
-        ConciergeThreadListView.as_view(),
-        name="concierge-thread-list-noslash",
-    ),
-    path(
-        "concierge-threads/<int:pk>/",
-        ConciergeThreadDetailView.as_view(),
-        name="concierge-thread-detail",
-    ),
-    path(
-        "concierge-threads/<int:pk>",
-        ConciergeThreadDetailView.as_view(),
-        name="concierge-thread-detail-noslash",
-    ),
+    path("concierge-threads/", ConciergeThreadListView.as_view(), name="concierge-thread-list"),
+    path("concierge-threads", ConciergeThreadListView.as_view(), name="concierge-thread-list-noslash"),
+    path("concierge-threads/<int:pk>/", ConciergeThreadDetailView.as_view(), name="concierge-thread-detail"),
+    path("concierge-threads/<int:pk>", ConciergeThreadDetailView.as_view(), name="concierge-thread-detail-noslash"),
 
-    
+    # ---- Billing ----------------------------------------------------------
     path("billing/status/", BillingStatusLegacyView.as_view(), name="billing-status-legacy"),
     path("billings/status/", BillingStatusView.as_view(), name="billing-status"),
-    # 互換を残すなら（OpenAPIに載せない）
-    # path("billing/status/", BillingStatusView.as_view(), name="billing-status-legacy"),
 
+    # ---- Profiles / Tags / Feed ------------------------------------------
     path("profiles/<str:username>/", public_profile, name="public_profile"),
-    
     path("goriyaku-tags/", goriyaku_tags_list, name="goriyaku-tags"),
     path("goshuins/feed/", PublicGoshuinFeedView.as_view(), name="public-goshuin-feed"),
-    
-    
-    # ---- Places（kebab-case & {id} 統一） -----------------------------------
+
+    # ---- Places -----------------------------------------------------------
     path("places/search/", search, name="places-search"),
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
@@ -212,24 +170,16 @@ urlpatterns = [
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
-    
     path("places/find/", places_find, name="places-find-lite"),
+    path("places/resolve/", PlacesResolveView.as_view(), name="places-resolve"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
 
-
-    
-    # --- Geocodes (複数形: 正規) ---
+    # ---- Geocodes ---------------------------------------------------------
     path("geocodes/search/", geocode_search, name="geocodes-search"),
     path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
-    # --- Geocode (単数形: レガシー。schema から除外されるハンドラに接続) ---
     path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
     path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
-    # --- Route (単数形: レガシー) ---
-    path("route/", RouteAPIView.as_view(), name="route-legacy"),
-    path("routes/health/", route_health, name="route_health"),
 
     # router は最後に1回だけ
     path("", include(router.urls)),
-    
-    
 ]

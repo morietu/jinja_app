@@ -17,10 +17,14 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
-from ..models import PlaceRef
+from ..models import PlaceRef, Shrine
 from . import google_places  # 低レベルHTTPクライアント（関数型）に統一
 
 from rest_framework import serializers
+
+from django.db import transaction
+
+
 
 req_history = google_places.req_history
 
@@ -31,6 +35,26 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = 10  # seconds
 
 DEBUG_PLACES_RANKING = os.getenv("PLACES_DEBUG", "0").lower() in {"1", "true", "on"}
+
+
+@transaction.atomic
+def get_or_create_shrine_by_place_id(place_id: str) -> Shrine:
+    pr = get_or_sync_place(place_id)
+
+    shrine = getattr(pr, "shrine", None)  # reverse OneToOne
+    if shrine and shrine.id:
+        return shrine
+
+    if pr.latitude is None or pr.longitude is None:
+        raise PlacesError("place has no geometry on PlaceRef", status=502)
+
+    return Shrine.objects.create(
+        name_jp=pr.name or "",
+        address=pr.address or "",
+        latitude=pr.latitude,
+        longitude=pr.longitude,
+        place_ref=pr,
+    )
 
 
 def _log_upstream(name: str, url: str, params: dict) -> None:
@@ -63,6 +87,7 @@ __all__ = [
     "details",
     "photo",
     "text_search_first",
+    "get_or_create_shrine_by_place_id",
 ]
 
 
