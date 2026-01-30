@@ -1,9 +1,9 @@
-//apps / web / src / app / api / shrines / [id] / data / route.ts;
-
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -15,22 +15,25 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const upstreamPath = `/api/shrines/${encodeURIComponent(id)}/data/`;
   const upstream = await djFetch(req, upstreamPath, { method: "GET" });
 
-  const text = await upstream.text();
+  const body = await upstream.text();
+  const contentType = upstream.headers.get("content-type") || "application/json";
 
   if (!upstream.ok) {
+    // ✅ ここはデバッグしやすい形で返すのはアリ
     return NextResponse.json(
       {
         error: "upstream_failed",
         status: upstream.status,
         upstream: upstream.url,
-        body: text.slice(0, 1000),
+        body: body.slice(0, 1000),
       },
       { status: 502 },
     );
   }
 
-  return new NextResponse(text, {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
+  // ✅ upstream の status / content-type を尊重
+  return new NextResponse(body, {
+    status: upstream.status,
+    headers: { "Content-Type": contentType },
   });
 }
