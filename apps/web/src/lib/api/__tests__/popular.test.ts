@@ -6,52 +6,15 @@ describe("lib/api/popular fetchPopular", () => {
     vi.restoreAllMocks();
   });
 
-  it("urlOverride あり: data が配列なら items はそれ", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => [{ id: 1 }],
-    } as any);
-
-    const res = await fetchPopular({ urlOverride: "https://example.com/next" });
-
-    expect(fetchSpy).toHaveBeenCalledWith("https://example.com/next", { cache: "no-store" });
-    expect(res.items).toEqual([{ id: 1 }]);
-    expect(res.next).toBeNull();
-  });
-
-  it("urlOverride あり: data.results を拾う & next を拾う", async () => {
-    vi.spyOn(globalThis, "fetch" as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ results: [{ id: 2 }], next: "https://example.com/n2" }),
-    } as any);
-
-    const res = await fetchPopular({ urlOverride: "https://example.com/next" });
-
-    expect(res.items).toEqual([{ id: 2 }]);
-    expect(res.next).toBe("https://example.com/n2");
-  });
-
-  it("urlOverride あり: ok=false は throw", async () => {
-    vi.spyOn(globalThis, "fetch" as any).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({}),
-    } as any);
-
-    await expect(fetchPopular({ urlOverride: "https://example.com/next" })).rejects.toThrow(
-      "failed to fetch popular shrines",
-    );
-  });
-
   it("通常パス: data.items を拾う（queryなし）", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ items: [{ id: 3 }], next: null }),
     } as any);
 
-    const res = await fetchPopular({}); // limit/near/radius なし
+    const res = await fetchPopular({});
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    // URLの完全一致は環境変数絡むので「含む」で確認
     expect(String((fetchSpy.mock.calls[0] as any)[0])).toContain("/api/populars/");
     expect((fetchSpy.mock.calls[0] as any)[1]).toEqual({ cache: "no-store" });
 
@@ -71,10 +34,26 @@ describe("lib/api/popular fetchPopular", () => {
     const calledUrl = String((fetchSpy.mock.calls[0] as any)[0]);
     expect(calledUrl).toContain("/api/populars/?");
     expect(calledUrl).toContain("limit=10");
-    expect(calledUrl).toContain("near=1%2C2"); // URLSearchParams で encode される
+    expect(calledUrl).toContain("near=1%2C2");
     expect(calledUrl).toContain("radius_km=5");
 
     expect(res.items).toEqual([{ id: 4 }]);
+  });
+
+  it("next が BFF 形式ならそのまま返す（= BFF が rewrite 済み前提）", async () => {
+    vi.spyOn(globalThis, "fetch" as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [{ id: 5 }],
+        next: "http://localhost:3000/api/populars/?limit=10&offset=10",
+      }),
+    } as any);
+
+    const res = await fetchPopular({ limit: 10 });
+
+    expect(res.items).toEqual([{ id: 5 }]);
+    expect(res.next).toContain("/api/populars/?");
+    expect(res.next).toContain("offset=10");
   });
 
   it("通常パス: ok=false は throw", async () => {

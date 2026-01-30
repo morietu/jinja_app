@@ -26,18 +26,7 @@ export async function createFavoriteByShrineId(shrineId: number): Promise<Favori
   };
 }
 
-// ✅ place_id で作成し、バックエンドが薄くてもフロント側で最低限補完する
-export async function createFavoriteByPlaceId(placeId: string): Promise<Favorite> {
-  // シンプルに place_id で作成し、バックエンドが何も返さなくても自前で補完する
-  const r = await api.post("/favorites/", { place_id: placeId });
-  const raw = r.data as Favorite;
-  return {
-    ...raw,
-    place_id: raw.place_id ?? placeId,
-    target_type: raw.target_type ?? "place",
-    target_id: raw.target_id ?? placeId,
-  };
-}
+
 
 export async function removeFavoriteByPk(pk: number) {
   await api.delete(`/favorites/${pk}/`);
@@ -45,11 +34,6 @@ export async function removeFavoriteByPk(pk: number) {
 
 export async function removeFavoriteByShrineId(shrineId: number) {
   await api.delete(`/favorites/by-shrine/${shrineId}/`);
-}
-
-export async function removeFavoriteByPlaceId(placeId: string) {
-  // 互換用に残す。将来的に消したいなら呼び出し側を全部 shrine_id 化してから。
-  await api.delete(`/favorites/by-place/${placeId}/`);
 }
 
 
