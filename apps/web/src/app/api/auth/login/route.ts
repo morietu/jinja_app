@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { djFetch } from "@/lib/server/backend";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
+const DJANGO_BASE = process.env.DJANGO_BASE_URL ?? "http://127.0.0.1:8000";
+const DEBUG = process.env.AUTH_DEBUG === "1";
 
 const isSecureCookie =
   process.env.NODE_ENV === "production" && (process.env.NEXT_PUBLIC_APP_ORIGIN || "").startsWith("https");
@@ -18,76 +18,69 @@ async function readCredentialsRaw(req: NextRequest): Promise<Creds> {
   try {
     if (ct.includes("application/json")) {
       const j = await req.json();
-      return {
-        usernameRaw: String(j?.username ?? ""),
-        passwordRaw: String(j?.password ?? ""),
-      };
+      return { usernameRaw: String(j?.username ?? ""), passwordRaw: String(j?.password ?? "") };
     }
-
     if (ct.includes("application/x-www-form-urlencoded")) {
       const text = await req.text();
       const usp = new URLSearchParams(text);
-      return {
-        usernameRaw: String(usp.get("username") ?? ""),
-        passwordRaw: String(usp.get("password") ?? ""),
-      };
+      return { usernameRaw: String(usp.get("username") ?? ""), passwordRaw: String(usp.get("password") ?? "") };
     }
-
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
-      return {
-        usernameRaw: String(form.get("username") ?? ""),
-        passwordRaw: String(form.get("password") ?? ""),
-      };
+      return { usernameRaw: String(form.get("username") ?? ""), passwordRaw: String(form.get("password") ?? "") };
     }
   } catch {
     /* noop */
   }
-
   return { usernameRaw: "", passwordRaw: "" };
 }
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);
-
   const { usernameRaw, passwordRaw } = await readCredentialsRaw(req);
 
-  // 1) 未入力は 400（従来どおり）
   if (!usernameRaw || !passwordRaw) {
-    return new NextResponse("Invalid credentials", { status: 400 });
+    return NextResponse.json({ detail: "Invalid credentials" }, { status: 400 });
   }
-
-  // 2) 前後スペース混入は 400
   if (usernameRaw !== usernameRaw.trim() || passwordRaw !== passwordRaw.trim()) {
     return NextResponse.json({ detail: "ユーザー名/パスワードに余計な空白があります" }, { status: 400 });
   }
 
-  // 3) ここから先は「そのまま」backend に渡す（trimしない）
   const username = usernameRaw;
   const password = passwordRaw;
 
-  if (DEBUG) {
-    serverLog("debug", "AUTH_LOGIN_ATTEMPT", { requestId, usernameLen: username.length });
-  }
+  if (DEBUG) serverLog("debug", "AUTH_LOGIN_ATTEMPT", { requestId, usernameLen: username.length });
 
   try {
-    const r = await djFetch(`/api/auth/jwt/create/`, {
+    const upstreamUrl = `${DJANGO_BASE}/api/auth/jwt/create/`;
+    const r = await fetch(upstreamUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ username, password }),
+      cache: "no-store",
     });
 
+    const contentType = r.headers.get("content-type") || "";
+    const bodyText = await r.text();
+
     if (!r.ok) {
-      const txt = await r.text().catch(() => "");
       serverLog("warn", "AUTH_LOGIN_UPSTREAM_NOT_OK", {
         requestId,
         status: r.status,
-        textLen: txt.length,
+        upstreamUrl,
+        contentType,
+        bodyPreview: bodyText.slice(0, 300),
       });
-      return new NextResponse(txt || "Login failed", { status: r.status });
+
+      // 失敗でもJSONで返す（ブラウザが読みやすい）
+      return NextResponse.json(
+        { detail: "Login failed", upstreamStatus: r.status, upstreamBody: bodyText.slice(0, 1000) },
+        { status: r.status },
+      );
     }
 
-    const { access, refresh } = await r.json();
+    const data = JSON.parse(bodyText) as { access: string; refresh: string };
+    const { access, refresh } = data;
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
     res.cookies.set("access_token", access, {
@@ -112,8 +105,4 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ detail: "バックエンドに接続できません" }, { status: 503 });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ ok: true, via: "next-route-handler" });
 }
