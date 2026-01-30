@@ -3,7 +3,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { importFromPlace } from "@/lib/api/shrines"; // ← api/shrines からでOK
+import { resolvePlace } from "@/lib/api/places";
+import { createFavoriteByShrineId } from "@/lib/api/favorites";
 
 export default function PlaceCardClientActions({
   placeId,
@@ -24,15 +25,19 @@ export default function PlaceCardClientActions({
     try {
       setBusy(true);
       setErr(null);
-      const shrine = await importFromPlace(placeId);
-      const shrineId = (shrine as any)?.id ?? (shrine as any)?.pk ?? null;
-      if (shrineId) router.push(`/shrines/${shrineId}`);
+
+      // 1) place → shrine 解決
+      const r = await resolvePlace(placeId);
+      const shrineId = Number((r as any)?.shrine_id ?? (r as any)?.id ?? NaN);
+      if (!Number.isFinite(shrineId) || shrineId <= 0) throw new Error("resolve_no_shrine_id");
+
+      // 2) favorite 作成（shrine 正規化）
+      await createFavoriteByShrineId(shrineId);
+
+      // 3) 詳細へ
+      router.push(`/shrines/${shrineId}`);
     } catch (e: any) {
-      setErr(
-        e?.response?.status === 401
-          ? "ログインが必要です"
-          : "登録に失敗しました"
-      );
+      setErr(e?.response?.status === 401 ? "ログインが必要です" : "登録に失敗しました");
     } finally {
       setBusy(false);
     }
