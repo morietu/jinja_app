@@ -1,5 +1,4 @@
 // apps/web/src/lib/api/ranking.ts
-import api from "./client";
 import type { GoriyakuTag } from "./types";
 
 export type RankingItem = {
@@ -33,17 +32,23 @@ export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
   );
 }
 
-export async function fetchRanking(period: Period): Promise<RankingItem[]> {
-  const r = await api.get("/populars/", { params: { period, limit: 10 } });
-
-  const data = r.data;
-  const items = Array.isArray(data)
+function pickItems(data: any): any[] {
+  return Array.isArray(data)
     ? data
-    : Array.isArray(data.results)
+    : Array.isArray(data?.results)
       ? data.results
-      : Array.isArray(data.items)
+      : Array.isArray(data?.items)
         ? data.items
         : [];
+}
 
-  return normalizeRankingItems(items);
+export async function fetchRanking(period: Period): Promise<RankingItem[]> {
+  const sp = new URLSearchParams({ period, limit: "10" });
+  const url = `/api/populars/?${sp.toString()}`;
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("failed to fetch ranking");
+
+  const data = await res.json();
+  return normalizeRankingItems(pickItems(data));
 }
