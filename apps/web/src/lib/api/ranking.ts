@@ -32,23 +32,29 @@ export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
   );
 }
 
-function pickItems(data: any): any[] {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.results)
-      ? data.results
-      : Array.isArray(data?.items)
-        ? data.items
-        : [];
+function toItems(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
 }
 
 export async function fetchRanking(period: Period): Promise<RankingItem[]> {
-  const sp = new URLSearchParams({ period, limit: "10" });
-  const url = `/api/populars/?${sp.toString()}`;
+  const sp = new URLSearchParams();
+  sp.set("period", period);
+  sp.set("limit", "10");
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(`/api/populars/?${sp.toString()}`, { cache: "no-store" });
   if (!res.ok) throw new Error("failed to fetch ranking");
 
   const data = await res.json();
-  return normalizeRankingItems(pickItems(data));
+  const items = Array.isArray(data)
+    ? data
+    : Array.isArray(data.results)
+      ? data.results
+      : Array.isArray(data.items)
+        ? data.items
+        : [];
+
+  return normalizeRankingItems(items);
 }
