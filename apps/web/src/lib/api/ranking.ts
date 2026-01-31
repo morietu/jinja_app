@@ -1,5 +1,5 @@
 // apps/web/src/lib/api/ranking.ts
-import type { GoriyakuTag } from "./types";
+import type { GoriyakuTag, Shrine } from "./types";
 
 export type RankingItem = {
   id: number;
@@ -14,6 +14,13 @@ export type RankingItem = {
 };
 
 export type Period = "monthly" | "yearly";
+
+function toItems(data: any): Shrine[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
 
 export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
   if (!Array.isArray(rawItems)) return [];
@@ -32,29 +39,15 @@ export function normalizeRankingItems(rawItems: any[]): RankingItem[] {
   );
 }
 
-function toItems(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.results)) return data.results;
-  if (data && Array.isArray(data.items)) return data.items;
-  return [];
-}
-
 export async function fetchRanking(period: Period): Promise<RankingItem[]> {
-  const sp = new URLSearchParams();
-  sp.set("period", period);
-  sp.set("limit", "10");
+  const sp = new URLSearchParams({ period, limit: "10" });
 
+  // ✅ populars BFF を使う（直backend撤去）
   const res = await fetch(`/api/populars/?${sp.toString()}`, { cache: "no-store" });
   if (!res.ok) throw new Error("failed to fetch ranking");
 
   const data = await res.json();
-  const items = Array.isArray(data)
-    ? data
-    : Array.isArray(data.results)
-      ? data.results
-      : Array.isArray(data.items)
-        ? data.items
-        : [];
+  const items = toItems(data);
 
   return normalizeRankingItems(items);
 }
