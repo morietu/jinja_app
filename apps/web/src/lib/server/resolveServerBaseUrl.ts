@@ -42,8 +42,7 @@ function toHeadersLike(h: any): { get: (k: string) => string | null } {
 
 export function resolveServerBaseUrl(fallbackPort = 3000): string {
   // 1) 明示設定（テスト/本番/ローカルで最強）
-  const envBase =
-    process.env.WEB_BASE_URL || process.env.NEXT_PUBLIC_WEB_BASE_URL || process.env.PLAYWRIGHT_BASE_URL || "";
+  const envBase = process.env.WEB_BASE_URL || process.env.PLAYWRIGHT_BASE_URL || "";
   if (envBase) return normalizeBase(envBase);
 
   // 2) Vercel（本番）

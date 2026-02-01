@@ -79,6 +79,10 @@ jobs:
             echo "$UNTRACKED"
             exit 1
           fi
+      
+      - name: Guard - no NEXT_PUBLIC in server code
+        working-directory: apps/web
+        run: pnpm guard:no-next-public-in-server
 
       
 
