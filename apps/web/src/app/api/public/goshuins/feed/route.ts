@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clampLimit } from "@/lib/bff/origin";
+import { clampLimit } from "@/lib/bff/pagination";
 import { getDjangoOrigin } from "@/lib/server/backend";
 
 export const dynamic = "force-dynamic";

@@ -1,4 +1,4 @@
-// apps/web/src/lib/bff/origin.ts
+// apps/web/src/lib/bff/pagination.ts
 export function toOrigin(raw: string, fallback: string) {
   const s = (raw ?? "").trim();
   if (!s) return fallback;
@@ -10,5 +10,3 @@ export function clampLimit(v: string | null, def: number, max: number) {
   const m = Number.isFinite(n) ? Math.floor(n) : def;
   return Math.max(1, Math.min(max, m));
 }
-
-

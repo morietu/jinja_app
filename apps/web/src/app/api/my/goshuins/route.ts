@@ -1,6 +1,6 @@
 // apps/web/src/app/api/my/goshuins/route.ts
 import { NextRequest } from "next/server";
-import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
+import { bffFetchWithAuthFromReq } from "@/lib/server/bffFetch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

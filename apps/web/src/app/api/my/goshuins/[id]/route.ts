@@ -1,6 +1,6 @@
 // apps/web/src/app/api/my/goshuins/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
+import { bffFetchWithAuthFromReq } from "@/lib/server/bffFetch";
 
 
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { NextRequest } from "next/server";
@@ -15,7 +15,11 @@ beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
 });
 
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  vi.unstubAllEnvs(); // ✅ NODE_ENV などの汚染を戻す
+});
+
 afterAll(() => server.close());
 
 function makeReq(body: unknown, extraHeaders: Record<string, string> = {}) {
@@ -50,9 +54,7 @@ describe("/api/auth/jwt/create contract", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(200);
-    const json = await res.json();
-    // ルートが {ok:true} を返す実装に合わせる
-    expect(json).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
 
     const cookies = getSetCookies(res).join("\n");
     expect(cookies).toContain("access_token=");
@@ -73,9 +75,7 @@ describe("/api/auth/jwt/create contract", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(401);
-    const json = await res.json();
-    // 実装がそのまま upstream json を返すならこれでOK
-    expect(json).toHaveProperty("detail");
+    expect(await res.json()).toHaveProperty("detail");
   });
 
   it("upstream network error -> 5xx", async () => {
@@ -88,13 +88,11 @@ describe("/api/auth/jwt/create contract", () => {
     const req = makeReq({ username: "u", password: "p" });
     const res = await POST(req);
 
-    // 実装に合わせて調整（503に寄せるなら route 側を try/catch で包む）
     expect(res.status).toBeGreaterThanOrEqual(500);
   });
 
   it("secure cookie: production + x-forwarded-proto=https -> Secure flag set", async () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production"); // ✅ 直代入しない
 
     server.use(
       http.post(UPSTREAM, async () => {
@@ -106,11 +104,8 @@ describe("/api/auth/jwt/create contract", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(200);
+
     const cookies = getSetCookies(res).join("\n");
-
-    // ここは route.ts が secure を動的判定してる前提
     expect(cookies).toMatch(/;\s*Secure/i);
-
-    process.env.NODE_ENV = prevNodeEnv;
   });
 });
