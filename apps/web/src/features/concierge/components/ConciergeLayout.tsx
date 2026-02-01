@@ -24,6 +24,7 @@ type Props = {
   children?: ReactNode;
   isInitialBrowseMode?: boolean;
   hideChatPanel?: boolean;
+  hydrated?: boolean;
 };
 
 export default function ConciergeLayout(props: Props) {
@@ -37,6 +38,7 @@ export default function ConciergeLayout(props: Props) {
     embedMode = false,
     children,
     hasCandidates = false, // ✅ 追加
+    hydrated = true,
   } = props;
 
   const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
@@ -52,13 +54,15 @@ export default function ConciergeLayout(props: Props) {
   // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
 
   const isInitialBrowseMode = !hasUserMessage && hasCandidates;
-  const hideChatPanel = props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending);
+  // ConciergeLayout.tsx (Propsに hydrated?: boolean を追加)
+  const hideChatPanel = !props.hydrated
+    ? true
+    : (props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending));
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
         {children}
-
         {hideChatPanel ? null : (
           <ChatPanel
             messages={messages}
@@ -76,5 +80,3 @@ export default function ConciergeLayout(props: Props) {
     </div>
   );
 }
-
-
