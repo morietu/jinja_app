@@ -7,8 +7,14 @@ export const revalidate = 0;
 
 const DEBUG = process.env.AUTH_DEBUG === "1";
 
-const isSecureCookie =
-  process.env.NODE_ENV === "production" && (process.env.NEXT_PUBLIC_APP_ORIGIN || "").startsWith("https");
+function isSecureCookie(req: NextRequest) {
+  if (process.env.NODE_ENV !== "production") return false;
+
+  const xfProto = req.headers.get("x-forwarded-proto");
+  const proto = (xfProto ? xfProto.split(",")[0].trim() : req.nextUrl.protocol.replace(":", "")).toLowerCase();
+
+  return proto === "https";
+}
 
 type Creds = { usernameRaw: string; passwordRaw: string };
 
@@ -54,7 +60,8 @@ export async function POST(req: NextRequest) {
   try {
     const upstreamPath = "/api/auth/jwt/create/";
 
-    const r = await djFetch(req, upstreamPath, {
+    // ✅ login は req を渡さない（既存 cookie / Authorization を upstream に混ぜない）
+    const r = await djFetch(upstreamPath, {
       method: "POST",
       cache: "no-store",
       headers: {
@@ -97,17 +104,19 @@ export async function POST(req: NextRequest) {
 
     const { access, refresh } = data;
 
+    const secure = isSecureCookie(req); // ✅ boolean に評価
+
     const res = NextResponse.json({ ok: true }, { status: 200 });
     res.cookies.set("access_token", access, {
       httpOnly: true,
-      secure: isSecureCookie,
+      secure,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60,
     });
     res.cookies.set("refresh_token", refresh, {
       httpOnly: true,
-      secure: isSecureCookie,
+      secure,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
