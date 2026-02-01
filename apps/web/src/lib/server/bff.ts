@@ -1,23 +1,14 @@
 // apps/web/src/lib/server/bff.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getDjangoOrigin } from "@/lib/server/backend"; // ← server-only のやつ
 
-function getBackendBaseUrl() {
-  // プロジェクトで使ってそうな順に拾う（無ければローカル）
-  return (
-    process.env.BACKEND_BASE_URL ||
-    process.env.API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:8000"
-  ).replace(/\/$/, "");
+function backendBase() {
+  return getDjangoOrigin().replace(/\/$/, "");
 }
 
-/**
- * Next.js Route Handler -> Django(API) へ JSON POST をプロキシする
- * cookie を forward するので auth も素通しできる
- */
 export async function bffPostJsonWithAuthFromReq(req: NextRequest, path: string, payload: unknown) {
-  const base = getBackendBaseUrl();
+  const base = backendBase();
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
   const cookie = req.headers.get("cookie") ?? "";
@@ -36,12 +27,7 @@ export async function bffPostJsonWithAuthFromReq(req: NextRequest, path: string,
   });
 
   const bodyText = await upstream.text();
-
-  // content-type は upstream を尊重（json 以外でも壊さない）
   const ct = upstream.headers.get("content-type") ?? "application/json";
 
-  return new NextResponse(bodyText, {
-    status: upstream.status,
-    headers: { "content-type": ct },
-  });
+  return new NextResponse(bodyText, { status: upstream.status, headers: { "content-type": ct } });
 }

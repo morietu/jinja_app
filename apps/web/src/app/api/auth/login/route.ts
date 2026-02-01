@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverLog, getRequestId } from "@/lib/server/logging";
+import { djFetch } from "@/lib/server/backend";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DJANGO_BASE = process.env.DJANGO_BASE_URL ?? "http://127.0.0.1:8000";
 const DEBUG = process.env.AUTH_DEBUG === "1";
 
 const isSecureCookie =
@@ -52,12 +52,16 @@ export async function POST(req: NextRequest) {
   if (DEBUG) serverLog("debug", "AUTH_LOGIN_ATTEMPT", { requestId, usernameLen: username.length });
 
   try {
-    const upstreamUrl = `${DJANGO_BASE}/api/auth/jwt/create/`;
-    const r = await fetch(upstreamUrl, {
+    const upstreamPath = "/api/auth/jwt/create/";
+
+    const r = await djFetch(req, upstreamPath, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ username, password }),
       cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ username, password }),
     });
 
     const contentType = r.headers.get("content-type") || "";
@@ -67,19 +71,30 @@ export async function POST(req: NextRequest) {
       serverLog("warn", "AUTH_LOGIN_UPSTREAM_NOT_OK", {
         requestId,
         status: r.status,
-        upstreamUrl,
+        upstreamPath,
         contentType,
         bodyPreview: bodyText.slice(0, 300),
       });
 
-      // 失敗でもJSONで返す（ブラウザが読みやすい）
       return NextResponse.json(
         { detail: "Login failed", upstreamStatus: r.status, upstreamBody: bodyText.slice(0, 1000) },
         { status: r.status },
       );
     }
 
-    const data = JSON.parse(bodyText) as { access: string; refresh: string };
+    let data: { access: string; refresh: string };
+    try {
+      data = JSON.parse(bodyText) as { access: string; refresh: string };
+    } catch {
+      serverLog("error", "AUTH_LOGIN_UPSTREAM_BAD_JSON", {
+        requestId,
+        upstreamPath,
+        contentType,
+        bodyPreview: bodyText.slice(0, 300),
+      });
+      return NextResponse.json({ detail: "upstream returned bad json" }, { status: 502 });
+    }
+
     const { access, refresh } = data;
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
