@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { bffFetchWithAuthFromReq } from "@/lib/bff/fetch";
+import { bffFetchWithAuthFromReq } from "@/lib/server/bffFetch";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
 export const runtime = "nodejs";
