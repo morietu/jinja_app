@@ -66,6 +66,13 @@ function readJwtExp(token: string): number | null {
   }
 }
 
+/**
+ * 互換レイヤ:
+ * 既存の route.ts が import してる bffFetchWithAuthFromReq を復活させる。
+ * 中身は djFetch に委譲。
+ */
+
+
 export async function bffFetchWithAuthFromReq(
   req: NextRequest,
   upstreamPath: string,

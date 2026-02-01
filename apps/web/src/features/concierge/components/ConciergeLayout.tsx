@@ -23,8 +23,9 @@ type Props = {
 
   children?: ReactNode;
   isInitialBrowseMode?: boolean;
+
+  // ✅ 外から強制的に ChatPanel を隠したい時に使う
   hideChatPanel?: boolean;
-  hydrated?: boolean;
 };
 
 export default function ConciergeLayout(props: Props) {
@@ -37,8 +38,7 @@ export default function ConciergeLayout(props: Props) {
     canSend,
     embedMode = false,
     children,
-    hasCandidates = false, // ✅ 追加
-    hydrated = true,
+    hasCandidates = false,
   } = props;
 
   const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
@@ -52,18 +52,17 @@ export default function ConciergeLayout(props: Props) {
   // ✅ 仕様：
   // - 候補あり & ユーザー未発話 & 非送信中 → チャットを隠す（候補 + 条件 がデフォ）
   // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
-
   const isInitialBrowseMode = !hasUserMessage && hasCandidates;
-  // ConciergeLayout.tsx (Propsに hydrated?: boolean を追加)
-  const hideChatPanel = !props.hydrated
-    ? true
-    : (props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending));
+
+  // ✅ 外から渡された hideChatPanel が最優先。なければ従来ロジックで決める。
+  const shouldHideChatPanel = props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending);
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
         {children}
-        {hideChatPanel ? null : (
+
+        {shouldHideChatPanel ? null : (
           <ChatPanel
             messages={messages}
             loading={sending}
