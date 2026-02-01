@@ -15,7 +15,7 @@
     "lint:fix": "pnpm -r run lint:fix",
     "lint:web": "pnpm -C apps/web run lint",
     "e2e:web": "pnpm -C apps/web run test:e2e",
-    "guard:readme-fences": "bash -lc 'set -o pipefail; if rg -n \"^```\" README.md | rg -v \":\\\\s*```$\" | rg -v \":\\\\s*```(bash|javascript|typescript)$\"; then echo \"❌ invalid fence language found\"; exit 1; else echo \"✅ only allowed fence languages used\"; fi'"
+    "guard:readme-fences": "node -e \"const fs=require('fs'); const bt=String.fromCharCode(96); const fence=bt+bt+bt; const ok=new Set([fence, fence+'bash', fence+'javascript', fence+'typescript']); const lines=fs.readFileSync('README.md','utf8').split(/\\r?\\n/); const bad=[]; for (let i=0;i<lines.length;i++){ const l=lines[i].trim(); if(l.startsWith(fence) && !ok.has(l)) bad.push(`${i+1}:${lines[i]}`); } if(bad.length){ console.error('❌ invalid fence language found'); console.error(bad.join('\\n')); process.exit(1);} console.log('✅ only allowed fence languages used');\""
   },
   "engines": {
     "node": ">=20",
