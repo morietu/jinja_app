@@ -37,6 +37,7 @@ type EntryMode = "feel" | "filter";
 
 const STORAGE_KEY = "concierge:eventsByThread";
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
+const LS_ENTRY_MODE = "concierge:entryMode";
 
 const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   火: ["仕事運・出世", "勝運・必勝祈願", "開運招福", "厄除け・方除け"],
@@ -140,9 +141,6 @@ export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
-  // ✅ URL由来の入口判定（tidが無い = 入口）
-  const [entryMode, setEntryMode] = useState<EntryMode>(() => (sp.get("mode") === "feel" ? "feel" : "filter"));
-
   const isClosingRef = useRef(false);
 
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
@@ -161,6 +159,8 @@ export default function ConciergeClientFull() {
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
+  const [entrySubmitting, setEntrySubmitting] = useState(false);
+
   // 初回レスポンス保持（2回送信問題対策）
   const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
@@ -170,15 +170,62 @@ export default function ConciergeClientFull() {
     setActiveThreadId(tid);
   };
 
+  /* ----------------------------------------
+   * route params
+   * -------------------------------------- */
   const rawTid = useMemo(() => (sp.get("tid") ?? "").trim(), [sp]);
-  const isEntryRoute = useMemo(() => rawTid.length === 0, [rawTid]);
 
-  const tidFromQuery = useMemo(() => {
-    const n = rawTid ? Number(rawTid) : 0;
-    return Number.isFinite(n) && n >= 0 ? n : 0;
+  const tidNum = useMemo(() => {
+    if (!rawTid) return null;
+    const n = Number(rawTid);
+    if (!Number.isFinite(n)) return null;
+    if (!Number.isInteger(n)) return null;
+    if (n <= 0) return null;
+    return n;
   }, [rawTid]);
 
-  // close handler
+  const isEntryRoute = tidNum === null; // tid無い/無効=入口
+  const tidFromQuery = tidNum ?? 0;
+
+  // 後方互換: /concierge?mode=feel を1回だけ読む
+  const rawMode = useMemo(() => (sp.get("mode") ?? "").trim(), [sp]);
+
+  /* ----------------------------------------
+   * entry mode (localStorage主導)
+   * -------------------------------------- */
+  const [entryMode, setEntryMode] = useState<EntryMode>(() => {
+    if (typeof window === "undefined") return "filter";
+    const v = localStorage.getItem(LS_ENTRY_MODE);
+    return v === "feel" ? "feel" : "filter";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_ENTRY_MODE, entryMode);
+    } catch {
+      // ignore
+    }
+  }, [entryMode]);
+
+  // 入口のときだけ rawMode を反映して、すぐURL正規化（modeを捨てる）
+  useEffect(() => {
+    if (!isEntryRoute) return;
+    if (!rawMode) return;
+
+    setEntryMode(rawMode === "feel" ? "feel" : "filter");
+    router.replace("/concierge"); // modeは入口用途だけなので捨てる
+  }, [rawMode, isEntryRoute, router]);
+
+  // 入口で tid が変なのが付いてたら正規化（ログもUIも綺麗になる）
+  useEffect(() => {
+    if (!isEntryRoute) return;
+    if (!rawTid) return;
+    router.replace("/concierge");
+  }, [isEntryRoute, rawTid, router]);
+
+  /* ----------------------------------------
+   * close handler
+   * -------------------------------------- */
   useEffect(() => {
     const onClose = () => {
       if (isClosingRef.current) return;
@@ -200,7 +247,9 @@ export default function ConciergeClientFull() {
     return () => window.removeEventListener("jinja:close-concierge", onClose);
   }, [router]);
 
-  /* restore */
+  /* ----------------------------------------
+   * restore & save
+   * -------------------------------------- */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -212,30 +261,6 @@ export default function ConciergeClientFull() {
     }
   }, []);
 
-  // ✅ 入口ルートに来たら thread=0 の残骸を掃除
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!isEntryRoute) return;
-
-    setActiveTid(0); // 追加（activeThreadIdも入口に揃える）
-    setLiveUnified(null);
-    setLiveRecs([]);
-    setEventsByThread((prev) => ({ ...prev, 0: [] }));
-  }, [hydrated, isEntryRoute]);
-
-  useEffect(() => {
-    if (!isEntryRoute) return;
-    const m = (sp.get("mode") ?? "").trim();
-    setEntryMode(m === "feel" ? "feel" : "filter");
-  }, [sp, isEntryRoute]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (tidFromQuery === activeThreadIdRef.current) return;
-    setActiveTid(tidFromQuery);
-  }, [tidFromQuery, hydrated]);
-
-  /* save */
   useEffect(() => {
     if (!hydrated) return;
     const id = window.setTimeout(() => {
@@ -248,7 +273,9 @@ export default function ConciergeClientFull() {
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  /* birthdate restore/save */
+  /* ----------------------------------------
+   * birthdate restore/save
+   * -------------------------------------- */
   useEffect(() => {
     try {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
@@ -267,6 +294,29 @@ export default function ConciergeClientFull() {
     }
   }, [birthdate]);
 
+  /* ----------------------------------------
+   * thread switching
+   * -------------------------------------- */
+  useEffect(() => {
+    if (!hydrated) return;
+    if (tidFromQuery === activeThreadIdRef.current) return;
+    setActiveTid(tidFromQuery);
+  }, [tidFromQuery, hydrated]);
+
+  // 入口に来たら thread=0 を掃除
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!isEntryRoute) return;
+
+    setActiveTid(0);
+    setLiveUnified(null);
+    setLiveRecs([]);
+    setEventsByThread((prev) => ({ ...prev, 0: [] }));
+  }, [hydrated, isEntryRoute]);
+
+  /* ----------------------------------------
+   * tags fetch (filter open)
+   * -------------------------------------- */
   useEffect(() => {
     if (!isFilterOpen) return;
     if (goriyakuTags.length > 0) return;
@@ -296,10 +346,15 @@ export default function ConciergeClientFull() {
     };
   }, [isFilterOpen, goriyakuTags.length]);
 
-  /* dev force */
+  /* ----------------------------------------
+   * dev force
+   * -------------------------------------- */
   const force = sp.get("force");
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
+  /* ----------------------------------------
+   * derived data
+   * -------------------------------------- */
   const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
 
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
@@ -310,7 +365,6 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
-  // ✅ 入口では過去状態を見ない
   const displayUnified = useMemo(() => {
     if (isEntryRoute) return null;
     return liveUnified ?? lastUnified;
@@ -422,7 +476,9 @@ export default function ConciergeClientFull() {
     [events, thread, activeThreadId],
   );
 
-  // ✅ useConciergeChat は1回だけ
+  /* ----------------------------------------
+   * chat hook
+   * -------------------------------------- */
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     debugLabel: "ConciergeClientFull",
     filters: baseFilters,
@@ -446,6 +502,9 @@ export default function ConciergeClientFull() {
         router.replace(`/concierge?tid=${nextTid}`);
       }
 
+      // ✅ 成功で戻す
+      setEntrySubmitting(false);
+
       setEventsByThread((prev) =>
         appendEvents(
           currentTid === 0 && nextTid !== 0 ? promoteThread(prev, 0, nextTid) : prev,
@@ -459,9 +518,22 @@ export default function ConciergeClientFull() {
     },
   });
 
-  
+  // ✅ 失敗でも戻す（入口送信中にエラーで固まるのを防ぐ）
+  useEffect(() => {
+    if (!entrySubmitting) return;
+    if (sending) return;
+    if (!error) return;
+    setEntrySubmitting(false);
+  }, [entrySubmitting, sending, error]);
 
-  const shouldShowEntry = isEntryRoute;
+  /* ----------------------------------------
+   * UI flags
+   * -------------------------------------- */
+  // 入口は、送信中は消す（フラッシュ防止）
+  const shouldShowEntry = hydrated && isEntryRoute && !entrySubmitting;
+
+  // ChatPanel は入口/送信中は絶対出さない
+  const hideChatPanel = !hydrated || isEntryRoute || entrySubmitting;
 
   const feelExamples = [
     "最近ちょっと疲れていて、落ち着ける神社がいいです",
@@ -471,6 +543,7 @@ export default function ConciergeClientFull() {
 
   const onPickExample = (text: string) => {
     if (!canSend) return;
+    setEntrySubmitting(true);
     setLiveUnified(null);
     setLiveRecs([]);
     void send(text);
@@ -545,7 +618,7 @@ export default function ConciergeClientFull() {
       messages={messages}
       sending={sending}
       error={error}
-      hideChatPanel={shouldShowEntry}
+      hideChatPanel={hideChatPanel}
       onSend={(text) => {
         const trimmed = text.trim();
         if (!trimmed) return;
