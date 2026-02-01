@@ -32,6 +32,9 @@ type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeR
 type LocalEvent = ChatEvent | AssistantStateEvent;
 
 type EventsByThread = Record<number, LocalEvent[]>;
+
+type EntryMode = "feel" | "filter";
+
 const STORAGE_KEY = "concierge:eventsByThread";
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
 
@@ -137,6 +140,9 @@ export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
+  // ✅ URL由来の入口判定（tidが無い = 入口）
+  const [entryMode, setEntryMode] = useState<EntryMode>(() => (sp.get("mode") === "feel" ? "feel" : "filter"));
+
   const isClosingRef = useRef(false);
 
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
@@ -164,12 +170,15 @@ export default function ConciergeClientFull() {
     setActiveThreadId(tid);
   };
 
-  const tidFromQuery = useMemo(() => {
-    const raw = sp.get("tid");
-    const n = raw ? Number(raw) : 0;
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  }, [sp]);
+  const rawTid = useMemo(() => (sp.get("tid") ?? "").trim(), [sp]);
+  const isEntryRoute = useMemo(() => rawTid.length === 0, [rawTid]);
 
+  const tidFromQuery = useMemo(() => {
+    const n = rawTid ? Number(rawTid) : 0;
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }, [rawTid]);
+
+  // close handler
   useEffect(() => {
     const onClose = () => {
       if (isClosingRef.current) return;
@@ -182,7 +191,6 @@ export default function ConciergeClientFull() {
       router.push("/");
       router.refresh();
 
-      // たまに「押しても戻れない」対策（ルーティングが詰まった時の再押下を許す）
       window.setTimeout(() => {
         isClosingRef.current = false;
       }, 800);
@@ -203,6 +211,23 @@ export default function ConciergeClientFull() {
       setHydrated(true);
     }
   }, []);
+
+  // ✅ 入口ルートに来たら thread=0 の残骸を掃除
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!isEntryRoute) return;
+
+    setActiveTid(0); // 追加（activeThreadIdも入口に揃える）
+    setLiveUnified(null);
+    setLiveRecs([]);
+    setEventsByThread((prev) => ({ ...prev, 0: [] }));
+  }, [hydrated, isEntryRoute]);
+
+  useEffect(() => {
+    if (!isEntryRoute) return;
+    const m = (sp.get("mode") ?? "").trim();
+    setEntryMode(m === "feel" ? "feel" : "filter");
+  }, [sp, isEntryRoute]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -229,7 +254,7 @@ export default function ConciergeClientFull() {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
       if (v && isValidISODate(v)) setBirthdate(v);
     } catch {
-      // 何もしない
+      // ignore
     }
   }, []);
 
@@ -237,8 +262,8 @@ export default function ConciergeClientFull() {
     try {
       if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
       else localStorage.removeItem(LS_BIRTHDATE_KEY);
-    } catch  {
-      // 何もしない
+    } catch {
+      // ignore
     }
   }, [birthdate]);
 
@@ -269,7 +294,6 @@ export default function ConciergeClientFull() {
     return () => {
       cancelled = true;
     };
-    // ✅ tagsLoading を deps に入れない
   }, [isFilterOpen, goriyakuTags.length]);
 
   /* dev force */
@@ -286,13 +310,18 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
-  const displayUnified = useMemo(() => liveUnified ?? lastUnified, [lastUnified, liveUnified]);
+  // ✅ 入口では過去状態を見ない
+  const displayUnified = useMemo(() => {
+    if (isEntryRoute) return null;
+    return liveUnified ?? lastUnified;
+  }, [isEntryRoute, lastUnified, liveUnified]);
 
   const displayRecommendations = useMemo(() => {
+    if (isEntryRoute) return [];
     if (liveRecs.length > 0) return liveRecs;
     const recs = displayUnified?.data?.recommendations;
     return Array.isArray(recs) ? (recs as ConciergeRecommendation[]) : [];
-  }, [liveRecs, displayUnified]);
+  }, [isEntryRoute, liveRecs, displayUnified]);
 
   const hasCandidates = displayRecommendations.length > 0;
 
@@ -344,7 +373,6 @@ export default function ConciergeClientFull() {
       birthdate: bd,
       goriyaku_tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
       extra_condition: extra,
-
       crowd: crowd.length ? crowd : undefined,
       duration_max_min,
       free_text: extra,
@@ -415,7 +443,7 @@ export default function ConciergeClientFull() {
 
       if (currentTid === 0 && nextTid !== 0) {
         setActiveTid(nextTid);
-        router.replace(`/concierge?tid=${nextTid}`); // ✅ seed を消す
+        router.replace(`/concierge?tid=${nextTid}`);
       }
 
       setEventsByThread((prev) =>
@@ -431,52 +459,22 @@ export default function ConciergeClientFull() {
     },
   });
 
-  // 追加：mode を読む
-  const modeFromQuery = useMemo(() => (sp.get("mode") ?? "").trim(), [sp]);
+  const hasUserMessage = useMemo(() => messages.some((m) => m.role === "user" && m.content.trim()), [messages]);
 
-  // 追加：初回プロンプト（feel入口用）
-  const initialPrompt = useMemo(() => {
-    if (modeFromQuery === "feel") {
-      return "今の気持ちから合う神社を探したいです。まず確認したいことがあれば質問を1つだけしてください。";
-    }
-    return "";
-  }, [modeFromQuery]);
+  const shouldShowEntry = isEntryRoute;
 
-  const didInitialRef = useRef(false);
+  const feelExamples = [
+    "最近ちょっと疲れていて、落ち着ける神社がいいです",
+    "気持ちを切り替えて前向きになれる参拝がしたいです",
+    "人が少なくて静かな場所でお参りしたいです",
+  ];
 
-  // ✅ feel入口：初回だけ開始
-  useEffect(() => {
-    if (isClosingRef.current) return;
-    if (!hydrated) return;
-
-    // tid 指定があるなら初回発火しない（既存スレ優先）
-    if (tidFromQuery && tidFromQuery !== 0) return;
-
-    const seed = initialPrompt;
-    if (!seed) return;
-
-    // すでに開始してたら二重送信しない
-    if (didInitialRef.current) return;
-
-    const currentTid = activeThreadIdRef.current; // たぶん0
-    const currentEvents = getThreadEvents(eventsByThread, currentTid);
-
-    // ✅ 通常は「新規スレ(0)が空の時だけ」だが、
-    // feel入口は「新規開始」なので thread=0 の残骸は無視して開始する
-    if (modeFromQuery !== "feel" && currentEvents.length > 0) return;
-
-    didInitialRef.current = true;
-
-    // ✅ feel時は thread=0 の残骸を掃除（任意だけど推奨）
-    if (modeFromQuery === "feel" && currentTid === 0) {
-      setEventsByThread((prev) => ({ ...prev, 0: [] }));
-    }
-
-    setLiveRecs([]);
+  const onPickExample = (text: string) => {
+    if (!canSend) return;
     setLiveUnified(null);
-
-    void send(seed);
-  }, [hydrated, tidFromQuery, eventsByThread, initialPrompt, send, modeFromQuery]);
+    setLiveRecs([]);
+    void send(text);
+  };
 
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const has =
@@ -536,7 +534,7 @@ export default function ConciergeClientFull() {
         try {
           localStorage.removeItem(LS_BIRTHDATE_KEY);
         } catch {
-          // 何もしない
+          // ignore
         }
         return;
     }
@@ -547,6 +545,7 @@ export default function ConciergeClientFull() {
       messages={messages}
       sending={sending}
       error={error}
+      hideChatPanel={shouldShowEntry}
       onSend={(text) => {
         const trimmed = text.trim();
         if (!trimmed) return;
@@ -557,18 +556,107 @@ export default function ConciergeClientFull() {
         setLiveUnified(null);
         setLiveRecs([]);
         setActiveTid(0);
-
-        // ✅ URLの tid を消して “新規スレ” を確定させる
         router.replace("/concierge");
-
-        // ✅ 初回ガードも解除（次の入口開始に備える）
-        didInitialRef.current = false;
       }}
       canSend={canSend}
       embedMode={false}
       hasCandidates={hasCandidates}
     >
-      {hasFilter ? (
+      {shouldShowEntry ? (
+        <div className="px-4 pt-4">
+          <div className="rounded-2xl border bg-white p-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={[
+                  "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
+                  entryMode === "feel" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
+                ].join(" ")}
+                onClick={() => setEntryMode("feel")}
+                disabled={sending}
+              >
+                気分から探す
+              </button>
+
+              <button
+                type="button"
+                className={[
+                  "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
+                  entryMode === "filter" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
+                ].join(" ")}
+                onClick={() => setEntryMode("filter")}
+                disabled={sending}
+              >
+                条件で絞る
+              </button>
+            </div>
+
+            {entryMode === "feel" ? (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-slate-600">例（タップで送信）</p>
+                <div className="mt-2 grid gap-2">
+                  {feelExamples.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="text-left rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-800 hover:bg-slate-100 disabled:opacity-60"
+                      onClick={() => onPickExample(t)}
+                      disabled={sending || !canSend}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  1回送るだけでOK。会話はしない設計です（必要なら質問は1つだけ返します）。
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  onClick={() => setIsFilterOpen(true)}
+                  disabled={sending || !canSend}
+                >
+                  条件入力を開く
+                </button>
+                <p className="mt-2 text-[11px] text-slate-500">誕生日 / ご利益 / 補足条件で絞れます</p>
+              </div>
+            )}
+
+            {sending ? (
+              <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                選定中です。通信が遅くても大丈夫。失敗しても近い順で案内します。
+              </div>
+            ) : null}
+
+            {!sending && error ? (
+              <div className="mt-3 rounded-xl border bg-white p-3">
+                <p className="text-sm font-semibold text-rose-600">うまく取得できませんでした</p>
+                <div className="mt-2 grid gap-2">
+                  <button
+                    type="button"
+                    className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                    onClick={() => router.push("/map")}
+                  >
+                    近い神社を地図で見る
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => setIsFilterOpen(true)}
+                  >
+                    条件で絞って再挑戦
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {!shouldShowEntry && hasFilter ? (
         <div className="px-4 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {baseFilters.birthdate ? (
@@ -599,13 +687,15 @@ export default function ConciergeClientFull() {
         </div>
       ) : null}
 
-      {SHOW_NEW_RENDERER ? (
-        <div className="p-4 space-y-3">
-          <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
-        </div>
-      ) : (
-        <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} mode={mode} />
-      )}
+      {!shouldShowEntry ? (
+        SHOW_NEW_RENDERER ? (
+          <div className="p-4 space-y-3">
+            <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
+          </div>
+        ) : (
+          <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} mode={mode} />
+        )
+      ) : null}
     </ConciergeLayout>
   );
 }
