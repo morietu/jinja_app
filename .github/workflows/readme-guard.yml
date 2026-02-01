@@ -1,0 +1,38 @@
+name: readme-guard
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [develop]
+    paths: ["README.md"]
+  pull_request:
+    branches: [develop]
+    paths: ["README.md"]
+
+concurrency:
+  group: readme-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          standalone: true
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install deps (workspace root)
+        run: pnpm -r install --frozen-lockfile
+
+      - name: Guard - README fence languages
+        run: pnpm guard:readme-fences

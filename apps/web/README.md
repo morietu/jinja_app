@@ -1,3 +1,4 @@
+## ✅ `apps/web/README.md`（Web専用）完全版
 # apps/web（Next.js フロントエンド）
 
 - Web: http://localhost:3000  
@@ -25,6 +26,7 @@
 ---
 
 ## 主要ルート（現状 “使っているものだけ”）
+> “存在するが未使用” のページは書かない（READMEが嘘になるから）
 
 - `/`  
   - ホーム（検索 / コンシェルジュ入口など）
@@ -49,19 +51,15 @@
 - `/auth/login`, `/auth/register`  
   - 認証系
 
-> ※ “存在するが未使用” のページは書かない（READMEが嘘になるから）
-
 ---
 
 ## Places / place_id の扱い（統一方針）
-
 - `place_id` は常に `/places/resolve/` で `shrine_id` に解決して正規化する
-- `from-place` 導線は廃止（今後復活させない）
+- from-place 導線は廃止（今後復活させない）
 
 ---
 
 ## ディレクトリ案内
-
 - `src/app/api/**`  
   - Next Route Handlers（BFF）  
   - Cookie 引き回し / Backend 呼び出しの境界
@@ -75,12 +73,25 @@
 ---
 
 ## 関連ドキュメント
+- 認証 / プロキシ（最重要）: `docs/10_arch_auth_proxy.md`
+- ローカル疎通: `docs/20_smoke_checks.md`
+- API 概要: `docs/30_api_overview.md`
 
-- 認証 / プロキシ（最重要）  
-  - `docs/10_arch_auth_proxy.md`
+---
 
-- ローカル疎通  
-  - `docs/20_smoke_checks.md`
+## Server fetch policy（BFF）
 
-- API 概要  
-  - `docs/30_api_overview.md`
+Route Handlers（`src/app/api/**/route.ts`）から Django(API) へアクセスする場合は、例外なく以下のどちらかを使う。
+
+### Use `bffFetchWithAuthFromReq` when...
+- 認証が絡む（Authorization / HttpOnly cookie forward が必要）
+- refresh を含む（401/403 の再試行、access 更新が必要）
+
+### Use `djFetch` when...
+- 単純に Django へ中継するだけ（素通しプロキシ）
+- JSON 以外（画像/バイナリ/任意 content-type）も壊さずに転送したい
+
+### Forbidden
+- server コード（`src/lib/server/**`, `src/app/api/**`）で `NEXT_PUBLIC_*` を参照すること
+- route.ts 内で base URL を直に組むこと（API_BASE, DJANGO_BASE 等を自前で持たない）
+
