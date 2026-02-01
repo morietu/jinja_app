@@ -459,7 +459,7 @@ export default function ConciergeClientFull() {
     },
   });
 
-  const hasUserMessage = useMemo(() => messages.some((m) => m.role === "user" && m.content.trim()), [messages]);
+  
 
   const shouldShowEntry = isEntryRoute;
 
