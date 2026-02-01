@@ -11,6 +11,4 @@ export function clampLimit(v: string | null, def: number, max: number) {
   return Math.max(1, Math.min(max, m));
 }
 
-export function getDjangoOrigin(fallback = "http://127.0.0.1:8000") {
-  return toOrigin(process.env.DJANGO_API_BASE_URL ?? process.env.API_BASE ?? "", fallback);
-}
+

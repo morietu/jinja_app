@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { clampLimit, getDjangoOrigin } from "@/lib/bff/origin";
+import { clampLimit } from "@/lib/bff/origin";
+import { getDjangoOrigin } from "@/lib/server/backend";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
 const DEBUG = process.env.NODE_ENV !== "production";

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { djFetch } from "@/lib/server/backend";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
 type MaybePlace = PlacesNearbyResult | null;
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${API_BASE}/api/places/nearby-search/?${qs}`, {
+    upstream = await djFetch(`/api/places/nearby-search/?${qs}`, {
       cache: "no-store",
       headers: { Accept: "application/json" },
     });
@@ -23,9 +23,9 @@ export async function GET(req: Request) {
       requestId,
       message: e instanceof Error ? e.message : String(e),
     });
-    const body: PlacesNearbyResponse = { results: [] };
-    return NextResponse.json(body, { status: 200 });
+    return NextResponse.json({ results: [] } satisfies PlacesNearbyResponse, { status: 200 });
   }
+
 
   if (upstream.status === 404) {
     const body: PlacesNearbyResponse = { results: [] };

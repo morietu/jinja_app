@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
+import { djFetch } from "@/lib/server/backend";
 import { serverLog, getRequestId } from "@/lib/server/logging";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
 
 async function forwardToUpstream(body: unknown, req?: Request) {
   const requestId = req ? getRequestId(req) : null;
 
-  const upstream = await fetch(`${API_BASE}/api/places/find/`, {
+  const upstream = await djFetch("/api/places/find/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
