@@ -23,6 +23,7 @@ type Props = {
 
   children?: ReactNode;
   isInitialBrowseMode?: boolean;
+  hideChatPanel?: boolean;
 };
 
 export default function ConciergeLayout(props: Props) {
@@ -51,19 +52,14 @@ export default function ConciergeLayout(props: Props) {
   // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
 
   const isInitialBrowseMode = !hasUserMessage && hasCandidates;
-  const hideChatPanel = !embedMode && isInitialBrowseMode && !sending;
+  const hideChatPanel = props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending);
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
         {children}
 
-        {hideChatPanel ? (
-          <InitialBrowseFooter
-            onOpenFilter={() => window.dispatchEvent(new Event("concierge:open-filter"))}
-            canSend={canSend}
-          />
-        ) : (
+        {hideChatPanel ? null : (
           <ChatPanel
             messages={messages}
             loading={sending}
@@ -81,18 +77,4 @@ export default function ConciergeLayout(props: Props) {
   );
 }
 
-function InitialBrowseFooter(props: { onOpenFilter?: () => void; canSend: boolean }) {
-  return (
-    <div className="shrink-0 border-t border-neutral-200 bg-white px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-      <button
-        type="button"
-        className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-        onClick={props.onOpenFilter}
-        disabled={!props.canSend}
-      >
-        条件で絞る
-      </button>
-      <p className="mt-2 text-[11px] text-slate-500">まずは条件を追加して、候補を絞り込みます</p>
-    </div>
-  );
-}
+
