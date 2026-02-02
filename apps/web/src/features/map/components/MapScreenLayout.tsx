@@ -10,6 +10,7 @@ import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 import { devLog } from "@/lib/client/logging";
 
 
+
 export type InitialSelect = {
   shrineId: number | null;
   placeId: string | null;
