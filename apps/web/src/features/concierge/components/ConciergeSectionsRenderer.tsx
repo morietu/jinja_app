@@ -5,7 +5,8 @@ import DetailSection from "@/components/shrine/DetailSection";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
-import ConciergeShrineCard from "@/components/shrine/ConciergeShrineCard";
+import ShrineCard from "@/components/shrine/ShrineCard";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 import type {
   ConciergeSectionsPayload,
@@ -34,6 +35,7 @@ type Props = {
   payload: ConciergeSectionsPayload;
   onAction?: (action: RendererAction) => void;
   sending?: boolean;
+  threadId?: number | null;
 };
 
 function parseExtraTokens(extra: string | undefined | null): string[] {
@@ -43,9 +45,8 @@ function parseExtraTokens(extra: string | undefined | null): string[] {
     .filter(Boolean);
 }
 
-export default function ConciergeSectionsRenderer({ payload, onAction, sending = false }: Props) {
-  
 
+export default function ConciergeSectionsRenderer({ payload, onAction, sending = false, threadId = null }: Props) {
   // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
@@ -191,7 +192,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (item.kind === "registered") {
                       return (
-                        <ConciergeShrineCard
+                        <ShrineCard
                           key={`rec-${i}-${idx}`}
                           shrineId={item.shrineId}
                           title={item.title}
@@ -199,8 +200,7 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
                           description={item.description}
                           imageUrl={item.imageUrl}
                           breakdown={item.breakdown ?? null}
-                          detailHref={item.detailHref}
-                         
+                          detailHref={buildShrineHref(item.shrineId, { ctx: "concierge", tid: threadId })}
                         />
                       );
                     }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { resolvePlace } from "@/lib/api/places";
+import type React from "react";
 
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import NeedChips from "@/features/concierge/components/NeedChips";
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -23,7 +23,7 @@ type Props = {
   isPrimary?: boolean;
   showNeedChips?: boolean;
   needTags?: string[];
-  tid?: string | null;
+  tid?: string | number | null;
 };
 
 export default function RecommendationUnit({
@@ -33,8 +33,6 @@ export default function RecommendationUnit({
   needTags = [],
   tid = null,
 }: Props) {
-  const router = useRouter();
-
   const safe: ConciergeRecommendation = {
     ...rec,
     name: (rec.name || rec.display_name || "（名称不明）").trim(),
@@ -47,13 +45,9 @@ export default function RecommendationUnit({
 
   const rawShrineId = (safe as any).shrine_id ?? null;
   const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
-  const placeId = (safe.place_id ?? null)?.toString().trim() || null;
 
-  const qs = new URLSearchParams();
-  qs.set("ctx", "concierge");
-  if (tid) qs.set("tid", tid);
-
-  const directHref = shrineId ? `/shrines/${shrineId}?${qs.toString()}` : null;
+  // ✅ リンク生成は集約（ctx/tid 抜けを物理的に防ぐ）
+  const href = shrineId ? buildShrineHref(shrineId, { ctx: "concierge", tid }) : undefined;
 
   const badges = [...(Array.isArray(safe.tags) ? safe.tags : []), ...(Array.isArray(needTags) ? needTags : [])].filter(
     (t): t is string => typeof t === "string" && t.trim().length > 0,
@@ -66,19 +60,6 @@ export default function RecommendationUnit({
     [reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]
   ).slice(0, 3);
 
-  const onGoDetail = async () => {
-    // shrineId があれば即遷移
-    if (shrineId && directHref) {
-      router.push(directHref);
-      return;
-    }
-    // placeId しかないなら、ここで解決してから詳細へ
-    if (placeId) {
-      const r = await resolvePlace(placeId);
-      router.push(`/shrines/${r.shrine_id}?${qs.toString()}`);
-    }
-  };
-
   return (
     <div className="space-y-2">
       {showNeedChips && needTags.length > 0 && <NeedChips tags={needTags} />}
@@ -90,7 +71,7 @@ export default function RecommendationUnit({
         description={description}
         isPrimary={isPrimary}
         badges={finalBadges}
-        detailHref={directHref ?? undefined}
+        detailHref={href}
         disclosureTitle="おすすめ理由"
         disclosureBody={
           <div className="space-y-3">

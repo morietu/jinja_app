@@ -1,3 +1,4 @@
+// apps/web/src/components/ConciergeCard.tsx
 "use client";
 
 import * as React from "react";
@@ -44,17 +45,13 @@ export default function ConciergeCard(props: BaseCardProps) {
     headerRight,
     disclosureTitle = "詳細",
     disclosureBody,
-    onNavigate,
   } = props;
 
   const [open, setOpen] = React.useState(false);
-
   const clampDesc = disclosureBody ? !open : !isPrimary;
 
   const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
-
-  const showCta = !!detailHref || !!onNavigate;
 
   return (
     <div
@@ -64,7 +61,6 @@ export default function ConciergeCard(props: BaseCardProps) {
         isPrimary && "shadow-md ring-neutral-200",
       )}
     >
-      {/* media */}
       <div className="relative h-36 w-full">
         {imageUrl ? (
           <Image
@@ -79,13 +75,11 @@ export default function ConciergeCard(props: BaseCardProps) {
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-neutral-100 to-neutral-50" />
         )}
-
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-black/0 to-black/0" />
         <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-black/5" />
       </div>
 
       <div className={cn("px-4", isPrimary ? "py-4" : "py-3")}>
-        {/* badges row */}
         {!hideBadges && (badges.length > 0 || headerRight) ? (
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex flex-wrap gap-2">
@@ -107,7 +101,6 @@ export default function ConciergeCard(props: BaseCardProps) {
         ) : null}
 
         <div className="flex items-start gap-3">
-          {/* left mark */}
           {!hideLeftMark ? (
             <div
               className={cn(
@@ -141,45 +134,22 @@ export default function ConciergeCard(props: BaseCardProps) {
               </p>
             ) : null}
 
-            {!isPrimary ? (
-              <span className="mt-2 inline-flex items-center rounded-full bg-neutral-50 px-2 py-0.5 text-[10px] text-neutral-600 ring-1 ring-inset ring-neutral-200/60">
-                候補
-              </span>
-            ) : null}
-
-            {showCta ? (
+            {detailHref ? (
               <div className={cn("mt-4", !isPrimary && "mt-3")}>
-                {onNavigate ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onNavigate();
-                    }}
-                    className={cn(
-                      "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
-                      "text-sm font-semibold bg-neutral-900 text-white ring-1 ring-inset ring-black/10",
-                      "transition active:scale-[0.99] hover:bg-neutral-800",
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
-                    )}
-                  >
-                    {detailLabel}
-                  </button>
-                ) : (
-                  <Link
-                    href={detailHref!}
-                    prefetch={false}
-                    className={cn(
-                      "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
-                      "text-sm font-semibold bg-neutral-900 text-white ring-1 ring-inset ring-black/10",
-                      "transition active:scale-[0.99] hover:bg-neutral-800",
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
-                    )}
-                  >
-                    {detailLabel}
-                  </Link>
-                )}
+                <Link
+                  href={detailHref}
+                  prefetch={false}
+                  className={cn(
+                    "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
+                    "text-sm font-semibold",
+                    "bg-neutral-900 text-white",
+                    "ring-1 ring-inset ring-black/10",
+                    "transition active:scale-[0.99] hover:bg-neutral-800",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
+                  )}
+                >
+                  {detailLabel}
+                </Link>
               </div>
             ) : null}
           </div>
