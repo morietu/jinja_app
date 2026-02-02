@@ -1,7 +1,7 @@
 // apps/web/src/components/shrine/PlaceShrineCard.tsx
 "use client";
-
 import ConciergeCard from "@/components/ConciergeCard";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
 
 type Props = {
   placeId: string;
@@ -23,7 +23,7 @@ export default function PlaceShrineCard({
   detailHref,
   detailLabel = "詳細を見る",
 }: Props) {
-  const href = detailHref ?? `/shrines/resolve?place_id=${encodeURIComponent(placeId)}`;
+  const href = detailHref ?? buildShrineResolveHref(placeId);
 
   return (
     <ConciergeCard

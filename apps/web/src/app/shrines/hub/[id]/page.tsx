@@ -1,5 +1,8 @@
 // apps/web/src/app/shrines/hub/[id]/page.tsx
 import { redirect } from "next/navigation";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
+
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,13 +20,18 @@ export default async function Page({ params, searchParams }: Props) {
   // 数値IDなら /shrines/:id へ
   const numericId = Number(id);
   if (Number.isFinite(numericId) && numericId > 0) {
-    const dest = q.toString() ? `/shrines/${numericId}?${q.toString()}` : `/shrines/${numericId}`;
-    redirect(dest);
+    const query = Object.fromEntries(q.entries());
+    redirect(buildShrineHref(numericId, { query: Object.keys(query).length ? query : undefined }));
   }
 
   // 数値じゃなければ place_id とみなして resolve へ
   const q2 = new URLSearchParams(q);
   q2.set("place_id", id);
 
-  redirect(`/shrines/resolve?${q2.toString()}`);
+  const query = Object.fromEntries(q.entries());
+  redirect(
+    buildShrineResolveHref(id, {
+      query: Object.keys(query).length ? query : undefined,
+    }),
+  );  
 }

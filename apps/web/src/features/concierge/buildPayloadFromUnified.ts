@@ -6,6 +6,8 @@ import type {
   ConciergeFilterState,
 } from "@/features/concierge/sections/types";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
+
 
 
 export function buildPayloadFromUnified(
@@ -28,15 +30,12 @@ export function buildPayloadFromUnified(
       const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
       const placeId = (r?.place_id ?? null)?.toString().trim() || null;
 
-      const detailHref = shrineId
-        ? buildShrineHref(shrineId, { ctx: "concierge", tid })
-        : placeId
-          ? `/shrines/resolve?${new URLSearchParams({
-              place_id: placeId,
-              ctx: "concierge",
-              ...(tid ? { tid: String(tid) } : {}),
-            }).toString()}`
-          : null;
+      const detailHref =
+        typeof shrineId === "number" && Number.isFinite(shrineId) && shrineId > 0
+          ? buildShrineHref(shrineId, { ctx: "concierge", tid })
+          : placeId
+            ? buildShrineResolveHref(placeId, { ctx: "concierge", tid })
+            : undefined;
 
       if (typeof r?.place_id === "string" && r.place_id.trim()) {
 

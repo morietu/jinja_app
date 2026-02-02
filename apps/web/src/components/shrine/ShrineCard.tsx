@@ -7,6 +7,8 @@ import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 type Props = {
   shrineId: number;
@@ -88,7 +90,7 @@ export default function ShrineCard({
   // description/address/detail
   const safeDescription = effHideDescription ? "" : (description ?? "");
   const addr = effHideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
-  const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? `/shrines/${shrineId}` : undefined);
+  const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? buildShrineHref(shrineId) : undefined);
   const cardDetailHref = effHideDetailLink ? undefined : safeDetailHref;
 
   // favorite button

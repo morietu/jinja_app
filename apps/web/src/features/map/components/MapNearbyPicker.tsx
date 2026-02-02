@@ -6,6 +6,7 @@ import Link from "next/link";
 import { resolvePlace } from "@/lib/api/places";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
 
 type Props = {
   limit?: number;
@@ -42,11 +43,7 @@ export default function MapNearbyPicker(props: Props) {
   // ctx/tid 付きで /shrines/resolve を作る（文字列連結の事故を防ぐ）
   const buildResolveHref = useCallback(
     (placeId: string) => {
-      const q = new URLSearchParams();
-      q.set("place_id", placeId);
-      q.set("ctx", "map");
-      if (tid) q.set("tid", tid);
-      return `/shrines/resolve?${q.toString()}`;
+      return buildShrineResolveHref(placeId, { ctx: "map", tid });
     },
     [tid],
   );
