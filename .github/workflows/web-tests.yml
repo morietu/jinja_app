@@ -2,6 +2,7 @@ name: web-tests
 permissions:
   contents: read
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     paths:
