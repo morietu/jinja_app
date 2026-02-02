@@ -4,6 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Goshuin = {
   id: number;
@@ -150,7 +151,7 @@ export default function MyGoshuinTopSection({
           {latestPublic.map((g, i) => (
             <div key={g.id} className={i >= 2 ? "hidden sm:block" : ""}>
               <GoshuinCardMini
-                href={g.shrine ? `/shrines/${g.shrine}` : undefined}
+                href={g.shrine ? buildShrineHref(g.shrine) : undefined}
                 title={g.title}
                 imageUrl={g.image_url}
                 shrineName={g.shrine_name ?? null}

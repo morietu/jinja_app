@@ -6,6 +6,8 @@ import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resolvePlace } from "@/lib/api/places";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
+
 
 type MapMarker =
   | { kind: "db"; id: number; name: string; lat: number; lng: number }
@@ -89,12 +91,7 @@ export default function ShrineMap({ markers }: Props) {
                 const r = await resolvePlace(m.place_id);
                 router.push(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
               } catch {
-                // 最悪フォールバック（resolve落ちたら /shrines/resolve へ）
-                const qs = new URLSearchParams();
-                qs.set("ctx", "map");
-                if (tid) qs.set("tid", tid);
-                qs.set("place_id", m.place_id);
-                router.push(`/shrines/resolve?${qs.toString()}`);
+                router.push(buildShrineResolveHref(m.place_id, { ctx: "map", tid }));
               }
             }}
           />

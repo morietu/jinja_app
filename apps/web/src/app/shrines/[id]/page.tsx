@@ -16,6 +16,8 @@ import { getConciergeThread } from "@/lib/api/concierge";
 import { fetchPublicGoshuinsForShrine } from "../../../lib/api/publicGoshuins";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -53,10 +55,9 @@ export default async function Page({ params, searchParams }: Props) {
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
   if (tid) qs.set("tid", String(tid));
-  const from = encodeURIComponent(`/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`);
 
   // ✅ 御朱印登録の唯一入口はここ
-  const addGoshuinHref = `/goshuin/new?shrine=${numericId}&from=${from}`;
+  const query = Object.fromEntries(qs.entries());
 
   let shrine: Shrine | null = null;
   try {
@@ -104,7 +105,17 @@ export default async function Page({ params, searchParams }: Props) {
 
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
 
-  const nextPath = `/shrines/${numericId}${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const nextPath = buildShrineHref(numericId, { query: Object.keys(query).length ? query : undefined });
+
+  // ✅ 御朱印追加導線（唯一入口）
+  const addQ = new URLSearchParams();
+  addQ.set("shrine", String(numericId));
+  addQ.set("shrine_id", String(numericId)); // 保険（どっちでも拾えるように）
+  addQ.set("from", nextPath);
+  if (ctx) addQ.set("ctx", ctx);
+  if (tid) addQ.set("tid", String(tid));
+
+  const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
 
   // page.tsx（publicGoshuins の取得直後あたり）
   const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);

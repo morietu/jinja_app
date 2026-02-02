@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { Favorite } from "@/lib/api/favorites";
 import { normalizeFavorite } from "@/lib/favorites/normalize";
 import { LABELS } from "@/lib/ui/labels";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
 
 type Props = {
   favorite: Favorite;
@@ -29,11 +31,7 @@ export function FavoriteShrineCard({
 }: Props) {
   const { shrineId, placeId } = normalizeFavorite(favorite);
 
-  const href = shrineId
-    ? `/shrines/${shrineId}`
-    : placeId
-      ? `/shrines/resolve?place_id=${encodeURIComponent(placeId)}`
-      : "/map";
+  const href = shrineId ? buildShrineHref(shrineId) : placeId ? buildShrineResolveHref(placeId) : "/map";
       
   const title =
     (favorite.shrine?.name_jp && favorite.shrine.name_jp.trim()) ||

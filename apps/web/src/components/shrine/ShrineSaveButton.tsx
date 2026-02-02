@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFavorite } from "@/hooks/useFavorite";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Props = {
   shrineId: number;
@@ -26,7 +27,7 @@ export default function ShrineSaveButton({ shrineId, nextPath }: Props) {
       // 401っぽい時はログインへ誘導（API実装により形は変わるので保険的に）
       const status = e?.response?.status ?? e?.status;
       if (status === 401) {
-        const next = nextPath ?? `/shrines/${shrineId}`;
+        const next = nextPath ?? buildShrineHref(shrineId);
         router.push(`/login?next=${encodeURIComponent(next)}`);
         return;
       }
