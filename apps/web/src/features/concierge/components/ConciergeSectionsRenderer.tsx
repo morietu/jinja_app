@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo } from "react";
 import DetailSection from "@/components/shrine/DetailSection";
-import ShrineCard from "@/components/shrine/ShrineCard";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
+import ConciergeShrineCard from "@/components/shrine/ConciergeShrineCard";
 
 import type {
   ConciergeSectionsPayload,
@@ -44,13 +44,14 @@ function parseExtraTokens(extra: string | undefined | null): string[] {
 }
 
 export default function ConciergeSectionsRenderer({ payload, onAction, sending = false }: Props) {
+  
+
   // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
-
 
   // ✅ filter state は map の外で1回だけ取る
   const filterState: ConciergeFilterState | null = useMemo(() => {
@@ -166,8 +167,6 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
             );
           }
 
-          
-
           case "recommendations":
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
@@ -190,20 +189,18 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
 
                 <div className="space-y-3">
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
-                    
-
                     if (item.kind === "registered") {
                       return (
-                        <ShrineCard
+                        <ConciergeShrineCard
                           key={`rec-${i}-${idx}`}
                           shrineId={item.shrineId}
                           title={item.title}
                           address={item.address}
                           description={item.description}
                           imageUrl={item.imageUrl}
-                          breakdown={item.breakdown ?? null} // ✅ registeredのみ
+                          breakdown={item.breakdown ?? null}
                           detailHref={item.detailHref}
-                          // isPrimary 使うならここで渡す（ShrineCardが受けるなら）
+                         
                         />
                       );
                     }

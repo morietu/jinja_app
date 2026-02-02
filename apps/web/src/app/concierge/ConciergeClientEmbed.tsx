@@ -24,7 +24,7 @@ export default function ConciergeClientEmbed() {
         <button
           type="button"
           className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-white font-semibold hover:bg-emerald-700"
-          onClick={() => router.push("/concierge?mode=feel")}
+          onClick={() => router.push("/concierge")}
         >
           今の気持ちから神社を探す
         </button>

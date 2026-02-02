@@ -23,22 +23,27 @@ import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
 
 /* ========================================
- * types / consts
+ * 型定義とデータ設定
  * ====================================== */
 type Element4 = "火" | "地" | "風" | "水";
 type Tag = { id: number; name: string };
 
+// チャットイベントの型を拡張
 type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeResponse; at: string };
 type LocalEvent = ChatEvent | AssistantStateEvent;
 
+// スレッドごとのイベント履歴を管理
 type EventsByThread = Record<number, LocalEvent[]>;
 
+// 入口モード: 気分 or 条件絞り込み
 type EntryMode = "feel" | "filter";
 
+// ローカルストレージのキー
 const STORAGE_KEY = "concierge:eventsByThread";
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
 const LS_ENTRY_MODE = "concierge:entryMode";
 
+// 四大元素とご利益の対応表
 const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   火: ["仕事運・出世", "勝運・必勝祈願", "開運招福", "厄除け・方除け"],
   地: ["金運・商売繁盛", "健康長寿", "五穀豊穣", "家内安全"],
@@ -47,8 +52,10 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
 };
 
 /* ========================================
- * utils
+ * 便利な関数群
  * ====================================== */
+
+// 日付が正しいISO形式か確認
 function isValidISODate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
@@ -57,6 +64,7 @@ function isValidISODate(s: string): boolean {
   return d.getUTCFullYear() === y && d.getUTCMonth() + 1 === m && d.getUTCDate() === dd;
 }
 
+// 日付をISO形式に整形
 function normalizeISODate(s: string): string | null {
   const t = (s || "").trim();
   if (!t) return null;
@@ -73,6 +81,7 @@ function normalizeISODate(s: string): string | null {
   return isValidISODate(t) ? t : null;
 }
 
+// 誕生日から四大元素を判定
 function birthdateToElement4(birthdateISO: string): Element4 | null {
   if (!isValidISODate(birthdateISO)) return null;
   const [, mm, dd] = birthdateISO.split("-");
@@ -92,6 +101,7 @@ function birthdateToElement4(birthdateISO: string): Element4 | null {
   return "水";
 }
 
+// イベント履歴からメッセージ一覧を作成
 function deriveMessages(events: LocalEvent[], threadId: number): ConciergeMessage[] {
   let mid = 0;
   const out: ConciergeMessage[] = [];
@@ -112,17 +122,21 @@ function deriveMessages(events: LocalEvent[], threadId: number): ConciergeMessag
 }
 
 /* ========================================
- * events store helpers
+ * イベント履歴の操作関数
  * ====================================== */
+
+// 指定スレッドのイベント一覧を取得
 function getThreadEvents(map: EventsByThread, tid: number): LocalEvent[] {
   return map[tid] ?? [];
 }
 
+// イベントを追加
 function appendEvents(map: EventsByThread, tid: number, next: LocalEvent | LocalEvent[]): EventsByThread {
   const arr = Array.isArray(next) ? next : [next];
   return { ...map, [tid]: [...getThreadEvents(map, tid), ...arr] };
 }
 
+// スレッドIDが変わったときの移行処理
 function promoteThread(map: EventsByThread, fromTid: number, toTid: number): EventsByThread {
   if (!toTid || fromTid === toTid) return map;
   const fromEvents = getThreadEvents(map, fromTid);
@@ -135,46 +149,55 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
 }
 
 /* ========================================
- * component
+ * メインコンポーネント
  * ====================================== */
 export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
+  // 画面を閉じているかどうかのフラグ
   const isClosingRef = useRef(false);
 
+  // イベント履歴とその読み込み状態
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
+  // 現在のスレッドID
   const [activeThreadId, setActiveThreadId] = useState(0);
   const activeThreadIdRef = useRef(0);
 
+  // フィルター設定の状態
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [extraCondition, setExtraCondition] = useState("");
 
+  // ご利益タグの状態
   const [goriyakuTags, setGoriyakuTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
+  // 誕生日とタグ読み込みの状態
   const [birthdate, setBirthdate] = useState("");
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
+  // ✅ 入口画面で送信中かどうかのフラグ
   const [entrySubmitting, setEntrySubmitting] = useState(false);
 
-  // 初回レスポンス保持（2回送信問題対策）
+  // 最新のレスポンスとおすすめ候補
   const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
 
+  // スレッドIDを更新
   const setActiveTid = (tid: number) => {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
   };
 
   /* ----------------------------------------
-   * route params
+   * URLパラメータの読み取り
    * -------------------------------------- */
   const rawTid = useMemo(() => (sp.get("tid") ?? "").trim(), [sp]);
 
+  // tidを数値に変換（不正な値ならnull）
   const tidNum = useMemo(() => {
     if (!rawTid) return null;
     const n = Number(rawTid);
@@ -184,14 +207,15 @@ export default function ConciergeClientFull() {
     return n;
   }, [rawTid]);
 
-  const isEntryRoute = tidNum === null; // tid無い/無効=入口
+  // 入口画面かどうか（tid無し or 不正なとき）
+  const isEntryRoute = tidNum === null;
   const tidFromQuery = tidNum ?? 0;
 
-  // 後方互換: /concierge?mode=feel を1回だけ読む
+  // 旧バージョン対応：mode=feel を読む
   const rawMode = useMemo(() => (sp.get("mode") ?? "").trim(), [sp]);
 
   /* ----------------------------------------
-   * entry mode (localStorage主導)
+   * 入口モード管理（ローカルストレージ）
    * -------------------------------------- */
   const [entryMode, setEntryMode] = useState<EntryMode>(() => {
     if (typeof window === "undefined") return "filter";
@@ -199,24 +223,25 @@ export default function ConciergeClientFull() {
     return v === "feel" ? "feel" : "filter";
   });
 
+  // 入口モードをローカルストレージに保存
   useEffect(() => {
     try {
       localStorage.setItem(LS_ENTRY_MODE, entryMode);
     } catch {
-      // ignore
+      // 保存失敗は無視
     }
   }, [entryMode]);
 
-  // 入口のときだけ rawMode を反映して、すぐURL正規化（modeを捨てる）
+  // URLにmodeパラメータがあれば反映して削除
   useEffect(() => {
     if (!isEntryRoute) return;
     if (!rawMode) return;
 
     setEntryMode(rawMode === "feel" ? "feel" : "filter");
-    router.replace("/concierge"); // modeは入口用途だけなので捨てる
+    router.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
 
-  // 入口で tid が変なのが付いてたら正規化（ログもUIも綺麗になる）
+  // 入口画面で不正なtidがあれば削除
   useEffect(() => {
     if (!isEntryRoute) return;
     if (!rawTid) return;
@@ -224,20 +249,21 @@ export default function ConciergeClientFull() {
   }, [isEntryRoute, rawTid, router]);
 
   /* ----------------------------------------
-   * close handler
+   * 閉じるボタンのハンドラ
    * -------------------------------------- */
   useEffect(() => {
     const onClose = () => {
       if (isClosingRef.current) return;
       isClosingRef.current = true;
 
+      // 状態をクリア
       setLiveUnified(null);
       setLiveRecs([]);
       setIsFilterOpen(false);
 
       router.push("/");
-      router.refresh();
 
+      // 800ms後にフラグをリセット
       window.setTimeout(() => {
         isClosingRef.current = false;
       }, 800);
@@ -248,40 +274,41 @@ export default function ConciergeClientFull() {
   }, [router]);
 
   /* ----------------------------------------
-   * restore & save
+   * ローカルストレージから履歴を復元
    * -------------------------------------- */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setEventsByThread(JSON.parse(raw) as EventsByThread);
     } catch {
-      // ignore
+      // エラーは無視
     } finally {
       setHydrated(true);
     }
   }, []);
 
+  // 履歴をローカルストレージに保存
   useEffect(() => {
     if (!hydrated) return;
     const id = window.setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsByThread));
       } catch {
-        // ignore
+        // 保存失敗は無視
       }
     }, 250);
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
   /* ----------------------------------------
-   * birthdate restore/save
+   * 誕生日の復元と保存
    * -------------------------------------- */
   useEffect(() => {
     try {
       const v = localStorage.getItem(LS_BIRTHDATE_KEY);
       if (v && isValidISODate(v)) setBirthdate(v);
     } catch {
-      // ignore
+      // エラーは無視
     }
   }, []);
 
@@ -290,12 +317,12 @@ export default function ConciergeClientFull() {
       if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
       else localStorage.removeItem(LS_BIRTHDATE_KEY);
     } catch {
-      // ignore
+      // エラーは無視
     }
   }, [birthdate]);
 
   /* ----------------------------------------
-   * thread switching
+   * スレッド切り替え
    * -------------------------------------- */
   useEffect(() => {
     if (!hydrated) return;
@@ -303,7 +330,7 @@ export default function ConciergeClientFull() {
     setActiveTid(tidFromQuery);
   }, [tidFromQuery, hydrated]);
 
-  // 入口に来たら thread=0 を掃除
+  // 入口に来たらスレッド0をクリア
   useEffect(() => {
     if (!hydrated) return;
     if (!isEntryRoute) return;
@@ -315,7 +342,7 @@ export default function ConciergeClientFull() {
   }, [hydrated, isEntryRoute]);
 
   /* ----------------------------------------
-   * tags fetch (filter open)
+   * タグ一覧の取得（フィルター開いたとき）
    * -------------------------------------- */
   useEffect(() => {
     if (!isFilterOpen) return;
@@ -347,16 +374,17 @@ export default function ConciergeClientFull() {
   }, [isFilterOpen, goriyakuTags.length]);
 
   /* ----------------------------------------
-   * dev force
+   * 開発用の強制設定
    * -------------------------------------- */
   const force = sp.get("force");
   const forced: StopReason = force === "design" ? "design" : force === "paywall" ? "paywall" : null;
 
   /* ----------------------------------------
-   * derived data
+   * 派生データの計算
    * -------------------------------------- */
   const events = useMemo(() => getThreadEvents(eventsByThread, activeThreadId), [eventsByThread, activeThreadId]);
 
+  // 最後のレスポンスを取得
   const lastUnified = useMemo((): UnifiedConciergeResponse | null => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
@@ -365,11 +393,13 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
+  // 表示用のレスポンス（入口では非表示）
   const displayUnified = useMemo(() => {
     if (isEntryRoute) return null;
     return liveUnified ?? lastUnified;
   }, [isEntryRoute, lastUnified, liveUnified]);
 
+  // 表示用のおすすめ候補
   const displayRecommendations = useMemo(() => {
     if (isEntryRoute) return [];
     if (liveRecs.length > 0) return liveRecs;
@@ -391,6 +421,7 @@ export default function ConciergeClientFull() {
 
   const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
 
+  // 誕生日に合ったおすすめタグ
   const suggestedTags = useMemo(() => {
     if (!element4) return [];
     if (!Array.isArray(goriyakuTags) || goriyakuTags.length === 0) return [];
@@ -413,6 +444,7 @@ export default function ConciergeClientFull() {
     [displayRecommendations, needTags],
   );
 
+  // フィルター設定をまとめたオブジェクト
   const baseFilters: ConciergeChatFilters = useMemo(() => {
     const bd = normalizeISODate(birthdate) ?? undefined;
     const extra = extraCondition.trim() || undefined;
@@ -477,16 +509,11 @@ export default function ConciergeClientFull() {
   );
 
   /* ----------------------------------------
-   * chat hook
+   * チャットフックの設定
    * -------------------------------------- */
   const { send, sending, error } = useConciergeChat(chatThreadId, {
     debugLabel: "ConciergeClientFull",
     filters: baseFilters,
-
-    onRecommendations: (recs) => {
-      if (isClosingRef.current) return;
-      setLiveRecs(Array.isArray(recs) ? recs : []);
-    },
 
     onUnified: (u) => {
       if (isClosingRef.current) return;
@@ -497,13 +524,26 @@ export default function ConciergeClientFull() {
       const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
       const currentTid = activeThreadIdRef.current;
 
-      if (currentTid === 0 && nextTid !== 0) {
-        setActiveTid(nextTid);
-        router.replace(`/concierge?tid=${nextTid}`);
+      // 入口から送信したケース
+      if (currentTid === 0) {
+        if (nextTid === 0) {
+          // ✅ ここが“missing”
+          console.warn("[CONCIERGE] thread id missing; treating as failure");
+          setEntrySubmitting(false); // ✅ 詰み回避
+        } else {
+          setActiveTid(nextTid);
+          router.replace(`/concierge?tid=${nextTid}`);
+          // entrySubmittingはURLが変わった後にuseEffectで落ちる想定でもOK
+          // ただし安全に落とすなら setEntrySubmitting(false) をここで呼んでも良い
+        }
+      } else {
+        // 通常チャット（スレッドがあるはず）
+        if (nextTid && nextTid !== currentTid) {
+          router.replace(`/concierge?tid=${nextTid}`);
+          setActiveTid(nextTid);
+        }
+        setEntrySubmitting(false);
       }
-
-      // ✅ 成功で戻す
-      setEntrySubmitting(false);
 
       setEventsByThread((prev) =>
         appendEvents(
@@ -518,37 +558,76 @@ export default function ConciergeClientFull() {
     },
   });
 
-  // ✅ 失敗でも戻す（入口送信中にエラーで固まるのを防ぐ）
+  // 入口を抜けたら送信中フラグを解除
+  useEffect(() => {
+    if (!isEntryRoute && entrySubmitting) {
+      console.log("[CONCIERGE] 入口を抜けたので送信中フラグを解除");
+      setEntrySubmitting(false);
+    }
+  }, [isEntryRoute, entrySubmitting]);
+
+  // エラー時も送信中フラグを解除
   useEffect(() => {
     if (!entrySubmitting) return;
     if (sending) return;
     if (!error) return;
+
+    console.log("[CONCIERGE] エラー発生により送信中フラグを解除");
     setEntrySubmitting(false);
   }, [entrySubmitting, sending, error]);
 
+  // ✅ 状態確認用ログ
+  useEffect(() => {
+    console.log("[ENTRY_STATE]", {
+      rawTid,
+      tidNum,
+      isEntryRoute,
+      entrySubmitting,
+      sending,
+      hasLiveUnified: !!liveUnified,
+      hasLiveRecs: liveRecs.length,
+    });
+  }, [rawTid, tidNum, isEntryRoute, entrySubmitting, sending, liveUnified, liveRecs.length]);
+
+  useEffect(() => {
+    console.log("[ENTRY_STATE]", {
+      t: performance.now().toFixed(1),
+      path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "",
+      isEntryRoute,
+      entrySubmitting,
+      sending,
+      activeThreadId,
+      chatThreadId,
+    });
+  }, [isEntryRoute, entrySubmitting, sending, activeThreadId, chatThreadId]);
+
   /* ----------------------------------------
-   * UI flags
+   * UI表示の判定
    * -------------------------------------- */
-  // 入口は、送信中は消す（フラッシュ防止）
-  const shouldShowEntry = hydrated && isEntryRoute && !entrySubmitting;
+  const shouldShowEntry = hydrated && isEntryRoute;
+  const hideChatPanel = !hydrated || isEntryRoute;
 
-  // ChatPanel は入口/送信中は絶対出さない
-  const hideChatPanel = !hydrated || isEntryRoute || entrySubmitting;
-
+  // 気分から探すの例文
   const feelExamples = [
     "最近ちょっと疲れていて、落ち着ける神社がいいです",
     "気持ちを切り替えて前向きになれる参拝がしたいです",
     "人が少なくて静かな場所でお参りしたいです",
   ];
 
+  // 例文をタップしたときの処理
   const onPickExample = (text: string) => {
     if (!canSend) return;
+
+    // ✅ ログ：送信開始
+    console.log("[CONCIERGE] 例文送信開始", { text, entryMode });
+
     setEntrySubmitting(true);
     setLiveUnified(null);
     setLiveRecs([]);
     void send(text);
   };
 
+  // フィルター適用のペイロード作成
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
     const has =
       (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
@@ -557,6 +636,7 @@ export default function ConciergeClientFull() {
     return { version: 1, query: "条件を追加して絞り込みたいです。" };
   }, [baseFilters]);
 
+  // UIアクションのハンドラ
   const onRendererAction = (a: RendererAction) => {
     switch (a.type) {
       case "open_map":
@@ -574,8 +654,11 @@ export default function ConciergeClientFull() {
       case "filter_apply": {
         const p = buildFilterPayload();
         if (!p) return;
-        setIsFilterOpen(false);
 
+        // ✅ ログ：フィルター適用
+        console.log("[CONCIERGE] フィルター適用", baseFilters);
+
+        setIsFilterOpen(false);
         setLiveRecs([]);
         setLiveUnified(null);
 
@@ -601,13 +684,16 @@ export default function ConciergeClientFull() {
         return;
 
       case "filter_clear":
+        // ✅ ログ：フィルタークリア
+        console.log("[CONCIERGE] フィルターをクリア");
+
         setExtraCondition("");
         setSelectedTagIds([]);
         setBirthdate("");
         try {
           localStorage.removeItem(LS_BIRTHDATE_KEY);
         } catch {
-          // ignore
+          // 無視
         }
         return;
     }
@@ -623,9 +709,16 @@ export default function ConciergeClientFull() {
         const trimmed = text.trim();
         if (!trimmed) return;
         if (!canSend) return;
+
+        // ✅ ログ：メッセージ送信
+        console.log("[CONCIERGE] メッセージ送信", { text: trimmed });
+
         void send(trimmed);
       }}
       onNewThread={() => {
+        // ✅ ログ：新規スレッド作成
+        console.log("[CONCIERGE] 新規スレッド作成");
+
         setLiveUnified(null);
         setLiveRecs([]);
         setActiveTid(0);
@@ -637,7 +730,16 @@ export default function ConciergeClientFull() {
     >
       {shouldShowEntry ? (
         <div className="px-4 pt-4">
-          <div className="rounded-2xl border bg-white p-3">
+          {/* ✅ オーバーレイを追加 */}
+          <div className="relative rounded-2xl border bg-white p-3">
+            {/* 送信中は半透明オーバーレイを表示 */}
+            {entrySubmitting || sending ? (
+              <div className="absolute inset-0 z-10 rounded-2xl bg-white/70 backdrop-blur-sm flex items-center justify-center">
+                <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">選定中です…</div>
+              </div>
+            ) : null}
+
+            {/* モード切り替えボタン */}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -646,7 +748,7 @@ export default function ConciergeClientFull() {
                   entryMode === "feel" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => setEntryMode("feel")}
-                disabled={sending}
+                disabled={sending || entrySubmitting}
               >
                 気分から探す
               </button>
@@ -658,12 +760,13 @@ export default function ConciergeClientFull() {
                   entryMode === "filter" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => setEntryMode("filter")}
-                disabled={sending}
+                disabled={sending || entrySubmitting}
               >
                 条件で絞る
               </button>
             </div>
 
+            {/* 気分モードの表示 */}
             {entryMode === "feel" ? (
               <div className="mt-3">
                 <p className="text-xs font-semibold text-slate-600">例（タップで送信）</p>
@@ -674,7 +777,7 @@ export default function ConciergeClientFull() {
                       type="button"
                       className="text-left rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-800 hover:bg-slate-100 disabled:opacity-60"
                       onClick={() => onPickExample(t)}
-                      disabled={sending || !canSend}
+                      disabled={sending || !canSend || entrySubmitting}
                     >
                       {t}
                     </button>
@@ -685,12 +788,13 @@ export default function ConciergeClientFull() {
                 </p>
               </div>
             ) : (
+              // 条件モードの表示
               <div className="mt-3">
                 <button
                   type="button"
                   className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
                   onClick={() => setIsFilterOpen(true)}
-                  disabled={sending || !canSend}
+                  disabled={sending || !canSend || entrySubmitting}
                 >
                   条件入力を開く
                 </button>
@@ -698,13 +802,8 @@ export default function ConciergeClientFull() {
               </div>
             )}
 
-            {sending ? (
-              <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                選定中です。通信が遅くても大丈夫。失敗しても近い順で案内します。
-              </div>
-            ) : null}
-
-            {!sending && error ? (
+            {/* エラー表示 */}
+            {!sending && !entrySubmitting && error ? (
               <div className="mt-3 rounded-xl border bg-white p-3">
                 <p className="text-sm font-semibold text-rose-600">うまく取得できませんでした</p>
                 <div className="mt-2 grid gap-2">
@@ -729,6 +828,7 @@ export default function ConciergeClientFull() {
         </div>
       ) : null}
 
+      {/* フィルター表示（入口以外） */}
       {!shouldShowEntry && hasFilter ? (
         <div className="px-4 pt-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -760,6 +860,7 @@ export default function ConciergeClientFull() {
         </div>
       ) : null}
 
+      {/* メインコンテンツ（入口以外） */}
       {!shouldShowEntry ? (
         SHOW_NEW_RENDERER ? (
           <div className="p-4 space-y-3">

@@ -10,18 +10,16 @@ export default function HomeLogoLink() {
 
   const onClick = useCallback(
     (e: React.MouseEvent) => {
-      // ✅ Linkのデフォ遷移は使わない（挙動ブレの元）
       e.preventDefault();
       e.stopPropagation();
 
-      // ✅ まず閉じる（Home埋め込み / Conciergeページ両方で効く）
+      // concierge を閉じる（concierge側が / へ戻す）
       window.dispatchEvent(new Event("jinja:close-concierge"));
 
-      // ✅ どこにいてもホームへ（同一URLでも refresh で再評価）
-      if (pathname !== "/") {
+      // concierge 以外にいる時だけ自分で戻す
+      if (!pathname.startsWith("/concierge")) {
         router.push("/");
       }
-      router.refresh();
     },
     [router, pathname],
   );

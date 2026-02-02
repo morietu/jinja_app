@@ -28,9 +28,9 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
     );
   }
 
-  // ✅ seed が来たら入口 mode=feel に統一（seedをURLに残さない）
+  // ✅ seed が来ても URL は一本化（seed を URL に残さない）
   if (seed && mode !== "feel") {
-    redirect("/concierge?mode=feel");
+    redirect("/concierge");
   }
 
   return (
