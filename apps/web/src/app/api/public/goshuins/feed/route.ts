@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const limit = clampLimit(url.searchParams.get("limit"), 12, 50);
 
-    const origin = getDjangoOrigin();
+    const origin = getDjangoOrigin(); // 例: http://127.0.0.1:8000 （末尾/api禁止）
     const upstream = `${origin}/api/goshuins/feed/?limit=${limit}`;
 
     const r = await fetch(upstream, {

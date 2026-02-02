@@ -3,15 +3,16 @@ import { serverLog } from "@/lib/server/logging";
 import "server-only";
 
 export function getDjangoOrigin() {
-  if (process.env.NODE_ENV === "production") {
-    return (
-      process.env.DJANGO_BASE_URL ||
-      process.env.DJANGO_API_BASE_URL ||
-      process.env.BACKEND_ORIGIN || // server-only運用ならOK
-      "https://jinja-backend.onrender.com"
-    );
-  }
-  return process.env.DJANGO_BASE_URL || "http://127.0.0.1:8000";
+  const raw =
+    process.env.NODE_ENV === "production"
+      ? process.env.DJANGO_BASE_URL ||
+        process.env.DJANGO_API_BASE_URL ||
+        process.env.BACKEND_ORIGIN ||
+        "https://jinja-backend.onrender.com"
+      : process.env.DJANGO_BASE_URL || process.env.BACKEND_ORIGIN || "http://127.0.0.1:8000";
+
+  // 末尾スラッシュ除去 → 末尾 /api も除去（事故の温床を根絶）
+  return raw.replace(/\/+$/, "").replace(/\/api$/, "");
 }
 
 const DJ_FETCH_DEBUG = process.env.NODE_ENV !== "production" && process.env.DJ_FETCH_DEBUG === "1";

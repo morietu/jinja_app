@@ -84,6 +84,7 @@ PLACES_API_NEW=1 python manage.py runserver 8000
 cd apps/web
 pnpm install
 pnpm dev
+
 ```
 
 ### アクセスURL
