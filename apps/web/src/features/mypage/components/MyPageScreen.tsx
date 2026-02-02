@@ -10,6 +10,8 @@ import GoshuinUploadForm from "./GoshuinUploadForm";
 import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 export default function MyPageScreen() {
   const { user, isLoggedIn, loading, logout } = useAuth();
@@ -83,7 +85,7 @@ export default function MyPageScreen() {
               onUploaded={(created) => {
                 addItem(created); // ✅ まずローカル反映
 
-                if (hasShrine) router.push(`/shrines/${shrineId}?toast=goshuin_saved#goshuins`);
+                if (hasShrine) router.push(buildShrineHref(shrineId, { query: { toast: "goshuin_saved" }, hash: "goshuins" }));
                 else router.push(`/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`);
               }}
             />

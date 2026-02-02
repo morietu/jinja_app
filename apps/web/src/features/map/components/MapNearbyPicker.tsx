@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { resolvePlace } from "@/lib/api/places";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 
 type Props = {
@@ -152,11 +153,8 @@ export default function MapNearbyPicker(props: Props) {
                   setResolvingPid(pid);
                   try {
                     const r = await resolvePlace(pid);
-                    // pickモードは「確定」なので直接 shrine 詳細へ
-                    const q = new URLSearchParams();
-                    q.set("ctx", "map");
-                    if (tid) q.set("tid", tid);
-                    router.push(`/shrines/${r.shrine_id}?${q.toString()}`);
+                    
+                    router.push(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
                   } finally {
                     setResolvingPid(null);
                   }

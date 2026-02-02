@@ -1,5 +1,6 @@
 "use client";
 
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchRanking } from "@/lib/api/ranking";
@@ -33,86 +34,63 @@ function RankingList({ data }: { data: RankingItem[] }) {
   const hasData = Array.isArray(data) && data.length > 0;
   return (
     <ol role="list" className="space-y-4">
-      {!hasData && (
-        <li className="p-4 text-gray-500">ランキングデータがありません</li>
-      )}
-      {hasData && data.map((shrine, idx) => (
-        <li key={shrine.id ?? idx}>
-          <Card
-            className={`p-4 transition-colors duration-200 cursor-pointer ${
-              idx === 0
-                ? "bg-yellow-50 border border-yellow-200 hover:border-yellow-400"
-                : idx === 1
-                ? "bg-gray-50 border border-gray-200 hover:border-gray-400"
-                : idx === 2
-                ? "bg-amber-50 border border-amber-200 hover:border-amber-400"
-                : "bg-white border hover:border-blue-300"
-            }`}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <span className="text-2xl">
-                  {idx === 0
-                    ? "🥇"
-                    : idx === 1
-                    ? "🥈"
+      {!hasData && <li className="p-4 text-gray-500">ランキングデータがありません</li>}
+      {hasData &&
+        data.map((shrine, idx) => (
+          <li key={shrine.id ?? idx}>
+            <Card
+              className={`p-4 transition-colors duration-200 cursor-pointer ${
+                idx === 0
+                  ? "bg-yellow-50 border border-yellow-200 hover:border-yellow-400"
+                  : idx === 1
+                    ? "bg-gray-50 border border-gray-200 hover:border-gray-400"
                     : idx === 2
-                    ? "🥉"
-                    : `#${idx + 1}`}
-                </span>
-                <span className="font-bold">
-                  {shrine?.name_jp ?? "名称不明"}
-                </span>
-                {typeof shrine.id === "number" && (
-                  <span className="ml-auto">
-                    <FavButton shrineId={shrine.id} />
+                      ? "bg-amber-50 border border-amber-200 hover:border-amber-400"
+                      : "bg-white border hover:border-blue-300"
+              }`}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <span className="text-2xl">
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
                   </span>
-                )}
-              </CardTitle>
-            </CardHeader>
+                  <span className="font-bold">{shrine?.name_jp ?? "名称不明"}</span>
+                  {typeof shrine.id === "number" && (
+                    <span className="ml-auto">
+                      <FavButton shrineId={shrine.id} />
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
 
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                {shrine?.address ?? "住所不明"}
-              </p>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">{shrine?.address ?? "住所不明"}</p>
 
-              {Array.isArray(shrine.goriyaku_tags) &&
-                shrine.goriyaku_tags.length > 0 && (
+                {Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {shrine.goriyaku_tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700"
-                      >
+                      <span key={tag.id} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
                         {tag.name}
                       </span>
                     ))}
                   </div>
                 )}
 
-              <div className="flex gap-4 text-xs text-gray-500">
-                <span>
-                  参拝数:{" "}
-                  {"visit_count" in shrine ? shrine.visit_count ?? 0 : 0}
-                </span>
-                <span>
-                  お気に入り:{" "}
-                  {"favorite_count" in shrine ? shrine.favorite_count ?? 0 : 0}
-                </span>
-              </div>
+                <div className="flex gap-4 text-xs text-gray-500">
+                  <span>参拝数: {"visit_count" in shrine ? (shrine.visit_count ?? 0) : 0}</span>
+                  <span>お気に入り: {"favorite_count" in shrine ? (shrine.favorite_count ?? 0) : 0}</span>
+                </div>
 
-              {typeof shrine.id === "number" && (
-                <Link
-                  href={`/shrines/${shrine.id}`}
-                  className="text-blue-600 underline text-sm inline-block mt-2"
-                >
-                  詳細へ
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-        </li>
-      ))}
+                {typeof shrine.id === "number" && (
+                  <Link href={buildShrineHref(shrine.id)} className="text-blue-600 underline text-sm inline-block mt-2">
+
+                    詳細へ
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+          </li>
+        ))}
     </ol>
   );
 }

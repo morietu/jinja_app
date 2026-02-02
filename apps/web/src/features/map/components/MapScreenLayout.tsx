@@ -3,11 +3,12 @@
 
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
 import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
 import { devLog } from "@/lib/client/logging";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 
 export type InitialSelect = {
@@ -171,7 +172,7 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     qs.set("ctx", "map");
     if (tid) qs.set("tid", tid);
 
-    router.push(`/shrines/${shrine_id}?${qs.toString()}`);
+    router.push(buildShrineHref(shrine_id, { ctx: "map", tid }));
   }, [pick, selectedPlaceId, ensureShrine, router, tid]);
 
   // ✅ 選択の単一入口（選択 + 中心寄せ）

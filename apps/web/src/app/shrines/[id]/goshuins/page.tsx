@@ -1,4 +1,5 @@
 // apps/web/src/app/shrines/[id]/goshuins/page.tsx
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import Link from "next/link";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
@@ -39,11 +40,12 @@ export default async function Page({ params, searchParams }: Props) {
 
   const items = await fetchPublicGoshuinsForShrine(shrineId);
 
-  // ✅ 戻り先（詳細）
-  const backHref = q ? `/shrines/${shrineId}?${q}` : `/shrines/${shrineId}`;
+  const query = q ? Object.fromEntries(new URLSearchParams(q).entries()) : undefined;
+
+  const backHref = buildShrineHref(shrineId, { query });
 
   // ✅ 御朱印追加（この一覧に戻す）
-  const fromPath = q ? `/shrines/${shrineId}/goshuins?${q}` : `/shrines/${shrineId}/goshuins`;
+  const fromPath = buildShrineHref(shrineId, { subpath: "goshuins", query });
   const addGoshuinHref = `/goshuin/new?shrine=${shrineId}&from=${encodeURIComponent(fromPath)}`;
 
   return (

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { serverLog } from "@/lib/server/logging";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type SP = {
   place_id?: string;
@@ -50,5 +51,7 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
   if (sp.ctx) q.set("ctx", sp.ctx);
   if (sp.tid) q.set("tid", sp.tid);
 
-  redirect(q.toString() ? `/shrines/${shrineId}?${q.toString()}` : `/shrines/${shrineId}`);
+  const query = Object.fromEntries(q.entries());
+  redirect(buildShrineHref(shrineId, { query: Object.keys(query).length ? query : undefined }));
+
 }

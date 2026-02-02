@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 type Props = {
   shrineId: number;
@@ -24,7 +26,7 @@ export function ShrineDetailToast({ shrineId }: Props) {
     alert("御朱印を保存しました");
 
     // クエリを消しつつアンカーへ（履歴を汚さない）
-    router.replace(`/shrines/${shrineId}#goshuins`, { scroll: false });
+    router.replace(buildShrineHref(shrineId, { hash: "goshuins" }), { scroll: false });
   }, [sp, router, shrineId]);
 
   return null;
