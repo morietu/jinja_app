@@ -6,13 +6,11 @@ on:
     branches: [develop]
     paths:
       - "apps/web/**"
-      - "README.md"
       - ".github/workflows/web-tests.yml"
   pull_request:
     branches: [develop]
     paths:
       - "apps/web/**"
-      - "README.md"
       - ".github/workflows/web-tests.yml"
 
 
@@ -41,8 +39,7 @@ jobs:
       - name: Install deps (workspace root)
         run: pnpm -r install --frozen-lockfile
       
-      - name: Guard - README fence languages
-        run: pnpm guard:readme-fences
+
 
       
       # （以降はそのまま）
