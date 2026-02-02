@@ -12,10 +12,7 @@ export default function ShrineCloseLink({ close }: Props) {
 
   if (close.kind === "link") {
     return (
-      <Link
-        href={close.href}
-        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-      >
+      <Link href={close.href} prefetch={false}>
         ← {close.label}
       </Link>
     );

@@ -215,6 +215,7 @@ export default function MapNearbyPicker(props: Props) {
           <Link
             key={x.place_id}
             href={href}
+            prefetch={false}
             className={`block w-full rounded-xl border p-3 text-left ${
               active ? "border-emerald-400 bg-emerald-50" : "bg-white"
             }`}

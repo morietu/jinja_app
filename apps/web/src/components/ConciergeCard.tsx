@@ -1,33 +1,9 @@
-
-// apps/web/src/components/ConciergeCard.tsx
 "use client";
 
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-export type BaseCardProps = {
-  title: string;
-  address?: string | null;
-  imageUrl?: string | null;
-
-  description: string;
-  subtitle?: string;
-
-  isPrimary?: boolean;
-
-  badges?: string[];
-  hideBadges?: boolean;
-  hideLeftMark?: boolean;
-
-  detailHref?: string;
-  detailLabel?: string;
-
-  headerRight?: React.ReactNode;
-
-  disclosureTitle?: string;
-  disclosureBody?: React.ReactNode;
-};
+import type { BaseCardProps } from "@/components/card/BaseCardProps";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -68,16 +44,17 @@ export default function ConciergeCard(props: BaseCardProps) {
     headerRight,
     disclosureTitle = "詳細",
     disclosureBody,
+    onNavigate,
   } = props;
 
   const [open, setOpen] = React.useState(false);
 
-  // disclosureBody があるカードは「閉=clamp」, 「開=clamp解除」
-  // disclosureBody が無いカードは「isPrimary ならclampしない / それ以外clamp」
   const clampDesc = disclosureBody ? !open : !isPrimary;
 
   const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
+
+  const showCta = !!detailHref || !!onNavigate;
 
   return (
     <div
@@ -103,10 +80,7 @@ export default function ConciergeCard(props: BaseCardProps) {
           <div className="h-full w-full bg-gradient-to-br from-neutral-100 to-neutral-50" />
         )}
 
-        {/* 画像上の薄いレイヤーで「のっぺり」回避 */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-black/0 to-black/0" />
-
-        {/* 上部の内側リング */}
         <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-black/5" />
       </div>
 
@@ -152,10 +126,17 @@ export default function ConciergeCard(props: BaseCardProps) {
             <h3 className="text-[15px] font-semibold leading-snug text-neutral-900">{title}</h3>
             {address ? <p className="mt-1 truncate text-xs text-neutral-600">{address}</p> : null}
 
-            {sub ? <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-800 line-clamp-1">{sub}</p> : null}
+            {sub ? (
+              <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-800 line-clamp-1">{sub}</p>
+            ) : null}
 
             {desc ? (
-              <p className={cn("mt-2 text-sm leading-relaxed text-neutral-800", clampDesc && "line-clamp-2 text-neutral-700")}>
+              <p
+                className={cn(
+                  "mt-2 text-sm leading-relaxed text-neutral-800",
+                  clampDesc && "line-clamp-2 text-neutral-700",
+                )}
+              >
                 {desc}
               </p>
             ) : null}
@@ -166,21 +147,39 @@ export default function ConciergeCard(props: BaseCardProps) {
               </span>
             ) : null}
 
-            {detailHref ? (
+            {showCta ? (
               <div className={cn("mt-4", !isPrimary && "mt-3")}>
-                <Link
-                  href={detailHref}
-                  className={cn(
-                    "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
-                    "text-sm font-semibold",
-                    "bg-neutral-900 text-white",
-                    "ring-1 ring-inset ring-black/10",
-                    "transition active:scale-[0.99] hover:bg-neutral-800",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
-                  )}
-                >
-                  {detailLabel}
-                </Link>
+                {onNavigate ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onNavigate();
+                    }}
+                    className={cn(
+                      "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
+                      "text-sm font-semibold bg-neutral-900 text-white ring-1 ring-inset ring-black/10",
+                      "transition active:scale-[0.99] hover:bg-neutral-800",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
+                    )}
+                  >
+                    {detailLabel}
+                  </button>
+                ) : (
+                  <Link
+                    href={detailHref!}
+                    prefetch={false}
+                    className={cn(
+                      "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
+                      "text-sm font-semibold bg-neutral-900 text-white ring-1 ring-inset ring-black/10",
+                      "transition active:scale-[0.99] hover:bg-neutral-800",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
+                    )}
+                  >
+                    {detailLabel}
+                  </Link>
+                )}
               </div>
             ) : null}
           </div>
@@ -203,7 +202,9 @@ export default function ConciergeCard(props: BaseCardProps) {
             <Chevron open={open} />
           </button>
 
-          {open ? <div className="px-4 pb-4 pt-1 text-sm leading-relaxed text-neutral-800">{disclosureBody}</div> : null}
+          {open ? (
+            <div className="px-4 pb-4 pt-1 text-sm leading-relaxed text-neutral-800">{disclosureBody}</div>
+          ) : null}
         </div>
       ) : null}
     </div>
