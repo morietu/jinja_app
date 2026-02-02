@@ -1,5 +1,5 @@
-// apps/web/src/features/ranking/components/RankingList.tsx
 "use client";
+// apps/web/src/features/ranking/components/RankingList.tsx
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { useRouter } from "next/navigation";
 import type { ShrineRankingItem } from "../types";
@@ -13,7 +13,6 @@ export function RankingList({ items }: Props) {
 
   const handleClick = (id: number) => {
     router.push(buildShrineHref(id));
-
   };
 
   return (

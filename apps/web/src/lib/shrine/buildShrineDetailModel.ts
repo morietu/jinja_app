@@ -7,6 +7,7 @@ import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Args = {
   shrine: Shrine;
@@ -32,10 +33,6 @@ function toBenefitTag(label: string): ShrineTag {
   };
 }
 
-
-
-
-
 export function buildShrineDetailModel({
   shrine,
   publicGoshuins,
@@ -53,9 +50,13 @@ export function buildShrineDetailModel({
   if (ctx) qs.set("ctx", ctx);
   if (tid) qs.set("tid", String(tid));
 
-  const publicGoshuinsViewAllHref = qs.toString()
-    ? `/shrines/${shrine.id}/goshuins?${qs.toString()}`
-    : `/shrines/${shrine.id}/goshuins`;
+  const query = Object.fromEntries(qs.entries());
+  const publicGoshuinsViewAllHref = buildShrineHref(shrine.id, {
+    subpath: "goshuins",
+    query: Object.keys(query).length ? query : undefined,
+  });
+
+  
 
   const benefitLabels = getBenefitLabels(shrine);
 

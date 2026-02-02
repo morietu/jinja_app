@@ -5,6 +5,7 @@ import { useMemo, useState, useCallback } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resolvePlace } from "@/lib/api/places";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type MapMarker =
   | { kind: "db"; id: number; name: string; lat: number; lng: number }
@@ -35,9 +36,6 @@ export default function ShrineMap({ markers }: Props) {
   const [locError, setLocError] = useState<string | null>(null);
 
   const tid = sp.get("tid");
-  const hrefSp = new URLSearchParams();
-  hrefSp.set("ctx", "map");
-  if (tid) hrefSp.set("tid", tid);
 
   const handleLocate = useCallback(() => {
     setLocError(null);
@@ -82,17 +80,19 @@ export default function ShrineMap({ markers }: Props) {
             position={{ lat: m.lat, lng: m.lng }}
             title={m.name}
             onClick={async () => {
-              const q = hrefSp.toString();
               if (m.kind === "db") {
-                router.push(`/shrines/${m.id}?${q}`);
+                router.push(buildShrineHref(m.id, { ctx: "map", tid }));
                 return;
               }
+
               try {
                 const r = await resolvePlace(m.place_id);
-                router.push(`/shrines/${r.shrine_id}?${q}`);
+                router.push(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
               } catch {
-                // 最悪フォールバック（resolve落ちたら旧ルートへ）
-                const qs = new URLSearchParams(q);
+                // 最悪フォールバック（resolve落ちたら /shrines/resolve へ）
+                const qs = new URLSearchParams();
+                qs.set("ctx", "map");
+                if (tid) qs.set("tid", tid);
                 qs.set("place_id", m.place_id);
                 router.push(`/shrines/resolve?${qs.toString()}`);
               }
