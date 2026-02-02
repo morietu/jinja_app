@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { resolvePlace } from "@/lib/api/places";
 import { createFavoriteByShrineId } from "@/lib/api/favorites";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 export default function PlaceCardClientActions({
   placeId,
@@ -35,7 +36,7 @@ export default function PlaceCardClientActions({
       await createFavoriteByShrineId(shrineId);
 
       // 3) 詳細へ
-      router.push(`/shrines/${shrineId}`);
+      router.push(buildShrineHref(shrineId));
     } catch (e: any) {
       setErr(e?.response?.status === 401 ? "ログインが必要です" : "登録に失敗しました");
     } finally {

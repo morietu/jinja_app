@@ -1,4 +1,5 @@
 "use client";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 // NOTE:
 // このコンポーネントは「公開情報の閲覧専用」
 // 認証状態・owner・公開切替ロジックは一切扱わない
@@ -111,7 +112,7 @@ export default function HomeGoshuinFeedSection({ limit = 12 }: { limit?: number 
         {show.map((g: FeedItem) => (
           <Link
             key={g.id}
-            href={`/shrines/${g.shrine}`}
+            href={buildShrineHref(g.shrine)}
             className="group block overflow-hidden rounded-lg border bg-white"
           >
             <div className="aspect-square bg-slate-50 relative overflow-hidden">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { FormEvent, ChangeEvent } from "react";
 import { createShrine } from "@/lib/api/shrines";
 import { getGoriyakuTags } from "@/lib/api/tags";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Tag = { id: number; name: string };
 
@@ -96,7 +97,7 @@ export default function NewShrinePage() {
         goriyakuTagIds: selectedTags, // ← ここが重要（number[] をそのまま渡す）
       });
 
-      router.push(`/shrines/${shrine.id}`);
+      router.push(buildShrineHref(shrine.id));
     } catch {
       setErrors((prev) => ({ ...prev, general: "登録に失敗しました。" }));
     }

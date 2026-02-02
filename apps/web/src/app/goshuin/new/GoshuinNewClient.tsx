@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { uploadMyGoshuin, fetchMyGoshuinCount, type GoshuinCount } from "@/lib/api/goshuin";
 import Image from "next/image";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 function safeDecode(v: string) {
   try {
@@ -82,7 +83,7 @@ export default function GoshuinNewClient() {
       return;
     }
     if (shrineId) {
-      router.push(`/shrines/${shrineId}#goshuins`);
+      router.push(buildShrineHref(shrineId, { hash: "goshuins" }));
       return;
     }
     router.push("/mypage?tab=goshuin");

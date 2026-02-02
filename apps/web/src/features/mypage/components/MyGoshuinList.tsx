@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
 import MyGoshuinCard from "./MyGoshuinCard";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Props = {
   items: Goshuin[] | null;
@@ -113,7 +114,7 @@ export default function MyGoshuinList({
                 // ✅ 実機で欲しい「神社詳細へ遷移」
                 const shrineId = Number(item.shrine);
                 if (!Number.isFinite(shrineId) || shrineId <= 0) return;
-                router.push(`/shrines/${shrineId}`);
+                router.push(buildShrineHref(shrineId));
               }}
               onDelete={onDelete ? handleDelete : undefined}
               onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
