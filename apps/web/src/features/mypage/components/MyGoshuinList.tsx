@@ -1,13 +1,11 @@
 // apps/web/src/features/mypage/components/MyGoshuinList.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
 import MyGoshuinCard from "./MyGoshuinCard";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
-
 
 type Props = {
   items: Goshuin[] | null;
@@ -26,7 +24,6 @@ export default function MyGoshuinList({
   onToggleVisibility,
   navigateOnCardClick = false,
 }: Props) {
-  const router = useRouter();
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Goshuin | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -100,29 +97,24 @@ export default function MyGoshuinList({
         <h3 className="text-sm font-medium text-gray-800">登録済みの御朱印</h3>
 
         <div className="grid grid-cols-2 gap-5 sm:gap-6">
-          {items.map((g) => (
-            <MyGoshuinCard
-              key={g.id}
-              item={g}
-              isDeleting={deletingId === g.id}
-              isToggling={togglingId === g.id}
-              onOpenDetail={(item) => {
-                // ✅ デフォルトはモーダル
-                if (!navigateOnCardClick) {
-                  handleOpenDetail(item);
-                  return;
-                }
+          {items.map((g) => {
+            const shrineId = Number(g.shrine);
+            const href =
+              navigateOnCardClick && Number.isFinite(shrineId) && shrineId > 0 ? buildShrineHref(shrineId) : undefined;
 
-                // ✅ 実機は神社詳細へ遷移
-                const shrineId = Number(item.shrine);
-                if (!Number.isFinite(shrineId) || shrineId <= 0) return;
-
-                router.push(buildShrineHref(shrineId));
-              }}
-              onDelete={onDelete ? handleDelete : undefined}
-              onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
-            />
-          ))}
+            return (
+              <MyGoshuinCard
+                key={g.id}
+                item={g}
+                href={href}
+                isDeleting={deletingId === g.id}
+                isToggling={togglingId === g.id}
+                onOpenDetail={!href ? handleOpenDetail : undefined}
+                onDelete={onDelete ? handleDelete : undefined}
+                onToggleVisibility={onToggleVisibility ? handleToggleVisibility : undefined}
+              />
+            );
+          })}
         </div>
       </section>
 
