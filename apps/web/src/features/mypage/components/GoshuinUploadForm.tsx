@@ -113,7 +113,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
       <div className="rounded-2xl border bg-white p-4 space-y-2">
         <p className="text-xs font-semibold text-slate-500">アップロード対象</p>
 
@@ -131,8 +130,6 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
               {shrineLoading ? "読み込み中…" : (shrine?.name_jp ?? "神社名を取得できませんでした")}
             </p>
             {shrine?.address ? <p className="text-xs text-slate-600">{shrine.address}</p> : null}
-
-            
           </>
         )}
       </div>
@@ -167,8 +164,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       {previewUrl && <Image src={previewUrl} alt="preview" width={400} height={400} unoptimized />}
 
       <button
-        type="button"
-        onClick={(e) => handleSubmit(e as any)} // FormEvent 互換で呼ぶだけ
+        type="submit"
         disabled={!file || !shrineId || loading}
         className="bg-orange-500 text-white px-4 py-2 rounded disabled:opacity-40"
       >
