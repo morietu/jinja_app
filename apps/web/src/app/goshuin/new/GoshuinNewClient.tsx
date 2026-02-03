@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { uploadMyGoshuin, fetchMyGoshuinCount, type GoshuinCount } from "@/lib/api/goshuin";
 import Image from "next/image";
@@ -25,7 +25,6 @@ function firstNonEmpty(...xs: Array<string | null | undefined>) {
 }
 
 export default function GoshuinNewClient() {
-  const router = useRouter();
   const sp = useSearchParams();
 
   const from = useMemo(() => sp.get("from"), [sp]);
@@ -79,14 +78,14 @@ export default function GoshuinNewClient() {
 
   const goNext = () => {
     if (from) {
-      router.push(safeDecode(from));
+      window.location.assign(safeDecode(from));
       return;
     }
     if (shrineId) {
-      router.push(buildShrineHref(shrineId, { hash: "goshuins" }));
+      window.location.assign(buildShrineHref(shrineId, { hash: "goshuins" }));
       return;
     }
-    router.push("/mypage?tab=goshuin");
+    window.location.assign("/mypage?tab=goshuin");
   };
 
   

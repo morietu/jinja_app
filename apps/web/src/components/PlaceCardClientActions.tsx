@@ -1,7 +1,5 @@
-// apps/web/src/components/PlaceCardClientActions.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { resolvePlace } from "@/lib/api/places";
 import { createFavoriteByShrineId } from "@/lib/api/favorites";
@@ -14,7 +12,6 @@ export default function PlaceCardClientActions({
   placeId: string;
   alreadyImported: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -33,14 +30,13 @@ export default function PlaceCardClientActions({
 
       await createFavoriteByShrineId(shrineId);
 
-      router.push(buildShrineHref(shrineId));
+      window.location.assign(buildShrineHref(shrineId));
     } catch (e: any) {
       const status = e?.response?.status ?? e?.status;
 
       if (status === 401) {
-        // 余計な hooks を増やさず、今のURLを next にする（clientなのでOK）
         const current = `${window.location.pathname}${window.location.search}`;
-        router.push(`/login?next=${encodeURIComponent(current)}`);
+        window.location.assign(`/login?next=${encodeURIComponent(current)}`);
         return;
       }
 

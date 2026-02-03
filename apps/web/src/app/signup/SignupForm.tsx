@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import type { AxiosError } from "axios";
 import { signup, login as loginApi } from "@/lib/api/auth";
-import { useRouter } from "next/navigation";
+
 
 export default function SignupForm() {
   const [username, setU] = useState("");
@@ -12,7 +12,7 @@ export default function SignupForm() {
   const [loading, setL] = useState(false);
   const [error, setErr] = useState<string | null>(null);
   const inFlight = useRef(false);
-  const router = useRouter();
+  
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +27,7 @@ export default function SignupForm() {
     try {
       await signup({ username, password, email: email || undefined });
       await loginApi({ username, password }); // ← これだけでOK（重複呼び出しを削除）
-      router.replace("/mypage");
+      window.location.replace("/mypage");
     } catch (err) {
       const e = err as AxiosError<any>;
       if (e?.response?.status === 400 && e.response.data) {

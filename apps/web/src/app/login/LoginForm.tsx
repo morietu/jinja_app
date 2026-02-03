@@ -36,7 +36,8 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
       await login(username, password); // ✅ここがポイント（Auth state 更新）
 
       router.push(next || "/mypage?tab=goshuin");
-      router.refresh();
+      setTimeout(() => router.refresh(), 0);
+ 
     } catch {
       setError("ログインに失敗しました。");
     } finally {

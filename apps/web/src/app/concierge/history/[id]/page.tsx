@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 import { useConciergeThreadDetail } from "@/features/concierge/hooks";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
@@ -22,12 +22,10 @@ import type { RendererAction } from "@/features/concierge/sections/types";
 
 export default function ConciergeHistoryDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const threadId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
 
   const { detail, loading, error } = useConciergeThreadDetail(threadId);
 
-  // hooks（安全なデフォルトに寄せる）
   const thread = (detail?.thread ?? null) as ConciergeThread | null;
 
   const messages = useMemo(() => (detail?.messages ?? []) as ConciergeMessage[], [detail]);
@@ -61,7 +59,6 @@ export default function ConciergeHistoryDetailPage() {
     } as any;
   }, [thread, recommendations]);
 
-  // nullを返さない（Rendererの型要求に合わせる）
   const payload = useMemo(() => {
     const built = unifiedForHistory ? buildPayloadFromUnified(unifiedForHistory, filterState) : null;
     return built ?? buildDummySections(filterState);
@@ -73,28 +70,28 @@ export default function ConciergeHistoryDetailPage() {
   if (loading) {
     return <main className="mx-auto max-w-md px-4 py-4 text-xs text-gray-500">相談履歴を読み込んでいます…</main>;
   }
-
   if (error) {
     return <main className="mx-auto max-w-md px-4 py-4 text-xs text-red-700">履歴の取得に失敗しました。</main>;
   }
-
   if (!detail || !thread) {
     return (
       <main className="mx-auto max-w-md px-4 py-4 text-xs text-gray-500">この相談履歴は見つかりませんでした。</main>
     );
   }
 
-  const handleContinue = () => {
-    router.push(`/concierge?tid=${thread.id}`);
-  };
+  // ✅ threadが確定してから作る
+  const continueHref = `/concierge?tid=${thread.id}`;
+
+  // callback用途（Linkにしにくいので割り切り）
+  const go = (href: string) => window.location.assign(href);
 
   const onRendererAction = (a: RendererAction) => {
     switch (a.type) {
       case "open_map":
-        router.push("/map");
+        go("/map");
         return;
       case "add_condition":
-        handleContinue();
+        go(continueHref);
         return;
       default:
         return;
@@ -129,13 +126,12 @@ export default function ConciergeHistoryDetailPage() {
         )}
       </ConciergeLayout>
 
-      <button
-        type="button"
-        onClick={handleContinue}
-        className="mt-3 w-full rounded-full bg-black py-3 text-sm font-semibold text-white shadow-md active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
+      <Link
+        href={continueHref}
+        className="mt-3 block w-full rounded-full bg-black py-3 text-center text-sm font-semibold text-white shadow-md active:scale-[0.98]"
       >
         この相談の続きでコンシェルジュに聞く
-      </button>
+      </Link>
     </main>
   );
 }

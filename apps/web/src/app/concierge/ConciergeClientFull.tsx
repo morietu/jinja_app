@@ -240,14 +240,14 @@ export default function ConciergeClientFull() {
     if (!rawMode) return;
 
     setEntryMode(rawMode === "feel" ? "feel" : "filter");
-    router.replace("/concierge");
+    window.location.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
 
   // 入口画面で不正なtidがあれば削除
   useEffect(() => {
     if (!isEntryRoute) return;
     if (!rawTid) return;
-    router.replace("/concierge");
+    window.location.replace("/concierge");
   }, [isEntryRoute, rawTid, router]);
 
   /* ----------------------------------------
@@ -263,7 +263,7 @@ export default function ConciergeClientFull() {
       setLiveRecs([]);
       setIsFilterOpen(false);
 
-      router.push("/");
+      window.location.assign("/");
 
       // 800ms後にフラグをリセット
       window.setTimeout(() => {
@@ -642,7 +642,7 @@ export default function ConciergeClientFull() {
   const onRendererAction = (a: RendererAction) => {
     switch (a.type) {
       case "open_map":
-        router.push("/map");
+        window.location.assign("/map");
         return;
 
       case "add_condition":
