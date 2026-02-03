@@ -27,15 +27,13 @@ export default function PlaceCardClientActions({
       setBusy(true);
       setErr(null);
 
-      // 1) place → shrine 解決
       const r = await resolvePlace(placeId);
       const shrineId = Number((r as any)?.shrine_id ?? (r as any)?.id ?? NaN);
       if (!Number.isFinite(shrineId) || shrineId <= 0) throw new Error("resolve_no_shrine_id");
 
-      // 2) favorite 作成（shrine 正規化）
       await createFavoriteByShrineId(shrineId);
 
-      // 3) 詳細へ
+      // ✅ 詳細へ遷移
       router.push(buildShrineHref(shrineId));
     } catch (e: any) {
       setErr(e?.response?.status === 401 ? "ログインが必要です" : "登録に失敗しました");

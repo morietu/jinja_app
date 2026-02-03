@@ -1,11 +1,13 @@
 // apps/web/src/features/mypage/components/MyGoshuinList.tsx
 "use client";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Goshuin } from "@/lib/api/goshuin";
 import GoshuinDetailModal from "./GoshuinDetailModal";
 import MyGoshuinCard from "./MyGoshuinCard";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 type Props = {
   items: Goshuin[] | null;
@@ -105,15 +107,16 @@ export default function MyGoshuinList({
               isDeleting={deletingId === g.id}
               isToggling={togglingId === g.id}
               onOpenDetail={(item) => {
-                // ✅ デフォルトはテストが期待する「モーダルを開く」
+                // ✅ デフォルトはモーダル
                 if (!navigateOnCardClick) {
                   handleOpenDetail(item);
                   return;
                 }
 
-                // ✅ 実機で欲しい「神社詳細へ遷移」
+                // ✅ 実機は神社詳細へ遷移
                 const shrineId = Number(item.shrine);
                 if (!Number.isFinite(shrineId) || shrineId <= 0) return;
+
                 router.push(buildShrineHref(shrineId));
               }}
               onDelete={onDelete ? handleDelete : undefined}
