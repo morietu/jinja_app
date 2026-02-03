@@ -19,15 +19,24 @@ describe("buildShrineResolveHref", () => {
       query: { a: "", b: "   ", c: null, d: undefined, n: 0, t: true, f: false },
     });
 
-    expect(href).toContain("place_id=pid");
-    expect(href).not.toContain("a=");
-    expect(href).not.toContain("b=");
-    expect(href).not.toContain("c=");
-    expect(href).not.toContain("d=");
-    expect(href).toContain("n=0");
-    // ※この関数は boolean を 1/0 にしない。String(true/false) なので "true"/"false"
-    expect(href).toContain("t=true");
-    expect(href).toContain("f=false");
+    const url = new URL(href, "http://localhost");
+    const p = url.searchParams;
+
+    expect(url.pathname).toBe("/shrines/resolve");
+
+    // 必須
+    expect(p.get("place_id")).toBe("pid");
+
+    // 無視される
+    expect(p.has("a")).toBe(false);
+    expect(p.has("b")).toBe(false);
+    expect(p.has("c")).toBe(false);
+    expect(p.has("d")).toBe(false);
+
+    // 文字列化
+    expect(p.get("n")).toBe("0");
+    expect(p.get("t")).toBe("true");
+    expect(p.get("f")).toBe("false");
   });
 
   it("query に place_id/ctx/tid が入っていても、必須パラメータが上書きする", () => {
@@ -56,4 +65,3 @@ describe("buildShrineResolveHref", () => {
     expect(href).toBe("/shrines/resolve?place_id=pid");
   });
 });
-
