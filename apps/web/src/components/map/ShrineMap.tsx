@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { resolvePlace } from "@/lib/api/places";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
@@ -19,7 +19,7 @@ const containerStyle = { width: "100%", height: "100%" };
 const FALLBACK = { lat: 35.681236, lng: 139.767125 };
 
 export default function ShrineMap({ markers }: Props) {
-  const router = useRouter();
+
   const sp = useSearchParams();
 
   const { isLoaded, loadError } = useLoadScript({
@@ -38,6 +38,7 @@ export default function ShrineMap({ markers }: Props) {
   const [locError, setLocError] = useState<string | null>(null);
 
   const tid = sp.get("tid");
+  const go = (href: string) => window.location.assign(href);
 
   const handleLocate = useCallback(() => {
     setLocError(null);
@@ -83,15 +84,15 @@ export default function ShrineMap({ markers }: Props) {
             title={m.name}
             onClick={async () => {
               if (m.kind === "db") {
-                router.push(buildShrineHref(m.id, { ctx: "map", tid }));
+                go(buildShrineHref(m.id, { ctx: "map", tid }));
                 return;
               }
 
               try {
                 const r = await resolvePlace(m.place_id);
-                router.push(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
+                go(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
               } catch {
-                router.push(buildShrineResolveHref(m.place_id, { ctx: "map", tid }));
+                go(buildShrineResolveHref(m.place_id, { ctx: "map", tid }));
               }
             }}
           />

@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-import { resolvePlace } from "@/lib/api/places";
-import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
 
@@ -24,7 +22,7 @@ export default function MapNearbyPicker(props: Props) {
   const { limit = 10, coords, selectedPlaceId, onSelect, initialSelectedPlace } = props;
 
   const sp = useSearchParams();
-  const router = useRouter();
+  
 
   const isPickMode = sp.get("pick") === "goshuin";
 
@@ -35,7 +33,7 @@ export default function MapNearbyPicker(props: Props) {
   const [items, setItems] = useState<PlacesNearbyResponse["results"]>([]);
   const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const [resolvingPid, setResolvingPid] = useState<string | null>(null);
+  
   const lastKeyRef = useRef<string>("");
 
   const tid = sp.get("tid");
@@ -138,27 +136,15 @@ export default function MapNearbyPicker(props: Props) {
           const pid = initialSelectedPlace?.place_id;
           if (!pid) return null;
 
-          const href = buildResolveHref(pid);
-
           if (isPickMode) {
             return (
               <button
                 type="button"
-                disabled={resolvingPid === pid}
-                onClick={async () => {
-                  if (resolvingPid) return;
-                  setResolvingPid(pid);
-                  try {
-                    const r = await resolvePlace(pid);
-                    
-                    router.push(buildShrineHref(r.shrine_id, { ctx: "map", tid }));
-                  } finally {
-                    setResolvingPid(null);
-                  }
+                onClick={() => {
+                  // pick は選択だけ（詳細遷移しない）
+                  onSelect({ placeId: pid });
                 }}
-                className={`w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left ${
-                  resolvingPid === pid ? "opacity-60" : ""
-                }`}
+                className="w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
               >
                 <div className="text-[11px] font-semibold text-emerald-700">選択中</div>
                 <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
@@ -168,7 +154,9 @@ export default function MapNearbyPicker(props: Props) {
             );
           }
 
-          // 通常モード：resolve 統一（from-place を踏ませない）
+          // ✅ 通常モードだけ href を作る
+          const href = buildResolveHref(pid);
+
           return (
             <Link href={href} className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left">
               <div className="text-[11px] font-semibold text-emerald-700">おすすめ（起点）</div>

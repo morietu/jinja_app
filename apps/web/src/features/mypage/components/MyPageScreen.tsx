@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { SectionCard } from "@/components/layout/SectionCard";
 import GoshuinUploadForm from "./GoshuinUploadForm";
@@ -18,7 +18,6 @@ export default function MyPageScreen() {
 
   const goshuinEnabled = !loading && isLoggedIn && !!user;
 
-  const router = useRouter();
   const sp = useSearchParams(); // ✅ これが必要
 
   const shrineId = Number(sp.get("shrine") ?? "");
@@ -67,7 +66,7 @@ export default function MyPageScreen() {
           type="button"
           onClick={() => {
             logout();
-            router.push("/"); // 好みで /login でもOK
+            window.location.assign("/");
           }}
           className="rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
@@ -83,10 +82,12 @@ export default function MyPageScreen() {
           >
             <GoshuinUploadForm
               onUploaded={(created) => {
-                addItem(created); // ✅ まずローカル反映
-
-                if (hasShrine) router.push(buildShrineHref(shrineId, { query: { toast: "goshuin_saved" }, hash: "goshuins" }));
-                else router.push(`/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`);
+                addItem(created);
+                if (hasShrine)
+                  window.location.assign(
+                    buildShrineHref(shrineId, { query: { toast: "goshuin_saved" }, hash: "goshuins" }),
+                  );
+                else window.location.assign(`/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`);
               }}
             />
           </SectionCard>

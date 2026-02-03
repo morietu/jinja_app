@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import GoogleMap from "@/components/map/providers/GoogleMap";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import MapNearbyPicker from "@/features/map/components/MapNearbyPicker";
@@ -59,7 +59,6 @@ function makeSnapFromKey(spKey: string): UrlSnap {
 type PickPayload = { placeId: string; lat?: number | null; lng?: number | null };
 
 export default function MapScreenLayout({ initialSelect }: { initialSelect?: InitialSelect }) {
-  const router = useRouter();
   const sp = useSearchParams();
   const spKey = sp.toString();
 
@@ -167,13 +166,9 @@ export default function MapScreenLayout({ initialSelect }: { initialSelect?: Ini
     if (!selectedPlaceId) return;
 
     const { shrine_id } = await ensureShrine(selectedPlaceId);
-
-    const qs = new URLSearchParams();
-    qs.set("ctx", "map");
-    if (tid) qs.set("tid", tid);
-
-    router.push(buildShrineHref(shrine_id, { ctx: "map", tid }));
-  }, [pick, selectedPlaceId, ensureShrine, router, tid]);
+    const href = buildShrineHref(shrine_id, { ctx: "map", tid });
+    window.location.assign(href);
+  }, [pick, selectedPlaceId, ensureShrine, tid]);
 
   // ✅ 選択の単一入口（選択 + 中心寄せ）
   const onPickPlace = useCallback((x: PickPayload) => {
