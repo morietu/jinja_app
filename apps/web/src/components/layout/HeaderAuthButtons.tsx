@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-
+import { useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function HeaderAuthButtons() {
   const { isLoggedIn } = useAuth();
   const pathname = usePathname();
-  const sp = useSearchParams();
 
-  const current = pathname + (sp.toString() ? `?${sp.toString()}` : "");
-  const loginHref = `/login?next=${encodeURIComponent(current)}`;
+  const loginHref = useMemo(() => {
+    if (typeof window === "undefined") return "/login";
+    const current = pathname + window.location.search;
+    return `/login?next=${encodeURIComponent(current)}`;
+  }, [pathname]);
 
-  // ✅ 閲覧入口（固定）
   const goshuinBookHref = "/mypage?tab=goshuin";
 
   return (
