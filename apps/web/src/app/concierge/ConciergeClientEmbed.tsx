@@ -1,12 +1,9 @@
-// apps/web/src/app/concierge/ConciergeClientEmbed.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 
 export default function ConciergeClientEmbed() {
-  const router = useRouter();
-
   return (
     <ConciergeLayout
       messages={[]}
@@ -16,18 +13,17 @@ export default function ConciergeClientEmbed() {
       onRetry={() => {}}
       canSend={false}
       embedMode
-      lastQuery="" // もう固定seedは渡さない（任意）
+      lastQuery=""
     >
       <div className="space-y-3">
         <p className="text-sm text-slate-600">ここは入口。おすすめ本体はコンシェルジュ画面で出します。</p>
 
-        <button
-          type="button"
-          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-white font-semibold hover:bg-emerald-700"
-          onClick={() => router.push("/concierge")}
+        <Link
+          href="/concierge"
+          className="block w-full rounded-xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-700"
         >
           今の気持ちから神社を探す
-        </button>
+        </Link>
       </div>
     </ConciergeLayout>
   );

@@ -21,6 +21,8 @@ import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
 import type { RendererAction } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
+import Link from "next/link";
+
 
 /* ========================================
  * 型定義とデータ設定
@@ -807,13 +809,12 @@ export default function ConciergeClientFull() {
               <div className="mt-3 rounded-xl border bg-white p-3">
                 <p className="text-sm font-semibold text-rose-600">うまく取得できませんでした</p>
                 <div className="mt-2 grid gap-2">
-                  <button
-                    type="button"
-                    className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => router.push("/map")}
+                  <Link
+                    href="/map"
+                    className="w-full rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white"
                   >
                     近い神社を地図で見る
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     className="w-full rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
