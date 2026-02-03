@@ -2,18 +2,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 
 type Toast = { msg: string; kind: "error" | "info" };
 
 export function HomeToastClient() {
-  const router = useRouter();
-  const sp = useSearchParams();
   const shownRef = useRef(false);
-
   const [toast, setToast] = useState<Toast | null>(null);
 
   useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
     const t = sp.get("toast");
     if (!t) return;
     if (shownRef.current) return;
@@ -30,12 +27,14 @@ export function HomeToastClient() {
 
     setToast({ msg, kind: "error" });
 
-    // クエリを消す（戻るで再表示されない）
-    router.replace("/", { scroll: false });
+    // クエリだけ削除（戻るで再表示されない）
+    const u = new URL(window.location.href);
+    u.searchParams.delete("toast");
+    window.history.replaceState(null, "", `${u.pathname}${u.search}${u.hash}`);
 
     const timer = window.setTimeout(() => setToast(null), 3000);
     return () => window.clearTimeout(timer);
-  }, [sp, router]);
+  }, []);
 
   if (!toast) return null;
 
