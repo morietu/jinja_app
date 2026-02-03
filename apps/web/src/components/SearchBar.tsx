@@ -1,8 +1,7 @@
 // apps/web/src/components/SearchBar.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import UseMyLocationButton from "@/components/UseMyLocationButton";
 import { buildLocationBias } from "@/lib/locationBias";
 
@@ -19,7 +18,6 @@ export default function SearchBar({
   initialLocationBias = "",
   initialFilters = {},
 }: Props) {
-  const router = useRouter();
   const [q, setQ] = useState(initialKeyword);
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
@@ -29,31 +27,33 @@ export default function SearchBar({
     setQ(initialKeyword);
   }, [initialKeyword]);
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const keyword = q.trim();
-    if (!keyword) return;
-
-    const params = new URLSearchParams({
-      ...initialFilters, // ★ 既存フィルタを引き継ぐ
-      keyword,
-    });
-
+  // locationbias は「今の座標があればそれ優先、なければ initial を使う」
+  const locationbias = useMemo(() => {
     const lb = buildLocationBias(lat, lng, 1500);
-    if (lb) params.set("locationbias", lb);
-    else if (initialLocationBias) params.set("locationbias", initialLocationBias);
+    return lb ?? initialLocationBias ?? "";
+  }, [lat, lng, initialLocationBias]);
 
-    router.push(`/map?${params.toString()}`);
-  };
+  const disabled = q.trim().length === 0;
 
   return (
-    <form onSubmit={onSubmit} className={className ?? "flex gap-2 w-full"}>
+    <form action="/map" method="get" className={className ?? "flex gap-2 w-full"}>
+      {/* 既存フィルタを引き継ぐ（hidden inputs） */}
+      {Object.entries(initialFilters).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+
+      {/* locationbias も GET で送る */}
+      {locationbias ? <input type="hidden" name="locationbias" value={locationbias} /> : null}
+
+      {/* keyword を GET で送る */}
       <input
+        name="keyword"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="神社名や地域で検索..."
         className="border rounded p-2 flex-1"
       />
+
       <UseMyLocationButton
         onPick={(la, ln) => {
           setLat(la);
@@ -61,7 +61,8 @@ export default function SearchBar({
         }}
         className="border rounded px-3 py-2"
       />
-      <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+
+      <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" disabled={disabled}>
         検索
       </button>
     </form>
