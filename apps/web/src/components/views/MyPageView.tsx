@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
 import type { Favorite } from "@/lib/api/favorites";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
@@ -11,10 +11,16 @@ import Link from "next/link";
 
 type Props = { initialFavorites: Favorite[] };
 
+function TabLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link href={href} className={`rounded px-3 py-2 text-sm ${active ? "bg-slate-900 text-white" : "bg-slate-100"}`}>
+      {children}
+    </Link>
+  );
+}
+
 export default function MyPageView({ initialFavorites }: Props) {
 
-  
-  const router = useRouter();
   const sp = useSearchParams();
   const tab = sp.get("tab") ?? "profile";
 
@@ -80,6 +86,9 @@ export default function MyPageView({ initialFavorites }: Props) {
     setForm({ nickname: user.profile?.nickname ?? "", is_public: !!user.profile?.is_public });
   };
 
+
+
+
   if (loading) {
     return (
       <div className="p-4 text-sm text-gray-500" role="status" aria-busy="true">
@@ -109,28 +118,17 @@ export default function MyPageView({ initialFavorites }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex gap-2">
-        <button
-          className={`rounded px-3 py-2 text-sm ${tab === "profile" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
-          onClick={() => router.push("/mypage?tab=profile")}
-          type="button"
-        >
+        <TabLink href="/mypage?tab=profile" active={tab === "profile"}>
           プロフィール
-        </button>
-        <button
-          className={`rounded px-3 py-2 text-sm ${tab === "goshuin" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
-          onClick={() => router.push("/mypage?tab=goshuin")}
-          type="button"
-        >
+        </TabLink>
+
+        <TabLink href="/mypage?tab=goshuin" active={tab === "goshuin"}>
           御朱印
-        </button>
-        {/* タブUIに追加 */}
-        <button
-          className={`rounded px-3 py-2 text-sm ${tab === "favorites" ? "bg-slate-900 text-white" : "bg-slate-100"}`}
-          onClick={() => router.push("/mypage?tab=favorites")}
-          type="button"
-        >
+        </TabLink>
+
+        <TabLink href="/mypage?tab=favorites" active={tab === "favorites"}>
           保存した神社
-        </button>
+        </TabLink>
       </div>
 
       {tab === "goshuin" ? (
