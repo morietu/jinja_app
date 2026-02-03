@@ -33,10 +33,18 @@ export default function PlaceCardClientActions({
 
       await createFavoriteByShrineId(shrineId);
 
-      // ✅ 詳細へ遷移
       router.push(buildShrineHref(shrineId));
     } catch (e: any) {
-      setErr(e?.response?.status === 401 ? "ログインが必要です" : "登録に失敗しました");
+      const status = e?.response?.status ?? e?.status;
+
+      if (status === 401) {
+        // 余計な hooks を増やさず、今のURLを next にする（clientなのでOK）
+        const current = `${window.location.pathname}${window.location.search}`;
+        router.push(`/login?next=${encodeURIComponent(current)}`);
+        return;
+      }
+
+      setErr("登録に失敗しました");
     } finally {
       setBusy(false);
     }
