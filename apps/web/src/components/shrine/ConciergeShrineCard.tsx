@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+
 import ShrineCard from "@/components/shrine/ShrineCard";
 
 type Props = React.ComponentProps<typeof ShrineCard> & {
@@ -9,7 +9,7 @@ type Props = React.ComponentProps<typeof ShrineCard> & {
 };
 
 export default function ConciergeShrineCard(props: Props) {
-  const router = useRouter();
+
   const { shrineId, tid, detailHref, ...rest } = props;
 
   const qs = new URLSearchParams();
