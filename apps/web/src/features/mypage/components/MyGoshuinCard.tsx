@@ -6,12 +6,14 @@ import Image from "next/image";
 import type { Goshuin } from "@/lib/api/goshuin";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 type Props = {
   item: Goshuin;
+  href?: string;
   isDeleting?: boolean;
   isToggling?: boolean;
-  onOpenDetail?: (g: Goshuin) => void;
+  onOpenDetail?: (item: Goshuin) => void;
   onDelete?: (id: number) => void;
   onToggleVisibility?: (id: number, next: boolean) => void;
 };
@@ -29,6 +31,7 @@ function toProxiedMedia(url: string): string {
 
 export default function MyGoshuinCard({
   item,
+  href,
   isDeleting,
   isToggling,
   onOpenDetail,
@@ -38,19 +41,6 @@ export default function MyGoshuinCard({
   const shrineName = item.shrine_name ?? (item as any)?.shrine?.name_jp ?? null;
   const { created_at, is_public, image_url } = item;
 
-  const handleClickCard = () => onOpenDetail?.(item);
-
-  const handleClickDelete = (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    onDelete?.(item.id);
-  };
-
-  const handleClickToggle = (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    if (!onToggleVisibility) return;
-    onToggleVisibility(item.id, !item.is_public);
-  };
-
   const proxiedImageUrl = image_url ? toProxiedMedia(image_url) : null;
 
   const createdAtLabel =
@@ -59,17 +49,39 @@ export default function MyGoshuinCard({
 
   const visibilityLabel = is_public ? "公開" : "非公開";
 
-  return (
+  // href があるなら遷移が正。モーダルは開かない。
+  const handleClickCard = () => {
+    if (href) return;
+    onOpenDetail?.(item);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (href) return; // Link に任せる
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClickCard();
+    }
+  };
+
+  const handleClickDelete = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault(); // Link 包装時に遷移しないように
+    onDelete?.(item.id);
+  };
+
+  const handleClickToggle = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault(); // Link 包装時に遷移しないように
+    if (!onToggleVisibility) return;
+    onToggleVisibility(item.id, !item.is_public);
+  };
+
+  const content = (
     <article
-      role="button"
-      tabIndex={0}
+      role={href ? undefined : "button"}
+      tabIndex={href ? undefined : 0}
       onClick={handleClickCard}
-      onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleClickCard();
-        }
-      }}
+      onKeyDown={handleKeyDown}
       className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/20 bg-card transition-all duration-300 hover:-translate-y-0.5 hover:border-border/40 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-muted to-muted/60">
@@ -156,5 +168,14 @@ export default function MyGoshuinCard({
         </div>
       </div>
     </article>
+  );
+
+  // href があるときだけ Link で包む
+  return href ? (
+    <Link href={href} className="block">
+      {content}
+    </Link>
+  ) : (
+    content
   );
 }
