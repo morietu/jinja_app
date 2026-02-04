@@ -1,21 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function HeaderAuthButtons() {
   const { isLoggedIn } = useAuth();
-  const pathname = usePathname();
-
-  const loginHref = useMemo(() => {
-    if (typeof window === "undefined") return "/login";
-    const current = pathname + window.location.search;
-    return `/login?next=${encodeURIComponent(current)}`;
-  }, [pathname]);
 
   const goshuinBookHref = "/mypage?tab=goshuin";
+
+  const goLogin = () => {
+    const current = window.location.pathname + window.location.search;
+    window.location.assign(`/login?next=${encodeURIComponent(current)}`);
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -24,9 +20,13 @@ export function HeaderAuthButtons() {
       </Link>
 
       {!isLoggedIn && (
-        <Link href={loginHref} className="rounded-md bg-orange-500 px-3 py-2 text-xs font-medium text-white">
+        <button
+          type="button"
+          onClick={goLogin}
+          className="rounded-md bg-orange-500 px-3 py-2 text-xs font-medium text-white"
+        >
           ログイン
-        </Link>
+        </button>
       )}
     </div>
   );
