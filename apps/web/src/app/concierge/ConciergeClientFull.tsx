@@ -1,7 +1,7 @@
 // apps/web/src/app/concierge/ConciergeClientFull.tsx
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
@@ -52,6 +52,7 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   風: ["学業成就", "合格祈願"],
   水: ["縁結び", "子宝・安産", "病気平癒"],
 };
+
 
 /* ========================================
  * 便利な関数群
@@ -154,8 +155,16 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
  * メインコンポーネント
  * ====================================== */
 export default function ConciergeClientFull() {
+  const pathname = usePathname();
   const router = useRouter();
   const sp = useSearchParams();
+
+
+  if (pathname !== "/concierge") return null;
+
+  console.log("[CONCIERGE] render at", typeof window !== "undefined" ? window.location.pathname : "server");
+
+
 
   // 画面を閉じているかどうかのフラグ
   const isClosingRef = useRef(false);
@@ -240,14 +249,14 @@ export default function ConciergeClientFull() {
     if (!rawMode) return;
 
     setEntryMode(rawMode === "feel" ? "feel" : "filter");
-    window.location.replace("/concierge");
+    router.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
 
   // 入口画面で不正なtidがあれば削除
   useEffect(() => {
     if (!isEntryRoute) return;
     if (!rawTid) return;
-    window.location.replace("/concierge");
+    router.replace("/concierge");
   }, [isEntryRoute, rawTid, router]);
 
   /* ----------------------------------------
@@ -255,17 +264,20 @@ export default function ConciergeClientFull() {
    * -------------------------------------- */
   useEffect(() => {
     const onClose = () => {
+      console.log("[CONCIERGE] onClose fired", {
+        t: performance.now(),
+        path: window.location.pathname + window.location.search,
+      });
+
       if (isClosingRef.current) return;
       isClosingRef.current = true;
 
-      // 状態をクリア
       setLiveUnified(null);
       setLiveRecs([]);
       setIsFilterOpen(false);
 
-      window.location.assign("/");
+      router.replace("/");
 
-      // 800ms後にフラグをリセット
       window.setTimeout(() => {
         isClosingRef.current = false;
       }, 800);
@@ -274,6 +286,8 @@ export default function ConciergeClientFull() {
     window.addEventListener("jinja:close-concierge", onClose);
     return () => window.removeEventListener("jinja:close-concierge", onClose);
   }, [router]);
+
+  
 
   /* ----------------------------------------
    * ローカルストレージから履歴を復元
@@ -642,7 +656,7 @@ export default function ConciergeClientFull() {
   const onRendererAction = (a: RendererAction) => {
     switch (a.type) {
       case "open_map":
-        window.location.assign("/map");
+        router.push("/map");
         return;
 
       case "add_condition":

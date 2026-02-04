@@ -11,9 +11,11 @@ import MyGoshuinList from "./MyGoshuinList";
 import { useMyGoshuin } from "@/features/mypage/hooks";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { useRouter } from "next/navigation";
 
 
 export default function MyPageScreen() {
+  const router = useRouter();
   const { user, isLoggedIn, loading, logout } = useAuth();
 
   const goshuinEnabled = !loading && isLoggedIn && !!user;
@@ -64,9 +66,10 @@ export default function MyPageScreen() {
 
         <button
           type="button"
-          onClick={() => {
-            logout();
-            window.location.assign("/");
+          onClick={async () => {
+            await logout();
+            router.replace("/");
+            router.refresh();
           }}
           className="rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
@@ -83,11 +86,12 @@ export default function MyPageScreen() {
             <GoshuinUploadForm
               onUploaded={(created) => {
                 addItem(created);
-                if (hasShrine)
-                  window.location.assign(
-                    buildShrineHref(shrineId, { query: { toast: "goshuin_saved" }, hash: "goshuins" }),
-                  );
-                else window.location.assign(`/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`);
+                const href = hasShrine
+                  ? buildShrineHref(shrineId, { query: { toast: "goshuin_saved" }, hash: "goshuins" })
+                  : `/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`;
+
+                router.push(href);
+                router.refresh();
               }}
             />
           </SectionCard>

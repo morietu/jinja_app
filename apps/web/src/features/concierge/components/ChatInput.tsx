@@ -16,7 +16,7 @@ export default function ChatInput({ disabled, onSend, error = null, embedMode = 
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // open時 focus（HomeConciergeInlineClient から dispatch される）
+  
   useEffect(() => {
     const handler = () => {
       if (disabled) return;

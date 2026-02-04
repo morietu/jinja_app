@@ -3,17 +3,26 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { sanitizeNext } from "@/lib/nav/login";
 
-type Props = { next?: string };
 
-export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
+type Props = { next?: string | null };
+
+const DEFAULT_AFTER_LOGIN = "/";
+
+export default function LoginForm({ next }: Props) {
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const safeNext = sanitizeNext(next) ?? DEFAULT_AFTER_LOGIN;
+
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
-  const router = useRouter();
-  const { login } = useAuth();
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,11 +42,16 @@ export default function LoginForm({ next = "/mypage?tab=goshuin" }: Props) {
         return;
       }
 
-      await login(username, password); // ✅ここがポイント（Auth state 更新）
+      await login(username, password);
 
-      router.push(next || "/mypage?tab=goshuin");
-      setTimeout(() => router.refresh(), 0);
- 
+      console.log("[LOGIN] raw next prop", { next });
+      console.log("[LOGIN] computed safeNext", { safeNext });
+      console.log("[LOGIN] will navigate", { safeNext });
+      setTimeout(() => console.log("[LOGIN] after 0ms", window.location.pathname + window.location.search), 0);
+      setTimeout(() => console.log("[LOGIN] after 50ms", window.location.pathname + window.location.search), 50);
+
+      router.replace(safeNext);
+  
     } catch {
       setError("ログインに失敗しました。");
     } finally {
