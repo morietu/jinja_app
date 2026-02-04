@@ -696,22 +696,26 @@ export default function ConciergeClientFull() {
         router.push("/map");
         return;
 
+      case "back_to_entry":
+        setLiveUnified(null);
+        setLiveRecs([]);
+        setEntrySubmitting(false); // ← これだけ入れる価値ある
+        setActiveTid(0);
+        router.push("/concierge");
+        return;
+
       case "add_condition":
         // 「条件を開く」は廃止。常に開いてる扱い
         setIsFilterOpen(true);
         return;
 
-      case "filter_close": {
-        // ✅ 入口だけ「閉じる」を無効化（フルフォーム固定）
-        if (isEntryRoute && entryMode === "filter") {
-          setIsFilterOpen(true);
-          return;
+      case "filter_close":
+        if (isEntryRoute) {
+          setIsFilterOpen(true); // 入口は閉じない
+        } else {
+          setIsFilterOpen(false); // 通常は閉じる
         }
-
-        // ✅ 通常（tidあり）は閉じてOK
-        setIsFilterOpen(false);
         return;
-      }
 
       case "filter_apply": {
         const p = buildFilterPayload();
@@ -894,7 +898,13 @@ export default function ConciergeClientFull() {
               <div className="mt-3">
                 {/* ✅「条件入力を開く」導線は廃止：常にフォームを見せる */}
                 {SHOW_NEW_RENDERER ? (
-                  <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
+                  <ConciergeSectionsRenderer
+                    payload={payload}
+                    onAction={onRendererAction}
+                    sending={sending}
+                    threadId={thread?.id ?? activeThreadId}
+                    isEntryRoute={isEntryRoute}
+                  />
                 ) : (
                   <div className="rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
                     この画面は SHOW_NEW_RENDERER 前提です
@@ -931,7 +941,13 @@ export default function ConciergeClientFull() {
       {!shouldShowEntry ? (
         SHOW_NEW_RENDERER ? (
           <div className="p-4 space-y-3">
-            <ConciergeSectionsRenderer payload={payload} onAction={onRendererAction} sending={sending} />
+            <ConciergeSectionsRenderer
+              payload={payload}
+              onAction={onRendererAction}
+              sending={sending}
+              threadId={thread?.id ?? activeThreadId}
+              isEntryRoute={isEntryRoute}
+            />
           </div>
         ) : (
           <ConciergeSections sections={sections} onNewThread={() => setActiveTid(0)} mode={mode} />

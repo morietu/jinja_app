@@ -36,6 +36,7 @@ type Props = {
   onAction?: (action: RendererAction) => void;
   sending?: boolean;
   threadId?: number | null;
+  isEntryRoute?: boolean;
 };
 
 function parseExtraTokens(extra: string | undefined | null): string[] {
@@ -46,7 +47,14 @@ function parseExtraTokens(extra: string | undefined | null): string[] {
 }
 
 
-export default function ConciergeSectionsRenderer({ payload, onAction, sending = false, threadId = null }: Props) {
+export default function ConciergeSectionsRenderer({
+  payload,
+  onAction,
+  sending = false,
+  threadId = null,
+  isEntryRoute = false,
+}: Props) {
+
   // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
@@ -122,6 +130,17 @@ export default function ConciergeSectionsRenderer({ payload, onAction, sending =
                     <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
                       追加済み: {selectedPresets.join(" / ")}
                     </div>
+                  )}
+
+                  {!Boolean(isEntryRoute) && (
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
+                      onClick={() => onAction?.({ type: "back_to_entry" })}
+                      disabled={sending}
+                    >
+                      入口に戻る
+                    </button>
                   )}
 
                   <button
