@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { clearConciergeMetrics, readConciergeMetrics } from "@/lib/log/concierge";
 
 type Metrics = ReturnType<typeof readConciergeMetrics>;
@@ -8,7 +8,7 @@ type Metrics = ReturnType<typeof readConciergeMetrics>;
 export default function ConciergeDebugClient() {
   // null = 判定中
   const [enabled, setEnabled] = useState<null | boolean>(null);
-  const [m, setM] = useState<Metrics>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   // 初回に localStorage を読む（Hookは常に呼ぶ）
   useEffect(() => {
@@ -20,18 +20,19 @@ export default function ConciergeDebugClient() {
   }, []);
 
   // enabled のときだけメトリクス更新
-  useEffect(() => {
-    if (!enabled) return;
 
     // 初回反映
-    setM(readConciergeMetrics());
+    useEffect(() => {
+  if (!enabled) return;
 
-    const id = window.setInterval(() => {
-      setM(readConciergeMetrics());
-    }, 1000);
+  setMetrics(readConciergeMetrics());
 
-    return () => window.clearInterval(id);
-  }, [enabled]);
+  const id = window.setInterval(() => {
+    setMetrics(readConciergeMetrics());
+  }, 1000);
+
+  return () => window.clearInterval(id);
+}, [enabled]);
 
   if (enabled === null) {
     return (
@@ -52,17 +53,17 @@ export default function ConciergeDebugClient() {
     );
   }
 
-  const attempts = m?.entry.attempts ?? 0;
-  const success = m?.entry.success ?? 0;
-  const fail = m?.entry.fail ?? 0;
-  const pending = m?.entry.pending ?? false;
+  const attempts = metrics?.entry.attempts ?? 0;
+  const success = metrics?.entry.success ?? 0;
+  const fail = metrics?.entry.fail ?? 0;
+  const pending = metrics?.entry.pending ?? false;
 
   const successRate = attempts > 0 ? Math.round((success / attempts) * 100) : 0;
   const failRate = attempts > 0 ? Math.round((fail / attempts) * 100) : 0;
 
-  const threadMissing = m?.counts.thread_missing ?? 0;
-  const errors = m?.counts.error ?? 0;
-  const unified = m?.counts.unified_received ?? 0;
+  const threadMissing = metrics?.counts.thread_missing ?? 0;
+  const errors = metrics?.counts.error ?? 0;
+  const unified = metrics?.counts.unified_received ?? 0;
 
   const threadMissingRate = unified > 0 ? Math.round((threadMissing / unified) * 100) : 0;
   const errorRate = attempts > 0 ? Math.round((errors / attempts) * 100) : 0;
@@ -97,16 +98,16 @@ export default function ConciergeDebugClient() {
             className="rounded-full border bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50"
             onClick={() => {
               clearConciergeMetrics();
-              setM(readConciergeMetrics());
+              setMetrics(readConciergeMetrics());
             }}
           >
             クリア
           </button>
         </div>
 
-        {m?.logs?.length ? (
+        {metrics?.logs?.length ? (
           <div className="space-y-2">
-            {m.logs.slice(0, 20).map((x, i) => (
+            {metrics.logs.slice(0, 20).map((x, i) => (
               <div key={i} className="rounded-xl border bg-slate-50 px-3 py-2 text-xs">
                 <div className="font-semibold">
                   {x.at} / {x.event} / tid={x.tid}

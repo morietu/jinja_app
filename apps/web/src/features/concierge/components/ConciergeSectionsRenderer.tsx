@@ -132,7 +132,7 @@ export default function ConciergeSectionsRenderer({
                     </div>
                   )}
 
-                  {!Boolean(isEntryRoute) && (
+                  {!isEntryRoute && (
                     <button
                       type="button"
                       className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
