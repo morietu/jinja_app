@@ -701,10 +701,17 @@ export default function ConciergeClientFull() {
         setIsFilterOpen(true);
         return;
 
-      case "filter_close":
-        // 閉じさせない（フルフォーム固定）
-        setIsFilterOpen(true);
+      case "filter_close": {
+        // ✅ 入口だけ「閉じる」を無効化（フルフォーム固定）
+        if (isEntryRoute && entryMode === "filter") {
+          setIsFilterOpen(true);
+          return;
+        }
+
+        // ✅ 通常（tidあり）は閉じてOK
+        setIsFilterOpen(false);
         return;
+      }
 
       case "filter_apply": {
         const p = buildFilterPayload();
