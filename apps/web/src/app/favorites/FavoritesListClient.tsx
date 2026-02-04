@@ -76,7 +76,6 @@ export default function FavoritesListClient({ initialFavorites }: Props) {
       const nextItems = latest.filter((x) => !removedIds.has(x.id));
       setItems(nextItems);
 
-      router.refresh();
       if (nextItems.length === 0) router.push("/map");
     } catch {
       setItems((prev) => [f, ...prev]);

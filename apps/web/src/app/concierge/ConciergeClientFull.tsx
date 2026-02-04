@@ -1,7 +1,6 @@
 // apps/web/src/app/concierge/ConciergeClientFull.tsx
 "use client";
-
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ConciergeSections from "@/features/concierge/components/ConciergeSections";
@@ -155,14 +154,14 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
  * メインコンポーネント
  * ====================================== */
 export default function ConciergeClientFull() {
-  const pathname = usePathname();
   const router = useRouter();
   const sp = useSearchParams();
 
+  useEffect(() => {
+    console.log("[CONCIERGE] render at", window.location.pathname);
+  }, []);
 
-  if (pathname !== "/concierge") return null;
 
-  console.log("[CONCIERGE] render at", typeof window !== "undefined" ? window.location.pathname : "server");
 
 
 

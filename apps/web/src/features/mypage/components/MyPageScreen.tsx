@@ -69,7 +69,6 @@ export default function MyPageScreen() {
           onClick={async () => {
             await logout();
             router.replace("/");
-            router.refresh();
           }}
           className="rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
@@ -91,7 +90,6 @@ export default function MyPageScreen() {
                   : `/mypage?tab=goshuin&toast=goshuin_saved#goshuin-upload`;
 
                 router.push(href);
-                router.refresh();
               }}
             />
           </SectionCard>
