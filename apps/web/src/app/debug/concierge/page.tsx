@@ -1,24 +1,25 @@
 // apps/web/src/app/debug/concierge/page.tsx
 "use client";
 
-
 import { useEffect, useState } from "react";
 import { clearConciergeMetrics, readConciergeMetrics } from "@/lib/log/concierge";
-import { notFound } from "next/navigation";
-
-if (process.env.NODE_ENV === "production") notFound();
-
 
 export default function Page() {
-  if (process.env.NODE_ENV === "production") return null;
-  const [m, setM] = useState(() => readConciergeMetrics());
+  const enabled = process.env.NODE_ENV !== "production";
+
+  const [m, setM] = useState(() => (enabled ? readConciergeMetrics() : null));
 
   useEffect(() => {
+    if (!enabled) return;
+
     const id = window.setInterval(() => {
       setM(readConciergeMetrics());
     }, 1000);
+
     return () => window.clearInterval(id);
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   const attempts = m?.entry.attempts ?? 0;
   const success = m?.entry.success ?? 0;
@@ -39,7 +40,7 @@ export default function Page() {
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-xl font-bold">Concierge Debug</h1>
 
-      <div className="rounded-2xl border bg-white p-4 space-y-2">
+      <div className="space-y-2 rounded-2xl border bg-white p-4">
         <div className="text-sm font-semibold">入口→推薦</div>
         <div className="text-sm">
           attempts: {attempts} / success: {success} ({successRate}%) / fail: {fail} ({failRate}%) / pending:{" "}
@@ -47,7 +48,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 space-y-2">
+      <div className="space-y-2 rounded-2xl border bg-white p-4">
         <div className="text-sm font-semibold">失敗率</div>
         <div className="text-sm">
           thread_missing: {threadMissing} / unified_received: {unified} → {threadMissingRate}%
@@ -57,7 +58,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 space-y-2">
+      <div className="space-y-2 rounded-2xl border bg-white p-4">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">直近ログ（最大50）</div>
           <button
