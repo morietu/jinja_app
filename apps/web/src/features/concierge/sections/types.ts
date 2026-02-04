@@ -114,6 +114,7 @@ export type ConciergeSectionsPayload = {
  * renderer -> client action
  * ========================= */
 export type RendererAction =
+  | { type: "back_to_entry" }
   | { type: "open_map" }
   | { type: "add_condition" }
   | { type: "filter_close" }
