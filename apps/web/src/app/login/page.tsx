@@ -1,29 +1,16 @@
 import LoginForm from "./LoginForm";
+import { sanitizeNext } from "@/lib/nav/login";
 
-function sanitizeNext(next?: string | null) {
-  const fallback = "/mypage?tab=goshuin";
-
-  // next が無い → デフォルトへ
-  if (!next) return fallback;
-
-  // 絶対URL など危険な値 → デフォルトへ
-  if (!next.startsWith("/") || next.startsWith("//") || next.includes("://")) {
-    return fallback;
-  }
-
-  // Next.js が付ける _rsc など余計なパラメータを除去
+function stripRscParam(next: string): string {
   try {
     const url = new URL(next, "http://dummy");
     url.searchParams.delete("_rsc");
-
-    const cleaned = url.pathname + url.search;
-    return cleaned || fallback;
+    return url.pathname + url.search;
   } catch {
-    return fallback;
+    return next;
   }
 }
 
-// Next.js 15: searchParams は Promise の可能性があるため await 対応
 export default async function Page({
   searchParams,
 }: {
@@ -31,6 +18,10 @@ export default async function Page({
 }) {
   const sp = (await searchParams) ?? {};
   const raw = sp["next"];
-  const next = sanitizeNext(Array.isArray(raw) ? raw[0] : (raw ?? null));
+  const nextRaw = Array.isArray(raw) ? raw[0] : raw;
+
+  const cleaned = typeof nextRaw === "string" ? stripRscParam(nextRaw) : null;
+  const next = sanitizeNext(cleaned); // ✅ここで確定
+
   return <LoginForm next={next} />;
 }
