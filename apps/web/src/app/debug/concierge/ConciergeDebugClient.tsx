@@ -6,11 +6,9 @@ import { clearConciergeMetrics, readConciergeMetrics } from "@/lib/log/concierge
 type Metrics = ReturnType<typeof readConciergeMetrics>;
 
 export default function ConciergeDebugClient() {
-  // null = 判定中
   const [enabled, setEnabled] = useState<null | boolean>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
 
-  // 初回に localStorage を読む（Hookは常に呼ぶ）
   useEffect(() => {
     try {
       setEnabled(localStorage.getItem("debug:concierge") === "1");
@@ -19,20 +17,17 @@ export default function ConciergeDebugClient() {
     }
   }, []);
 
-  // enabled のときだけメトリクス更新
+  useEffect(() => {
+    if (!enabled) return;
 
-    // 初回反映
-    useEffect(() => {
-  if (!enabled) return;
-
-  setMetrics(readConciergeMetrics());
-
-  const id = window.setInterval(() => {
     setMetrics(readConciergeMetrics());
-  }, 1000);
 
-  return () => window.clearInterval(id);
-}, [enabled]);
+    const id = window.setInterval(() => {
+      setMetrics(readConciergeMetrics());
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [enabled]);
 
   if (enabled === null) {
     return (
@@ -68,6 +63,24 @@ export default function ConciergeDebugClient() {
   const threadMissingRate = unified > 0 ? Math.round((threadMissing / unified) * 100) : 0;
   const errorRate = attempts > 0 ? Math.round((errors / attempts) * 100) : 0;
 
+  const logs = metrics?.logs ?? [];
+  const unifiedCount = metrics?.counts.unified_received ?? 0;
+  const unifiedLogsLen = logs.filter((x) => x.event === "unified_received").length;
+  const entrySendTrueLen = logs.filter(
+    (x) => x.event === "entry_send" && (x.meta as any)?.isEntryRoute === true,
+  ).length;
+
+  // ✅ metrics がまだ無い瞬間は「判定中」
+  const okUnified: null | boolean = metrics ? unifiedCount === unifiedLogsLen : null;
+  const okEntry: null | boolean = metrics ? success <= entrySendTrueLen : null;
+
+  const okBadge = (v: null | boolean) =>
+    v === null ? (
+      <span className="text-slate-500 font-semibold">…</span>
+    ) : (
+      <span className={v ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>{v ? "OK" : "NG"}</span>
+    );
+
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-xl font-bold">Concierge Debug</h1>
@@ -90,6 +103,23 @@ export default function ConciergeDebugClient() {
         </div>
       </div>
 
+      {/* ✅ ここに独立カードとして置く */}
+      <div className="rounded-2xl border bg-white p-4 space-y-2">
+        <div className="text-sm font-semibold">健全性チェック</div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span>unified 二重カウントなし</span>
+          {okBadge(okUnified)}
+        </div>
+        <div className="text-xs text-slate-500">counts={unifiedCount} / logs={unifiedLogsLen}</div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span>入口successが嘘じゃない</span>
+          {okBadge(okEntry)}
+        </div>
+        <div className="text-xs text-slate-500">success={success} / entry_send_true={entrySendTrueLen}</div>
+      </div>
+
       <div className="rounded-2xl border bg-white p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">直近ログ（最大50）</div>
@@ -105,9 +135,9 @@ export default function ConciergeDebugClient() {
           </button>
         </div>
 
-        {metrics?.logs?.length ? (
+        {logs.length ? (
           <div className="space-y-2">
-            {metrics.logs.slice(0, 20).map((x, i) => (
+            {logs.slice(0, 20).map((x, i) => (
               <div key={i} className="rounded-xl border bg-slate-50 px-3 py-2 text-xs">
                 <div className="font-semibold">
                   {x.at} / {x.event} / tid={x.tid}
@@ -122,10 +152,9 @@ export default function ConciergeDebugClient() {
       </div>
 
       <div className="rounded-2xl border bg-white p-4">
-        <p className="text-xs text-slate-500">
-          有効化: localStorage に debug:concierge = "1"（本番でも端末だけON可）。
-        </p>
+        <p className="text-xs text-slate-500">有効化: localStorage に debug:concierge = "1"（本番でも端末だけON可）。</p>
       </div>
     </main>
   );
 }
+
