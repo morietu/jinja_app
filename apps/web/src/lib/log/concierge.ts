@@ -1,12 +1,15 @@
 // apps/web/src/lib/log/concierge.ts
 export type ConciergeLogEvent =
+  | "entry_view"
   | "entry_send"
   | "unified_received"
   | "thread_missing"
   | "error"
   | "filter_apply"
   | "filter_clear"
-  | "close";
+  | "close"
+  | "back_to_entry"
+  | "filter_close";
 
 type LogItem = {
   at: string;
@@ -18,7 +21,13 @@ type LogItem = {
 };
 
 type Metrics = {
-  entry: { attempts: number; success: number; fail: number; pending: boolean };
+  entry: {
+    attempts: number;
+    success: number;
+    fail: number;
+    pending: boolean;
+    pending_from_entry?: boolean; // ✅ 追加
+  };
   counts: Record<string, number>;
   logs: LogItem[];
 };
@@ -41,7 +50,7 @@ function nowISO() {
 
 export function readConciergeMetrics(): Metrics {
   const base: Metrics = {
-    entry: { attempts: 0, success: 0, fail: 0, pending: false },
+    entry: { attempts: 0, success: 0, fail: 0, pending: false, pending_from_entry: false },
     counts: {},
     logs: [],
   };
@@ -87,36 +96,45 @@ export function conciergeLog(
   if (!isEnabled()) return;
   const m = readConciergeMetrics();
 
+  const path = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
+
+  // ✅ 入口判定はログ側で強制（tidが無ければ入口）
+  const isEntryRoute =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tid") == null : false;
+
+  // ✅ metaはここで上書きして「嘘」を入れられないようにする
+  const meta = { ...(payload.meta ?? {}), isEntryRoute };
+
   // counts
   m.counts[event] = (m.counts[event] ?? 0) + 1;
 
-  // entry metrics
+  // entry metrics（ここからは meta.isEntryRoute を信じてOK）
   if (event === "entry_send") {
     m.entry.attempts += 1;
     m.entry.pending = true;
+    m.entry.pending_from_entry = meta.isEntryRoute === true;
   }
   if (event === "unified_received") {
-    // 入口送信後に unified が返ったら success 扱い
-    if (m.entry.pending) {
+    if (m.entry.pending && m.entry.pending_from_entry) {
       m.entry.success += 1;
       m.entry.pending = false;
+      m.entry.pending_from_entry = false;
     }
   }
   if (event === "thread_missing" || event === "error") {
-    if (m.entry.pending) {
+    if (m.entry.pending && m.entry.pending_from_entry) {
       m.entry.fail += 1;
       m.entry.pending = false;
+      m.entry.pending_from_entry = false;
     }
   }
-
-  const path = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
 
   const item: LogItem = {
     at: nowISO(),
     event,
     tid: payload.tid,
     path,
-    meta: payload.meta,
+    meta,
     level: payload.level ?? "info",
   };
 

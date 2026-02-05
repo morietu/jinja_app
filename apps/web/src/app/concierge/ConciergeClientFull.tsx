@@ -530,21 +530,20 @@ export default function ConciergeClientFull() {
     onUnified: (u) => {
       if (isClosingRef.current) return;
 
-      // ✅ unified_received
+      const now = new Date().toISOString();
+      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
+      const currentTid = activeThreadIdRef.current;
+      const fromEntry = currentTid === 0;
+
       conciergeLog("unified_received", {
-        tid: typeof u.thread?.id === "number" ? u.thread.id : activeThreadIdRef.current,
+        tid: typeof u.thread?.id === "number" ? u.thread.id : currentTid,
         meta: {
+          fromEntry, // ✅
           hasReply: !!u.reply,
           stopReason: u.stop_reason ?? null,
           hasRecs: Array.isArray(u.data?.recommendations) ? u.data.recommendations.length : 0,
         },
       });
-
-      setLiveUnified(u);
-
-      const now = new Date().toISOString();
-      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
-      const currentTid = activeThreadIdRef.current;
 
       // 入口から送信したケース
       if (currentTid === 0) {
@@ -590,11 +589,26 @@ export default function ConciergeClientFull() {
   const shouldShowEntry = hydrated && isEntryRoute;
   const hideChatPanel = !hydrated || isEntryRoute;
 
+  const entryViewedRef = useRef(false);
+
+  useEffect(() => {
+    if (!shouldShowEntry) return;
+    if (entryViewedRef.current) return;
+    entryViewedRef.current = true;
+
+    conciergeLog("entry_view", {
+      tid: 0,
+      meta: { entryMode },
+    });
+  }, [shouldShowEntry, entryMode]);
+
   /* filter固定 */
   useEffect(() => {
     if (!shouldShowEntry) return;
     if (entryMode === "filter") setIsFilterOpen(true);
   }, [entryMode, shouldShowEntry]);
+
+
 
   // 入口を抜けたら送信中フラグを解除
   useEffect(() => {
@@ -671,7 +685,7 @@ export default function ConciergeClientFull() {
 
     conciergeLog("entry_send", {
       tid: activeThreadIdRef.current,
-      meta: { kind: "example", entryMode, textLen: text.length },
+      meta: { kind: "example", entryMode, textLen: text.length, isEntryRoute },
     });
 
     setEntrySubmitting(true);
@@ -697,6 +711,14 @@ export default function ConciergeClientFull() {
         return;
 
       case "back_to_entry":
+        conciergeLog("back_to_entry", {
+          tid: activeThreadIdRef.current,
+          meta: {
+            fromTid: activeThreadIdRef.current,
+            entryMode,
+          },
+        });
+
         setLiveUnified(null);
         setLiveRecs([]);
         setEntrySubmitting(false); // ← これだけ入れる価値ある
@@ -704,17 +726,22 @@ export default function ConciergeClientFull() {
         router.push("/concierge");
         return;
 
+      case "filter_close":
+        conciergeLog("filter_close", {
+          tid: activeThreadIdRef.current,
+          meta: {
+            isEntryRoute,
+            entryMode,
+          },
+        });
+
+        if (isEntryRoute) setIsFilterOpen(true);
+        else setIsFilterOpen(false);
+        return;
+
       case "add_condition":
         // 「条件を開く」は廃止。常に開いてる扱い
         setIsFilterOpen(true);
-        return;
-
-      case "filter_close":
-        if (isEntryRoute) {
-          setIsFilterOpen(true); // 入口は閉じない
-        } else {
-          setIsFilterOpen(false); // 通常は閉じる
-        }
         return;
 
       case "filter_apply": {
@@ -733,7 +760,7 @@ export default function ConciergeClientFull() {
 
         conciergeLog("entry_send", {
           tid: activeThreadIdRef.current,
-          meta: { kind: "filter_apply" },
+          meta: { kind: "filter_apply", entryMode, isEntryRoute: true }, // ✅
         });
 
         void (send as any)(p);
