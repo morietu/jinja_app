@@ -9,7 +9,7 @@ import HomeLogoLink from "@/components/layout/HomeLogoLink";
 import Link from "next/link";
 
 import ClientBootstrap from "./providers/ClientBootstrap";
-import "leaflet/dist/leaflet.css";
+
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
 import { HeaderAuthButtons } from "@/components/layout/HeaderAuthButtons";
