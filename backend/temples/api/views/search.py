@@ -246,7 +246,6 @@ def nearby_search(request):
     keyword = request.query_params.get("keyword")
     place_type = request.query_params.get("type")
 
-    # ① 両方未指定→デフォルトで神社検索
     if not keyword and not place_type:
         keyword = "神社"
 
@@ -257,14 +256,15 @@ def nearby_search(request):
     use_new = (os.getenv("PLACES_API_NEW") == "1") and shrine_mode
     data = None
 
+    # ① NEW を試す（失敗してもOK）
     if use_new:
         try:
             data = GP.nearby_search_new(lat=lat, lng=lng, radius=radius, limit=limit, keyword=keyword)
         except Exception as e:
-            logger.warning("nearby_search_new failed; fallback to legacy attempts: %s", e)
-            data = None  # ← 下の attempts に合流
+            logger.warning("nearby_search_new failed; fallback to legacy attempts: %s", repr(e))
+            data = None
 
-
+    # ② data が無ければ legacy attempts
     if data is None:
         def opt_args():
             d = {}
@@ -284,31 +284,59 @@ def nearby_search(request):
         ]
 
         first_err = None
-    
+
         for kwargs in attempts:
             try:
                 data = GP.nearby_search(**kwargs)
                 break
+
             except TypeError as e:
                 first_err = first_err or e
+                logger.info(
+                    "places.nearby_search TypeError (attempt skipped): %s kwargs=%s",
+                    repr(e),
+                    kwargs,
+                )
                 continue
+
             except RuntimeError as e:
                 msg = str(e)
+                logger.exception(
+                    "places.nearby_search RuntimeError: msg=%s kwargs=%s",
+                    msg,
+                    kwargs,
+                )
+
                 if "INVALID_REQUEST" in msg:
                     first_err = first_err or e
                     continue
-                logger.exception("places.nearby_search で RuntimeError が発生しました")
-                return Response({"detail": "places.nearby_search は内部エラーのため失敗しました"},
-                                status=status.HTTP_502_BAD_GATEWAY)
+
+                first_err = first_err or e
+                return Response(
+                    {"detail": "places.nearby_search は内部エラーのため失敗しました"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
             except Exception as e:
                 first_err = first_err or e
+                logger.warning(
+                    "places.nearby_search Exception (attempt continue): %s kwargs=%s",
+                    repr(e),
+                    kwargs,
+                )
                 continue
-        else:
-            logger.exception("places.nearby_search のフォールバックを全て失敗しました: %s", first_err)
-            return Response({"detail": "places.nearby_search は内部エラーのため失敗しました"},
-                            status=status.HTTP_502_BAD_GATEWAY)
 
-    # ② サーバ側フィルタ
+        if data is None:
+            logger.exception(
+                "places.nearby_search のフォールバックを全て失敗しました: first_err=%s",
+                repr(first_err),
+            )
+            return Response(
+                {"detail": "places.nearby_search は内部エラーのため失敗しました"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+    # ③ サーバ側フィルタ
     results = data.get("results", [])
 
     if keyword in (None, "神社"):
@@ -318,12 +346,9 @@ def nearby_search(request):
     else:
         place_type_req = request.query_params.get("type")
         if place_type_req:
-            results = [
-                r for r in results
-                if place_type_req in (r.get("types") or [])
-            ]
+            results = [r for r in results if place_type_req in (r.get("types") or [])]
 
-    # ③ distance_m 付与（lat/lng が取れるものだけ）
+    # ④ distance_m 付与
     out = []
     for r in results:
         if r.get("distance_m") is None:
@@ -335,15 +360,9 @@ def nearby_search(request):
                 r["distance_m"] = None
         out.append(r)
 
-    # 距離があるものを先頭に（保険）
     out.sort(key=lambda x: x["distance_m"] if isinstance(x.get("distance_m"), int) else 10**12)
-
     data["results"] = out
     return Response(data)
-
-    
-
-    
 
 
 
