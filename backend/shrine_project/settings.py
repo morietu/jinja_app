@@ -62,12 +62,24 @@ env = environ.Env(
     LLM_ENABLE_PLACES=(bool, True),
     LLM_PROMPT_VERSION=(str, "v1"),
 )
-for name in (".env.local", ".env.dev", ".env"):
-    p = (REPO_ROOT / name) if (REPO_ROOT / name).exists() else (BASE_DIR / name)
+
+candidates = [
+    BASE_DIR / ".env.local",
+    BASE_DIR / ".env.dev",
+    BASE_DIR / ".env",
+    # ✅ それでも無ければ repo root（ダミーでもOK、ただしbackendが無いときの保険）
+    REPO_ROOT / ".env.local",
+    REPO_ROOT / ".env.dev",
+    REPO_ROOT / ".env",
+]
+
+
+for p in candidates:
     if p.exists():
         environ.Env.read_env(str(p))
-        os.environ.setdefault("ENV_FILE", str(p))
+        os.environ["ENV_FILE"] = str(p)  # ← setdefault から変更
         break
+
 
 # --- security / DEBUG ---
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
@@ -395,8 +407,6 @@ CACHES = {
 AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "true", "yes")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
-
-print("[settings] GOOGLE_PLACES_API_KEY set =", bool(GOOGLE_PLACES_API_KEY), file=sys.stderr)
 
 
 # --- Hosts / CORS ---

@@ -34,13 +34,11 @@ export async function GET(req: Request) {
 
   if (!upstream.ok) {
     const txt = await upstream.text().catch(() => "");
-    serverLog("warn", "BFF_NEARBY_UPSTREAM_NOT_OK", {
-      requestId,
+    serverLog("warn", "BFF_NEARBY_UPSTREAM_NOT_OK", { requestId, status: upstream.status, textLen: txt.length });
+    return new NextResponse(txt || JSON.stringify({ detail: "upstream error" }), {
       status: upstream.status,
-      textLen: txt.length,
+      headers: { "Content-Type": "application/json" },
     });
-    const body: PlacesNearbyResponse = { results: [] };
-    return NextResponse.json(body, { status: 200 });
   }
 
   const text = await upstream.text().catch(() => "");
