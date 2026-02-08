@@ -38,26 +38,22 @@ def normalize_keyword(s: str) -> str:
     s = (s or "").replace("\u3000", " ")
     return " ".join(s.split()).strip()
 
-def is_shrine(p: dict) -> bool:
-    ...
+def is_shrine(p: dict, *, keyword: str | None = None) -> bool:
     name = (p.get("name") or "")
     types = set(p.get("types") or [])
 
-    # 明確に寺は落とす
     if "buddhist_temple" in types:
         return False
-
-    # typesで神社判定できるなら最強
     if "shinto_shrine" in types:
         return True
-
-    # 文字列判定（最低限）
-    if "神社" in name:
+    if "神社" in name or "稲荷" in name:
         return True
 
-    # “稲荷”は神社として扱いたい（要件次第でON/OFF）
-    if "稲荷" in name:
-        return True
+    # 追加：検索語が固有っぽいなら、名前に含まれてたら通す
+    if keyword:
+        k = keyword.strip()
+        if k and k not in {"神社", "寺", "寺院"} and k in name:
+            return True
 
     return False
 
@@ -97,10 +93,9 @@ class Command(BaseCommand):
 
         results = (raw or {}).get("results") or []
         results = [p for p in results if isinstance(p, dict) and p.get("place_id")]
-        
 
         # ✅ shrineっぽいものだけ残す（混入対策）
-        results = [p for p in results if is_shrine(p)]
+        results = [p for p in results if is_shrine(p, keyword=keyword)]
 
         # ✅ コスト対策（後で切る）
         results = results[:limit]
