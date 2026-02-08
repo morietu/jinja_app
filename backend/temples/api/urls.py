@@ -1,9 +1,9 @@
 # backend/temples/api/urls.py
-from django.http import Http404, HttpResponsePermanentRedirect, JsonResponse
+from django.http import Http404,  JsonResponse
 from django.urls import include, path
 from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
-from .views.create_superuser import create_superuser
+
 
 from temples.api.views.public_profile import public_profile
 from temples.api.views.search import places_find
@@ -14,8 +14,6 @@ from temples.api.views.goshuin_feed import PublicGoshuinFeedView
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.place_cache import place_cache_list
 
-
-from temples.api.views.shrines_nearby import shrines_nearby
 from temples.api.views.places_resolve import PlacesResolveView
 
 from temples.api_views import FavoriteViewSet
@@ -24,14 +22,10 @@ from temples.api_views import FavoriteViewSet
 # Concierge の互換シム
 from temples import api_views_concierge as concierge
 from temples.api.views.concierge import (
-    ConciergeChatView,
-    ConciergePlanView,
-    ConciergeChatViewLegacy,
-    ConciergePlanViewLegacy,
     ConciergeThreadListView,
     ConciergeThreadDetailView,
 )
-from temples.api.views import concierge_history
+
 # geocode (レガシー互換も吸収)
 from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
 from temples.api.views.compat import concierge_chat_compat
@@ -75,10 +69,6 @@ except Exception:
     def route_health(request):
         return JsonResponse({"status": "ok", "service": "route"})
 
-
-
-
-
 # /api/places/<id>/ のショート版。search.py に detail_short が無い環境でも動作させる。
 try:
     from temples.api.views.search import detail_short  # type: ignore
@@ -98,9 +88,7 @@ except Exception:
     def detail_short(request, id: str, *args, **kwargs):  # type: ignore
         dj_req = _as_django_request(request)
         return detail(dj_req, id, *args, **kwargs)
-
-
-
+        
 app_name = "temples"
 
 router = DefaultRouter()
