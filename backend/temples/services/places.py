@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-
+import sys
 import hashlib
 import json
 import logging
@@ -148,19 +148,11 @@ class PlacesError(Exception):
 
 
 def _wrap_call(fn, *args, **kwargs):
-    """低レイヤーの例外を PlacesError に張り替え"""
     try:
+        # ✅ よくある「params(dict) を1個渡す」パターンを救済
+        if len(args) == 1 and isinstance(args[0], dict) and not kwargs:
+            return fn(**args[0])
         return fn(*args, **kwargs)
-    except RuntimeError as e:
-        msg = str(e)
-        status = 502
-        if "INVALID_REQUEST" in msg:
-            status = 400
-        elif "OVER_QUERY_LIMIT" in msg:
-            status = 429
-        elif "NOT_FOUND" in msg:
-            status = 404
-        raise PlacesError(msg, status=status) from e
     except Exception as e:
         raise PlacesError(str(e), status=500) from e
 
@@ -176,8 +168,27 @@ def _lang_or_default(language: Optional[str]) -> str:
     return "ja"
 
 
-def _norm_params(d: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    return {k: v for k, v in (d or {}).items() if v is not None}
+def _norm_params(params: dict) -> dict:
+    p = dict(params or {})
+
+    # ✅ radius の最終決定（None を許さない）
+    r = p.get("radius")
+    rm = p.get("radius_m")
+
+    if (r is None or r == "") and rm not in (None, ""):
+        p["radius"] = rm
+        p.pop("radius_m", None)
+    elif r in (None, "") and rm in (None, ""):
+        # ✅ 最終保険: radius 指定が無い場合のデフォルト
+        p["radius"] = 1500
+
+    # ついでに型も整える（str でも int に寄せる）
+    try:
+        p["radius"] = int(p["radius"])
+    except Exception:
+        p["radius"] = 1500
+
+    return p
 
 
 # ----------------------------
@@ -208,6 +219,8 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
     params.setdefault("language", _lang_or_default(params.get("language")))
     payload = {"endpoint": "nearby_search", **_norm_params(params)}
 
+    
+    
     def fetch():
         return _wrap_call(google_places.nearby_search, params)
 
@@ -215,6 +228,10 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # ---- ここから整形（cachedでも毎回同じ処理） --------------------
     keyword = params.get("keyword") or "神社"
+    GENERIC_KEYWORDS = {"神社", "寺", "寺院", "shrine", "temple"}
+    
+    is_generic_keyword = (keyword or "").strip() in GENERIC_KEYWORDS
+    
     pagetoken = params.get("pagetoken")
     language = params.get("language")
     radius = int(params.get("radius") or 1500)
@@ -265,62 +282,83 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
             )
         _dbg("rank.top5", items=preview)
 
+
     # 完全一致が無ければ Text Search から1件注入
     if not pagetoken and center is not None:
         key = _norm(keyword)
         has_exact = any(_norm(r.get("name")) == key for r in sorted_results)
         if not has_exact:
-            hit = _find_exact_from_text_nearby(
-                keyword, center=center, radius_m=radius, language=language
-            )
-            if hit and _is_shinto_shrine_row(hit):
-                _dbg("inject.exact_text", name=hit.get("name"), pid=hit.get("place_id"))
-                pid = hit.get("place_id")
-                sorted_results = [x for x in sorted_results if x.get("place_id") != pid]
-                sorted_results.insert(0, hit)
-            else:
-                _dbg("inject.miss", keyword=keyword)
-    # Nearby が空なら Text Search にフォールバック
-    if not sorted_results and not pagetoken:
-        q_bias = keyword if ("神社" in keyword) else f"{keyword} 神社"
-        _dbg("fallback.text_search", q=q_bias)
-        ts_params = {"q": q_bias, "language": _lang_or_default(language)}
-        if center is not None:
-            ts_params.update({"lat": center[0], "lng": center[1], "radius": radius})
-        _dbg(
-            "fallback.text_search",
-            **{k: ts_params[k] for k in ("q", "lat", "lng", "radius") if k in ts_params},
-        )
-
-        ts = places_text_search(ts_params)
-
-        ts_results = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
-        ts_results = _sort_results_for_query(ts_results, keyword, center=center)
-        ts_results = _ensure_exact_on_top(ts_results, keyword)
-
-        if center is not None:
-            key = _norm(keyword)
-            if not any(_norm(r.get("name")) == key for r in ts_results):
+            try:
                 hit = _find_exact_from_text_nearby(
                     keyword, center=center, radius_m=radius, language=language
                 )
-                if hit and _is_shinto_shrine_row(hit):
-                    _dbg(
-                        "inject.exact_text",
-                        name=hit.get("name"),
-                        pid=hit.get("place_id"),
-                    )
-                    pid = hit.get("place_id")
-                    ts_results = [x for x in ts_results if x.get("place_id") != pid]
-                    ts_results.insert(0, hit)
-                else:
-                    _dbg("inject.miss", keyword=keyword)
+            except Exception as e:
+                _dbg("inject.error", err=str(e))
+                hit = None
 
-        ts["results"] = ts_results
-        return ts
+            if hit and _is_shinto_shrine_row(hit):
+                pid = hit.get("place_id")
+                sorted_results = [x for x in sorted_results if x.get("place_id") != pid]
+                sorted_results.insert(0, hit)
+    
+    
+    # Nearby が空なら Text Search にフォールバック
+    if not sorted_results and not pagetoken:
+        if is_generic_keyword:
+            _dbg("fallback.skipped.generic", keyword=keyword)
+            data["results"] = []
+            return data
 
-    data["results"] = sorted_results
-    return data
+        try:
+            q_bias = keyword if ("神社" in keyword) else f"{keyword} 神社"
+            _dbg("fallback.text_search", q=q_bias)
+
+            ts_params = {"query": q_bias, "language": _lang_or_default(language)}
+            if center is not None:
+                ts_params.update({"lat": center[0], "lng": center[1], "radius": radius})
+
+            # ここ、あなたの_dbgが ("q", ...) を参照してるけど ts_params は query なのでズレてる
+            _dbg(
+                "fallback.text_search.params",
+                **{k: ts_params[k] for k in ("query", "lat", "lng", "radius") if k in ts_params},
+            )
+
+            ts = places_text_search(ts_params)
+
+            ts_results = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
+            ts_results = _sort_results_for_query(ts_results, keyword, center=center)
+            ts_results = _ensure_exact_on_top(ts_results, keyword)
+
+            if center is not None:
+                key = _norm(keyword)
+                if not any(_norm(r.get("name")) == key for r in ts_results):
+                    # 注入も一般名詞ならスキップ、かつ例外は握りつぶす
+                    if not is_generic_keyword:
+                        try:
+                            hit = _find_exact_from_text_nearby(
+                                keyword, center=center, radius_m=radius, language=language
+                            )
+                        except Exception as e:
+                            _dbg("inject.exact_text.error", err=str(e))
+                            hit = None
+                    else:
+                        hit = None
+
+                    if hit and _is_shinto_shrine_row(hit):
+                        _dbg("inject.exact_text", name=hit.get("name"), pid=hit.get("place_id"))
+                        pid = hit.get("place_id")
+                        ts_results = [x for x in ts_results if x.get("place_id") != pid]
+                        ts_results.insert(0, hit)
+                    else:
+                        _dbg("inject.miss", keyword=keyword)
+
+            ts["results"] = ts_results
+            return ts
+
+        except Exception as e:
+            _dbg("fallback.text_search.error", err=str(e))
+            data["results"] = []
+            return data
 
 
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -431,20 +469,36 @@ def text_search(*args, **kwargs):
 def nearby_search(*args, **kwargs):
     """旧API互換: temples.services.places.nearby_search(...)"""
     if args and isinstance(args[0], dict):
-        params = args[0]
+        params = dict(args[0])
     else:
         params = {
             "lat": kwargs.get("lat"),
             "lng": kwargs.get("lng"),
             "radius": kwargs.get("radius"),
+            "radius_m": kwargs.get("radius_m"),
             "keyword": kwargs.get("keyword"),
             "type": kwargs.get("type"),
             "opennow": kwargs.get("opennow"),
             "pagetoken": kwargs.get("pagetoken"),
             "language": kwargs.get("language"),
+            "limit": kwargs.get("limit"),
         }
-    return places_nearby_search(_norm_params(params))
 
+    # limit は下位APIに渡さない（結果を切るのはここ）
+    limit = params.pop("limit", None)
+
+    out = places_nearby_search(_norm_params(params))
+
+    if limit is not None:
+        try:
+            n = int(limit)
+            if n > 0:
+                out = dict(out or {})
+                out["results"] = (out.get("results") or [])[:n]
+        except Exception:
+            pass
+
+    return out
 
 def _join_fields(fields):
     if not fields:
@@ -558,7 +612,7 @@ def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[s
             return False
         return ("shinto_shrine" in types) or ("神社" in name)
 
-    data = places_text_search({"q": q, "language": _lang_or_default(language)})
+    data = places_text_search({"payload": q, "language": _lang_or_default(language)})
     results = [r for r in ((data or {}).get("results") or []) if _is_shinto(r)]
     if not results:
         return None
@@ -735,7 +789,7 @@ def _find_exact_from_text_nearby(
         _dbg("inject.findplace.error", err=str(e))
 
     # ---- 2) フォールバック: Text Search（半径+40%）
-    ts_params: Dict[str, Any] = {"q": keyword, "language": lang}
+    ts_params: Dict[str, Any] = {"payload": keyword, "language": lang}
     if center is not None:
         ts_params.update(
             {

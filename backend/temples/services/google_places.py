@@ -452,15 +452,26 @@ def _client() -> GooglePlacesClient:
         _client_singleton = GooglePlacesClient()
     return _client_singleton
 
-
 def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
     """辞書または文字列どちらでも呼べる text_search ラッパ"""
+
+    # ✅ SDKが受け取らないゴミは先に捨てる
+    kwargs.pop("payload", None)
+    kwargs.pop("limit", None)
+    kwargs.pop("radius_m", None)
+
     if isinstance(query_or_params, dict):
         p = dict(query_or_params)
+        p.pop("payload", None)
+        p.pop("limit", None)
+        p.pop("radius_m", None)
+
         query = p.pop("q", None) or p.pop("query", "") or ""
         location = p.pop("location", None)
+
         if not location and p.get("lat") is not None and p.get("lng") is not None:
             location = f"{p.pop('lat')},{p.pop('lng')}"
+
         pagetoken = p.pop("pagetoken", None)
         language = p.pop("language", "ja")
         region = p.pop("region", "jp")
@@ -468,11 +479,14 @@ def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
         minprice = p.pop("minprice", None)
         maxprice = p.pop("maxprice", None)
         type_ = p.pop("type", None)
+
+        radius = p.pop("radius", None)
         kwargs.update(p)
+
         data, _ = _client().text_search(
             query,
             location=location,
-            radius=kwargs.pop("radius", None),
+            radius=radius,
             pagetoken=pagetoken,
             language=language,
             region=region,
@@ -483,11 +497,41 @@ def text_search(query_or_params=None, **kwargs) -> Dict[str, Any]:
             **kwargs,
         )
         return data
-    else:
-        query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
-        data, _ = _client().text_search(query, **kwargs)
-        return data
 
+    # ---- ここが今回の本丸（kwargsルート） ----
+    # query を kwargs からも拾う（_wrap_call で展開されるとここに来る）
+    query = query_or_params if query_or_params is not None else (kwargs.pop("q", None) or kwargs.pop("query", ""))
+
+    # lat/lng → location に変換して kwargs から排除
+    location = kwargs.pop("location", None)
+    lat = kwargs.pop("lat", None)
+    lng = kwargs.pop("lng", None)
+    if not location and lat is not None and lng is not None:
+        location = f"{lat},{lng}"
+
+    # radius も kwargs に残すと混ざるのでここで抜く
+    radius = kwargs.pop("radius", None)
+
+    # 念のためもう一回
+    kwargs.pop("payload", None)
+    kwargs.pop("limit", None)
+    kwargs.pop("radius_m", None)
+
+    data, _ = _client().text_search(
+        query,
+        location=location,
+        radius=radius,
+        **kwargs,
+    )
+    return data
+
+    # string/None route
+    query = query_or_params if query_or_params is not None else kwargs.pop("query", "")
+    kwargs.pop("payload", None)
+    kwargs.pop("limit", None)
+    kwargs.pop("radius_m", None)
+    data, _ = _client().text_search(query, **kwargs)
+    return data
 
 def nearby_search(
     *,
