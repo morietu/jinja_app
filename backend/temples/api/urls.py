@@ -12,8 +12,9 @@ from temples.api.views.tags import goriyaku_tags_list
 from temples.api.views.goshuin_feed import PublicGoshuinFeedView
 
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
+from temples.api.views.place_cache import place_cache_list
 
-from django.urls import path
+
 from temples.api.views.shrines_nearby import shrines_nearby
 from temples.api.views.places_resolve import PlacesResolveView
 
@@ -173,6 +174,7 @@ urlpatterns = [
     path("places/find/", places_find, name="places-find-lite"),
     path("places/resolve/", PlacesResolveView.as_view(), name="places-resolve"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
+    path("place-caches/", place_cache_list, name="place-cache-list"),
 
     # ---- Geocodes ---------------------------------------------------------
     path("geocodes/search/", geocode_search, name="geocodes-search"),
