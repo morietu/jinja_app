@@ -582,6 +582,37 @@ class ShrineCandidate(dj_models.Model):
                 condition=Q(place_id__isnull=False),
             )
         ]
-
     def __str__(self) -> str:
         return f"[{self.status}] {self.name_jp}"
+
+
+class PlaceCache(models.Model):
+    place_id = models.CharField(max_length=255, unique=True)
+
+    name = models.CharField(max_length=255, blank=True, default="")
+    address = models.CharField(max_length=512, blank=True, default="")
+
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
+
+    rating = models.FloatField(null=True, blank=True)
+    user_ratings_total = models.IntegerField(null=True, blank=True)
+
+    types = models.JSONField(default=list, blank=True)
+    raw = models.JSONField(default=dict, blank=True)
+
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "place_cache"
+        indexes = [
+            models.Index(fields=["fetched_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.place_id})"
+
+    
