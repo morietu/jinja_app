@@ -1,4 +1,5 @@
 // apps/web/src/lib/api/placeCaches.ts
+
 export type PlaceCacheItem = {
   place_id: string;
   name: string;
@@ -31,8 +32,8 @@ export async function fetchPlaceCaches(params: {
   return res.json();
 }
 
-// ✅ 既存コード互換のためのショートカット（必要なら）
-export async function fetchPlaceCacheSuggest(q: string, limit = 10) {
+// 互換が必要なら残す（今 PlaceSuggestBox が fetchPlaceCaches を直接使ってるなら不要）
+export async function fetchPlaceCacheSuggest(q: string, limit = 10): Promise<PlaceCacheItem[]> {
   const data = await fetchPlaceCaches({ q, limit, dedupe: true });
-  return data.results;
+  return data.results ?? [];
 }
