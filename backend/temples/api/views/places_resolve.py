@@ -69,3 +69,5 @@ class PlacesResolveView(APIView):
             )
         except PlacesError as e:
             return Response({"detail": str(e)}, status=getattr(e, "status", 502) or 502)
+        except IntegrityError as e:
+            return Response({"detail": "db_integrity_error"}, status=500)

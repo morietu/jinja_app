@@ -390,17 +390,33 @@ def textsearch(
 
 
 def details(
-    *, place_id: str, language: Optional[str] = None, fields: Optional[str] = None
+    place_id: str = None,
+    params: Optional[Dict[str, Any]] = None,
+    *,
+    language: Optional[str] = None,
+    fields: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """
+    互換:
+      - details(place_id=..., language=..., fields=...)   ✅
+      - details(place_id, {"language": "...", "fields": "..."})  ✅（旧コード用）
+    """
+    # 旧: details(place_id, params) を吸収
+    if params:
+        if language is None:
+            language = params.get("language")
+        if fields is None:
+            fields = params.get("fields")
+
     url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {
+    params2 = {
         "key": API_KEY,
         "place_id": place_id,
         "language": language,
         "fields": fields,
     }
-    _log_upstream("details", url, params)
-    clean = {k: v for k, v in params.items() if v is not None}
+    _log_upstream("details", url, params2)
+    clean = {k: v for k, v in params2.items() if v is not None}
     _push_req_history(url, clean)
     resp = requests.get(url, params=clean, timeout=_TIMEOUT)
     resp.raise_for_status()

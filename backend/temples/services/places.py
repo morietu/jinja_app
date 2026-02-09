@@ -23,7 +23,7 @@ from . import google_places  # 低レベルHTTPクライアント（関数型）
 from rest_framework import serializers
 
 from django.db import transaction
-
+from django.db import IntegrityError
 
 
 req_history = google_places.req_history
@@ -362,13 +362,18 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Place Details（キャッシュ付）"""
     params = dict(params or {})
     params.setdefault("language", _lang_or_default(params.get("language")))
     payload = {"endpoint": "details", "place_id": place_id, **_norm_params(params)}
 
     def fetch():
-        return _wrap_call(google_places.details, place_id, params)
+        # ✅ keyword-only で呼ぶ
+        return _wrap_call(
+            google_places.details,
+            place_id=place_id,
+            language=params.get("language"),
+            fields=params.get("fields"),
+        )
 
     data, _ = _get_or_set("details", payload, fetch, DEFAULT_TTL)
     return data
@@ -396,17 +401,26 @@ def places_photo(photo_reference: str, maxwidth: int = 800) -> Tuple[bytes, str,
 # 付帯ユースケース（DB同期など）
 # ----------------------------
 def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
-    """Place Details を取得し、PlaceRef を同期（Upsert）"""
     pr: Optional[PlaceRef] = PlaceRef.objects.filter(pk=place_id).first()
     if pr and not force:
         return pr
 
-    result = _wrap_call(google_places.details, place_id, {"language": _lang_or_default(None)})
+    raw = _wrap_call(
+        google_places.details,
+        place_id=place_id,
+        language=_lang_or_default(None),
+    )
 
-    name = result.get("name")
-    address = result.get("formatted_address") or result.get("vicinity")
-    geometry = result.get("geometry") or {}
-    loc = geometry.get("location") or {}
+    status = raw.get("status")
+    if status not in ("OK", "ZERO_RESULTS"):
+        msg = raw.get("error_message") or status or "UNKNOWN"
+        raise PlacesError(f"Google Places details failed: {msg}", status=502)
+
+    result = raw.get("result") or {}
+
+    name = result.get("name") or ""  # ✅ NOT NULL 対策
+    address = result.get("formatted_address") or result.get("vicinity") or ""
+    loc = ((result.get("geometry") or {}).get("location") or {})
     lat = loc.get("lat")
     lng = loc.get("lng")
 
@@ -418,7 +432,7 @@ def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
             "address": address,
             "latitude": lat,
             "longitude": lng,
-            "snapshot_json": result,
+            "snapshot_json": raw,      # raw を保存するなら raw を
             "synced_at": timezone.now(),
         },
     )
