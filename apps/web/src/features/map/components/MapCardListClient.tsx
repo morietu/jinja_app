@@ -3,9 +3,6 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
-import PlaceSuggestBox from "@/components/PlaceSuggestBox";
-import type { PlaceCacheItem } from "@/lib/api/placeCaches";
-
 
 
 const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅（仮）
@@ -42,10 +39,6 @@ export default function MapCardListClient() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLoc, setLoadingLoc] = useState(true);
   const [usedFallback, setUsedFallback] = useState(false);
-
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<PlaceCacheItem | null>(null);
-  const mode: "nearby" | "search" = selected ? "search" : "nearby";
 
   const [items, setItems] = useState<PlacesNearbyResult[]>([]);
   const [state, setState] = useState<NearbyState>("idle");
@@ -131,9 +124,8 @@ export default function MapCardListClient() {
   // coords が決まったら nearby 取得
   useEffect(() => {
     if (!coords) return;
-    if (mode !== "nearby") return; // ✅ 検索確定中は nearby を取りに行かない
     void fetchNearby(coords.lat, coords.lng);
-  }, [coords, fetchNearby, mode]);
+  }, [coords, fetchNearby]);
 
   const title = useMemo(() => {
     if (loadingLoc) return "位置情報を取得中…";
@@ -160,172 +152,111 @@ export default function MapCardListClient() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="space-y-2">
-        <PlaceSuggestBox
-          value={query}
-          onChange={(v) => {
-            setQuery(v);
-            setSelected(null); // ✅ 入力し直したら未確定に戻す
-          }}
-          onSelect={(it) => {
-            setSelected(it);
-            setQuery(it.name); // ✅ 確定感
-          }}
-        />
+      {/* ✅ Fallbackバッジ */}
+      {usedFallback && !loadingLoc && (
+        <div className="rounded-xl border bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+          現在地が取れないため仮の場所で検索中
+        </div>
+      )}
 
-        {mode === "search" && (
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-700">{title}</p>
+
+        {showHeaderAction && (
           <button
             type="button"
-            className="w-full rounded-xl border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setSelected(null);
-              setQuery("");
-            }}
+            onClick={() => coords && fetchNearby(coords.lat, coords.lng)}
+            className="rounded-full border px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            disabled={!canAction}
+            aria-busy={state === "loading"}
           >
-            クリアして「近くの神社」に戻る
+            {actionLabel}
           </button>
         )}
       </div>
 
-      {mode === "search" && selected ? (
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-700">検索結果</p>
-          <div className="mt-2 space-y-1">
-            <p className="text-sm font-semibold text-slate-900">{selected.name}</p>
-            <p className="text-xs text-slate-500">{selected.address}</p>
-          </div>
+      {/* ✅ 空状態の補足文言 */}
+      {(state === "empty" || state === "error") && (
+        <p className="text-[11px] text-slate-500">Googleマップで探すと、周辺の神社を直接検索できます。</p>
+      )}
+
+      {err && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          取得に失敗しました: {err}
+        </div>
+      )}
+
+      {state === "loading" && (
+        <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">近くの神社を探しています…</div>
+      )}
+
+      {(state === "empty" || state === "error") && (
+        <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">
+          {state === "error" ? "取得に失敗しました。" : "近くの候補が見つかりませんでした。"}
           <div className="mt-3 flex gap-2">
-            <a
+            <button
+              type="button"
+              onClick={() => coords && fetchNearby(coords.lat, coords.lng)}
               className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              href={buildGoogleMapsSearchUrl(selected.name, selected.address)}
-              target="_blank"
-              rel="noreferrer"
+              disabled={!canAction}
             >
-              Googleマップで見る
-            </a>
+              再試行
+            </button>
             <a
               className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-              href={buildGoogleMapsDirUrl({
-                lat: selected.lat ?? undefined,
-                lng: selected.lng ?? undefined,
-                address: selected.address,
-              })}
+              href={googleSearchNearbyUrl}
               target="_blank"
               rel="noreferrer"
             >
-              ルート
+              Googleマップで探す
             </a>
           </div>
         </div>
-      ) : (
-        <>
-          {/* ✅ Fallbackバッジ */}
-          {usedFallback && !loadingLoc && (
-            <div className="rounded-xl border bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-              現在地が取れないため仮の場所で検索中
-            </div>
-          )}
+      )}
 
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-700">{title}</p>
+      {state === "ready" && (
+        <ul className="space-y-3">
+          {items.map((p) => {
+            const searchUrl = buildGoogleMapsSearchUrl(p.name, p.address ?? undefined);
+            const dirUrl = buildGoogleMapsDirUrl({ lat: p.lat, lng: p.lng, address: p.address ?? undefined });
 
-            {showHeaderAction && (
-              <button
-                type="button"
-                onClick={() => coords && fetchNearby(coords.lat, coords.lng)}
-                className="rounded-full border px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                disabled={!canAction}
-                aria-busy={state === "loading"}
-              >
-                {actionLabel}
-              </button>
-            )}
-          </div>
+            return (
+              <li key={p.place_id} className="rounded-2xl border bg-white p-4 shadow-sm">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{p.name}</p>
+                  {p.address && <p className="text-xs text-slate-500">{p.address}</p>}
+                  {(p.rating != null || p.user_ratings_total != null) && (
+                    <p className="text-[11px] text-slate-400">
+                      {p.rating != null ? `★${p.rating}` : ""}
+                      {p.user_ratings_total != null ? `（${p.user_ratings_total}件）` : ""}
+                      {" ※詳細はGoogleマップで確認"}
+                    </p>
+                  )}
+                </div>
 
-          {/* ✅ 空状態の補足文言 */}
-          {(state === "empty" || state === "error") && (
-            <p className="text-[11px] text-slate-500">Googleマップで探すと、周辺の神社を直接検索できます。</p>
-          )}
-
-          {err && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-              取得に失敗しました: {err}
-            </div>
-          )}
-
-          {state === "loading" && (
-            <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">近くの神社を探しています…</div>
-          )}
-
-          {(state === "empty" || state === "error") && (
-            <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">
-              {state === "error" ? "取得に失敗しました。" : "近くの候補が見つかりませんでした。"}
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => coords && fetchNearby(coords.lat, coords.lng)}
-                  className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  disabled={!canAction}
-                >
-                  再試行
-                </button>
-                <a
-                  className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-                  href={googleSearchNearbyUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Googleマップで探す
-                </a>
-              </div>
-            </div>
-          )}
-
-          {state === "ready" && (
-            <ul className="space-y-3">
-              {items.map((p) => {
-                const searchUrl = buildGoogleMapsSearchUrl(p.name, p.address ?? undefined);
-                const dirUrl = buildGoogleMapsDirUrl({ lat: p.lat, lng: p.lng, address: p.address ?? undefined });
-
-                return (
-                  <li key={p.place_id} className="rounded-2xl border bg-white p-4 shadow-sm">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-900">{p.name}</p>
-                      {p.address && <p className="text-xs text-slate-500">{p.address}</p>}
-                      {(p.rating != null || p.user_ratings_total != null) && (
-                        <p className="text-[11px] text-slate-400">
-                          {p.rating != null ? `★${p.rating}` : ""}
-                          {p.user_ratings_total != null ? `（${p.user_ratings_total}件）` : ""}
-                          {" ※詳細はGoogleマップで確認"}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* ✅ CTA固定（2つだけ） */}
-                    <div className="mt-3 flex gap-2">
-                      <a
-                        className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        href={searchUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Googleマップで見る
-                      </a>
-                      <a
-                        className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-                        href={dirUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        ルート
-                      </a>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </>
+                {/* ✅ CTA固定（2つだけ） */}
+                <div className="mt-3 flex gap-2">
+                  <a
+                    className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    href={searchUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Googleマップで見る
+                  </a>
+                  <a
+                    className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
+                    href={dirUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    ルート
+                  </a>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

@@ -1,5 +1,4 @@
-// apps/web/src/app/map/page.tsx
-import MapCardListClient from "@/features/map/components/MapCardListClient";
+import MapPageClient from "@/features/map/components/MapPageClient";
 
 export const metadata = {
   title: "近くの神社",
@@ -17,7 +16,7 @@ export default function MapPage() {
       </header>
 
       <section className="mt-4 flex-1">
-        <MapCardListClient />
+        <MapPageClient />
       </section>
     </main>
   );
