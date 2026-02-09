@@ -1,3 +1,4 @@
+// apps/web/src/lib/api/placeCaches.ts
 export type PlaceCacheItem = {
   place_id: string;
   name: string;
@@ -10,18 +11,28 @@ export type PlaceCacheItem = {
   updated_at: string;
 };
 
-export async function fetchPlaceCacheSuggest(q: string, limit = 10) {
-  const params = new URLSearchParams({
-    q,
-    limit: String(limit),
-    dedupe: "1",
-  });
-  const res = await fetch(`/api/place-caches/?${params.toString()}`, {
+export async function fetchPlaceCaches(params: {
+  q: string;
+  limit?: number;
+  dedupe?: boolean;
+}): Promise<{ results: PlaceCacheItem[]; count: number }> {
+  const qs = new URLSearchParams();
+  qs.set("q", params.q);
+  qs.set("limit", String(params.limit ?? 10));
+  if (params.dedupe) qs.set("dedupe", "1");
+
+  const res = await fetch(`/api/place-caches/?${qs.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`place-caches failed: ${res.status}`);
-  const data = await res.json();
-  return (data?.results ?? []) as PlaceCacheItem[];
+
+  if (!res.ok) throw new Error(`fetchPlaceCaches failed: ${res.status}`);
+  return res.json();
+}
+
+// ✅ 既存コード互換のためのショートカット（必要なら）
+export async function fetchPlaceCacheSuggest(q: string, limit = 10) {
+  const data = await fetchPlaceCaches({ q, limit, dedupe: true });
+  return data.results;
 }

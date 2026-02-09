@@ -6,7 +6,7 @@ import "./globals.css";
 import { ClientToaster } from "./ClientToaster";
 import HomeLogoLink from "@/components/layout/HomeLogoLink";
 
-import Link from "next/link";
+
 
 import ClientBootstrap from "./providers/ClientBootstrap";
 
@@ -56,13 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <HomeLogoLink />
 
               <div className="ml-auto flex items-center gap-4">
-                <Link
-                  href="/map"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm shadow-sm"
-                  aria-label="神社を検索"
-                >
-                  <span aria-hidden>🔍</span>
-                </Link>
+                
 
                 <Suspense fallback={null}>
                   <HeaderAuthButtons />
