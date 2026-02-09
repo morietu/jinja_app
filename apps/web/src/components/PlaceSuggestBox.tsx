@@ -1,87 +1,104 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { fetchPlaceCacheSuggest, PlaceCacheItem } from "@/lib/api/placeCaches";
+import { useEffect, useState } from "react";
+import { fetchPlaceCaches, type PlaceCacheItem } from "@/lib/api/placeCaches";
 
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
+type Props = {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (item: PlaceCacheItem) => void;
+};
+
+function useDebouncedValue<T>(value: T, ms: number) {
+  const [v, setV] = useState(value);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs);
+    const t = setTimeout(() => setV(value), ms);
     return () => clearTimeout(t);
-  }, [value, delayMs]);
-  return debounced;
+  }, [value, ms]);
+  return v;
 }
 
-export default function PlaceSuggestBox() {
-  const router = useRouter();
-  const [q, setQ] = useState("");
-  const dq = useDebouncedValue(q.trim(), 250);
-
+export default function PlaceSuggestBox({ value, onChange, onSelect }: Props) {
+  const [open, setOpen] = useState(false);
   const [items, setItems] = useState<PlaceCacheItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [empty, setEmpty] = useState(false);
 
-  const activeReq = useRef(0);
+  const q = value.trim();
+  const dq = useDebouncedValue(q, 300);
 
   useEffect(() => {
-    setErr(null);
+    let cancelled = false;
 
-    if (dq.length < 2) {
-      setItems([]);
-      return;
+    async function run() {
+      if (!open) return;
+
+      if (!dq) {
+        setItems([]);
+        setEmpty(false);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const data = await fetchPlaceCaches({ q: dq, limit: 10, dedupe: true });
+        if (cancelled) return;
+
+        const results = data.results ?? [];
+        setItems(results);
+        setEmpty(results.length === 0);
+      } catch {
+        if (cancelled) return;
+        setItems([]);
+        setEmpty(true);
+      } finally {
+        // ✅ finally では return しない
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    const reqId = ++activeReq.current;
-    setLoading(true);
+    void run();
 
-    fetchPlaceCacheSuggest(dq, 10)
-      .then((res) => {
-        if (reqId !== activeReq.current) return;
-        setItems(res);
-      })
-      .catch((e) => {
-        if (reqId !== activeReq.current) return;
-        setErr(e?.message ?? "failed");
-        setItems([]);
-      })
-      .finally(() => {
-        if (reqId !== activeReq.current) return;
-        setLoading(false);
-      });
-  }, [dq]);
+    return () => {
+      cancelled = true;
+    };
+  }, [dq, open]);
 
-  const showDropdown = useMemo(() => dq.length >= 2 && (loading || err || items.length > 0), [dq, loading, err, items]);
+  const showList = open && dq.length > 0;
 
   return (
-    <div className="relative w-full max-w-xl">
+    <div className="relative">
       <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="例：天満宮、稲荷、神田明神…"
-        className="w-full rounded-xl border px-4 py-3 text-base"
+        className="w-full rounded-xl border px-3 py-2"
+        value={value}
+        placeholder="例：天満宮、稲荷神社、神田明神…"
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          // クリック選択のために少し猶予
+          setTimeout(() => setOpen(false), 120);
+        }}
       />
 
-      {showDropdown && (
+      {showList && (
         <div className="absolute z-10 mt-2 w-full rounded-xl border bg-white shadow">
-          {loading && <div className="px-4 py-3 text-sm">検索中…</div>}
-          {err && <div className="px-4 py-3 text-sm text-red-600">エラー: {err}</div>}
+          {loading && <div className="px-3 py-2 text-sm">検索中…</div>}
 
-          {!loading && !err && items.length === 0 && <div className="px-4 py-3 text-sm">候補なし</div>}
+          {!loading && empty && <div className="px-3 py-2 text-sm text-gray-600">候補がありません</div>}
 
           {!loading &&
-            !err &&
             items.map((it) => (
               <button
                 key={it.place_id}
-                className="block w-full px-4 py-3 text-left hover:bg-gray-50"
-                onClick={() => {
-                  // detail ページに飛ばす（このパスはあなたのアプリに合わせて変更）
-                  router.push(`/places/${encodeURIComponent(it.place_id)}`);
-                }}
+                type="button"
+                className="w-full px-3 py-2 text-left hover:bg-gray-50"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onSelect(it)}
               >
                 <div className="text-sm font-medium">{it.name}</div>
-                <div className="text-xs text-gray-500">{it.address}</div>
+                <div className="text-xs text-gray-600">{it.address}</div>
               </button>
             ))}
         </div>
