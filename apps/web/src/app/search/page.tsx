@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+
 import PlaceSuggestBox from "@/components/PlaceSuggestBox";
 
 export default function SearchPage() {

@@ -13,7 +13,7 @@ type NearbyState = "idle" | "loading" | "error" | "empty" | "ready";
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEBUG_LOG === "1";
 function clientLog(event: string, payload?: Record<string, unknown>) {
   if (!DEBUG) return;
-  // eslint-disable-next-line no-console
+
   console.log(`[map] ${event}`, payload ?? {});
 }
 
