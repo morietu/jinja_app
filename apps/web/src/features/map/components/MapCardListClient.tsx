@@ -8,6 +8,7 @@ import type { PlaceCacheItem } from "@/lib/api/placeCaches";
 
 
 
+
 const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅（仮）
 const DEFAULT_LIMIT = 10;
 
