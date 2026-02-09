@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
+import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
+
 
 
 const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅（仮）
@@ -18,22 +20,7 @@ function clientLog(event: string, payload?: Record<string, unknown>) {
   console.log(`[map] ${event}`, payload ?? {});
 }
 
-function enc(v: string) {
-  return encodeURIComponent(v);
-}
-function buildGoogleMapsSearchUrl(name: string, address?: string) {
-  const q = address ? `${name} ${address}` : name;
-  return `https://www.google.com/maps/search/?api=1&query=${enc(q)}`;
-}
-function buildGoogleMapsDirUrl(dest: { lat?: number; lng?: number; address?: string }) {
-  if (typeof dest.lat === "number" && typeof dest.lng === "number") {
-    return `https://www.google.com/maps/dir/?api=1&destination=${enc(`${dest.lat},${dest.lng}`)}`;
-  }
-  if (dest.address) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${enc(dest.address)}`;
-  }
-  return `https://www.google.com/maps/dir/?api=1&destination=${enc("東京駅")}`;
-}
+
 
 export default function NearbyShrineCardListClient() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -143,11 +130,9 @@ export default function NearbyShrineCardListClient() {
 
   const canAction = !!coords && state !== "loading";
 
-  // 空状態の補助リンク（周辺検索をGoogleに投げる）
   const googleSearchNearbyUrl = useMemo(() => {
-    // fallbackでも「東京駅 周辺 神社」で検索できる
     const base = usedFallback ? "東京駅 周辺 神社" : "周辺 神社";
-    return `https://www.google.com/maps/search/?api=1&query=${enc(base)}`;
+    return buildGoogleMapsSearchUrl(base);
   }, [usedFallback]);
 
   return (

@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import PlaceSuggestBox from "@/components/PlaceSuggestBox";
 import type { PlaceCacheItem } from "@/lib/api/placeCaches";
 import NearbyShrineCardListClient from "@/features/map/components/NearbyShrineCardListClient";
+import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
+
 
 function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
   // 最短はここで detail に飛ばす（後で）
@@ -19,7 +21,7 @@ function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
       <div className="mt-3 flex gap-2">
         <a
           className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${item.name} ${item.address}`)}`}
+          href={buildGoogleMapsSearchUrl(item.name, item.address ?? undefined)}
           target="_blank"
           rel="noreferrer"
         >
@@ -27,11 +29,12 @@ function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
         </a>
         <a
           className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-          href={
-            typeof item.lat === "number" && typeof item.lng === "number"
-              ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${item.lat},${item.lng}`)}`
-              : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.address || item.name)}`
-          }
+          href={buildGoogleMapsDirUrl({
+            lat: item.lat ?? undefined,
+            lng: item.lng ?? undefined,
+            address: item.address ?? undefined,
+            fallbackName: item.name,
+          })}
           target="_blank"
           rel="noreferrer"
         >
@@ -46,7 +49,7 @@ export default function MapPageClient() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PlaceCacheItem | null>(null);
 
-  const mode: "nearby" | "search" = useMemo(() => (selected ? "search" : "nearby"), [selected]);
+  const mode: "nearby" | "search" = selected ? "search" : "nearby";
 
   const canClear = query.trim().length > 0 || selected != null;
 
