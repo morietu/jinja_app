@@ -1,4 +1,4 @@
-// apps/web/src/features/map/components/MapCardListClient.tsx
+// apps/web/src/features/map/components/NearbyShrineCardListClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -35,7 +35,7 @@ function buildGoogleMapsDirUrl(dest: { lat?: number; lng?: number; address?: str
   return `https://www.google.com/maps/dir/?api=1&destination=${enc("東京駅")}`;
 }
 
-export default function MapCardListClient() {
+export default function NearbyShrineCardListClient() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLoc, setLoadingLoc] = useState(true);
   const [usedFallback, setUsedFallback] = useState(false);

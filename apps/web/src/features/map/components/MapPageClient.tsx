@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import PlaceSuggestBox from "@/components/PlaceSuggestBox";
 import type { PlaceCacheItem } from "@/lib/api/placeCaches";
-import MapCardListClient from "@/features/map/components/MapCardListClient";
+import NearbyShrineCardListClient from "@/features/map/components/NearbyShrineCardListClient";
 
 function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
   // 最短はここで detail に飛ばす（後で）
@@ -81,7 +81,7 @@ export default function MapPageClient() {
       </div>
 
       {/* 表示分岐 */}
-      {mode === "nearby" && <MapCardListClient />}
+      {mode === "nearby" && <NearbyShrineCardListClient />}
 
       {mode === "search" && selected && (
         <div className="space-y-2">
