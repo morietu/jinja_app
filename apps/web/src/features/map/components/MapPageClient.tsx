@@ -1,3 +1,4 @@
+// apps/web/src/features/map/components/MapPageClient.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,10 +7,7 @@ import type { PlaceCacheItem } from "@/lib/api/placeCaches";
 import NearbyShrineCardListClient from "@/features/map/components/NearbyShrineCardListClient";
 import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
 
-
 function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
-  // 最短はここで detail に飛ばす（後で）
-  // const href = `/places/${item.place_id}` みたいな導線に差し替え可能
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="space-y-1">
@@ -27,6 +25,7 @@ function PlaceSelectedCard({ item }: { item: PlaceCacheItem }) {
         >
           Googleマップで見る
         </a>
+
         <a
           className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
           href={buildGoogleMapsDirUrl({
@@ -50,22 +49,20 @@ export default function MapPageClient() {
   const [selected, setSelected] = useState<PlaceCacheItem | null>(null);
 
   const mode: "nearby" | "search" = selected ? "search" : "nearby";
-
   const canClear = query.trim().length > 0 || selected != null;
 
   return (
     <div className="space-y-3">
-      {/* 検索入力 + クリア */}
       <div className="space-y-2">
         <PlaceSuggestBox
           value={query}
           onChange={(v) => {
             setQuery(v);
-            setSelected(null); // 入力し直したら未確定に戻す
+            setSelected(null);
           }}
           onSelect={(it) => {
             setSelected(it);
-            setQuery(it.name); // “確定感”
+            setQuery(it.name);
           }}
         />
 
@@ -83,7 +80,6 @@ export default function MapPageClient() {
         )}
       </div>
 
-      {/* 表示分岐 */}
       {mode === "nearby" && <NearbyShrineCardListClient />}
 
       {mode === "search" && selected && (

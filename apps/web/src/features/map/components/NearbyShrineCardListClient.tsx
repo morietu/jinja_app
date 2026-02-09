@@ -1,11 +1,8 @@
-// apps/web/src/features/map/components/NearbyShrineCardListClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { PlacesNearbyResponse, PlacesNearbyResult } from "@/lib/api/places.nearby.types";
 import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
-
-
 
 const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅（仮）
 const DEFAULT_LIMIT = 10;
@@ -16,11 +13,9 @@ type NearbyState = "idle" | "loading" | "error" | "empty" | "ready";
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEBUG_LOG === "1";
 function clientLog(event: string, payload?: Record<string, unknown>) {
   if (!DEBUG) return;
-
+  // eslint-disable-next-line no-console
   console.log(`[map] ${event}`, payload ?? {});
 }
-
-
 
 export default function NearbyShrineCardListClient() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -54,7 +49,6 @@ export default function NearbyShrineCardListClient() {
       },
       (e) => {
         if (cancelled) return;
-        // 1: PERMISSION_DENIED, 2: POSITION_UNAVAILABLE, 3: TIMEOUT
         const code = (e as GeolocationPositionError | undefined)?.code;
         if (code === 1) clientLog("LOC_DENIED");
         else clientLog("LOC_FAILED", { code });
@@ -97,7 +91,6 @@ export default function NearbyShrineCardListClient() {
 
       clientLog("NEARBY_OK", { count: results.length });
       setItems(results);
-
       setState(results.length === 0 ? "empty" : "ready");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -119,15 +112,12 @@ export default function NearbyShrineCardListClient() {
     return "近くの神社";
   }, [loadingLoc]);
 
-  // 右上の actionLabel は「更新」系だけにする
   const actionLabel = useMemo(() => {
     if (state === "loading") return "更新中…";
     return "更新";
   }, [state]);
 
-  // empty/error のときはヘッダーに出さない
   const showHeaderAction = state === "idle" || state === "loading" || state === "ready";
-
   const canAction = !!coords && state !== "loading";
 
   const googleSearchNearbyUrl = useMemo(() => {
@@ -137,7 +127,6 @@ export default function NearbyShrineCardListClient() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ✅ Fallbackバッジ */}
       {usedFallback && !loadingLoc && (
         <div className="rounded-xl border bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
           現在地が取れないため仮の場所で検索中
@@ -160,7 +149,6 @@ export default function NearbyShrineCardListClient() {
         )}
       </div>
 
-      {/* ✅ 空状態の補足文言 */}
       {(state === "empty" || state === "error") && (
         <p className="text-[11px] text-slate-500">Googleマップで探すと、周辺の神社を直接検索できます。</p>
       )}
@@ -203,7 +191,12 @@ export default function NearbyShrineCardListClient() {
         <ul className="space-y-3">
           {items.map((p) => {
             const searchUrl = buildGoogleMapsSearchUrl(p.name, p.address ?? undefined);
-            const dirUrl = buildGoogleMapsDirUrl({ lat: p.lat, lng: p.lng, address: p.address ?? undefined });
+            const dirUrl = buildGoogleMapsDirUrl({
+              lat: p.lat ?? undefined,
+              lng: p.lng ?? undefined,
+              address: p.address ?? undefined,
+              fallbackName: p.name,
+            });
 
             return (
               <li key={p.place_id} className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -219,7 +212,6 @@ export default function NearbyShrineCardListClient() {
                   )}
                 </div>
 
-                {/* ✅ CTA固定（2つだけ） */}
                 <div className="mt-3 flex gap-2">
                   <a
                     className="flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
