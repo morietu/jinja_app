@@ -60,6 +60,10 @@ export async function GET(req: Request) {
     const lat = Number(r.lat ?? r.location?.latitude ?? r.location?.lat ?? r.geometry?.location?.lat);
     const lng = Number(r.lng ?? r.location?.longitude ?? r.location?.lng ?? r.geometry?.location?.lng);
 
+    const shrine_id_raw = r.shrine_id ?? r.shrineId ?? r.registered_shrine_id ?? null;
+    const shrine_id_num = Number(shrine_id_raw);
+    const shrine_id = Number.isFinite(shrine_id_num) && shrine_id_num > 0 ? shrine_id_num : null;
+
     if (!place_id || !name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
     return {
@@ -68,6 +72,7 @@ export async function GET(req: Request) {
       ...(address ? { address } : {}),
       lat,
       lng,
+      ...(shrine_id ? { shrine_id } : {}),
       distance_m: r.distance_m ?? null,
       rating: r.rating ?? null,
       user_ratings_total: r.user_ratings_total ?? null,
