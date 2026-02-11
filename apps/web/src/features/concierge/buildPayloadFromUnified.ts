@@ -57,9 +57,26 @@ function buildDetailHref(shrineId: number | null, placeId: string | null, tid: s
   return undefined;
 }
 
+// 登録済み=shrine_idあり → /shrines/:id, 未登録=place_idのみ → /places/:placeId, どちらも無い→除外
+
 function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | null {
   const shrineId = asPositiveInt(r?.shrine_id ?? r?.shrine?.id ?? null);
-  const placeId = asTrimmedString(r?.place_id ?? null);
+  const placeId =
+    asTrimmedString(r?.place_id) ??
+    asTrimmedString(r?.placeId) ??
+    (r?.place_id != null ? String(r.place_id).trim() : null) ??
+    (r?.placeId != null ? String(r.placeId).trim() : null);
+
+  // DEBUG: これで現実を見る
+  if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
+    console.log("[concierge] rec ids", {
+      shrineId,
+      placeId,
+      raw_place_id: r?.place_id,
+      raw_placeId: r?.placeId,
+      keys: Object.keys(r ?? {}),
+    });
+  }
 
   const title = pickFirstString(r?.display_name, r?.name) ?? "名称不明";
   const address = pickFirstString(r?.display_address, r?.address, r?.location);
@@ -70,6 +87,15 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   // ✅ registered優先
   if (shrineId) {
     const detailHref = buildDetailHref(shrineId, null, tid);
+
+    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
+      console.log("[concierge] normalized", {
+        shrineId,
+        placeId,
+        detailHref,
+        title,
+      });
+    }
     return {
       kind: "registered",
       shrineId,
@@ -86,6 +112,15 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
 
   if (placeId) {
     const detailHref = buildDetailHref(null, placeId, tid);
+
+    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
+      console.log("[concierge] normalized(place)", {
+        shrineId,
+        placeId,
+        detailHref,
+        title,
+      });
+    }
     return {
       kind: "place",
       placeId,

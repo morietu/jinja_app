@@ -147,20 +147,20 @@ export default function ConciergeCard(props: BaseCardProps) {
 
             {/* ボタンは残す。押しやすいし視認性もある */}
             {detailHref ? (
-              <div className={cn("mt-4", !isPrimary && "mt-3")} onClick={stopLinkNav} onMouseDown={stopLinkNav}>
-                <span
-                  className={cn(
-                    "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
-                    "text-sm font-semibold",
-                    "bg-neutral-900 text-white",
-                    "ring-1 ring-inset ring-black/10",
-                    "transition active:scale-[0.99] hover:bg-neutral-800",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
-                  )}
-                >
-                  {detailLabel}
-                </span>
-              </div>
+              <Link
+                href={detailHref}
+                prefetch={false}
+                className={cn(
+                  "mt-4 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
+                  "text-sm font-semibold bg-neutral-900 text-white",
+                  "ring-1 ring-inset ring-black/10 transition active:scale-[0.99] hover:bg-neutral-800",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
+                  !isPrimary && "mt-3",
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {detailLabel}
+              </Link>
             ) : null}
           </div>
         </div>
@@ -199,9 +199,5 @@ export default function ConciergeCard(props: BaseCardProps) {
 
   if (!detailHref) return CardInner;
 
-  return (
-    <Link href={detailHref} prefetch={false} className="block">
-      {CardInner}
-    </Link>
-  );
+  return CardInner;
 }

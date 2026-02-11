@@ -1,0 +1,44 @@
+// apps/web/src/features/concierge/detailHref.ts
+/**
+ * Concierge recommendation → detail href (product spec)
+ *
+ * - 登録済み: shrine_id / shrineId（または互換で id）を持つ → /shrines/:id
+ * - 未登録: place_id / placeId（など）だけを持つ → /places/:placeId
+ * - IDなし: null（UIは詳細導線を表示しない）
+ *
+ * 注意: `id` を shrine_id とみなすのが危険になったら、pickShrineId から `id` を外す。
+ */
+
+type AnyObj = Record<string, any>;
+
+export function pickPlaceId(item: AnyObj): string | null {
+  const v =
+    item?.place_id ?? item?.placeId ?? item?.google?.place_id ?? item?.google?.placeId ?? item?.place?.id ?? null;
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+export function pickShrineId(item: AnyObj): number | null {
+  const v = item?.shrine_id ?? item?.shrineId ?? item?.id ?? null;
+  // id を shrine_id とみなすのが危ないなら、ここは shrine_id/shrineId のみに絞る
+  const n = typeof v === "string" ? Number(v) : v;
+  return Number.isFinite(n) ? n : null;
+}
+
+export function detailHrefFromRecommendation(
+  item: AnyObj,
+  ctx?: { ctx?: string; tid?: string | number },
+): string | null {
+  const q = new URLSearchParams();
+  if (ctx?.ctx) q.set("ctx", ctx.ctx);
+  if (ctx?.tid != null) q.set("tid", String(ctx.tid));
+  const qs = q.toString();
+  const suffix = qs ? `?${qs}` : "";
+
+  const shrineId = pickShrineId(item);
+  if (shrineId != null) return `/shrines/${shrineId}${suffix}`;
+
+  const placeId = pickPlaceId(item);
+  if (placeId) return `/places/${encodeURIComponent(placeId)}${suffix}`;
+
+  return null;
+}

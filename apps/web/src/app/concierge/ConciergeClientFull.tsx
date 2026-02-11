@@ -24,6 +24,8 @@ import { conciergeLog } from "@/lib/log/concierge";
 
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
 
+console.log("DEBUG_FLAG", process.env.NEXT_PUBLIC_DEBUG_LOG);
+
 
 /* ========================================
  * 型定義とデータ設定
@@ -159,6 +161,21 @@ function getMetaReply(payload: any): { reply: string | null; isLimitReached: boo
 export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
+
+  useEffect(() => {
+    const orig = window.dispatchEvent;
+    window.dispatchEvent = ((ev: Event) => {
+      const t = (ev as any)?.type;
+      if (t === "jinja:close-concierge") {
+        console.log("[DISPATCHED close-concierge]", ev, new Error("dispatch stack").stack);
+      }
+      return orig.call(window, ev);
+    }) as any;
+
+    return () => {
+      window.dispatchEvent = orig;
+    };
+  }, []);
 
   useEffect(() => {
     snap("component_render", {});
@@ -446,7 +463,7 @@ export default function ConciergeClientFull() {
 
   const displayUnified = useMemo(() => {
     if (isEntryRoute) return null;
-    return liveUnified ?? lastUnified;
+    return liveUnified ?? (isEntryRoute ? null : lastUnified);
   }, [isEntryRoute, lastUnified, liveUnified]);
 
   const displayRecommendations = useMemo(() => {
@@ -553,19 +570,52 @@ export default function ConciergeClientFull() {
     filters: baseFilters,
 
     onUnified: (u) => {
+      // ✅ 1回だけ unified 全体を出す（ログ洪水を防ぐ）
+      const dumpedRef = (globalThis as any).__jinjaUnifiedDumpedRef ?? { done: false };
+      (globalThis as any).__jinjaUnifiedDumpedRef = dumpedRef;
+
+      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1" && !dumpedRef.done) {
+        dumpedRef.done = true;
+        console.log("[concierge] unified FULL (once)", u);
+
+        // ついでに「どこに何があるか」だけ抜粋
+        console.log("[concierge] unified SHAPE", {
+          thread: (u as any)?.thread,
+          thread_id: (u as any)?.thread_id,
+          data_thread_id: (u as any)?.data?.thread_id,
+          stop_reason: (u as any)?.stop_reason,
+          reply: (u as any)?.reply,
+          meta: (u as any)?.meta,
+          recs_len: Array.isArray((u as any)?.data?.recommendations) ? (u as any).data.recommendations.length : null,
+          recs_type: typeof (u as any)?.data?.recommendations,
+          data_keys: (u as any)?.data ? Object.keys((u as any).data) : null,
+        });
+      }
+
+      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
+        const recs = u?.data?.recommendations ?? [];
+        console.log("[concierge] unified recs sample", {
+          count: Array.isArray(recs) ? recs.length : 0,
+          first: Array.isArray(recs) ? recs[0] : null,
+          keysFirst: Array.isArray(recs) && recs[0] ? Object.keys(recs[0] as any) : [],
+        });
+       
+      }
+
       if (isClosingRef.current) return;
 
       const now = new Date().toISOString();
-      const nextTid = typeof u.thread?.id === "number" ? u.thread.id : 0;
+      const nextTid = Number((u as any)?.thread?.id ?? (u as any)?.thread_id ?? (u as any)?.data?.thread_id ?? 0) || 0;
       const currentTid = activeThreadIdRef.current;
       const fromEntry = currentTid === 0;
 
       snap("onUnified:in", {
         nextTid,
         currentTid,
+        thread: u.thread,
+        threadId: u.thread?.id,
         isEntryRoute,
         hasRecs: Array.isArray(u.data?.recommendations) ? u.data.recommendations.length : 0,
-        hasReply: !!u.reply,
       });
 
       conciergeLog("unified_received", {
@@ -595,9 +645,8 @@ export default function ConciergeClientFull() {
             level: "warn",
           });
         } else {
-          
           snap("nav:replace", { to: `/concierge?tid=${nextTid}`, reason: "onUnified" });
-          router.replace(`/concierge?tid=${nextTid}`);
+          navReplace(`/concierge?tid=${nextTid}`, { reason: "onUnified" });
         }
       }
 
@@ -625,6 +674,12 @@ export default function ConciergeClientFull() {
    * -------------------------------------- */
   const safeSend = useCallback(
     async (textOrPayload: any, logMeta?: Record<string, any>) => {
+      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
+        console.log("[concierge] send payload", textOrPayload);
+        console.log("[concierge] send filters", baseFilters);
+        console.log("[concierge] chatThreadId", chatThreadId);
+      }
+      
       snap("safeSend:start", { isEntryRoute, sending, entrySubmitting, canSend });
 
       if (!canSend) {

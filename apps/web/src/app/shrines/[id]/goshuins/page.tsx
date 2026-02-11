@@ -46,7 +46,13 @@ export default async function Page({ params, searchParams }: Props) {
 
   // ✅ 御朱印追加（この一覧に戻す）
   const fromPath = buildShrineHref(shrineId, { subpath: "goshuins", query });
-  const addGoshuinHref = `/goshuin/new?shrine=${shrineId}&from=${encodeURIComponent(fromPath)}`;
+  const addQ = new URLSearchParams();
+  addQ.set("shrine", String(shrineId));
+  addQ.set("from", encodeURIComponent(fromPath));
+  if (ctx) addQ.set("ctx", ctx);
+  if (tid) addQ.set("tid", String(tid));
+
+  const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
 
   return (
     <ShrineDetailShell

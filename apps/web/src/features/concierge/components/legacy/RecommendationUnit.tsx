@@ -9,6 +9,7 @@ import NeedChips from "@/features/concierge/components/NeedChips";
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
 
 function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -44,22 +45,31 @@ export default function RecommendationUnit({
   const description = (typeof safe.reason === "string" && safe.reason.trim()) || "候補として表示しています。";
   const imageUrl = (safe.photo_url || "")?.toString().trim() || null;
 
-  const rawShrineId = (safe as any).shrine_id ?? null;
+  const rawShrineId = (safe as any).shrine_id ?? (safe as any).shrine?.id ?? null;
   const shrineId = rawShrineId != null ? Number(rawShrineId) : null;
+  const hasShrineId = Number.isFinite(shrineId) && (shrineId as number) > 0;
 
-  // ✅ リンク生成は集約（ctx/tid 抜けを物理的に防ぐ）
-  const href = shrineId ? buildShrineHref(shrineId, { ctx: "concierge", tid }) : undefined;
+  const rawPlaceId = (safe as any).place_id ?? (safe as any).placeId ?? null;
+  const placeId = rawPlaceId != null ? String(rawPlaceId).trim() : null;
 
-  const badges = [...(Array.isArray(safe.tags) ? safe.tags : []), ...(Array.isArray(needTags) ? needTags : [])].filter(
-    (t): t is string => typeof t === "string" && t.trim().length > 0,
-  );
+  // ✅ tid を string に正規化（tscエラー潰す）
+  const tidStr = tid != null ? String(tid).trim() : "";
+  const tidQ: string | null = tidStr.length ? tidStr : null;
 
-  const breakdown = safe.breakdown ?? null;
+  // ✅ shrine_id 優先、無ければ place_id → resolve
+  const href = hasShrineId
+    ? buildShrineHref(shrineId as number, { ctx: "concierge", tid: tidQ })
+    : placeId
+      ? buildShrineResolveHref(placeId, { ctx: "concierge", tid: tidQ })
+      : undefined;
+
+  const badges = [...(Array.isArray((safe as any).tags) ? (safe as any).tags : []), ...(Array.isArray(needTags) ? needTags : [])]
+    .filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+
+  const breakdown = (safe as any).breakdown ?? null;
   const reasonLabel = pickReasonLabel(breakdown);
 
-  const finalBadges = (
-    [reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]
-  ).slice(0, 3);
+  const finalBadges = ([reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]).slice(0, 3);
 
   return (
     <div className="space-y-2">
@@ -93,3 +103,5 @@ export default function RecommendationUnit({
     </div>
   );
 }
+
+
