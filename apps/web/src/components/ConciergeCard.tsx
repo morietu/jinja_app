@@ -10,6 +10,11 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function stopLinkNav(e: React.SyntheticEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
 function Chevron({ open }: { open: boolean }) {
   return (
     <svg
@@ -53,12 +58,13 @@ export default function ConciergeCard(props: BaseCardProps) {
   const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
 
-  return (
+  const CardInner = (
     <div
       className={cn(
         "overflow-hidden rounded-2xl bg-white ring-1 ring-neutral-200/70",
         "shadow-sm transition",
         isPrimary && "shadow-md ring-neutral-200",
+        detailHref && "cursor-pointer hover:shadow-md",
       )}
     >
       <div className="relative h-36 w-full">
@@ -96,7 +102,12 @@ export default function ConciergeCard(props: BaseCardProps) {
                 </span>
               ))}
             </div>
-            {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
+
+            {headerRight ? (
+              <div className="shrink-0" onClick={stopLinkNav} onMouseDown={stopLinkNav}>
+                {headerRight}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -134,11 +145,10 @@ export default function ConciergeCard(props: BaseCardProps) {
               </p>
             ) : null}
 
+            {/* ボタンは残す。押しやすいし視認性もある */}
             {detailHref ? (
-              <div className={cn("mt-4", !isPrimary && "mt-3")}>
-                <Link
-                  href={detailHref}
-                  prefetch={false}
+              <div className={cn("mt-4", !isPrimary && "mt-3")} onClick={stopLinkNav} onMouseDown={stopLinkNav}>
+                <span
                   className={cn(
                     "inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-3 py-2",
                     "text-sm font-semibold",
@@ -149,7 +159,7 @@ export default function ConciergeCard(props: BaseCardProps) {
                   )}
                 >
                   {detailLabel}
-                </Link>
+                </span>
               </div>
             ) : null}
           </div>
@@ -157,10 +167,17 @@ export default function ConciergeCard(props: BaseCardProps) {
       </div>
 
       {disclosureBody ? (
-        <div className="border-t border-neutral-200/70 bg-neutral-50/30">
+        <div
+          className="border-t border-neutral-200/70 bg-neutral-50/30"
+          onClick={stopLinkNav}
+          onMouseDown={stopLinkNav}
+        >
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={(e) => {
+              stopLinkNav(e);
+              setOpen((v) => !v);
+            }}
             className={cn(
               "flex w-full items-center justify-between px-4 py-3 text-left",
               "transition hover:bg-neutral-50",
@@ -178,5 +195,13 @@ export default function ConciergeCard(props: BaseCardProps) {
         </div>
       ) : null}
     </div>
+  );
+
+  if (!detailHref) return CardInner;
+
+  return (
+    <Link href={detailHref} prefetch={false} className="block">
+      {CardInner}
+    </Link>
   );
 }

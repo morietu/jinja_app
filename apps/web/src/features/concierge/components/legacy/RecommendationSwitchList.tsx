@@ -1,9 +1,10 @@
-// apps/web/src/features/concierge/components/RecommendationSwitchList.tsx
+// apps/web/src/features/concierge/components/legacy/RecommendationSwitchList.tsx
+// legacy UI only (do not use in ConciergeSectionsRenderer)
 "use client";
 
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import { benefitLabel, pickBenefitTagFromRec } from "@/lib/concierge/benefitTag";
-import RecommendationUnit from "@/features/concierge/components/RecommendationUnit";
+import RecommendationUnit from "@/features/concierge/components/legacy/RecommendationUnit";
 
 type Props = {
   items: ConciergeRecommendation[];
