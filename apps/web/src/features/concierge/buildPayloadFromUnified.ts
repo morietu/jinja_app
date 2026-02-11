@@ -63,7 +63,7 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
     (r?.placeId != null ? String(r.placeId).trim() : null);
 
   // ✅ href生成はここだけ（P1）
-  const detailHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid }) ?? undefined;
+  const detailHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
 
   // DEBUG: これで現実を見る
   if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
