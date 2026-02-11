@@ -1,21 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useCallback } from "react";
+import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
 
 export default function HomeLogoLink() {
-  const pathname = usePathname();
+  const onClick = useCallback((e: React.MouseEvent) => {
+    const path = window.location.pathname;
 
-  const onClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (!pathname.startsWith("/concierge")) return; // concierge 外は何もしない
-      window.dispatchEvent(new Event("jinja:close-concierge"));
-      e.preventDefault();
-      e.stopPropagation();
-    },
-    [pathname],
-  );
+    // ✅ “実体” で判定する
+    if (!path.startsWith("/concierge")) return;
+
+    window.dispatchEvent(new CustomEvent(EVT_CLOSE_CONCIERGE, { detail: { from: "home_logo" } }));
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
   return (
     <Link href="/" onClick={onClick} className="text-base font-bold">
