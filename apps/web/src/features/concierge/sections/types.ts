@@ -101,6 +101,10 @@ export type ConciergeSectionsPayload = {
   sections: readonly ConciergeSection[];
   meta?: {
     mode?: ConciergeModeSignal | null;
+    note?: string | null;
+    reply?: string | null;
+    remainingFree?: number | null;
+    tid?: string | null;
   };
 };
 
