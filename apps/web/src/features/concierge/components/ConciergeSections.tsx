@@ -5,7 +5,7 @@ import * as React from "react";
 import type { ConciergeSection } from "@/features/concierge/types/sections";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import PrimaryRecommendationCard from "@/features/concierge/components/PrimaryRecommendationCard";
-import RecommendationSwitchList from "@/features/concierge/components/RecommendationSwitchList";
+import RecommendationSwitchList from "@/features/concierge/components/legacy/RecommendationSwitchList";
 import DetailSection from "@/components/shrine/DetailSection";
 import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 import ModeBadge from "@/features/concierge/components/ModeBadge";

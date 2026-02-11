@@ -1,3 +1,4 @@
+// NOTE: legacy UI only (do not use in ConciergeSectionsRenderer)
 "use client";
 
 import type React from "react";
