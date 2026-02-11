@@ -1,11 +1,10 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
-import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
-
+import { buildMapDetailHref } from "@/lib/nav/buildMapDetailHref";
 type Props = {
   limit?: number;
   coords: { lat: number; lng: number } | null;
@@ -16,6 +15,10 @@ type Props = {
     name: string | null;
     address: string | null;
   };
+};
+
+type NearbyItemView = PlacesNearbyResponse["results"][number] & {
+  detailHref?: string | null;
 };
 
 export default function MapNearbyPicker(props: Props) {
@@ -30,7 +33,7 @@ export default function MapNearbyPicker(props: Props) {
   const ln = coords?.lng ?? null;
 
   const [phase, setPhase] = useState<"waiting_coords" | "loading" | "ready">("waiting_coords");
-  const [items, setItems] = useState<PlacesNearbyResponse["results"]>([]);
+  const [items, setItems] = useState<NearbyItemView[]>([]);
   const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
   
@@ -38,18 +41,8 @@ export default function MapNearbyPicker(props: Props) {
 
   const tid = sp.get("tid");
 
-  // ctx/tid 付きで /shrines/resolve を作る（文字列連結の事故を防ぐ）
-  const buildResolveHref = useCallback(
-    (placeId: string) => {
-      return buildShrineResolveHref(placeId, { ctx: "map", tid });
-    },
-    [tid],
-  );
-
   // ✅ fetch effect（phaseもここで管理）
   useEffect(() => {
-    console.log("nearby effect", { la, ln, limit });
-
     if (la == null || ln == null) {
       lastKeyRef.current = "";
       setPhase("waiting_coords");
@@ -72,8 +65,17 @@ export default function MapNearbyPicker(props: Props) {
         });
         if (!r.ok) throw new Error(`nearby failed: ${r.status}`);
         const data = (await r.json()) as PlacesNearbyResponse;
-        setItems(data.results ?? []);
+        const viewItems: NearbyItemView[] = (data.results ?? []).map((p) => ({
+          ...p,
+          detailHref: buildMapDetailHref({
+            shrineId: (p as any).shrine_id ?? null,
+            placeId: p.place_id ?? null,
+            tid,
+          }),
+        }));
+        setItems(viewItems);
       } catch (e) {
+        console.log("NEARBY_ERR", { message: e instanceof Error ? e.message : String(e) });
         if ((e as any)?.name === "AbortError") return;
         setItems([]);
       } finally {
@@ -82,7 +84,7 @@ export default function MapNearbyPicker(props: Props) {
     })();
 
     return () => ac.abort();
-  }, [la, ln, limit]);
+  }, [la, ln, limit, tid]);
 
   const hasSelectedInList = useMemo(() => {
     if (!selectedPlaceId) return false;
@@ -155,10 +157,25 @@ export default function MapNearbyPicker(props: Props) {
           }
 
           // ✅ 通常モードだけ href を作る
-          const href = buildResolveHref(pid);
+          const href = buildMapDetailHref({ placeId: pid ?? undefined, tid });
+
+          if (!href) {
+            return (
+              <div className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left">
+                <div className="text-[11px] font-semibold text-emerald-700">おすすめ（起点）</div>
+                <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
+                <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
+                <div className="mt-2 text-[11px] text-slate-600">詳細リンクを生成できませんでした</div>
+              </div>
+            );
+          }
 
           return (
-            <Link href={href} className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left">
+            <Link
+              href={href}
+              className="block w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
+              prefetch={false}
+            >
               <div className="text-[11px] font-semibold text-emerald-700">おすすめ（起点）</div>
               <div className="mt-1 text-sm font-semibold">{initialSelectedPlace?.name ?? "（名称不明）"}</div>
               <div className="mt-1 text-xs text-slate-600">{initialSelectedPlace?.address ?? ""}</div>
@@ -169,7 +186,6 @@ export default function MapNearbyPicker(props: Props) {
 
       {items.map((x) => {
         const active = x.place_id === selectedPlaceId;
-        const href = buildResolveHref(x.place_id);
 
         if (isPickMode) {
           return (
@@ -179,8 +195,7 @@ export default function MapNearbyPicker(props: Props) {
                 rowRefs.current[x.place_id] = node;
               }}
               type="button"
-              onClick={async () => {
-                // pick は選択だけ（詳細遷移しない）
+              onClick={() => {
                 onSelect({ placeId: x.place_id, lat: x.lat ?? null, lng: x.lng ?? null });
               }}
               className={`w-full rounded-xl border p-3 text-left ${
@@ -193,7 +208,23 @@ export default function MapNearbyPicker(props: Props) {
           );
         }
 
-        // 通常モード：Link で詳細へ
+        const href = x.detailHref;
+
+        if (!href) {
+          return (
+            <div
+              key={x.place_id}
+              className={`block w-full rounded-xl border p-3 text-left ${
+                active ? "border-emerald-400 bg-emerald-50" : "bg-white"
+              }`}
+            >
+              <div className="text-sm font-semibold">{x.name}</div>
+              <div className="mt-1 text-xs text-slate-600">{x.address}</div>
+              <div className="mt-2 text-[11px] text-slate-500">詳細リンクを生成できませんでした</div>
+            </div>
+          );
+        }
+
         return (
           <Link
             key={x.place_id}
