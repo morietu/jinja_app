@@ -223,7 +223,6 @@ export default function ConciergeClientFull() {
     [router],
   );
 
-
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
@@ -517,50 +516,50 @@ export default function ConciergeClientFull() {
     };
   }, [birthdate, selectedTagIds, extraCondition]);
 
-  const hasFilter =
-    (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
+    const hasFilter =
+      (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
-  const selectedTagNames = useMemo(() => {
-    if (!goriyakuTags.length || !selectedTagIds.length) return [];
-    const set = new Set(selectedTagIds);
-    return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
-  }, [goriyakuTags, selectedTagIds]);
+    const selectedTagNames = useMemo(() => {
+      if (!goriyakuTags.length || !selectedTagIds.length) return [];
+      const set = new Set(selectedTagIds);
+      return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
+    }, [goriyakuTags, selectedTagIds]);
 
-  const filterState = useMemo(
-    () => ({
-      isOpen: isFilterOpen,
-      birthdate,
-      element4,
-      goriyakuTags,
-      suggestedTags,
-      selectedTagIds,
-      tagsLoading,
-      tagsError,
-      extraCondition,
-    }),
-    [
-      isFilterOpen,
-      birthdate,
-      element4,
-      goriyakuTags,
-      suggestedTags,
-      selectedTagIds,
-      tagsLoading,
-      tagsError,
-      extraCondition,
-    ],
-  );
+    const filterState = useMemo(
+      () => ({
+        isOpen: isFilterOpen,
+        birthdate,
+        element4,
+        goriyakuTags,
+        suggestedTags,
+        selectedTagIds,
+        tagsLoading,
+        tagsError,
+        extraCondition,
+      }),
+      [
+        isFilterOpen,
+        birthdate,
+        element4,
+        goriyakuTags,
+        suggestedTags,
+        selectedTagIds,
+        tagsLoading,
+        tagsError,
+        extraCondition,
+      ],
+    );
 
-  const payload = useMemo(() => {
-    return buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState);
-  }, [displayUnified, filterState]);
+    const payload = useMemo(() => {
+      return buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState);
+    }, [displayUnified, filterState]);
 
-  const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
+    const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
 
-  const messages = useMemo(
-    () => deriveMessages(events, thread?.id ?? activeThreadId),
-    [events, thread, activeThreadId],
-  );
+    const messages = useMemo(
+      () => deriveMessages(events, thread?.id ?? activeThreadId),
+      [events, thread, activeThreadId],
+    );
 
   /* ----------------------------------------
    * チャット
@@ -599,7 +598,6 @@ export default function ConciergeClientFull() {
           first: Array.isArray(recs) ? recs[0] : null,
           keysFirst: Array.isArray(recs) && recs[0] ? Object.keys(recs[0] as any) : [],
         });
-       
       }
 
       if (isClosingRef.current) return;
@@ -663,6 +661,19 @@ export default function ConciergeClientFull() {
     },
   });
 
+  /* ========================================
+   * Refs for Closure safety
+   * ====================================== */
+  const baseFiltersRef = useRef(baseFilters);
+  useEffect(() => {
+    baseFiltersRef.current = baseFilters;
+  }, [baseFilters]);
+
+  const chatThreadIdRef = useRef(chatThreadId);
+  useEffect(() => {
+    chatThreadIdRef.current = chatThreadId;
+  }, [chatThreadId]);
+
   /* ----------------------------------------
    * 🔥 ロック統一：isBusy
    * -------------------------------------- */
@@ -670,16 +681,15 @@ export default function ConciergeClientFull() {
 
   /* ----------------------------------------
    * 安全な送信関数（共通化）
-   * ★ 入口の時だけ entrySubmitting をチェック
    * -------------------------------------- */
   const safeSend = useCallback(
     async (textOrPayload: any, logMeta?: Record<string, any>) => {
       if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
         console.log("[concierge] send payload", textOrPayload);
-        console.log("[concierge] send filters", baseFilters);
-        console.log("[concierge] chatThreadId", chatThreadId);
+        console.log("[concierge] send filters", baseFiltersRef.current);
+        console.log("[concierge] chatThreadId", chatThreadIdRef.current);
       }
-      
+
       snap("safeSend:start", { isEntryRoute, sending, entrySubmitting, canSend });
 
       if (!canSend) {
@@ -690,8 +700,6 @@ export default function ConciergeClientFull() {
         snap("safeSend:blocked_sending", {});
         return;
       }
-
-      // ✅ 入口だけ entrySubmitting をチェック
       if (isEntryRoute && entrySubmitting) {
         snap("safeSend:blocked_entrySubmitting", {});
         return;
@@ -730,6 +738,7 @@ export default function ConciergeClientFull() {
     },
     [canSend, sending, entrySubmitting, send, isEntryRoute, entryMode],
   );
+
 
   /* ----------------------------------------
    * UI表示の判定
