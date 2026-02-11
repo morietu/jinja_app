@@ -34,8 +34,7 @@ export default async function Page({ params, searchParams }: Props) {
   const ctx = normalizeCtx(sp.ctx ?? null);
   const tid = sp.tid ?? null;
 
-  // ✅ 3点セット固定（conciergeから来たときだけ操作群を隠す）
-  const hideActions = ctx === "concierge";
+  const hideActions = false;
 
   const close = buildShrineClose({ ctx, tid });
 
@@ -106,6 +105,7 @@ export default async function Page({ params, searchParams }: Props) {
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
 
   const nextPath = buildShrineHref(numericId, { query: Object.keys(query).length ? query : undefined });
+
 
   // ✅ 御朱印追加導線（唯一入口）
   const addQ = new URLSearchParams();
