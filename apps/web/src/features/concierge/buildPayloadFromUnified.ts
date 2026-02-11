@@ -5,8 +5,8 @@ import type {
   ConciergeSection,
   ConciergeFilterState,
 } from "@/features/concierge/sections/types";
-import { buildShrineHref } from "@/lib/nav/buildShrineHref";
-import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
+
+import { detailHrefFromRecommendation } from "@/features/concierge/detailHref";
 
 type NormalizedItemBase = {
   title: string;
@@ -14,12 +14,13 @@ type NormalizedItemBase = {
   description: string; // null禁止
   imageUrl: string | null;
   breakdown: any | null;
-  detailHref?: string;
+  detailHref?: string; // ない時は undefined（nullは使わない）
 };
 
 type NormalizedRegistered = NormalizedItemBase & {
   kind: "registered";
   shrineId: number;
+  placeId?: string | null;
   goriyakuTags: string[];
   initialFav: boolean;
 };
@@ -51,27 +52,25 @@ function pickFirstString(...vals: unknown[]): string | null {
   return null;
 }
 
-function buildDetailHref(shrineId: number | null, placeId: string | null, tid: string | null) {
-  if (shrineId) return buildShrineHref(shrineId, { ctx: "concierge", tid });
-  if (placeId) return buildShrineResolveHref(placeId, { ctx: "concierge", tid });
-  return undefined;
-}
-
 // 登録済み=shrine_idあり → /shrines/:id, 未登録=place_idのみ → /places/:placeId, どちらも無い→除外
-
 function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | null {
   const shrineId = asPositiveInt(r?.shrine_id ?? r?.shrine?.id ?? null);
+
   const placeId =
     asTrimmedString(r?.place_id) ??
     asTrimmedString(r?.placeId) ??
     (r?.place_id != null ? String(r.place_id).trim() : null) ??
     (r?.placeId != null ? String(r.placeId).trim() : null);
 
+  // ✅ href生成はここだけ（P1）
+  const detailHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid }) ?? undefined;
+
   // DEBUG: これで現実を見る
   if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
     console.log("[concierge] rec ids", {
       shrineId,
       placeId,
+      detailHref,
       raw_place_id: r?.place_id,
       raw_placeId: r?.placeId,
       keys: Object.keys(r ?? {}),
@@ -86,19 +85,13 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
 
   // ✅ registered優先
   if (shrineId) {
-    const detailHref = buildDetailHref(shrineId, null, tid);
-
     if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized", {
-        shrineId,
-        placeId,
-        detailHref,
-        title,
-      });
+      console.log("[concierge] normalized", { shrineId, placeId, detailHref, title });
     }
     return {
       kind: "registered",
       shrineId,
+      placeId,
       title,
       address,
       description,
@@ -111,15 +104,8 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   }
 
   if (placeId) {
-    const detailHref = buildDetailHref(null, placeId, tid);
-
     if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized(place)", {
-        shrineId,
-        placeId,
-        detailHref,
-        title,
-      });
+      console.log("[concierge] normalized(place)", { shrineId, placeId, detailHref, title });
     }
     return {
       kind: "place",
@@ -135,6 +121,42 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   }
 
   return null;
+}
+
+function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
+  const out: NormalizedItem[] = [];
+  const seenShrine = new Set<number>();
+  const seenPlace = new Set<string>();
+  const norm = (s: string) => s.trim().toLowerCase();
+
+  // 1) registered を先に確保（混在したら registered 勝ちを保証）
+  for (const item of items) {
+    if (item.kind !== "registered") continue;
+
+    if (seenShrine.has(item.shrineId)) continue;
+    seenShrine.add(item.shrineId);
+
+    if (item.placeId) {
+      const k = norm(item.placeId);
+      if (k) seenPlace.add(k);
+    }
+
+    out.push(item);
+  }
+
+  // 2) place は後から（registered に同placeIdがいたら落ちる）
+  for (const item of items) {
+    if (item.kind !== "place") continue;
+
+    const k = norm(item.placeId);
+    if (!k) continue;
+    if (seenPlace.has(k)) continue;
+
+    seenPlace.add(k);
+    out.push(item);
+  }
+
+  return out;
 }
 
 export function buildPayloadFromUnified(
@@ -198,7 +220,9 @@ export function buildPayloadFromUnified(
 
   if (!hasRecs) return null;
 
-  const items = recs.map((r: any) => normalizeRecommendation(r, tid)).filter((x): x is NormalizedItem => x !== null);
+  let items = recs.map((r: any) => normalizeRecommendation(r, tid)).filter((x): x is NormalizedItem => x !== null);
+
+  items = dedupeItems(items);
 
   if (items.length === 0) return null;
 
@@ -240,12 +264,10 @@ export function buildPayloadFromUnified(
   return {
     version: 1,
     sections,
-    meta: {
-      mode,
-      note,
-      reply,
-      remainingFree,
-      tid,
-    },
+    meta: { mode, note, reply, remainingFree, tid },
   };
+}
+
+export function __dedupeItemsForTest(items: NormalizedItem[]): NormalizedItem[] {
+  return dedupeItems(items);
 }
