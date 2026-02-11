@@ -48,8 +48,12 @@ export default async function ResolvePage({ searchParams }: { searchParams: Prom
   if (!shrineId) redirect("/?toast=resolve_no_shrine");
 
   const q = new URLSearchParams();
-  if (sp.ctx) q.set("ctx", sp.ctx);
-  if (sp.tid) q.set("tid", sp.tid);
+
+  const ctx = sp.ctx?.trim();
+  if (ctx) q.set("ctx", ctx);
+
+  const tid = sp.tid?.trim();
+  if (tid) q.set("tid", tid);
 
   const query = Object.fromEntries(q.entries());
   redirect(buildShrineHref(shrineId, { query: Object.keys(query).length ? query : undefined }));

@@ -28,10 +28,11 @@ export default async function Page({ params, searchParams }: Props) {
   const q2 = new URLSearchParams(q);
   q2.set("place_id", id);
 
-  const query = Object.fromEntries(q.entries());
+  // q2 を渡す（ここが正）
+  const query2 = Object.fromEntries(q2.entries());
   redirect(
     buildShrineResolveHref(id, {
-      query: Object.keys(query).length ? query : undefined,
+      query: Object.keys(query2).length ? query2 : undefined,
     }),
-  );  
+  );
 }
