@@ -51,10 +51,9 @@ export default function ConciergeSectionsRenderer({
   payload,
   onAction,
   sending = false,
-  threadId = null,
+  threadId: _threadId = null,
   isEntryRoute = false,
 }: Props) {
-
   // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
