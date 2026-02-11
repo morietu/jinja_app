@@ -364,17 +364,12 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     params = dict(params or {})
     params.setdefault("language", _lang_or_default(params.get("language")))
-    payload = {"endpoint": "details", "place_id": place_id, **_norm_params(params)}
 
     def fetch():
-        # ✅ keyword-only で呼ぶ
-        return _wrap_call(
-            google_places.details,
-            place_id=place_id,
-            language=params.get("language"),
-            fields=params.get("fields"),
-        )
+        data = _wrap_call(google_places.details, place_id=place_id, **params)
+        return (data or {}).get("result") or {}
 
+    payload = {"endpoint": "details", "place_id": place_id, **_norm_params(params)}
     data, _ = _get_or_set("details", payload, fetch, DEFAULT_TTL)
     return data
 
@@ -405,21 +400,16 @@ def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
     if pr and not force:
         return pr
 
-    raw = _wrap_call(
-        google_places.details,
-        place_id=place_id,
-        language=_lang_or_default(None),
-    )
+    # 低レベル details は {status, result, ...} を返すので result を抜く
+    data = _wrap_call(google_places.details, place_id=place_id, language=_lang_or_default(None))
+    result = (data or {}).get("result") or {}  # ←ここが肝
 
-    status = raw.get("status")
-    if status not in ("OK", "ZERO_RESULTS"):
-        msg = raw.get("error_message") or status or "UNKNOWN"
-        raise PlacesError(f"Google Places details failed: {msg}", status=502)
+    name = result.get("name")
+    if not name:
+        # PlaceRef.name は NOT NULL なので、壊れたデータは保存しない
+        raise PlacesError("place details missing name", status=502)
 
-    result = raw.get("result") or {}
-
-    name = result.get("name") or ""  # ✅ NOT NULL 対策
-    address = result.get("formatted_address") or result.get("vicinity") or ""
+    address = result.get("formatted_address") or result.get("vicinity")
     loc = ((result.get("geometry") or {}).get("location") or {})
     lat = loc.get("lat")
     lng = loc.get("lng")
@@ -432,7 +422,7 @@ def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
             "address": address,
             "latitude": lat,
             "longitude": lng,
-            "snapshot_json": raw,      # raw を保存するなら raw を
+            "snapshot_json": result,
             "synced_at": timezone.now(),
         },
     )

@@ -11,18 +11,13 @@ export type GoriyakuTag = { id: number; name: string };
 
 export type ConciergeFilterState = {
   isOpen: boolean;
-
   birthdate: string; // YYYY-MM-DD（空文字OK）
   element4: Element4 | null;
-
   goriyakuTags: readonly GoriyakuTag[];
   suggestedTags: readonly GoriyakuTag[];
-
   selectedTagIds: readonly number[];
-
   tagsLoading: boolean;
   tagsError: string | null;
-
   extraCondition: string;
 };
 
@@ -36,7 +31,6 @@ export type RegisteredShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-
   goriyakuTags: { id: number; name: string }[];
   initialFav: boolean;
 
