@@ -6,7 +6,7 @@ import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 import ShrineCard from "@/components/shrine/ShrineCard";
-import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+
 
 import type {
   ConciergeSectionsPayload,
@@ -219,7 +219,7 @@ export default function ConciergeSectionsRenderer({
                           description={item.description}
                           imageUrl={item.imageUrl}
                           breakdown={item.breakdown ?? null}
-                          detailHref={buildShrineHref(item.shrineId, { ctx: "concierge", tid: threadId })}
+                          detailHref={item.detailHref}
                         />
                       );
                     }
