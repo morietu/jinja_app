@@ -134,6 +134,8 @@ export function buildPayloadFromUnified(
   const hasRecs = Array.isArray(recs) && recs.length > 0;
   const isLimitReached = note === "limit-reached" || remainingFree === 0;
 
+  const mode = (u as any)?.data?._signals?.mode ?? null;
+
   // ✅ recommendations が無いが理由はある → payload 返す
   if (!hasRecs && (reply || isLimitReached)) {
     const sections: ConciergeSection[] = [
@@ -151,8 +153,6 @@ export function buildPayloadFromUnified(
         ],
       },
     ];
-
-    const mode = (u as any)?.data?._signals?.mode ?? null;
 
     return {
       version: 1,
@@ -201,8 +201,16 @@ export function buildPayloadFromUnified(
     });
   }
 
-  const mode = (u as any)?.data?._signals?.mode ?? null;
-
   // ✅ hasRecs のときも meta を揃える（UIが metaReply / limit を参照しても死なない）
-  return { version: 1, sections, meta: { mode, note, reply, remainingFree, tid } };
+  return {
+    version: 1,
+    sections,
+    meta: {
+      mode,
+      note,
+      reply,
+      remainingFree,
+      tid,
+    },
+  };
 }
