@@ -37,7 +37,6 @@ export default function ShrineDetailArticle({
   conciergeBreakdown = null,
   exp,
   publicGoshuinsPreview = [],
-  publicGoshuinsHasMore = false,
   publicGoshuinsViewAllHref = "",
 }: {
   cardProps: ShrineCardAdapterProps;
@@ -46,7 +45,6 @@ export default function ShrineDetailArticle({
   tags?: ShrineTag[];
 
   publicGoshuinsPreview: PublicGoshuinItem[];
-  publicGoshuinsHasMore: boolean;
   publicGoshuinsViewAllHref: string;
 
   addGoshuinHref?: string | null;
@@ -81,8 +79,8 @@ export default function ShrineDetailArticle({
           items={publicGoshuinsPreview}
           addGoshuinHref={addGoshuinHref}
           sendingLabel={undefined}
-          hasMore={publicGoshuinsHasMore}
-          seeAllHref={publicGoshuinsHasMore ? publicGoshuinsViewAllHref : null}
+          limit={3}
+          seeAllHref={publicGoshuinsViewAllHref ? publicGoshuinsViewAllHref : null}
           seeAllLabel="すべて見る"
         />
       </section>
