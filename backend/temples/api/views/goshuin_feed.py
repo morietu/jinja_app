@@ -3,7 +3,7 @@
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from temples.models import Goshuin
-from temples.serializers.routes import GoshuinSerializer
+from temples.api.serializers.goshuin import GoshuinSerializer
 
 class PublicGoshuinFeedView(ListAPIView):
     permission_classes = [AllowAny]

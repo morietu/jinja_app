@@ -47,8 +47,8 @@ export default async function Page({ params, searchParams }: Props) {
   // ✅ 御朱印追加（この一覧に戻す）
   const fromPath = buildShrineHref(shrineId, { subpath: "goshuins", query });
   const addQ = new URLSearchParams();
-  addQ.set("shrine", String(shrineId));
-  addQ.set("from", encodeURIComponent(fromPath));
+  addQ.set("shrine_id", String(shrineId));
+  addQ.set("from", fromPath);
   if (ctx) addQ.set("ctx", ctx);
   if (tid) addQ.set("tid", String(tid));
 

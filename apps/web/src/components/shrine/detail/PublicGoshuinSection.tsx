@@ -14,19 +14,24 @@ export default function PublicGoshuinSection({
   items,
   addGoshuinHref,
   // ✅ ヘッダ密度を上げないため、原則 undefined 運用
-  sendingLabel, // 必要なら「補助テキスト」でのみ使用（ヘッダには出さない）
-  hasMore = false,
+  sendingLabel,
+  limit, // ✅追加
   seeAllHref,
   seeAllLabel = "すべて見る",
 }: {
   items: PublicGoshuinItem[];
   addGoshuinHref?: string | null;
-  sendingLabel?: string; // ← default を持たせない（呼び出し側が出したい時だけ渡す）
-  hasMore?: boolean;
+  sendingLabel?: string;
+  limit?: number; // ✅追加
   seeAllHref?: string | null;
   seeAllLabel?: string;
 }) {
-  const shown = Array.isArray(items) ? items : [];
+  const list = Array.isArray(items) ? items : [];
+  const n = typeof limit === "number" && Number.isFinite(limit) && limit > 0 ? Math.trunc(limit) : list.length;
+
+  const shown = list.slice(0, n);
+  const hasMore = list.length > shown.length;
+  const moreCount = hasMore ? list.length - shown.length : 0;
 
   return (
     <DetailSection
@@ -36,6 +41,8 @@ export default function PublicGoshuinSection({
           {hasMore && seeAllHref ? (
             <Link href={seeAllHref} className="text-xs font-semibold text-slate-700 hover:underline">
               {seeAllLabel}
+              {/* 任意：密度上げたくないならこの行を消す */}
+              {moreCount > 0 ? <span className="ml-1 text-slate-500">（他{moreCount}件）</span> : null}
             </Link>
           ) : null}
 
@@ -50,7 +57,6 @@ export default function PublicGoshuinSection({
         </div>
       }
     >
-      {/* ✅ 補助テキストは中に落とす（ヘッダに乗せない） */}
       {sendingLabel ? <p className="text-xs text-slate-500">{sendingLabel}</p> : null}
 
       {shown.length === 0 ? (

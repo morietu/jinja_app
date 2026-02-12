@@ -43,8 +43,7 @@ export function buildShrineDetailModel({
 }: Args) {
   const { cardProps } = buildShrineCardProps(shrine);
 
-  const publicGoshuinsPreview = publicGoshuins.slice(0, 3);
-  const publicGoshuinsHasMore = publicGoshuins.length > 3;
+  
 
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
@@ -99,8 +98,8 @@ export function buildShrineDetailModel({
     judge,
     conciergeBreakdown,
     exp,
-    publicGoshuinsPreview,
-    publicGoshuinsHasMore,
+    // ✅ 全件を渡す（切るのはUI）
+    publicGoshuinsPreview: publicGoshuins,
     publicGoshuinsViewAllHref,
   };
 }

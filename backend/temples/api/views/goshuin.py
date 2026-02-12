@@ -13,7 +13,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from temples.models import Goshuin, GoshuinImage
-from temples.serializers.routes import GoshuinSerializer, MyGoshuinCreateSerializer
+from temples.serializers.routes import MyGoshuinCreateSerializer
+from temples.api.serializers.goshuin import GoshuinSerializer
 from temples.services.goshuin_limit import get_my_goshuin_limit
 
 log = logging.getLogger(__name__)
@@ -96,6 +97,8 @@ class MyGoshuinViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        
+
 
         ser = MyGoshuinCreateSerializer(data=request.data, context={"request": request})
         ser.is_valid(raise_exception=True)
