@@ -179,20 +179,18 @@ class ShrineViewSet(viewsets.ModelViewSet):
 
     # ✅ 権限はここで分岐
     def get_permissions(self):
-        if getattr(self, "action", None) in ["list", "retrieve", "nearest"]:
+        # 読み取りは公開
+        if self.action in ("list", "retrieve", "nearest"):
             return [AllowAny()]
+        # 書き込みはログイン必須
         return [IsAuthenticated()]
 
     # ✅ serializer は serializer だけ返す
     def get_serializer_class(self):
-        action = getattr(self, "action", None)
-
-        if action in {"create", "update", "partial_update"}:
+        if self.action in ("create", "update", "partial_update"):
             return ShrineWriteSerializer
-
-        if action in {"list", "nearest"}:
+        if self.action in ("list", "nearest"):
             return ShrineListSerializer
-
         return ShrineDetailSerializer
 
     
