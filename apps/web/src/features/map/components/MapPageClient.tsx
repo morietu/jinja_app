@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PlaceSuggestBox } from "@/components/PlaceSuggestBox";
 import type { Shrine } from "@/lib/api/shrines";
 import NearbyShrineCardListClient from "@/features/map/components/NearbyShrineCardListClient";
-import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
+
 
 function PlaceSelectedCard({ item }: { item: Shrine }) {
   return (
