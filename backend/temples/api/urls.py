@@ -104,7 +104,7 @@ my_goshuin_detail_view = MyGoshuinViewSet.as_view(
 )
 
 # ViewSet の明示エイリアス（reverse 名称の安定化）
-shrine_list_view = ShrineViewSet.as_view({"get": "list"})
+shrine_list_view = ShrineViewSet.as_view({"get": "list", "post": "create"})
 shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # /data/ 用
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
@@ -118,6 +118,7 @@ urlpatterns = [
     path("route/", RouteAPIView.as_view(), name="route-legacy"),
 
     # ---- Shrines ----------------------------------------------------------
+    
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),

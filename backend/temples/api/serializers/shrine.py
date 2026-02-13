@@ -6,6 +6,10 @@ from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from temples.geo_utils import to_lat_lng_dict
 from temples.models import GoriyakuTag, Shrine, Visit
 
+from rest_framework import serializers
+from temples.models import GoriyakuTag, Shrine
+
+
 
 class GoriyakuTagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,18 +42,7 @@ class _DistanceFieldsMixin:
         return f"{int(round(m))} m" if m < 1000 else f"{m / 1000:.1f} km"
 
 
-class _DeityMixin:
-    deities = serializers.SerializerMethodField(read_only=True)
-
-    @extend_schema_field(list[str])
-    def get_deities(self, obj) -> list[str]:
-        try:
-            return [d.name for d in obj.deities.all()]
-        except Exception:
-            return []
-
-
-class ShrineBaseSerializer(_DistanceFieldsMixin, _DeityMixin, serializers.ModelSerializer):
+class ShrineBaseSerializer(_DistanceFieldsMixin, serializers.ModelSerializer):
     goriyaku_tags = GoriyakuTagSerializer(many=True, read_only=True)
     is_favorite = serializers.BooleanField(read_only=True)
     distance = serializers.SerializerMethodField(read_only=True)
@@ -77,7 +70,6 @@ class ShrineListSerializer(ShrineBaseSerializer):
             "latitude",
             "longitude",
             "goriyaku_tags",
-            "deities",
             "is_favorite",
             "distance",
             "distance_text",
@@ -106,7 +98,6 @@ class ShrineDetailSerializer(ShrineBaseSerializer):
             "longitude",
             "goriyaku",
             "goriyaku_tags",
-            "deities",
             "is_favorite",
             "distance",
             "distance_text",
@@ -125,6 +116,35 @@ class VisitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Visit
         fields = ["id", "shrine", "visited_at", "note", "status"]
+
+class ShrineWriteSerializer(serializers.ModelSerializer):
+    address = serializers.CharField(required=False, allow_blank=True, default="")
+
+    goriyaku_tag_ids = serializers.PrimaryKeyRelatedField(
+        source="goriyaku_tags",
+        many=True,
+        queryset=GoriyakuTag.objects.all(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
+    )
+
+    class Meta:
+        model = Shrine
+        fields = [
+            "kind",
+            "name_jp",
+            "name_romaji",
+            "address",
+            "latitude",
+            "longitude",
+            "goriyaku",
+            "sajin",            # ✅ モデルにある
+            "description",      # ✅ モデルにある（必要なら）
+            "element",          # ✅ モデルにある（必要なら）
+            "kyusei",
+            "goriyaku_tag_ids",
+        ]
 
 
 __all__ = [

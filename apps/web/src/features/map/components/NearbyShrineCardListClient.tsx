@@ -217,51 +217,62 @@ export default function NearbyShrineCardListClient() {
       )}
 
       {/* リスト表示 */}
-      {state !== "loading" && items.length > 0 && (
+      {state !== "loading" && items.length > 0 ? (
         <ul className="space-y-3">
-          {items.map((p) => (
-            <li key={p.place_id} className="rounded-2xl border bg-white p-4 shadow-sm">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-900">{p.name}</p>
-                {p.address && <p className="text-xs text-slate-500">{p.address}</p>}
-              </div>
+          {items.map((p) => {
+            const shrineId = (p as any).shrine_id ?? null;
+            const key = p.place_id
+              ? `place:${p.place_id}`
+              : shrineId
+                ? `shrine:${shrineId}`
+                : `fallback:${p.name}:${p.address ?? ""}`;
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {p.detailHref && (
-                  <Link
-                    className="col-span-2 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-                    href={p.detailHref}
-                    prefetch={false}
+            return (
+              <li key={key} className="rounded-2xl border bg-white p-4 shadow-sm">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{p.name}</p>
+                  {p.address ? <p className="text-xs text-slate-500">{p.address}</p> : null}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {p.detailHref ? (
+                    <Link
+                      className="col-span-2 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
+                      href={p.detailHref}
+                      prefetch={false}
+                    >
+                      詳細を見る
+                    </Link>
+                  ) : null}
+
+                  <a
+                    className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    href={buildGoogleMapsSearchUrl(p.name, p.address ?? undefined)}
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    詳細を見る
-                  </Link>
-                )}
-                <a
-                  className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  href={buildGoogleMapsSearchUrl(p.name, p.address ?? undefined)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Googleマップ
-                </a>
-                <a
-                  className="rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
-                  href={buildGoogleMapsDirUrl({
-                    lat: p.lat ?? undefined,
-                    lng: p.lng ?? undefined,
-                    address: p.address ?? undefined,
-                    fallbackName: p.name,
-                  })}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  ルート
-                </a>
-              </div>
-            </li>
-          ))}
+                    Googleマップ
+                  </a>
+
+                  <a
+                    className="rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
+                    href={buildGoogleMapsDirUrl({
+                      lat: p.lat ?? undefined,
+                      lng: p.lng ?? undefined,
+                      address: p.address ?? undefined,
+                      fallbackName: p.name,
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    ルート
+                  </a>
+                </div>
+              </li>
+            );
+          })}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }

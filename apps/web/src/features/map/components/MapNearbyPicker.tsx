@@ -17,8 +17,11 @@ type Props = {
   };
 };
 
-type NearbyItemView = PlacesNearbyResponse["results"][number] & {
+type NearbyItemRaw = PlacesNearbyResponse["results"][number];
+
+type NearbyItemView = NearbyItemRaw & {
   detailHref?: string | null;
+  rowKey: string;
 };
 
 export default function MapNearbyPicker(props: Props) {
@@ -33,20 +36,24 @@ export default function MapNearbyPicker(props: Props) {
   const ln = coords?.lng ?? null;
 
   const [phase, setPhase] = useState<"waiting_coords" | "loading" | "ready">("waiting_coords");
-  const [items, setItems] = useState<NearbyItemView[]>([]);
+
   const rowRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const [rawItems, setRawItems] = useState<NearbyItemRaw[]>([]);
 
   
   const lastKeyRef = useRef<string>("");
 
   const tid = sp.get("tid");
 
+  
+
   // ✅ fetch effect（phaseもここで管理）
   useEffect(() => {
     if (la == null || ln == null) {
       lastKeyRef.current = "";
       setPhase("waiting_coords");
-      setItems([]);
+      setRawItems([]);
       return;
     }
 
@@ -65,26 +72,39 @@ export default function MapNearbyPicker(props: Props) {
         });
         if (!r.ok) throw new Error(`nearby failed: ${r.status}`);
         const data = (await r.json()) as PlacesNearbyResponse;
-        const viewItems: NearbyItemView[] = (data.results ?? []).map((p) => ({
-          ...p,
-          detailHref: buildMapDetailHref({
-            shrineId: (p as any).shrine_id ?? null,
-            placeId: p.place_id ?? null,
-            tid,
-          }),
-        }));
-        setItems(viewItems);
+        setRawItems(Array.isArray(data.results) ? data.results : []);
       } catch (e) {
-        console.log("NEARBY_ERR", { message: e instanceof Error ? e.message : String(e) });
         if ((e as any)?.name === "AbortError") return;
-        setItems([]);
+        console.log("NEARBY_ERR", { message: e instanceof Error ? e.message : String(e) });
+        setRawItems([]);
       } finally {
         if (!ac.signal.aborted) setPhase("ready");
       }
     })();
 
     return () => ac.abort();
-  }, [la, ln, limit, tid]);
+  }, [la, ln, limit]);
+
+  const items: NearbyItemView[] = useMemo(() => {
+    return rawItems.map((x) => {
+      const shrineId = (x as any).shrine_id ?? null;
+      const rowKey = x.place_id
+        ? `place:${x.place_id}`
+        : shrineId
+          ? `shrine:${shrineId}`
+          : `fallback:${x.name}:${x.address ?? ""}`;
+
+      return {
+        ...x,
+        rowKey,
+        detailHref: buildMapDetailHref({
+          shrineId,
+          placeId: x.place_id ?? null,
+          tid,
+        }),
+      };
+    });
+  }, [rawItems, tid]);
 
   const hasSelectedInList = useMemo(() => {
     if (!selectedPlaceId) return false;
@@ -143,7 +163,6 @@ export default function MapNearbyPicker(props: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  // pick は選択だけ（詳細遷移しない）
                   onSelect({ placeId: pid });
                 }}
                 className="w-full rounded-xl border border-emerald-400 bg-emerald-50 p-3 text-left"
@@ -190,12 +209,13 @@ export default function MapNearbyPicker(props: Props) {
         if (isPickMode) {
           return (
             <button
-              key={x.place_id}
+              key={x.rowKey}
               ref={(node) => {
-                rowRefs.current[x.place_id] = node;
+                if (x.place_id) rowRefs.current[x.place_id] = node;
               }}
               type="button"
               onClick={() => {
+                if (!x.place_id) return;
                 onSelect({ placeId: x.place_id, lat: x.lat ?? null, lng: x.lng ?? null });
               }}
               className={`w-full rounded-xl border p-3 text-left ${
@@ -213,7 +233,7 @@ export default function MapNearbyPicker(props: Props) {
         if (!href) {
           return (
             <div
-              key={x.place_id}
+              key={x.rowKey}
               className={`block w-full rounded-xl border p-3 text-left ${
                 active ? "border-emerald-400 bg-emerald-50" : "bg-white"
               }`}
@@ -227,7 +247,7 @@ export default function MapNearbyPicker(props: Props) {
 
         return (
           <Link
-            key={x.place_id}
+            key={x.rowKey}
             href={href}
             prefetch={false}
             className={`block w-full rounded-xl border p-3 text-left ${

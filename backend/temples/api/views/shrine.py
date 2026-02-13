@@ -1,31 +1,32 @@
 # -*- coding: utf-8 -*-
-
 import math
 
-from typing import List, Tuple
-
 from django.conf import settings
-
-from django.db.models import F, Value, Q  # FloatField/Count/ExpressionWrapperは不要
+from django.db import IntegrityError
+from django.db.models import F, Q, Value
 from django.db.models.functions import Coalesce
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
-# serializer / model
-from temples.api.serializers.shrine import ShrineDetailSerializer, ShrineListSerializer
+
+from temples.api.serializers.shrine import (
+    ShrineDetailSerializer,
+    ShrineListSerializer,
+    ShrineWriteSerializer,
+)
 from temples.models import Shrine
-
-# 近傍クエリ（常に temples.queries を経由）
 from temples.queries import (
     nearest_queryset as q_nearest_queryset,
     nearest_shrines as q_nearest_shrines,
 )
+
+
 
 EARTH_RADIUS_M = 6371000.0
 
@@ -129,11 +130,6 @@ class PopularShrineListView(ListAPIView):
         )
 
 
-        
-
-    
-
-
 # ---- ランキング API ----
 class RankingAPIView(ListAPIView):
     serializer_class = ShrineListSerializer
@@ -177,17 +173,29 @@ class RankingAPIView(ListAPIView):
 
 
 # ---- ShrineViewSet ----
-class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
-    
+class ShrineViewSet(viewsets.ModelViewSet):
     queryset = Shrine.objects.all()
-
-    permission_classes = [permissions.AllowAny]
     throttle_scope = "shrines"
 
+    # ✅ 権限はここで分岐
+    def get_permissions(self):
+        if getattr(self, "action", None) in ["list", "retrieve", "nearest"]:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    # ✅ serializer は serializer だけ返す
     def get_serializer_class(self):
-        if getattr(self, "action", None) in {"list", "nearest"}:
+        action = getattr(self, "action", None)
+
+        if action in {"create", "update", "partial_update"}:
+            return ShrineWriteSerializer
+
+        if action in {"list", "nearest"}:
             return ShrineListSerializer
+
         return ShrineDetailSerializer
+
+    
 
     def get_queryset(self):
         qs = self.queryset
@@ -369,3 +377,17 @@ class ShrineViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = ShrineListSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        write = ShrineWriteSerializer(data=request.data, context={"request": request})
+        write.is_valid(raise_exception=True)
+        try:
+            obj = write.save()
+        except IntegrityError:
+            return Response(
+                {"detail": "同じ神社が既に登録されています（name/address/location が重複）。"},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        read = ShrineDetailSerializer(obj, context={"request": request})
+        return Response(read.data, status=status.HTTP_201_CREATED)
