@@ -143,8 +143,8 @@ class Shrine(dj_models.Model):
     # 基本情報
     name_jp = models.CharField(max_length=100)
     name_romaji = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=255)
-    deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
+    address = models.CharField(max_length=255, blank=True, default="")
+
 
     # 位置情報
     latitude = models.FloatField(
@@ -590,7 +590,7 @@ class PlaceCache(models.Model):
     place_id = models.CharField(max_length=255, unique=True)
 
     name = models.CharField(max_length=255, blank=True, default="")
-    address = models.CharField(max_length=512, blank=True, default="")
+    address = models.CharField(max_length=255, blank=True, default="")
 
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)

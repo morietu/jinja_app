@@ -72,7 +72,7 @@ class ShrineAdmin(admin.ModelAdmin):
     list_filter = ("kind", "element", "kyusei")
     ordering = ("-popular_score", "-updated_at")
     readonly_fields = ("last_popular_calc_at",)
-    filter_horizontal = ("goriyaku_tags", "deities")
+    filter_horizontal = ("goriyaku_tags",)
 
 
 # ---- 動的登録（存在する時だけ）----
