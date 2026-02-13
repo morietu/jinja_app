@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
+const DJANGO_BASE = process.env.BACKEND_ORIGIN || "http://127.0.0.1:8000";
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat = searchParams.get("lat");
@@ -24,4 +26,28 @@ export async function GET(req: NextRequest) {
   }
 
   return new NextResponse(text, { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
+export async function POST(req: Request) {
+  const body = await req.text();
+
+  const upstream = await fetch(`${DJANGO_BASE}/api/shrines/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // 必要なら認証もここで forward（今は AllowAny っぽいので不要かも）
+      // cookie: req.headers.get("cookie") ?? "",
+    },
+    body,
+    cache: "no-store",
+  });
+
+  const text = await upstream.text();
+
+  return new NextResponse(text, {
+    status: upstream.status,
+    headers: {
+      "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+    },
+  });
 }
