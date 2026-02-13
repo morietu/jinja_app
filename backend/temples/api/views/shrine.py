@@ -15,6 +15,13 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
+
+
+from temples.services.places import get_or_create_shrine_by_place_id, PlacesError
+
+
+
+
 from temples.api.serializers.shrine import (
     ShrineDetailSerializer,
     ShrineListSerializer,
@@ -183,7 +190,7 @@ class ShrineViewSet(viewsets.ModelViewSet):
     # ✅ 権限はここで分岐
     def get_permissions(self):
         # 読み取りは公開
-        if self.action in ("list", "retrieve", "nearest"):
+        if self.action in ("list", "retrieve", "nearest", "ingest"):
             return [AllowAny()]
         # 書き込みはログイン必須
         return [IsAuthenticated()]
@@ -268,9 +275,25 @@ class ShrineViewSet(viewsets.ModelViewSet):
             return self.queryset
         return qs.distinct()
 
+    
+
+    @action(detail=False, methods=["post"], url_path="ingest", permission_classes=[AllowAny])
+    def ingest(self, request):
+        place_id = (request.data or {}).get("place_id")
+        if not place_id:
+            return Response({"detail": "place_id is required"}, status=400)
+
+        try:
+            shrine = get_or_create_shrine_by_place_id(place_id)
+            data = ShrineDetailSerializer(shrine, context={"request": request}).data
+            return Response(data, status=status.HTTP_200_OK)
+        except PlacesError as e:
+            return Response({"detail": str(e)}, status=getattr(e, "status", 502) or 502)
+
     @action(
         detail=False, methods=["get"], url_path="nearest", permission_classes=[permissions.AllowAny]
     )
+    
     @extend_schema(
         operation_id="shrines_nearest_list",
         summary="Nearest shrines",

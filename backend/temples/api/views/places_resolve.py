@@ -3,12 +3,33 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 from temples.models import ShrineCandidate, PlaceRef
+from rest_framework.response import Response
+from rest_framework import status
 
+from temples.services import places
+from temples.api.serializers.places import PlaceLiteResponseSerializer
 from temples.services.places import PlacesError, get_or_create_shrine_by_place_id
 
 class PlacesResolveView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        q = (request.query_params.get("q") or "").strip()
+        limit = int(request.query_params.get("limit") or 5)
+
+        if not q or len(q) < 2:
+            return Response({"results": []}, status=status.HTTP_200_OK)
+
+        # ここは「候補を返すだけ」で ingest しない
+        data = places.places_text_search({"query": q, "language": "ja", "region": "jp"})
+        results = (data or {}).get("results") or []
+        results = results[: max(1, min(limit, 10))]
+
+        out = {"results": results}
+        # serializer通したいならここで
+        # PlaceLiteResponseSerializer(out).is_valid(raise_exception=True)
+        return Response(out, status=status.HTTP_200_OK)
 
     def post(self, request):
         place_id = (request.data or {}).get("place_id")
