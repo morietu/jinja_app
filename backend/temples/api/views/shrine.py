@@ -177,6 +177,9 @@ class ShrineViewSet(viewsets.ModelViewSet):
     queryset = Shrine.objects.all()
     throttle_scope = "shrines"
 
+    # PUT を潰す（OpenAPIに出さない）
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
     # ✅ 権限はここで分岐
     def get_permissions(self):
         # 読み取りは公開
