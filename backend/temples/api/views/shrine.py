@@ -13,6 +13,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.decorators import action
 from temples.services.places import get_or_create_shrine_by_place_id, PlacesError
+from django.http import Http404
+from django.db.models import Q
+from temples.services import places
 
 from temples.api.serializers.shrine import (
     ShrineDetailSerializer,
@@ -25,6 +28,13 @@ from temples.queries import (
     nearest_shrines as q_nearest_shrines,
 )
 
+from temples.services.places_rank import (
+  tokenize as _tokenize,
+  is_parentish_token as _is_parentish_token,
+  place_text as _place_text,
+  count_contains as _count_contains,
+  score_place,
+)
 
 
 EARTH_RADIUS_M = 6371000.0
@@ -212,8 +222,12 @@ class ShrineViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve", "nearest", "ingest"):
+        # 誰でも見れる一覧・ランキング系だけ AllowAny
+        if self.action in ("list", "nearest", "ingest"):
             return [AllowAny()]
+        # detail は認証必須（owner で絞る）
+        if self.action == "retrieve":
+            return [IsAuthenticated()]
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
@@ -230,25 +244,24 @@ class ShrineViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
-        qs = self.queryset
-        params = self.request.query_params
+        qs = super().get_queryset()
 
-        kind = (params.get("kind") or "shrine").lower()
-        if kind in ("shrine", "temple"):
-            qs = qs.filter(kind=kind)
-        elif kind != "all":
-            qs = qs.filter(kind="shrine")
+        # TODO: ここに kind/q/name など共通フィルタを足すなら "return" 前に入れる
 
-        # q（単語分割 OR）
-        qs = _apply_q_terms(qs, params)
+        if getattr(self, "action", None) == "retrieve":
+            u = getattr(self.request, "user", None)
+            if not u or not u.is_authenticated:
+                return qs.none()
 
-        # name（任意）
-        name = params.get("name")
-        if name:
-            qs = qs.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
+            # staff は全部見える運用にするならここで例外
+            if getattr(u, "is_staff", False) or getattr(u, "is_superuser", False):
+                return qs.distinct()
 
-        qs = annotate_is_favorite(qs, self.request)
+            return qs.filter(owner=u).distinct()
+
         return qs.distinct()
+    
+    
 
 
     @action(

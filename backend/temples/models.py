@@ -195,6 +195,14 @@ class Shrine(dj_models.Model):
         related_name="shrine",
     )
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="owned_shrines",
+    )
+
     def __str__(self) -> str:
         return self.name_jp
 
