@@ -2,12 +2,14 @@ name: web-contract-test
 
 on:
   push:
-    branches:
-      - develop
-      - main
+    branches: [develop, main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/ci-contract.yml"
   pull_request:
-    branches:
-      - '*'
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/ci-contract.yml"
 
 jobs:
   web-contract-test:
