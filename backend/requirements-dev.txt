@@ -15,7 +15,7 @@ responses>=0.25.0,<1.0
 requests-mock>=1.12.1
 
 # lint/format
-black>=24.3,<25
+black>=24.3,<27
 ruff==0.12.8
 
 # type-check（任意）
