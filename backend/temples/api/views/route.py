@@ -190,14 +190,12 @@ class RouteView(APIView):
         lat = request.GET.get("lat")
         lng = request.GET.get("lng")
         has_route_params = bool(lat and lng)
-        has_schema = _has_owner_schema(shrine)
 
-        if has_schema:
-            if not _is_owner(request.user, shrine):
-                return Response(status=404)
-        else:
-            if not has_route_params:
-                return Response(status=404)
+        # ✅ owner なら lat/lng 無しでもOK
+        # ✅ owner じゃなくても lat/lng があればOK
+        # ✅ どっちも無いなら404
+        if not has_route_params and not _is_owner(request.user, shrine):
+            return Response(status=404)
 
         return render(
             request,
