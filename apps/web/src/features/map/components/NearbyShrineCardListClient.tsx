@@ -219,13 +219,14 @@ export default function NearbyShrineCardListClient() {
       {/* リスト表示 */}
       {state !== "loading" && items.length > 0 ? (
         <ul className="space-y-3">
-          {items.map((p) => {
+          {items.map((p, idx) => {
             const shrineId = (p as any).shrine_id ?? null;
-            const key = p.place_id
-              ? `place:${p.place_id}`
-              : shrineId
+
+            const key =
+              p.place_id ??
+              (shrineId
                 ? `shrine:${shrineId}`
-                : `fallback:${p.name}:${p.address ?? ""}`;
+                : `fallback:${p.name}:${p.lat ?? ""},${p.lng ?? ""}:${p.address ?? ""}:${idx}`);
 
             return (
               <li key={key} className="rounded-2xl border bg-white p-4 shadow-sm">

@@ -86,13 +86,14 @@ export default function MapNearbyPicker(props: Props) {
   }, [la, ln, limit]);
 
   const items: NearbyItemView[] = useMemo(() => {
-    return rawItems.map((x) => {
+    return rawItems.map((x, idx) => {
       const shrineId = (x as any).shrine_id ?? null;
-      const rowKey = x.place_id
-        ? `place:${x.place_id}`
-        : shrineId
+
+      const rowKey =
+        x.place_id ??
+        (shrineId
           ? `shrine:${shrineId}`
-          : `fallback:${x.name}:${x.address ?? ""}`;
+          : `fallback:${x.name}:${x.lat ?? ""},${x.lng ?? ""}:${x.address ?? ""}:${idx}`);
 
       return {
         ...x,
