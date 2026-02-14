@@ -1,27 +1,32 @@
-name: web-tests
+name: web-ci
+
 permissions:
   contents: read
+
 on:
   workflow_dispatch:
+
   push:
-    branches: [develop]
+    branches: [develop, main]
     paths:
       - "apps/web/**"
-      - ".github/workflows/web-tests.yml"
-  pull_request:
-    branches: [develop]
-    paths:
-      - "apps/web/**"
+      - "pnpm-lock.yaml"
       - ".github/workflows/web-tests.yml"
 
+  pull_request:
+    branches: ["*"]
+    paths:
+      - "apps/web/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/web-tests.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-
 jobs:
-  test:
+  contract:
+    name: web-contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,13 +42,39 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      # 速さ優先: webだけ入れる
+      - name: Install deps (web only)
+        run: pnpm --filter ./apps/web install --frozen-lockfile
+
+      - name: Contract tests
+        run: pnpm --filter ./apps/web test:contract
+
+  full:
+    name: web-full
+    runs-on: ubuntu-latest
+
+    # ✅ 重いジョブは絞る（必要なら条件変更）
+    # PRではweb変更時だけ / push(develop/main)もweb変更時だけ走る
+    if: ${{ github.event_name != 'workflow_dispatch' || true }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          standalone: true
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # 既存の方式を踏襲: workspace rootで入れる（lint/guardが横断依存ならこれ）
       - name: Install deps (workspace root)
         run: pnpm -r install --frozen-lockfile
-      
 
-
-      
-      # （以降はそのまま）
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -86,11 +117,7 @@ jobs:
             echo "$UNTRACKED"
             exit 1
           fi
-      
+
       - name: Guard - no NEXT_PUBLIC in server code
         working-directory: apps/web
         run: pnpm guard:no-next-public-in-server
-
-      
-
-      
