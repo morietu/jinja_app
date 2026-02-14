@@ -131,6 +131,12 @@ jobs:
       - name: Echo throttle
         run: echo "CONCIERGE_THROTTLE=${CONCIERGE_THROTTLE}"
 
+      - name: Rank regression tests (fast)
+        run: pytest -q temples/tests/services/test_places_rank.py
+
+      - name: Run pytest (unit, sqlite)
+        run: python -m pytest
+
       
       
 
