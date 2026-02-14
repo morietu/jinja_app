@@ -120,3 +120,7 @@ apps/mobile/src/
 # debug artifacts
 photo.jpg
 real.jpg
+
+# editor swap files
+*.swp
+*.swo
