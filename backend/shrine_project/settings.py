@@ -335,6 +335,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/min",
@@ -348,12 +349,18 @@ REST_FRAMEWORK = {
         "geocode": "30/min",
         "favorites": "30/min",
         "routes": "60/min",
+        "shrines_ingest": "1/min",
     },
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+# ベースのレート辞書
+_rates = REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
+
+# ingest だけ環境変数で上書きできるようにする（ローカル検証用）
+_rates["shrines_ingest"] = os.getenv("THROTTLE_SHRINES_INGEST", _rates.get("shrines_ingest", "1/min"))
 
 # DEFAULT_THROTTLE_CLASSES が未設定な場合の保険（現状ほぼ意味ないが残しておくならこの程度）
 REST_FRAMEWORK.setdefault(
@@ -376,6 +383,8 @@ _rates["places-nearby"] = os.getenv(
 # ローカルでスロットルをほぼ無効にしたいとき
 if os.getenv("DISABLE_THROTTLE", "0") == "1":
     for k in list(_rates.keys()):
+        if k == "shrines_ingest":
+            continue
         _rates[k] = "1000/min" if k != "user" else "2000/min"
 
 # 旧 env 名があれば concierge だけ上書き（互換）

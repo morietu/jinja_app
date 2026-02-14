@@ -1,60 +1,72 @@
 // apps/web/src/app/api/places/resolve/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
-import { serverLog, getRequestId } from "@/lib/server/logging";
 
-export async function POST(req: NextRequest) {
-  const requestId = getRequestId(req);
-  const payload = await req.text();
+export const dynamic = "force-dynamic";
 
-  let upstream: Response;
-  try {
-    upstream = await djFetch(req, "/api/places/resolve/", {
-      method: "POST",
-      headers: {
-        "content-type": req.headers.get("content-type") ?? "application/json",
-        accept: "application/json",
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DEBUG_LOG === "1";
+
+async function safeJsonPassthrough(upstream: Response) {
+  const contentType = upstream.headers.get("content-type") ?? "";
+  const text = await upstream.text().catch(() => "");
+
+  // JSONじゃないなら遮断（HTML混入対策）
+  if (!contentType.includes("application/json")) {
+    if (DEBUG) {
+      console.warn("[bff/places/resolve] upstream returned non-json", {
+        status: upstream.status,
+        contentType,
+        body_head: text.slice(0, 120),
+      });
+    }
+    return NextResponse.json(
+      {
+        results: [],
+        error: "upstream returned non-json",
+        status: upstream.status,
+        contentType,
+        body_head: text.slice(0, 200),
       },
-      body: payload,
-      cache: "no-store",
-    });
-  } catch (e) {
-    serverLog("warn", "BFF_RESOLVE_UPSTREAM_FETCH_FAILED", {
-      requestId,
-      message: e instanceof Error ? e.message : String(e),
-    });
-    return NextResponse.json({ detail: "upstream_fetch_failed" }, { status: 502 });
+      { status: 200 }, // UIを殺さない方針
+    );
   }
 
-  const rawText = await upstream.text().catch(() => "");
-  let raw: any = null;
-  try {
-    raw = rawText ? JSON.parse(rawText) : null;
-  } catch {
-    raw = null;
-  }
-
+  // upstreamがJSONでも、ステータスがNGならUI側のために握り潰すかは好み
+  // ここは「resolveは候補が空でもUIは動ける」ので200で返すのがおすすめ
   if (!upstream.ok) {
-    serverLog("warn", "BFF_RESOLVE_UPSTREAM_BAD", { requestId, status: upstream.status, body: rawText.slice(0, 300) });
-    return NextResponse.json(raw ?? { detail: "upstream_error" }, { status: upstream.status });
+    if (DEBUG) {
+      console.warn("[bff/places/resolve] upstream not ok", {
+        status: upstream.status,
+        body_head: text.slice(0, 120),
+      });
+    }
+    return NextResponse.json(
+      {
+        results: [],
+        error: "upstream not ok",
+        status: upstream.status,
+        body_head: text.slice(0, 200),
+      },
+      { status: 200 },
+    );
   }
 
-  const shrine_id = Number(raw?.shrine_id ?? raw?.id ?? null);
-  const place_id = String(raw?.place_id ?? "");
-  const candidate_id = Number(raw?.candidate_id ?? null);
+  // JSONならそのまま返す
+  return new NextResponse(text, {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
 
-  if (!Number.isFinite(shrine_id) || shrine_id <= 0 || !place_id) {
-    serverLog("warn", "BFF_RESOLVE_BAD_SHAPE", { requestId, rawKeys: raw ? Object.keys(raw) : null });
-    return NextResponse.json({ detail: "bad_upstream_shape" }, { status: 502 });
-  }
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const qs = searchParams.toString();
 
-  return NextResponse.json(
-    {
-      shrine_id,
-      id: shrine_id, // 互換
-      place_id,
-      ...(Number.isFinite(candidate_id) ? { candidate_id } : {}),
-    },
-    { status: 200 },
-  );
+  const upstream = await djFetch(`/api/places/resolve/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+
+  return safeJsonPassthrough(upstream);
 }

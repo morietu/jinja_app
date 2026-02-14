@@ -120,7 +120,7 @@ urlpatterns = [
     # ---- Shrines ----------------------------------------------------------
     
     path("shrines/", shrine_list_view, name="shrine_list"),
-    path("shrines/<int:pk>/", _blocked_shrine_detail, name="shrine_detail"),
+    path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     

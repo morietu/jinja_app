@@ -2,18 +2,17 @@
 import math
 
 from django.conf import settings
-from django.db import IntegrityError
 from django.db.models import F, Q, Value
 from django.db.models.functions import Coalesce
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import action
+from rest_framework import status, viewsets
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.decorators import action
+from temples.services.places import get_or_create_shrine_by_place_id, PlacesError
 
 from temples.api.serializers.shrine import (
     ShrineDetailSerializer,
@@ -38,6 +37,26 @@ except Exception:
         return qs
 
 
+def _apply_q_terms(qs, params):
+    q = (params.get("q") or "").strip()
+    if not q:
+        return qs
+
+    terms = [t for t in q.replace("　", " ").split(" ") if t]
+    if not terms:
+        return qs
+
+    qq = Q()
+    for t in terms:
+        qq |= (
+            Q(name_jp__icontains=t)
+            | Q(name_romaji__icontains=t)
+            | Q(address__icontains=t)
+            | Q(goriyaku__icontains=t)
+            | Q(goriyaku_tags__name__icontains=t)
+        )
+    return qs.filter(qq)
+
 def _use_real_gis() -> bool:
     return bool(getattr(settings, "USE_GIS", False)) and not bool(
         getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
@@ -49,45 +68,48 @@ class NearestShrinesAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        q = request.query_params
-        # 1) 必須: lat/lng
-        lat_raw = q.get("lat") or q.get("latitude")
-        lng_raw = q.get("lng") or q.get("lon") or q.get("longitude")
-        if lat_raw is None or lng_raw is None:
-            return Response({"detail": "lat and lng(lon) are required."}, status=400)
-        try:
-            lat = float(lat_raw)
-            lng = float(lng_raw)
-        except ValueError:
-            return Response({"detail": "lat/lng must be float."}, status=400)
+        q = (request.query_params.get("q") or "").strip()
+        limit = int(request.query_params.get("limit") or 5)
 
-        # 2) limit / radius
-        limit_raw = q.get("limit")
-        try:
-            limit = int(limit_raw) if limit_raw is not None else 20
-        except ValueError:
-            return Response({"detail": "limit must be int."}, status=400)
-        radius_raw = q.get("radius")
-        try:
-            radius_m = int(radius_raw) if radius_raw is not None else None
-        except ValueError:
-            return Response({"detail": "radius must be int (meters)."}, status=400)
+        if not q or len(q) < 2:
+            return Response({"results": []}, status=status.HTTP_200_OK)
 
+        data = places.places_text_search({"query": q, "language": "ja", "region": "jp"})
+        results = (data or {}).get("results") or []
+        if not results:
+            return Response({"results": []}, status=status.HTTP_200_OK)
 
-        if limit <= 0:
-            limit = 1
-        if limit > 100:
-            limit = 100
-        if radius_m is not None and radius_m <= 0:
-            return Response({"detail": "radius must be > 0."}, status=400)
+        toks = _tokenize(q)
+        parent_toks = [t for t in toks if _is_parentish_token(t)]
 
-        # 3) 取得（JSON配列で返す）
-        if radius_m is not None:
-            qs = q_nearest_shrines(lon=lng, lat=lat, limit=limit, radius_m=radius_m)
+        # ✅ 元のトップが親っぽいなら、全面ソートしない（副作用を抑える）
+        top_name, _ = _place_text(results[0])
+        top_is_parent = any(_count_contains(top_name, pt) for pt in parent_toks) if     parent_toks else False
+
+        scored = []
+        for i, r in enumerate(results):
+            try:
+                s = score_place(q, r, base_rank=i)
+            except Exception:
+                s = 10_000 - i
+            scored.append((s, i, r))
+
+        if top_is_parent:
+            # bestだけ先頭にできる権利を与える。残りはGoogle順のまま。
+            best = max(scored, key=lambda x: (x[0], -x[1]))
+            best_i = best[1]
+            if best_i != 0:
+                best_r = best[2]
+                rest = [r for j, r in enumerate(results) if j != best_i]
+                results = [best_r] + rest
+            # best_i==0なら何もしない（Google順尊重）
         else:
-            qs = q_nearest_queryset(lon=lng, lat=lat)[:limit]
-        data = ShrineListSerializer(qs, many=True, context={"request": request}).data
-        return Response(data, status=status.HTTP_200_OK)
+            # トップが親じゃないなら全面リランク
+            scored.sort(key=lambda x: (x[0], -x[1]), reverse=True)
+            results = [r for _, _, r in scored]
+
+        results = results[: max(1, min(limit, 10))]
+        return Response({"results": results}, status=status.HTTP_200_OK)
 
 # ---- Popular API（Visitへは依存しない）----
 class PopularShrineListView(ListAPIView):
@@ -97,16 +119,24 @@ class PopularShrineListView(ListAPIView):
 
     def get_queryset(self):
         qs = Shrine.objects.all()
+        params = self.request.query_params
 
         # kind（既定 shrine / ?kind=temple / ?kind=all）
-        params = self.request.query_params
         kind = (params.get("kind") or "shrine").lower()
         if kind in ("shrine", "temple"):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
-        
-        # ★ near + radius_km の簡易BBOXフィルタ（test_near_filter_bbox が期待）
+
+        # q（単語分割 OR）
+        qs = _apply_q_terms(qs, params)
+
+        # name（任意）
+        name = params.get("name")
+        if name:
+            qs = qs.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
+
+        # near + radius_km の簡易BBOXフィルタ
         near = params.get("near")
         radius_km = params.get("radius_km")
         if near and radius_km:
@@ -122,11 +152,13 @@ class PopularShrineListView(ListAPIView):
                     longitude__lte=lng0 + lng_delta,
                 )
             except Exception:
-                pass  # パラメータ不正は無視
+                pass
 
+        qs = annotate_is_favorite(qs, self.request)
         return (
             qs.annotate(popular_val=Coalesce(F("popular_score"), Value(0.0)))
               .order_by(F("popular_val").desc(nulls_last=True), "-id")
+              .distinct()
         )
 
 
@@ -146,6 +178,7 @@ class RankingAPIView(ListAPIView):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
+        qs = _apply_q_terms(qs, params)
 
         # 簡易BBOX（near=LAT,LNG & radius_km=R）
         near = params.get("near")
@@ -176,19 +209,13 @@ class RankingAPIView(ListAPIView):
 class ShrineViewSet(viewsets.ModelViewSet):
     queryset = Shrine.objects.all()
     throttle_scope = "shrines"
-
-    # PUT を潰す（OpenAPIに出さない）
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
-    # ✅ 権限はここで分岐
     def get_permissions(self):
-        # 読み取りは公開
-        if self.action in ("list", "retrieve", "nearest"):
+        if self.action in ("list", "retrieve", "nearest", "ingest"):
             return [AllowAny()]
-        # 書き込みはログイン必須
         return [IsAuthenticated()]
 
-    # ✅ serializer は serializer だけ返す
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return ShrineWriteSerializer
@@ -196,199 +223,49 @@ class ShrineViewSet(viewsets.ModelViewSet):
             return ShrineListSerializer
         return ShrineDetailSerializer
 
-    
+    def get_throttles(self):
+        if getattr(self, "action", None) == "ingest":
+            self.throttle_scope = "shrines_ingest"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
 
     def get_queryset(self):
         qs = self.queryset
         params = self.request.query_params
 
-        # kind
         kind = (params.get("kind") or "shrine").lower()
         if kind in ("shrine", "temple"):
             qs = qs.filter(kind=kind)
         elif kind != "all":
             qs = qs.filter(kind="shrine")
 
-        # フリーテキスト
-        q = params.get("q")
-        if q:
-            qs = qs.filter(
-                Q(name_jp__icontains=q)
-                | Q(name_romaji__icontains=q)
-                | Q(address__icontains=q)
-                | Q(goriyaku__icontains=q)
-                | Q(goriyaku_tags__name__icontains=q)
-            )
+        # q（単語分割 OR）
+        qs = _apply_q_terms(qs, params)
 
-        # name フィルタ
+        # name（任意）
         name = params.get("name")
         if name:
             qs = qs.filter(Q(name_jp__icontains=name) | Q(name_romaji__icontains=name))
 
-        # タグ類
-        for key in ("goriyaku", "shinkaku", "region"):
-            vals = params.getlist(key)
-            if vals:
-                qs = qs.filter(goriyaku_tags__name__in=vals)
-
-        # 九星
-        ky_vals = [v for v in params.getlist("kyusei") if v]
-        if ky_vals:
-            qs = qs.filter(kyusei__in=ky_vals)
-
-        # deity（OR/AND）
-        deity_vals = [v for v in params.getlist("deity") if v]
-        if deity_vals:
-            mode_and = params.get("deity_mode", "").lower() == "and" or params.get(
-                "deity_and", ""
-            ) in ("1", "true", "yes")
-
-            def term_q(term: str) -> Q:
-                t = (term or "").strip()
-                if not t:
-                    return Q()
-                return (
-                    Q(deities__name__icontains=t)
-                    | Q(deities__kana__icontains=t)
-                    | Q(deities__aliases__icontains=t)
-                )
-
-            if mode_and:
-                for dv in deity_vals:
-                    qs = qs.filter(term_q(dv))
-            else:
-                qd = Q()
-                for dv in deity_vals:
-                    qd |= term_q(dv)
-                qs = qs.filter(qd)
-
         qs = annotate_is_favorite(qs, self.request)
-
-        if getattr(self, "action", None) == "retrieve":
-            return self.queryset
         return qs.distinct()
 
+
     @action(
-        detail=False, methods=["get"], url_path="nearest", permission_classes=[permissions.AllowAny]
+        detail=False,
+        methods=["post"],
+        url_path="ingest",
+        permission_classes=[AllowAny],
+        throttle_classes=[ScopedRateThrottle],
     )
-    @extend_schema(
-        operation_id="shrines_nearest_list",
-        summary="Nearest shrines",
-        description="lat,lng と任意の q から距離順で神社を返す（配列）。",
-        tags=["shrines"],
-        parameters=[
-            OpenApiParameter(name="radius", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False),
-            OpenApiParameter(
-                name="lat", type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, required=True
-            ),
-            OpenApiParameter(
-                name="lng", type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, required=True
-            ),
-            OpenApiParameter(
-                name="q", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False
-            ),
-            OpenApiParameter(
-                name="limit", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False
-            ),
-        ],
-        responses={200: ShrineListSerializer(many=True)},
-    )
-    def nearest(self, request):
-        params = request.query_params
+    def ingest(self, request):
+        place_id = (request.data or {}).get("place_id")
+        if not place_id:
+            return Response({"detail": "place_id is required"}, status=400)
+
         try:
-            lat = float(params.get("lat"))
-            lng = float(params.get("lng"))
-        except (TypeError, ValueError):
-            return Response(
-                {"detail": "lat and lng are required (float)."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        if not (-90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0):
-            return Response({"detail": "lat/lng out of range."}, status=status.HTTP_400_BAD_REQUEST)
-        
-
-        radius_m = None
-        if params.get("radius") is not None:
-            try:
-                radius_m = int(params.get("radius"))
-            except ValueError:
-                return Response({"detail": "radius must be int (meters)."}, status=400)
-            if radius_m <= 0:
-                return Response({"detail": "radius must be > 0."}, status=400)
-        # queries 経由（Spatialite でも <-> を発行しない）
-        # ← ページネーションに任せるため limit は渡さない
-        qs = q_nearest_shrines(lon=lng, lat=lat, radius_m=radius_m)
-
-        # 同じフィルタ群
-        kind = (params.get("kind") or "shrine").lower()
-        if kind in ("shrine", "temple"):
-            qs = qs.filter(kind=kind)
-        elif kind != "all":
-            qs = qs.filter(kind="shrine")
-
-        q = params.get("q")
-        if q:
-            qs = qs.filter(
-                Q(name_jp__icontains=q)
-                | Q(name_romaji__icontains=q)
-                | Q(address__icontains=q)
-                | Q(goriyaku__icontains=q)
-                | Q(goriyaku_tags__name__icontains=q)
-            )
-
-        for key in ("goriyaku", "shinkaku", "region"):
-            vals = params.getlist(key)
-            if vals:
-                qs = qs.filter(goriyaku_tags__name__in=vals)
-
-        ky_vals = [v for v in params.getlist("kyusei") if v]
-        if ky_vals:
-            qs = qs.filter(kyusei__in=ky_vals)
-
-        deity_vals = [v for v in params.getlist("deity") if v]
-        if deity_vals:
-            mode_and = params.get("deity_mode", "").lower() == "and" or params.get(
-                "deity_and", ""
-            ) in ("1", "true", "yes")
-
-            def term_q(term: str) -> Q:
-                t = (term or "").strip()
-                if not t:
-                    return Q()
-                return (
-                    Q(deities__name__icontains=t)
-                    | Q(deities__kana__icontains=t)
-                    | Q(deities__aliases__icontains=t)
-                )
-
-            if mode_and:
-                for dv in deity_vals:
-                    qs = qs.filter(term_q(dv))
-            else:
-                qd = Q()
-                for dv in deity_vals:
-                    qd |= term_q(dv)
-                qs = qs.filter(qd)
-
-        qs = annotate_is_favorite(qs, request)
-
-        # --- DRFページネーションに委譲 ---
-        page = self.paginate_queryset(qs)
-        if page is not None:
-            serializer = ShrineListSerializer(page, many=True, context={"request": request})
-            return self.get_paginated_response(serializer.data)
-        serializer = ShrineListSerializer(qs, many=True, context={"request": request})
-        return Response(serializer.data)
-
-    def create(self, request, *args, **kwargs):
-        write = ShrineWriteSerializer(data=request.data, context={"request": request})
-        write.is_valid(raise_exception=True)
-        try:
-            obj = write.save()
-        except IntegrityError:
-            return Response(
-                {"detail": "同じ神社が既に登録されています（name/address/location が重複）。"},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        read = ShrineDetailSerializer(obj, context={"request": request})
-        return Response(read.data, status=status.HTTP_201_CREATED)
+            shrine = get_or_create_shrine_by_place_id(place_id)
+            data = ShrineDetailSerializer(shrine, context={"request": request}).data
+            return Response(data, status=status.HTTP_200_OK)
+        except PlacesError as e:
+            return Response({"detail": str(e)}, status=getattr(e, "status", 502) or 502)
