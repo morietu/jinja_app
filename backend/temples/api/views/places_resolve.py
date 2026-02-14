@@ -1,5 +1,4 @@
 # backend/temples/api/views/places_resolve.py
-# backend/temples/api/views/places_resolve.py
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
