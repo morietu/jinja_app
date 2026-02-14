@@ -117,11 +117,13 @@ class GooglePlacesClient:
         geometry = r.get("geometry") or {}
         loc = geometry.get("location") or {}
         photos = r.get("photos") or []
+        addr = r.get("formatted_address") or r.get("vicinity")
         first_photo_ref = (photos[0] or {}).get("photo_reference") if photos else None
         return {
             "place_id": r.get("place_id"),
             "name": r.get("name"),
-            "address": r.get("formatted_address") or r.get("vicinity"),
+            "address": addr,
+            "formatted_address": addr, 
             "lat": loc.get("lat"),
             "lng": loc.get("lng"),
             "rating": r.get("rating"),
