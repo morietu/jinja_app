@@ -59,7 +59,7 @@ jobs:
       run:
         working-directory: ./backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Show git ref & SHA
         run: |
@@ -182,7 +182,7 @@ jobs:
       run:
         working-directory: ./backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Show git ref & SHA
         run: |
