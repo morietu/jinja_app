@@ -22,19 +22,19 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@next/eslint-plugin-next": "^16.0.1",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.1.6",
     "@stoplight/spectral-cli": "^6.15.0",
     "baseline-browser-mapping": "^2.9.19",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
-    "markdownlint-cli": "^0.45.0",
-    "prettier": "^3.6.2",
+    "markdownlint-cli": "^0.47.0",
+    "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.3",
-    "vite-tsconfig-paths": "^5.1.4"
+    "typescript-eslint": "^8.55.0",
+    "vite-tsconfig-paths": "^6.1.1"
   },
   "pnpm": {
     "overrides": {
