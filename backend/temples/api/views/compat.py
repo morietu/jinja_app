@@ -89,5 +89,5 @@ def concierge_chat_compat(request):
         payload.setdefault("reply", f"echo: {text}")
     return DRFResponse(payload, status=resp.status_code)
 
-concierge_chat_compat.throttle_classes = [ScopedRateThrottle]
+.throttle_classes = [ScopedRateThrottle]
 concierge_chat_compat.throttle_scope = "concierge"
