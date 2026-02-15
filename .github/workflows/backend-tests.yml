@@ -69,7 +69,7 @@ jobs:
           git rev-parse HEAD
           git log -1 --oneline
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -192,7 +192,7 @@ jobs:
           git log -1 --oneline
 
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
