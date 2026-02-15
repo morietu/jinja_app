@@ -58,7 +58,7 @@ export default async function Page({ params, searchParams }: Props) {
   // ✅ 御朱印登録の唯一入口はここ
   const query = Object.fromEntries(qs.entries());
 
-  let shrine: Shrine | null = null;
+  let shrine: Shrine | null;
   try {
     shrine = await getShrine(numericId);
   } catch (e) {
