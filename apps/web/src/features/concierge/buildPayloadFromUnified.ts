@@ -122,35 +122,57 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
 
   return null;
 }
-
 function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
   const out: NormalizedItem[] = [];
   const seenShrine = new Set<number>();
   const seenPlace = new Set<string>();
   const norm = (s: string) => s.trim().toLowerCase();
 
-  // 1) registered を先に確保（混在したら registered 勝ちを保証）
+  // placeId -> out index（registered only）
+  const registeredByPlace = new Map<string, number>();
+
+  // 1) registered を先に確保
   for (const item of items) {
     if (item.kind !== "registered") continue;
 
     if (seenShrine.has(item.shrineId)) continue;
     seenShrine.add(item.shrineId);
 
+    out.push(item);
+
+    // ★ push 後の index を保存
     if (item.placeId) {
       const k = norm(item.placeId);
-      if (k) seenPlace.add(k);
+      if (k) {
+        seenPlace.add(k);
+        registeredByPlace.set(k, out.length - 1);
+      }
     }
-
-    out.push(item);
   }
 
-  // 2) place は後から（registered に同placeIdがいたら落ちる）
+  // 2) place は後から
   for (const item of items) {
     if (item.kind !== "place") continue;
 
     const k = norm(item.placeId);
     if (!k) continue;
-    if (seenPlace.has(k)) continue;
+
+    if (seenPlace.has(k)) {
+      // ★ breakdown だけ救出
+      const idx = registeredByPlace.get(k);
+      if (idx != null) {
+        const reg = out[idx];
+        if (
+          reg?.kind === "registered" &&
+          (reg.breakdown == null || typeof reg.breakdown !== "object") &&
+          item.breakdown &&
+          typeof item.breakdown === "object"
+        ) {
+          out[idx] = { ...reg, breakdown: item.breakdown };
+        }
+      }
+      continue;
+    }
 
     seenPlace.add(k);
     out.push(item);

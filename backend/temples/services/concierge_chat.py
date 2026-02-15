@@ -1123,9 +1123,29 @@ def build_chat_recommendations(     # noqa: C901
     )
 
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
+
+    # ✅ finalize_3 で candidates 由来の item が追加されるので breakdown を補完する
+    filled = 0
+    for r in (recs.get("recommendations") or []):
+        if not isinstance(r, dict):
+            continue
+        if isinstance(r.get("breakdown"), dict):
+            continue
+        _attach_breakdown(
+            r,
+            birthdate=birthdate,
+            need_tags=need_tags,
+            weights=WEIGHTS,
+            astro_bonus_enabled=astro_bonus_enabled,
+        )
+        filled += 1
+
+    # ✅ 補完後に items を確定させる（ズレ防止）
     items = recs.get("recommendations") or []
 
+    log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
+
 
     if not isinstance(items, list) or len(items) < 3:
         _ensure_signals_base(

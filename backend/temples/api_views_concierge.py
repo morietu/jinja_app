@@ -434,6 +434,12 @@ class ConciergeChatView(APIView):
             flow=flow,
         )
 
+        try:
+            b0 = ((recs.get("recommendations") or [{}])[0] or {}).get("breakdown")
+            log.info("[api/chat] breakdown0=%s", "Y" if isinstance(b0, dict) else "N")
+        except Exception:
+            pass
+
         after_n = len(recs.get("recommendations") or [])
         applied = []
         if data.get("goriyaku_tag_ids"):
