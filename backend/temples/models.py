@@ -1,33 +1,77 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from django.conf import settings
-from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
-from django.db import models
-from django.utils import timezone
 
-
-
-# GeoDjangoを使うのは USE_GIS が真 かつ テスト無効化フラグが立っていないときだけ
+# GeoDjango switch
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(
     getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
 )
 
 if USE_REAL_GIS:
     from django.contrib.gis.db import models as models  # type: ignore
-    from django.contrib.gis.geos import Point  # 実GIS時のみ
-    from django.contrib.gis.db.models import PointField as PointFieldBase
+    from django.contrib.gis.geos import Point  # type: ignore
+    from django.contrib.gis.db.models import PointField as PointFieldBase  # type: ignore
 else:
     models = dj_models  # type: ignore
     Point = None
 
-    # 非GIS環境では JSONField にフォールバック（引数互換のため srid 等を無視）
     class PointFieldBase(dj_models.JSONField):
         def __init__(self, *args, srid=None, geography=None, spatial_index=None, **kwargs):
             super().__init__(*args, **kwargs)
 
 
+class CrawlTile(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        DONE = "done", "Done"
+        FAILED = "failed", "Failed"
+        SKIPPED = "skipped", "Skipped"
+
+    step_km = models.FloatField()
+
+    min_lat = models.FloatField()
+    min_lng = models.FloatField()
+    max_lat = models.FloatField()
+    max_lng = models.FloatField()
+
+    center_lat = models.FloatField()
+    center_lng = models.FloatField()
+
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    tries = models.PositiveIntegerField(default=0)
+
+    last_crawled_at = models.DateTimeField(null=True, blank=True)
+    next_page_token = models.CharField(max_length=256, blank=True, default="")
+    last_error = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["step_km", "min_lat", "min_lng", "max_lat", "max_lng"],
+                name="uniq_crawltile_step_bbox",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "last_crawled_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"tile({self.status}) step={self.step_km} bbox=({self.min_lat},{self.min_lng})-({self.max_lat},{self.max_lng})"
 
 
 
