@@ -9,7 +9,7 @@ import re
 import unicodedata
 from hashlib import md5
 from math import atan2, cos, radians, sin
-from typing import Any, Dict, Optional, Tuple, Mapping
+from typing import Callable, Any, Dict, Optional, Tuple, Mapping
 from urllib.parse import urlencode
 
 import requests
@@ -129,13 +129,40 @@ def _cache_key(ns: str, payload: Dict[str, Any]) -> str:
     h = hashlib.sha256(s.encode("utf-8")).hexdigest()
     return f"places:{ns}:{h}"
 
+ERROR_STATUSES = {"OVER_QUERY_LIMIT", "REQUEST_DENIED", "INVALID_REQUEST"}
 
-def _get_or_set(ns: str, payload: Dict[str, Any], fetcher, ttl: int):
+def _get_or_set(
+    ns: str,
+    payload: Dict[str, Any],
+    fetcher: Callable[[], Any],
+    ttl: int,
+) -> tuple[dict | None, bool]:
     key = _cache_key(ns, payload)
+
     cached = cache.get(key)
+
+    # 正常な dict キャッシュだけ採用
+    if isinstance(cached, dict):
+        # 過去にミスでエラーをキャッシュしてた場合の保険（任意）
+        if cached.get("status") in ERROR_STATUSES:
+            cache.delete(key)
+        else:
+            return cached, True
+
+    # dict 以外が入ってたら壊れてるので消す
     if cached is not None:
-        return cached, True
+        cache.delete(key)
+
     data = fetcher()
+
+    # dict 以外は採用しない（= None）
+    if not isinstance(data, dict):
+        return None, False
+
+    # upstream エラーは返すがキャッシュしない
+    if data.get("status") in ERROR_STATUSES:
+        return data, False
+
     cache.set(key, data, ttl)
     return data, False
 
@@ -205,6 +232,9 @@ def places_text_search(params: Dict[str, Any]) -> Dict[str, Any]:
         return _wrap_call(google_places.text_search, params)
 
     data, _ = _get_or_set("search", payload, fetch, DEFAULT_TTL)
+    if data is None:
+        return {"results": [], "status": "ERROR"}
+
     return data
 
 
@@ -227,11 +257,23 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 
     data, _ = _get_or_set("search", payload, fetch, DEFAULT_TTL)
 
+    # ✅ fetcher が None を返しても壊れないようにする
+    if data is None:
+        return {"results": [], "status": "ERROR"}
+
+    # ✅ ここが正解：整形/注入/fallback に入る前に止める
+    status_ = data.get("status")
+    if status_ in ERROR_STATUSES:
+        data = dict(data)
+        data["results"] = []
+        return data
+
     # ---- ここから整形（cachedでも毎回同じ処理） --------------------
     keyword = params.get("keyword") or "神社"
     GENERIC_KEYWORDS = {"神社", "寺", "寺院", "shrine", "temple"}
     
     is_generic_keyword = (keyword or "").strip() in GENERIC_KEYWORDS
+
     
     pagetoken = params.get("pagetoken")
     language = params.get("language")
@@ -284,8 +326,10 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
         _dbg("rank.top5", items=preview)
 
 
-    # 完全一致が無ければ Text Search から1件注入
-    if not pagetoken and center is not None:
+    
+    
+    # 完全一致が無ければ Text Search から1件注入（一般名詞はスキップ）
+    if (not is_generic_keyword) and (not pagetoken) and (center is not None):
         key = _norm(keyword)
         has_exact = any(_norm(r.get("name")) == key for r in sorted_results)
         if not has_exact:
@@ -301,8 +345,7 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
                 pid = hit.get("place_id")
                 sorted_results = [x for x in sorted_results if x.get("place_id") != pid]
                 sorted_results.insert(0, hit)
-    
-    
+
     # Nearby が空なら Text Search にフォールバック
     if not sorted_results and not pagetoken:
         if is_generic_keyword:
@@ -312,46 +355,15 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 
         try:
             q_bias = keyword if ("神社" in keyword) else f"{keyword} 神社"
-            _dbg("fallback.text_search", q=q_bias)
-
             ts_params = {"query": q_bias, "language": _lang_or_default(language)}
             if center is not None:
                 ts_params.update({"lat": center[0], "lng": center[1], "radius": radius})
-
-            # ここ、あなたの_dbgが ("q", ...) を参照してるけど ts_params は query なのでズレてる
-            _dbg(
-                "fallback.text_search.params",
-                **{k: ts_params[k] for k in ("query", "lat", "lng", "radius") if k in ts_params},
-            )
 
             ts = places_text_search(ts_params)
 
             ts_results = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
             ts_results = _sort_results_for_query(ts_results, keyword, center=center)
             ts_results = _ensure_exact_on_top(ts_results, keyword)
-
-            if center is not None:
-                key = _norm(keyword)
-                if not any(_norm(r.get("name")) == key for r in ts_results):
-                    # 注入も一般名詞ならスキップ、かつ例外は握りつぶす
-                    if not is_generic_keyword:
-                        try:
-                            hit = _find_exact_from_text_nearby(
-                                keyword, center=center, radius_m=radius, language=language
-                            )
-                        except Exception as e:
-                            _dbg("inject.exact_text.error", err=str(e))
-                            hit = None
-                    else:
-                        hit = None
-
-                    if hit and _is_shinto_shrine_row(hit):
-                        _dbg("inject.exact_text", name=hit.get("name"), pid=hit.get("place_id"))
-                        pid = hit.get("place_id")
-                        ts_results = [x for x in ts_results if x.get("place_id") != pid]
-                        ts_results.insert(0, hit)
-                    else:
-                        _dbg("inject.miss", keyword=keyword)
 
             ts["results"] = ts_results
             return ts
@@ -361,6 +373,9 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
             data["results"] = []
             return data
 
+    # ✅ ここが重要：通常ルートの出口
+    data["results"] = sorted_results
+    return data
 
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     params = dict(params or {})
@@ -372,7 +387,7 @@ def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str,
 
     payload = {"endpoint": "details", "place_id": place_id, **_norm_params(params)}
     data, _ = _get_or_set("details", payload, fetch, DEFAULT_TTL)
-    return data
+    return data or {}
 
 
 def places_photo(photo_reference: str, maxwidth: int = 800) -> Tuple[bytes, str, int]:
