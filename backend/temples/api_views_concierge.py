@@ -27,11 +27,10 @@ from temples.services.concierge_plan import build_plan_response
 from temples.models import ConciergeThread
 from temples.services.concierge_chat_candidates import build_chat_candidates
 
-from .models import ConciergeUsage
-
+from temples.models import ConciergeUsage
 
 log = logging.getLogger(__name__)
-log.info("[concierge] ENTER api_views_concierge.post")
+
 
 # --- compat: tests monkeypatch 用に module attribute を生やす ---
 # import 時に orch 側の依存で落ちても、このモジュール自体は import できるようにする
@@ -266,31 +265,22 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
-        log.info("[concierge] ENTER api_views_concierge.post")
+        log.info("[concierge] chat.post")
         data = request.data or {}
         
-        # ✅ 受信（マージ前）
-        log.info("[concierge_chat] keys=%s", list(data.keys()))
-        log.info("[concierge_chat] thread_id=%r", data.get("thread_id"))
-        log.info("[concierge_chat] filters_raw=%r", data.get("filters"))
 
-        # ✅ v1: filters をトップレベルに畳む（互換）
-        filters = data.get("filters") or {}
-        if isinstance(filters, dict):
-            if not data.get("birthdate") and filters.get("birthdate"):
-                data["birthdate"] = filters.get("birthdate")
-            if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
-                data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
-            if not data.get("extra_condition") and filters.get("extra_condition"):
-                data["extra_condition"] = filters.get("extra_condition")
+        # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
+        filters = data.get("filters") if isinstance(data.get("filters"), dict) else {}
+        for k in ("birthdate", "goriyaku_tag_ids", "extra_condition"):
+            if data.get(k) in (None, "", []) and filters.get(k) not in (None, "", []):
+                data[k] = filters.get(k)
 
-        # ✅ マージ後
-        log.info(
+        log.debug(
             "[concierge_chat] merged birthdate=%r goriyaku_tag_ids=%r extra_condition=%r",
             data.get("birthdate"),
             data.get("goriyaku_tag_ids"),
             data.get("extra_condition"),
-            )
+        )
 
         # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
         filters = data.get("filters") or {}
