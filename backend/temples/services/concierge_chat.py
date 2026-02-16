@@ -558,34 +558,39 @@ def _attach_breakdown(
     # ★ソート用の単一ソース（必ず入れる）
     rec["_score_total"] = float(score_total)
 
-
+    # ===== API contract: breakdown は「6キー固定」 =====
     rec["breakdown"] = {
-        "version": 1,
-        "total": score_total,
-        "features": {
-            "element": {
-                "raw": score_element,
-                "weight": w1,
-                "contribution": score_element * w1,
-            },
-            "need": {
-                "raw": score_need,
-                "weight": w2,
-                "matched_tags": matched,
-                "contribution": score_need * w2,
-            },
-            "popular": {
-                "raw": score_popular,
-                "weight": w3,
-                "contribution": score_popular * w3,
-            },
-            "astro_bonus": astro_bonus if astro_bonus_enabled else 0.0,
-        }
+        "score_element": int(score_element),
+        "score_need": int(score_need),
+        "score_popular": float(score_popular),  # 0..1
+        "score_total": float(score_total),
+        "weights": {"element": float(w1), "need": float(w2), "popular": float(w3)},
+        "matched_need_tags": matched,
     }
 
-    rec["score_astro"] = int(pri)
-    if astro_bonus_enabled:
-        rec["astro_bonus"] = float(astro_bonus)
+        # （任意）詳細を残したいなら別キーへ。テスト契約からは外す。
+    rec["breakdown_detail"] = {
+        "version": 1,
+        "features": {
+            "element": {
+                "raw": int(score_element),
+                "weight": float(w1),
+                "contribution": float(score_element * w1),
+            },
+            "need": {
+                "raw": int(score_need),
+                "weight": float(w2),
+                "matched_tags": matched,
+                "contribution": float(score_need * w2),
+            },
+            "popular": {
+                "raw": float(score_popular),
+                "weight": float(w3),
+                "contribution": float(score_popular * w3),
+            },
+            "astro_bonus": float(astro_bonus) if astro_bonus_enabled else 0.0,
+        },
+    }
 
 
 def _apply_user_filters(
