@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
+from temples.domain.extra_condition_tags import extract_extra_tags
+
 
 
 def _none_if_blank(x: Any) -> Any:
@@ -568,7 +570,7 @@ def _attach_breakdown(
         "matched_need_tags": matched,
     }
 
-        # （任意）詳細を残したいなら別キーへ。テスト契約からは外す。
+    # （任意）詳細を残したいなら別キーへ。テスト契約からは外す。
     rec["breakdown_detail"] = {
         "version": 1,
         "features": {
@@ -631,19 +633,6 @@ def _apply_user_filters(
                 except Exception:
                     pass
             if not any(t in rec_tag_ints for t in gids):
-                continue
-
-        if extra:
-            blob = " ".join(
-                [
-                    str(r.get("name") or ""),
-                    str(r.get("reason") or ""),
-                    " ".join([x for x in (r.get("bullets") or []) if isinstance(x, str)]),
-                    " ".join([x for x in (r.get("tags") or []) if isinstance(x, str)]),
-                    " ".join([x for x in (r.get("deities") or []) if isinstance(x, str)]),
-                ]
-            )
-            if extra not in blob:
                 continue
 
         out.append(r)
@@ -832,6 +821,15 @@ def build_chat_recommendations(     # noqa: C901
     _need = _extract_need(query)
     if isinstance(_need, dict):
         recs["_need"] = _need
+
+    # 3.5 extra_condition（自由文）を辞書タグ化
+    try:
+        ex = extract_extra_tags(extra_condition or "", max_tags=3)
+        recs["_extra"] = {"tags": list(ex.tags), "hits": dict(ex.hits)}
+    except Exception:
+        recs["_extra"] = {"tags": [], "hits": {}}
+
+    log.info("[svc/chat] extra_tags=%r", (recs.get("_extra") or {}).get("tags"))
 
     # 4. 候補プール（astro_onなら広めに）
     pre_limit = 12 if astro_on else 3
@@ -1088,6 +1086,8 @@ def build_chat_recommendations(     # noqa: C901
         if isinstance(recs.get("_signals"), dict)
         else None
     )
+    extra_tags = set(((recs.get("_extra") or {}).get("tags") or []))
+    force_distance = "sort_distance" in extra_tags
 
     # 3) ログは1回だけ（top5の状態確認）
     try:
@@ -1112,7 +1112,7 @@ def build_chat_recommendations(     # noqa: C901
     log.info(
         "[svc/chat] sort_mode=%s",
         "distance"
-        if (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered")
+        if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered")
         else "score",
     )
 
@@ -1145,7 +1145,8 @@ def build_chat_recommendations(     # noqa: C901
         except Exception:
             return (1, 1e18, name)
 
-    if isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered":
+    # 5) sort_distance または fallback時は距離順で上書き
+    if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
             key=_dist_key,
@@ -1204,20 +1205,28 @@ def build_chat_recommendations(     # noqa: C901
     log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
 
-    
-
     # ★最終ソート保証（fallbackでは距離順を守る）
     rs = (
         recs.get("_signals", {}).get("result_state")
         if isinstance(recs.get("_signals"), dict)
         else None
     )
-    if not (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
+    extra_tags = set(((recs.get("_extra") or {}).get("tags") or []))
+    force_distance = "sort_distance" in extra_tags
+
+    if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
+        recs["recommendations"] = sorted(
+            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+            key=_dist_key,
+        )
+    else:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
             key=_score_key,
             reverse=True,
         )
+
+    
 
     # ✅ ソート（または距離順）確定後の items を取り直す（ズレ防止）
     items = recs.get("recommendations") or []
