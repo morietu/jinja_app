@@ -31,6 +31,7 @@ from .models import ConciergeUsage
 
 
 log = logging.getLogger(__name__)
+log.info("[concierge] ENTER api_views_concierge.post")
 
 # --- compat: tests monkeypatch 用に module attribute を生やす ---
 # import 時に orch 側の依存で落ちても、このモジュール自体は import できるようにする
@@ -265,6 +266,7 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
+        log.info("[concierge] ENTER api_views_concierge.post")
         data = request.data or {}
         
         # ✅ 受信（マージ前）
