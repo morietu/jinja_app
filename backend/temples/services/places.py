@@ -24,6 +24,7 @@ from rest_framework import serializers
 
 from django.db import transaction
 from django.db import IntegrityError
+from .google_places import findplacefromtext  # noqa: F401
 
 
 req_history = google_places.req_history
@@ -616,7 +617,7 @@ def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[s
             return False
         return ("shinto_shrine" in types) or ("神社" in name)
 
-    data = places_text_search({"payload": q, "language": _lang_or_default(language)})
+    data = places_text_search({"query": q, "language": _lang_or_default(language)})
     results = [r for r in ((data or {}).get("results") or []) if _is_shinto(r)]
     if not results:
         return None
@@ -762,14 +763,14 @@ def _find_exact_from_text_nearby(
         if center is not None:
             locationbias = f"circle:{int(radius_m * 1.4)}@{center[0]},{center[1]}"
 
-        fp = _wrap_call(
-            google_places.find_place_text,
-            keyword,
+        fp = find_place(
+            input=keyword,
+            inputtype="textquery",
             language=lang,
             locationbias=locationbias,
             fields="place_id,name,geometry,formatted_address,types,photos,opening_hours,icon",
         )
-        candidates = fp.get("results") or []
+        candidates = fp.get("candidates") or []
         _dbg("inject.findplace.candidates", n=len(candidates))
 
         hits: list[Tuple[float, Dict[str, Any]]] = []
@@ -793,7 +794,7 @@ def _find_exact_from_text_nearby(
         _dbg("inject.findplace.error", err=str(e))
 
     # ---- 2) フォールバック: Text Search（半径+40%）
-    ts_params: Dict[str, Any] = {"payload": keyword, "language": lang}
+    ts_params: Dict[str, Any] = {"query": keyword, "language": lang}
     if center is not None:
         ts_params.update(
             {
@@ -825,28 +826,7 @@ def _find_exact_from_text_nearby(
 
 
 
-def findplacefromtext(*, input, language=None, locationbias=None, fields=None):
-    """
-    Google Places API: Find Place From Text
-    https://maps.googleapis.com/maps/api/place/findplacefromtext/json
-    """
-    url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-    params = {
-        "key": settings.GOOGLE_MAPS_API_KEY,
-        "input": input,
-        "inputtype": "textquery",
-    }
-    if language:
-        params["language"] = language
-    if locationbias:
-        params["locationbias"] = locationbias
-    if fields:
-        params["fields"] = fields
 
-    _log_upstream("findplacefromtext", url, params)  # 既存と同じログ様式
-    resp = requests.get(url, params=params, timeout=_TIMEOUT)
-    resp.raise_for_status()
-    return resp.json()
 
 class PlaceLiteSerializer(serializers.Serializer):
     place_id = serializers.CharField()
