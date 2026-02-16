@@ -5,6 +5,33 @@ import re
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
+EXTRA_TAG_META: Dict[str, Dict[str, str]] = {
+    "sort_distance": {"kind": "sort_override"},
+    "sort_popular": {"kind": "sort_override"},
+
+    "energize": {"kind": "soft_signal"},
+    "calm": {"kind": "soft_signal"},
+    "refresh": {"kind": "soft_signal"},
+    "focus": {"kind": "soft_signal"},
+    "confidence": {"kind": "soft_signal"},
+    "healing": {"kind": "soft_signal"},
+    "stress_relief": {"kind": "soft_signal"},
+    "relationship": {"kind": "soft_signal"},
+    "career": {"kind": "soft_signal"},
+}
+
+def tag_kind(tag: str) -> str:
+    return (EXTRA_TAG_META.get(tag) or {}).get("kind") or "unknown"
+
+def split_tags_by_kind(tags: List[str]) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {"sort_override": [], "hard_filter": [], "soft_signal": [], "unknown": []}
+    for t in tags or []:
+        k = tag_kind(t)
+        if k not in out:
+            k = "unknown"
+        out[k].append(t)
+    return out
+
 # ここは「プロダクトが返せる価値」の軸。増やすのは後でいい。
 # tags は英語キーで固定（DB/集計/UIに有利）
 EXTRA_TAGS: Dict[str, List[str]] = {

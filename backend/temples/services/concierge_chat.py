@@ -7,8 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
-from temples.domain.extra_condition_tags import extract_extra_tags
-
+from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 
 
 def _none_if_blank(x: Any) -> Any:
@@ -21,10 +20,13 @@ def _none_if_blank(x: Any) -> Any:
 
 log = logging.getLogger(__name__)
 
+CONTRACT_WEIGHTS_A = {"element": 0.6, "need": 0.3, "popular": 0.1}
+
 FLOW_DEFINITIONS = {
     "A": {
         "description": "chat balanced recommendation",
-        "weights": {"element": 0.6, "need": 0.3, "popular": 0.1},
+        # ✅ Contract(test) expects these exact weights
+        "weights": dict(CONTRACT_WEIGHTS_A),
         "astro_bonus_enabled": False,
         "ui_label_ja": "バランス",
         "ui_note_ja": "条件と人気も含めて総合的におすすめしています",
@@ -674,12 +676,23 @@ def build_chat_recommendations(     # noqa: C901
     requested_flow = flow
 
     # 距離順 key（distance_m 無しは最後）
-    def _dist_key(c: dict) -> tuple[int, float]:
+    def _cand_dist_key(c: dict) -> tuple[int, float]:
         d = c.get("distance_m")
         try:
             return (0, float(d))
         except Exception:
             return (1, 1e18)
+
+    # 推薦アイテムの距離順 key（distance_m 無しは最後、同距離はnameで安定化）
+    def _rec_dist_key(x: Any) -> tuple[int, float, str]:
+        if not isinstance(x, dict):
+            return (1, 1e18, "")
+        d = x.get("distance_m")
+        name = str(x.get("name") or "")
+        try:
+            return (0, float(d), name)
+        except Exception:
+            return (1, 1e18, name)
 
     # --- DEBUG: raw candidates snapshot (before normalize) ---
     try:
@@ -736,7 +749,7 @@ def build_chat_recommendations(     # noqa: C901
     ]
 
     # 距離順（distance_m 無しは最後）
-    valid_candidates.sort(key=_dist_key)
+    valid_candidates.sort(key=_cand_dist_key)
 
     dist_sample = [c.get("distance_m") for c in valid_candidates[:5]]
     log.info(
@@ -822,15 +835,22 @@ def build_chat_recommendations(     # noqa: C901
     if isinstance(_need, dict):
         recs["_need"] = _need
 
+
     # 3.5 extra_condition（自由文）を辞書タグ化
+    sort_tags: set[str] = set()
     try:
         ex = extract_extra_tags(extra_condition or "", max_tags=3)
-        recs["_extra"] = {"tags": list(ex.tags), "hits": dict(ex.hits)}
+        kinds = split_tags_by_kind(ex.tags)
+        recs["_extra"] = {"tags": list(ex.tags), "hits": dict(ex.hits), "kinds": kinds}
+        sort_tags = set(kinds.get("sort_override") or [])
     except Exception:
-        recs["_extra"] = {"tags": [], "hits": {}}
-
-    log.info("[svc/chat] extra_tags=%r", (recs.get("_extra") or {}).get("tags"))
-
+        recs["_extra"] = {
+            "tags": [],
+            "hits": {},
+            "kinds": {"sort_override": [], "hard_filter": [], "soft_signal": [], "unknown": []},
+        }
+        sort_tags = set()
+    
     # 4. 候補プール（astro_onなら広めに）
     pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
@@ -1086,8 +1106,9 @@ def build_chat_recommendations(     # noqa: C901
         if isinstance(recs.get("_signals"), dict)
         else None
     )
-    extra_tags = set(((recs.get("_extra") or {}).get("tags") or []))
-    force_distance = "sort_distance" in extra_tags
+    force_distance = "sort_distance" in sort_tags
+    fallback_distance = isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"
+    distance_mode = force_distance or fallback_distance
 
     # 3) ログは1回だけ（top5の状態確認）
     try:
@@ -1109,12 +1130,7 @@ def build_chat_recommendations(     # noqa: C901
     except Exception:
         pass
 
-    log.info(
-        "[svc/chat] sort_mode=%s",
-        "distance"
-        if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered")
-        else "score",
-    )
+    log.info("[svc/chat] sort_mode=%s", "distance" if distance_mode else "score")
 
     def _score_key(rec: Any) -> tuple[float, int]:
         if not isinstance(rec, dict):
@@ -1136,21 +1152,6 @@ def build_chat_recommendations(     # noqa: C901
         reverse=True,
     )
 
-    # 5) fallback時だけ距離順に上書き（distance_m無しは最後、同距離はnameで安定化）
-    def _dist_key(x: dict) -> tuple[int, float, str]:
-        d = x.get("distance_m")
-        name = str(x.get("name") or "")
-        try:
-            return (0, float(d), name)
-        except Exception:
-            return (1, 1e18, name)
-
-    # 5) sort_distance または fallback時は距離順で上書き
-    if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
-        recs["recommendations"] = sorted(
-            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-            key=_dist_key,
-        )
 
 
     # -----------------------------
@@ -1205,19 +1206,11 @@ def build_chat_recommendations(     # noqa: C901
     log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
 
-    # ★最終ソート保証（fallbackでは距離順を守る）
-    rs = (
-        recs.get("_signals", {}).get("result_state")
-        if isinstance(recs.get("_signals"), dict)
-        else None
-    )
-    extra_tags = set(((recs.get("_extra") or {}).get("tags") or []))
-    force_distance = "sort_distance" in extra_tags
 
-    if force_distance or (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
+    if distance_mode:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-            key=_dist_key,
+            key=_rec_dist_key,
         )
     else:
         recs["recommendations"] = sorted(
@@ -1251,7 +1244,14 @@ def build_chat_recommendations(     # noqa: C901
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
         return recs
 
+    def _prepend_unique(xs: list[str], s: str) -> list[str]:
+        if s in xs:
+            xs.remove(s)
+        return [s] + xs
+
     # 12. 表示用整形
+    soft_tags = set(((recs.get("_extra") or {}).get("kinds") or {}).get("soft_signal") or [])
+
     for r in items:
         if not isinstance(r, dict):
             continue
@@ -1273,6 +1273,21 @@ def build_chat_recommendations(     # noqa: C901
         except Exception:
             r["reason"] = "静かに手を合わせたい社"
 
+        # soft_signal を highlights へ注入（スコアはいじらない）
+        if soft_tags:
+            hs = r.get("highlights")
+            if not isinstance(hs, list):
+                hs = []
+
+            
+
+            if "energize" in soft_tags:
+                hs = _prepend_unique(hs, "前向きさ・活力を後押ししやすい雰囲気")
+            if "calm" in soft_tags:
+                hs = _prepend_unique(hs, "落ち着いて気持ちを整えやすい雰囲気")
+
+            r["highlights"] = hs[:3]
+
         try:
             r["bullets"] = build_bullets_for_chat(r, query=query)
         except Exception:
@@ -1281,6 +1296,8 @@ def build_chat_recommendations(     # noqa: C901
                 "混雑しにくい可能性",
                 "雰囲気が希望に合う可能性",
             ]
+
+
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
