@@ -29,7 +29,6 @@ from temples import api_views_concierge as concierge
     ],
 )
 @api_view(["POST"])
-
 def concierge_chat_compat(request):
     """
     ConciergeChat 本実装のレスポンス（ok+data）に
@@ -89,5 +88,7 @@ def concierge_chat_compat(request):
         payload.setdefault("reply", f"echo: {text}")
     return DRFResponse(payload, status=resp.status_code)
 
-.throttle_classes = [ScopedRateThrottle]
+
+# ✅ ここが正しい「関数属性」の付け方（先頭ドットは殺す）
+concierge_chat_compat.throttle_classes = [ScopedRateThrottle]
 concierge_chat_compat.throttle_scope = "concierge"

@@ -555,13 +555,32 @@ def _attach_breakdown(
 
     score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
 
+    # ★ソート用の単一ソース（必ず入れる）
+    rec["_score_total"] = float(score_total)
+
+
     rec["breakdown"] = {
-        "score_element": int(score_element),
-        "score_need": int(score_need),
-        "score_popular": float(score_popular),
-        "score_total": float(score_total),
-        "weights": {"element": w1, "need": w2, "popular": w3},
-        "matched_need_tags": matched,
+        "version": 1,
+        "total": score_total,
+        "features": {
+            "element": {
+                "raw": score_element,
+                "weight": w1,
+                "contribution": score_element * w1,
+            },
+            "need": {
+                "raw": score_need,
+                "weight": w2,
+                "matched_tags": matched,
+                "contribution": score_need * w2,
+            },
+            "popular": {
+                "raw": score_popular,
+                "weight": w3,
+                "contribution": score_popular * w3,
+            },
+            "astro_bonus": astro_bonus if astro_bonus_enabled else 0.0,
+        }
     }
 
     rec["score_astro"] = int(pri)
@@ -682,6 +701,8 @@ def build_chat_recommendations(     # noqa: C901
             )
     except Exception:
         pass
+    
+    log.info("[svc/chat] ENTER build_chat_recommendations query=%r candidates=%d", (query or "")[:30], len(candidates or []))
 
     # --- DEBUG: raw place-id stats (before normalize) ---
     def _nonempty(d: dict, k: str) -> bool:
@@ -1036,7 +1057,6 @@ def build_chat_recommendations(     # noqa: C901
     # -----------------------------
     # 9. スコアリング（flow weights）
     # -----------------------------
-
     flow_def = FLOW_DEFINITIONS.get(flow, FLOW_DEFINITIONS["A"])
     WEIGHTS = dict(flow_def["weights"])
     astro_bonus_enabled = bool(flow_def["astro_bonus_enabled"])
@@ -1045,6 +1065,7 @@ def build_chat_recommendations(     # noqa: C901
     need_tags = list((recs.get("_need") or {}).get("tags") or [])
     need_tags = [t for t in need_tags if isinstance(t, str) and t.strip()]
 
+    # 1) 先に breakdown を全件に付与
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
@@ -1056,12 +1077,45 @@ def build_chat_recommendations(     # noqa: C901
             astro_bonus_enabled=astro_bonus_enabled,
         )
 
+    # 2) fallback 状態を先に確定（この後のソート判断に使う）
+    rs = (
+        recs.get("_signals", {}).get("result_state")
+        if isinstance(recs.get("_signals"), dict)
+        else None
+    )
+
+    # 3) ログは1回だけ（top5の状態確認）
+    try:
+        top = [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)][:5]
+        log.info(
+            "[svc/chat] score_debug top=%r",
+            [
+                {
+                    "name": x.get("name"),
+                    "astro_priority": x.get("astro_priority"),
+                    "popular_score": x.get("popular_score"),
+                    "_score_total": x.get("_score_total"),
+                    "distance_m": x.get("distance_m"),
+                    "has_breakdown": isinstance(x.get("breakdown"), dict),
+                }
+                for x in top
+            ],
+        )
+    except Exception:
+        pass
+
+    log.info(
+        "[svc/chat] sort_mode=%s",
+        "distance"
+        if (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered")
+        else "score",
+    )
+
     def _score_key(rec: Any) -> tuple[float, int]:
         if not isinstance(rec, dict):
             return (0.0, 0)
-        bd = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
         try:
-            score_total = float(bd.get("score_total", 0.0))
+            score_total = float(rec.get("_score_total", 0.0))
         except Exception:
             score_total = 0.0
         try:
@@ -1070,12 +1124,14 @@ def build_chat_recommendations(     # noqa: C901
             astro_pri = 0
         return (score_total, astro_pri)
 
-    # 通常はスコア順
+    # 4) まずはスコア順に並べる
     recs["recommendations"] = sorted(
-        recs.get("recommendations") or [], key=_score_key, reverse=True
+        [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+        key=_score_key,
+        reverse=True,
     )
 
-    # fallback時だけ距離順に上書き（distance_m無しは最後、同距離はnameで安定化）
+    # 5) fallback時だけ距離順に上書き（distance_m無しは最後、同距離はnameで安定化）
     def _dist_key(x: dict) -> tuple[int, float, str]:
         d = x.get("distance_m")
         name = str(x.get("name") or "")
@@ -1084,16 +1140,13 @@ def build_chat_recommendations(     # noqa: C901
         except Exception:
             return (1, 1e18, name)
 
-    rs = (
-        recs.get("_signals", {}).get("result_state")
-        if isinstance(recs.get("_signals"), dict)
-        else None
-    )
     if isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered":
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
             key=_dist_key,
         )
+
+
     # -----------------------------
     # 10. lat/lng必須（ただし3件未満になるならスキップ）: 痩せ検知ログ
     # -----------------------------
@@ -1145,6 +1198,29 @@ def build_chat_recommendations(     # noqa: C901
 
     log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
+
+    
+
+    # ★最終ソート保証（fallbackでは距離順を守る）
+    rs = (
+        recs.get("_signals", {}).get("result_state")
+        if isinstance(recs.get("_signals"), dict)
+        else None
+    )
+    if not (isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"):
+        recs["recommendations"] = sorted(
+            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+            key=_score_key,
+            reverse=True,
+        )
+
+    # ✅ ソート（または距離順）確定後の items を取り直す（ズレ防止）
+    items = recs.get("recommendations") or []
+
+    log.info(
+        "[svc/chat] top3 after final sort: %r",
+        [(r.get("name"), r.get("_score_total"), r.get("distance_m")) for r in (recs.get("recommendations") or [])[:3]]
+    )
 
 
     if not isinstance(items, list) or len(items) < 3:
