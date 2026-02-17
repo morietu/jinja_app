@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
-
+from temples.domain.kyusei import kyusei_signals
 
 def _none_if_blank(x: Any) -> Any:
     if x is None:
@@ -18,9 +18,13 @@ def _none_if_blank(x: Any) -> Any:
     return x
 
 
+
+
 log = logging.getLogger(__name__)
 
 CONTRACT_WEIGHTS_A = {"element": 0.6, "need": 0.3, "popular": 0.1}
+
+DUMMY_NAMES = {"近隣の神社"}
 
 FLOW_DEFINITIONS = {
     "A": {
@@ -157,6 +161,12 @@ def _ensure_signals_base(
         "goriyaku_tag_ids": goriyaku_tag_ids,
         "extra_condition": extra_condition,
     }
+    # --- kyusei (user flow) ---
+    try:
+        recs["_signals"]["kyusei"] = kyusei_signals(birthdate)
+    except Exception as e:
+        log.exception("[svc/chat] kyusei_signals failed birthdate=%r: %s", birthdate, e)
+        recs["_signals"]["kyusei"] = None
 
     # ✅ 保険：result_state が消えてたら戻す（将来のsignals全置換事故に備える）
     if prev_result_state is not None and "result_state" not in recs["_signals"]:
@@ -246,7 +256,7 @@ def _finalize_3(
     while len(items) < 3:
         if not allow_dummy:
             break
-        items.append({"name": "近隣の神社", "reason": ""})
+        items.append({"name": "近隣の神社", "reason": "", "is_dummy": True})
 
     recs["recommendations"] = items[:3]
     return recs
@@ -897,6 +907,9 @@ def build_chat_recommendations(     # noqa: C901
 
         nm = (r.get("name") or "").strip()
         if not nm:
+            continue
+        # ダミーは address lookup をスキップ
+        if r.get("is_dummy") is True or nm in DUMMY_NAMES:
             continue
 
         eligible += 1
