@@ -837,7 +837,15 @@ def build_chat_recommendations(     # noqa: C901
                 ]
 
         recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
-        recs["_signals"]["empty_reason"] = None
+        recs["_signals"]["result_state"] = {
+            "matched_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "fallback_mode": "none",
+            "fallback_reason_ja": None,
+            "ui_disclaimer_ja": None,
+            "requested_extra_condition": (extra_condition or "").strip() or None,
+            "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+        }
         return recs
 
     # 3. need（ご利益タグ）抽出
@@ -967,7 +975,7 @@ def build_chat_recommendations(     # noqa: C901
     )
 
     # -----------------------------
-    # 6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
+    # Step6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
     # -----------------------------
     cand_by_name: dict[str, dict] = {}
     for c in valid_candidates:
@@ -1032,7 +1040,7 @@ def build_chat_recommendations(     # noqa: C901
             r.pop("id", None)
 
     # -----------------------------
-    # 7. ユーザーフィルタ（痩せ検知ログ）
+    # Step7. ユーザーフィルタ（痩せ検知ログ）
     # -----------------------------
     before_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
     try:
@@ -1050,9 +1058,12 @@ def build_chat_recommendations(     # noqa: C901
         (extra_condition or "").strip() or None,
     )
 
+    current_pool = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
+
     # ★追加: 0件だった事実をUIへ伝える（フォールバック表示の根拠）
     if not isinstance(recs.get("_signals"), dict):
         recs["_signals"] = {}
+
     if after_filters == 0:
         extra = (extra_condition or "").strip() or None
         msg = "条件に一致する神社が見つかりませんでした（0件）"
@@ -1061,6 +1072,8 @@ def build_chat_recommendations(     # noqa: C901
 
         recs["_signals"]["result_state"] = {
             "matched_count": 0,
+            "pool_count": current_pool,
+            "displayed_count": None,
             "fallback_mode": "nearby_unfiltered",
             "fallback_reason_ja": msg,
             "ui_disclaimer_ja": "代わりに近い神社を表示しています（条件は反映されていません）",
@@ -1070,6 +1083,8 @@ def build_chat_recommendations(     # noqa: C901
         # 0件じゃないときも一応入れておくとUIが安定する（任意）
         recs["_signals"]["result_state"] = {
             "matched_count": after_filters,
+            "pool_count": current_pool,
+            "displayed_count": None,
             "fallback_mode": "none",
             "fallback_reason_ja": None,
             "ui_disclaimer_ja": None,
@@ -1195,7 +1210,17 @@ def build_chat_recommendations(     # noqa: C901
         "[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)])
     )
 
+    # result_state が dict のときだけ触る（今のコード流儀に合わせる）
+    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+        # pool_count: 内部候補（dictだけ数える）
+        recs["_signals"]["result_state"]["pool_count"] = len([x for x in pool_all if isinstance(x, dict)])
+
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
+
+    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+        recs["_signals"]["result_state"]["displayed_count"] = len(
+            [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
+        )
 
     # ✅ finalize_3 で candidates 由来の item が追加されるので breakdown を補完する
     filled = 0

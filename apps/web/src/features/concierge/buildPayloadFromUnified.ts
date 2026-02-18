@@ -15,6 +15,7 @@ type NormalizedItemBase = {
   imageUrl: string | null;
   breakdown: any | null;
   detailHref?: string; // ない時は undefined（nullは使わない）
+  isDummy?: boolean;
 };
 
 type NormalizedRegistered = NormalizedItemBase & {
@@ -62,8 +63,12 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
     (r?.place_id != null ? String(r.place_id).trim() : null) ??
     (r?.placeId != null ? String(r.placeId).trim() : null);
 
-  // ✅ href生成はここだけ（P1）
-  const detailHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
+  const isDummy = r?.is_dummy === true || r?.__dummy === true;
+
+  // href生成（ただしダミーは詳細禁止）
+  const rawHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
+  const detailHref = isDummy ? undefined : rawHref;
+
 
   // DEBUG: これで現実を見る
   if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
@@ -98,6 +103,7 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       imageUrl,
       breakdown,
       detailHref,
+      isDummy,
       goriyakuTags: [],
       initialFav: false,
     };
@@ -116,6 +122,8 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       imageUrl,
       breakdown,
       detailHref,
+      isDummy,
+      // ダミーなら detailLabel は無意味なので空にしてもいい（表示側で使わない）
       detailLabel: "神社の詳細を見る",
     };
   }
@@ -214,6 +222,19 @@ export function buildPayloadFromUnified(
   const isLimitReached = note === "limit-reached" || remainingFree === 0;
 
   const mode = (u as any)?.data?._signals?.mode ?? null;
+  const rsRaw = (u as any)?.data?._signals?.result_state ?? (u as any)?.data?._signals?.resultState ?? null;
+
+  const resultState =
+    rsRaw && typeof rsRaw === "object"
+      ? {
+          matched_count: typeof rsRaw.matched_count === "number" ? rsRaw.matched_count : undefined,
+          fallback_mode: typeof rsRaw.fallback_mode === "string" ? rsRaw.fallback_mode : "none",
+          fallback_reason_ja: typeof rsRaw.fallback_reason_ja === "string" ? rsRaw.fallback_reason_ja : null,
+          ui_disclaimer_ja: typeof rsRaw.ui_disclaimer_ja === "string" ? rsRaw.ui_disclaimer_ja : null,
+          requested_extra_condition:
+            typeof rsRaw.requested_extra_condition === "string" ? rsRaw.requested_extra_condition : null,
+        }
+      : null;
 
   // ✅ recommendations が無いが理由はある → payload 返す
   if (!hasRecs && (reply || isLimitReached)) {
@@ -236,7 +257,7 @@ export function buildPayloadFromUnified(
     return {
       version: 1,
       sections,
-      meta: { mode, note, reply, remainingFree, tid },
+      meta: { mode, note, reply, remainingFree, tid, resultState },
     };
   }
 
@@ -286,7 +307,7 @@ export function buildPayloadFromUnified(
   return {
     version: 1,
     sections,
-    meta: { mode, note, reply, remainingFree, tid },
+    meta: { mode, note, reply, remainingFree, tid, resultState },
   };
 }
 

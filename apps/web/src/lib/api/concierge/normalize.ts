@@ -21,6 +21,8 @@ export function normalizeRecommendations(input: unknown): ConciergeRecommendatio
         display_name: (r.display_name ?? "").toString().trim() || name,
         display_address,
         reason,
+        // ✅ backend: is_dummy を優先し、旧 __dummy も拾う
+        is_dummy: r.is_dummy === true || r.__dummy === true,
         __dummy: r.__dummy === true,
       } as ConciergeRecommendation;
     });
