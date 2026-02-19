@@ -10,6 +10,7 @@ from temples.services.concierge_candidate_normalize import normalize_candidate
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 from temples.domain.kyusei import kyusei_signals
 
+
 def _none_if_blank(x: Any) -> Any:
     if x is None:
         return None
@@ -519,20 +520,21 @@ def _attach_breakdown(
     weights: Dict[str, float],
     astro_bonus_enabled: bool = False,
 ) -> None:
+    # --- normalize astro_elements ---
     if isinstance(rec.get("astro_elements"), list):
         rec["astro_elements"] = _normalize_astro_elements(rec.get("astro_elements"))
 
+    # --- element score ---
     pri_raw = rec.get("astro_priority")
     if isinstance(pri_raw, int):
-        score_element = pri_raw
-        pri = pri_raw
+        score_element = int(pri_raw)
+        pri = int(pri_raw)
     else:
         score_element = 0
         pri = 0
         try:
             if birthdate:
                 from temples.domain.astrology import element_priority, sun_sign_and_element
-
                 prof = sun_sign_and_element(birthdate)
                 if prof:
                     shrine_elems = rec.get("astro_elements") or []
@@ -541,21 +543,25 @@ def _attach_breakdown(
         except Exception:
             pass
 
+    # --- need score: contract = need_tags ∩ shrine_astro_tags ---
     shrine_tags = rec.get("astro_tags") or []
     if not isinstance(shrine_tags, list):
         shrine_tags = []
     shrine_tags = [t for t in shrine_tags if isinstance(t, str) and t.strip()]
+    shrine_tag_set = set(shrine_tags)
 
     need_tags = [t for t in (need_tags or []) if isinstance(t, str) and t.strip()]
-    matched = [t for t in need_tags if t in set(shrine_tags)]
+    matched = [t for t in need_tags if t in shrine_tag_set]
     score_need = int(len(matched))
 
+    # --- popular ---
     try:
         popular_f = float(rec.get("popular_score") or 0.0)
     except Exception:
         popular_f = 0.0
     score_popular = _clamp01(popular_f / 10.0)
 
+    # --- weights ---
     w1 = float(weights.get("element", 0.0))
     w2 = float(weights.get("need", 0.0))
     w3 = float(weights.get("popular", 0.0))
@@ -568,15 +574,12 @@ def _attach_breakdown(
             astro_bonus = 0.3
 
     score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
-
-    # ★ソート用の単一ソース（必ず入れる）
     rec["_score_total"] = float(score_total)
 
-    # ===== API contract: breakdown は「6キー固定」 =====
     rec["breakdown"] = {
         "score_element": int(score_element),
         "score_need": int(score_need),
-        "score_popular": float(score_popular),  # 0..1
+        "score_popular": float(score_popular),
         "score_total": float(score_total),
         "weights": {"element": float(w1), "need": float(w2), "popular": float(w3)},
         "matched_need_tags": matched,
