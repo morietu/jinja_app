@@ -31,11 +31,12 @@ export type RegisteredShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
+  breakdown?: any | null;
+  isDummy?: boolean;
   goriyakuTags: { id: number; name: string }[];
   initialFav: boolean;
 
   detailHref?: string;
-  breakdown?: ConciergeBreakdown | null;
 };
 
 export type PlaceShrineItem = {
@@ -49,6 +50,7 @@ export type PlaceShrineItem = {
   detailHref?: string;
   detailLabel?: string;
   breakdown?: ConciergeBreakdown | null;
+  isDummy?: boolean;
 };
 
 /* =========================
@@ -105,6 +107,13 @@ export type ConciergeSectionsPayload = {
     reply?: string | null;
     remainingFree?: number | null;
     tid?: string | null;
+    resultState?: {
+      matched_count?: number;
+      fallback_mode?: "none" | "nearby_unfiltered" | string;
+      fallback_reason_ja?: string | null;
+      ui_disclaimer_ja?: string | null;
+      requested_extra_condition?: string | null;
+    } | null;
   };
 };
 

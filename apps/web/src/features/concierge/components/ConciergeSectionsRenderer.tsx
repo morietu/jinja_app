@@ -186,12 +186,47 @@ export default function ConciergeSectionsRenderer({
             );
           }
 
-          case "recommendations":
+          case "recommendations": {
+            const items = (sec as any).items ?? [];
+
+            const rs = payload?.meta?.resultState ?? null;
+            const isFallback = rs?.fallback_mode === "nearby_unfiltered";
+            const hasDummy = items.some((x: any) => x?.isDummy === true);
+
+            // 表示優先：fallback_reason_ja > ui_disclaimer_ja > dummy既定文
+            const bannerText =
+              (typeof rs?.fallback_reason_ja === "string" && rs.fallback_reason_ja) ||
+              (typeof rs?.ui_disclaimer_ja === "string" && rs.ui_disclaimer_ja) ||
+              (hasDummy ? "候補不足のため近隣表示です（条件は反映されていません）。" : null);
+
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
+
+                {bannerText && (
+                  <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bannerText}</div>
+                )}
+
+                {(isFallback || hasDummy) && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl border px-4 py-3 text-sm font-semibold"
+                      onClick={() => onAction?.({ type: "open_map" })}
+                    >
+                      位置情報を許可して探す
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
+                      onClick={() => onAction?.({ type: "filter_clear" })}
+                    >
+                      条件を外して再検索
+                    </button>
+                  </div>
+                )}
 
                 {appliedLabel && (
                   <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -239,6 +274,7 @@ export default function ConciergeSectionsRenderer({
                 </div>
               </DetailSection>
             );
+          }
 
           case "astro":
             return (
