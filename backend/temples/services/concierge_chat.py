@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
+from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
+from temples.domain.kyusei import kyusei_signals
 
 
 def _none_if_blank(x: Any) -> Any:
@@ -17,12 +19,19 @@ def _none_if_blank(x: Any) -> Any:
     return x
 
 
+
+
 log = logging.getLogger(__name__)
+
+CONTRACT_WEIGHTS_A = {"element": 0.6, "need": 0.3, "popular": 0.1}
+
+DUMMY_NAMES = {"近隣の神社"}
 
 FLOW_DEFINITIONS = {
     "A": {
         "description": "chat balanced recommendation",
-        "weights": {"element": 0.6, "need": 0.3, "popular": 0.1},
+        # ✅ Contract(test) expects these exact weights
+        "weights": dict(CONTRACT_WEIGHTS_A),
         "astro_bonus_enabled": False,
         "ui_label_ja": "バランス",
         "ui_note_ja": "条件と人気も含めて総合的におすすめしています",
@@ -153,6 +162,12 @@ def _ensure_signals_base(
         "goriyaku_tag_ids": goriyaku_tag_ids,
         "extra_condition": extra_condition,
     }
+    # --- kyusei (user flow) ---
+    try:
+        recs["_signals"]["kyusei"] = kyusei_signals(birthdate)
+    except Exception as e:
+        log.exception("[svc/chat] kyusei_signals failed birthdate=%r: %s", birthdate, e)
+        recs["_signals"]["kyusei"] = None
 
     # ✅ 保険：result_state が消えてたら戻す（将来のsignals全置換事故に備える）
     if prev_result_state is not None and "result_state" not in recs["_signals"]:
@@ -242,7 +257,7 @@ def _finalize_3(
     while len(items) < 3:
         if not allow_dummy:
             break
-        items.append({"name": "近隣の神社", "reason": ""})
+        items.append({"name": "近隣の神社", "reason": "", "is_dummy": True})
 
     recs["recommendations"] = items[:3]
     return recs
@@ -505,20 +520,21 @@ def _attach_breakdown(
     weights: Dict[str, float],
     astro_bonus_enabled: bool = False,
 ) -> None:
+    # --- normalize astro_elements ---
     if isinstance(rec.get("astro_elements"), list):
         rec["astro_elements"] = _normalize_astro_elements(rec.get("astro_elements"))
 
+    # --- element score ---
     pri_raw = rec.get("astro_priority")
     if isinstance(pri_raw, int):
-        score_element = pri_raw
-        pri = pri_raw
+        score_element = int(pri_raw)
+        pri = int(pri_raw)
     else:
         score_element = 0
         pri = 0
         try:
             if birthdate:
                 from temples.domain.astrology import element_priority, sun_sign_and_element
-
                 prof = sun_sign_and_element(birthdate)
                 if prof:
                     shrine_elems = rec.get("astro_elements") or []
@@ -527,21 +543,25 @@ def _attach_breakdown(
         except Exception:
             pass
 
+    # --- need score: contract = need_tags ∩ shrine_astro_tags ---
     shrine_tags = rec.get("astro_tags") or []
     if not isinstance(shrine_tags, list):
         shrine_tags = []
     shrine_tags = [t for t in shrine_tags if isinstance(t, str) and t.strip()]
+    shrine_tag_set = set(shrine_tags)
 
     need_tags = [t for t in (need_tags or []) if isinstance(t, str) and t.strip()]
-    matched = [t for t in need_tags if t in set(shrine_tags)]
+    matched = [t for t in need_tags if t in shrine_tag_set]
     score_need = int(len(matched))
 
+    # --- popular ---
     try:
         popular_f = float(rec.get("popular_score") or 0.0)
     except Exception:
         popular_f = 0.0
     score_popular = _clamp01(popular_f / 10.0)
 
+    # --- weights ---
     w1 = float(weights.get("element", 0.0))
     w2 = float(weights.get("need", 0.0))
     w3 = float(weights.get("popular", 0.0))
@@ -554,19 +574,40 @@ def _attach_breakdown(
             astro_bonus = 0.3
 
     score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
+    rec["_score_total"] = float(score_total)
 
     rec["breakdown"] = {
         "score_element": int(score_element),
         "score_need": int(score_need),
         "score_popular": float(score_popular),
         "score_total": float(score_total),
-        "weights": {"element": w1, "need": w2, "popular": w3},
+        "weights": {"element": float(w1), "need": float(w2), "popular": float(w3)},
         "matched_need_tags": matched,
     }
 
-    rec["score_astro"] = int(pri)
-    if astro_bonus_enabled:
-        rec["astro_bonus"] = float(astro_bonus)
+    # （任意）詳細を残したいなら別キーへ。テスト契約からは外す。
+    rec["breakdown_detail"] = {
+        "version": 1,
+        "features": {
+            "element": {
+                "raw": int(score_element),
+                "weight": float(w1),
+                "contribution": float(score_element * w1),
+            },
+            "need": {
+                "raw": int(score_need),
+                "weight": float(w2),
+                "matched_tags": matched,
+                "contribution": float(score_need * w2),
+            },
+            "popular": {
+                "raw": float(score_popular),
+                "weight": float(w3),
+                "contribution": float(score_popular * w3),
+            },
+            "astro_bonus": float(astro_bonus) if astro_bonus_enabled else 0.0,
+        },
+    }
 
 
 def _apply_user_filters(
@@ -609,19 +650,6 @@ def _apply_user_filters(
             if not any(t in rec_tag_ints for t in gids):
                 continue
 
-        if extra:
-            blob = " ".join(
-                [
-                    str(r.get("name") or ""),
-                    str(r.get("reason") or ""),
-                    " ".join([x for x in (r.get("bullets") or []) if isinstance(x, str)]),
-                    " ".join([x for x in (r.get("tags") or []) if isinstance(x, str)]),
-                    " ".join([x for x in (r.get("deities") or []) if isinstance(x, str)]),
-                ]
-            )
-            if extra not in blob:
-                continue
-
         out.append(r)
 
     recs["recommendations"] = out
@@ -661,12 +689,23 @@ def build_chat_recommendations(     # noqa: C901
     requested_flow = flow
 
     # 距離順 key（distance_m 無しは最後）
-    def _dist_key(c: dict) -> tuple[int, float]:
+    def _cand_dist_key(c: dict) -> tuple[int, float]:
         d = c.get("distance_m")
         try:
             return (0, float(d))
         except Exception:
             return (1, 1e18)
+
+    # 推薦アイテムの距離順 key（distance_m 無しは最後、同距離はnameで安定化）
+    def _rec_dist_key(x: Any) -> tuple[int, float, str]:
+        if not isinstance(x, dict):
+            return (1, 1e18, "")
+        d = x.get("distance_m")
+        name = str(x.get("name") or "")
+        try:
+            return (0, float(d), name)
+        except Exception:
+            return (1, 1e18, name)
 
     # --- DEBUG: raw candidates snapshot (before normalize) ---
     try:
@@ -682,6 +721,8 @@ def build_chat_recommendations(     # noqa: C901
             )
     except Exception:
         pass
+    
+    log.info("[svc/chat] ENTER build_chat_recommendations query=%r candidates=%d", (query or "")[:30], len(candidates or []))
 
     # --- DEBUG: raw place-id stats (before normalize) ---
     def _nonempty(d: dict, k: str) -> bool:
@@ -721,7 +762,7 @@ def build_chat_recommendations(     # noqa: C901
     ]
 
     # 距離順（distance_m 無しは最後）
-    valid_candidates.sort(key=_dist_key)
+    valid_candidates.sort(key=_cand_dist_key)
 
     dist_sample = [c.get("distance_m") for c in valid_candidates[:5]]
     log.info(
@@ -799,7 +840,15 @@ def build_chat_recommendations(     # noqa: C901
                 ]
 
         recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
-        recs["_signals"]["empty_reason"] = None
+        recs["_signals"]["result_state"] = {
+            "matched_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "fallback_mode": "none",
+            "fallback_reason_ja": None,
+            "ui_disclaimer_ja": None,
+            "requested_extra_condition": (extra_condition or "").strip() or None,
+            "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+        }
         return recs
 
     # 3. need（ご利益タグ）抽出
@@ -807,6 +856,22 @@ def build_chat_recommendations(     # noqa: C901
     if isinstance(_need, dict):
         recs["_need"] = _need
 
+
+    # 3.5 extra_condition（自由文）を辞書タグ化
+    sort_tags: set[str] = set()
+    try:
+        ex = extract_extra_tags(extra_condition or "", max_tags=3)
+        kinds = split_tags_by_kind(ex.tags)
+        recs["_extra"] = {"tags": list(ex.tags), "hits": dict(ex.hits), "kinds": kinds}
+        sort_tags = set(kinds.get("sort_override") or [])
+    except Exception:
+        recs["_extra"] = {
+            "tags": [],
+            "hits": {},
+            "kinds": {"sort_override": [], "hard_filter": [], "soft_signal": [], "unknown": []},
+        }
+        sort_tags = set()
+    
     # 4. 候補プール（astro_onなら広めに）
     pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
@@ -853,6 +918,9 @@ def build_chat_recommendations(     # noqa: C901
 
         nm = (r.get("name") or "").strip()
         if not nm:
+            continue
+        # ダミーは address lookup をスキップ
+        if r.get("is_dummy") is True or nm in DUMMY_NAMES:
             continue
 
         eligible += 1
@@ -910,7 +978,7 @@ def build_chat_recommendations(     # noqa: C901
     )
 
     # -----------------------------
-    # 6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
+    # Step6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
     # -----------------------------
     cand_by_name: dict[str, dict] = {}
     for c in valid_candidates:
@@ -975,7 +1043,7 @@ def build_chat_recommendations(     # noqa: C901
             r.pop("id", None)
 
     # -----------------------------
-    # 7. ユーザーフィルタ（痩せ検知ログ）
+    # Step7. ユーザーフィルタ（痩せ検知ログ）
     # -----------------------------
     before_filters = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
     try:
@@ -993,9 +1061,12 @@ def build_chat_recommendations(     # noqa: C901
         (extra_condition or "").strip() or None,
     )
 
+    current_pool = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
+
     # ★追加: 0件だった事実をUIへ伝える（フォールバック表示の根拠）
     if not isinstance(recs.get("_signals"), dict):
         recs["_signals"] = {}
+
     if after_filters == 0:
         extra = (extra_condition or "").strip() or None
         msg = "条件に一致する神社が見つかりませんでした（0件）"
@@ -1004,6 +1075,8 @@ def build_chat_recommendations(     # noqa: C901
 
         recs["_signals"]["result_state"] = {
             "matched_count": 0,
+            "pool_count": current_pool,
+            "displayed_count": None,
             "fallback_mode": "nearby_unfiltered",
             "fallback_reason_ja": msg,
             "ui_disclaimer_ja": "代わりに近い神社を表示しています（条件は反映されていません）",
@@ -1013,6 +1086,8 @@ def build_chat_recommendations(     # noqa: C901
         # 0件じゃないときも一応入れておくとUIが安定する（任意）
         recs["_signals"]["result_state"] = {
             "matched_count": after_filters,
+            "pool_count": current_pool,
+            "displayed_count": None,
             "fallback_mode": "none",
             "fallback_reason_ja": None,
             "ui_disclaimer_ja": None,
@@ -1036,7 +1111,6 @@ def build_chat_recommendations(     # noqa: C901
     # -----------------------------
     # 9. スコアリング（flow weights）
     # -----------------------------
-
     flow_def = FLOW_DEFINITIONS.get(flow, FLOW_DEFINITIONS["A"])
     WEIGHTS = dict(flow_def["weights"])
     astro_bonus_enabled = bool(flow_def["astro_bonus_enabled"])
@@ -1045,6 +1119,7 @@ def build_chat_recommendations(     # noqa: C901
     need_tags = list((recs.get("_need") or {}).get("tags") or [])
     need_tags = [t for t in need_tags if isinstance(t, str) and t.strip()]
 
+    # 1) 先に breakdown を全件に付与
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
@@ -1056,12 +1131,43 @@ def build_chat_recommendations(     # noqa: C901
             astro_bonus_enabled=astro_bonus_enabled,
         )
 
+    # 2) fallback 状態を先に確定（この後のソート判断に使う）
+    rs = (
+        recs.get("_signals", {}).get("result_state")
+        if isinstance(recs.get("_signals"), dict)
+        else None
+    )
+    force_distance = "sort_distance" in sort_tags
+    fallback_distance = isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered"
+    distance_mode = force_distance or fallback_distance
+
+    # 3) ログは1回だけ（top5の状態確認）
+    try:
+        top = [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)][:5]
+        log.info(
+            "[svc/chat] score_debug top=%r",
+            [
+                {
+                    "name": x.get("name"),
+                    "astro_priority": x.get("astro_priority"),
+                    "popular_score": x.get("popular_score"),
+                    "_score_total": x.get("_score_total"),
+                    "distance_m": x.get("distance_m"),
+                    "has_breakdown": isinstance(x.get("breakdown"), dict),
+                }
+                for x in top
+            ],
+        )
+    except Exception:
+        pass
+
+    log.info("[svc/chat] sort_mode=%s", "distance" if distance_mode else "score")
+
     def _score_key(rec: Any) -> tuple[float, int]:
         if not isinstance(rec, dict):
             return (0.0, 0)
-        bd = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
         try:
-            score_total = float(bd.get("score_total", 0.0))
+            score_total = float(rec.get("_score_total", 0.0))
         except Exception:
             score_total = 0.0
         try:
@@ -1070,30 +1176,15 @@ def build_chat_recommendations(     # noqa: C901
             astro_pri = 0
         return (score_total, astro_pri)
 
-    # 通常はスコア順
+    # 4) まずはスコア順に並べる
     recs["recommendations"] = sorted(
-        recs.get("recommendations") or [], key=_score_key, reverse=True
+        [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+        key=_score_key,
+        reverse=True,
     )
 
-    # fallback時だけ距離順に上書き（distance_m無しは最後、同距離はnameで安定化）
-    def _dist_key(x: dict) -> tuple[int, float, str]:
-        d = x.get("distance_m")
-        name = str(x.get("name") or "")
-        try:
-            return (0, float(d), name)
-        except Exception:
-            return (1, 1e18, name)
 
-    rs = (
-        recs.get("_signals", {}).get("result_state")
-        if isinstance(recs.get("_signals"), dict)
-        else None
-    )
-    if isinstance(rs, dict) and rs.get("fallback_mode") == "nearby_unfiltered":
-        recs["recommendations"] = sorted(
-            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-            key=_dist_key,
-        )
+
     # -----------------------------
     # 10. lat/lng必須（ただし3件未満になるならスキップ）: 痩せ検知ログ
     # -----------------------------
@@ -1122,10 +1213,63 @@ def build_chat_recommendations(     # noqa: C901
         "[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)])
     )
 
+    # result_state が dict のときだけ触る（今のコード流儀に合わせる）
+    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+        # pool_count: 内部候補（dictだけ数える）
+        recs["_signals"]["result_state"]["pool_count"] = len([x for x in pool_all if isinstance(x, dict)])
+
     recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
+
+    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+        recs["_signals"]["result_state"]["displayed_count"] = len(
+            [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
+        )
+
+    # ✅ finalize_3 で candidates 由来の item が追加されるので breakdown を補完する
+    filled = 0
+    for r in (recs.get("recommendations") or []):
+        if not isinstance(r, dict):
+            continue
+        if isinstance(r.get("breakdown"), dict):
+            continue
+        _attach_breakdown(
+            r,
+            birthdate=birthdate,
+            need_tags=need_tags,
+            weights=WEIGHTS,
+            astro_bonus_enabled=astro_bonus_enabled,
+        )
+        filled += 1
+
+    # ✅ 補完後に items を確定させる（ズレ防止）
     items = recs.get("recommendations") or []
 
+    log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
+
+
+    if distance_mode:
+        recs["recommendations"] = sorted(
+            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+            key=_rec_dist_key,
+        )
+    else:
+        recs["recommendations"] = sorted(
+            [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
+            key=_score_key,
+            reverse=True,
+        )
+
+    
+
+    # ✅ ソート（または距離順）確定後の items を取り直す（ズレ防止）
+    items = recs.get("recommendations") or []
+
+    log.info(
+        "[svc/chat] top3 after final sort: %r",
+        [(r.get("name"), r.get("_score_total"), r.get("distance_m")) for r in (recs.get("recommendations") or [])[:3]]
+    )
+
 
     if not isinstance(items, list) or len(items) < 3:
         _ensure_signals_base(
@@ -1141,7 +1285,14 @@ def build_chat_recommendations(     # noqa: C901
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
         return recs
 
+    def _prepend_unique(xs: list[str], s: str) -> list[str]:
+        if s in xs:
+            xs.remove(s)
+        return [s] + xs
+
     # 12. 表示用整形
+    soft_tags = set(((recs.get("_extra") or {}).get("kinds") or {}).get("soft_signal") or [])
+
     for r in items:
         if not isinstance(r, dict):
             continue
@@ -1163,6 +1314,21 @@ def build_chat_recommendations(     # noqa: C901
         except Exception:
             r["reason"] = "静かに手を合わせたい社"
 
+        # soft_signal を highlights へ注入（スコアはいじらない）
+        if soft_tags:
+            hs = r.get("highlights")
+            if not isinstance(hs, list):
+                hs = []
+
+            
+
+            if "energize" in soft_tags:
+                hs = _prepend_unique(hs, "前向きさ・活力を後押ししやすい雰囲気")
+            if "calm" in soft_tags:
+                hs = _prepend_unique(hs, "落ち着いて気持ちを整えやすい雰囲気")
+
+            r["highlights"] = hs[:3]
+
         try:
             r["bullets"] = build_bullets_for_chat(r, query=query)
         except Exception:
@@ -1171,6 +1337,8 @@ def build_chat_recommendations(     # noqa: C901
                 "混雑しにくい可能性",
                 "雰囲気が希望に合う可能性",
             ]
+
+
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):

@@ -6,6 +6,12 @@ PYTHONPATH ?= backend
 export PYTHONPATH
 export DJANGO_SETTINGS_MODULE := shrine_project.settings
 
+.PHONY: dev
+
+dev:
+	BILLING_STUB_PLAN=premium BILLING_STUB_ACTIVE=1 \
+	$(PY) backend/manage.py runserver --noreload
+
 # ===== DB (local) =====
 DB_NAME ?= jinja_db
 DB_USER ?= admin

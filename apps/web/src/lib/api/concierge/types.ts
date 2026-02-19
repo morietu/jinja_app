@@ -49,6 +49,7 @@ export type ConciergeRecommendation = {
   reason: string;
 
   photo_url?: string | null;
+  is_dummy?: boolean;
   __dummy?: boolean;
 };
 

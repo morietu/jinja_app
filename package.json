@@ -22,11 +22,10 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "eslint": "^9.7.0",
     "@next/eslint-plugin-next": "^16.1.6",
     "@stoplight/spectral-cli": "^6.15.0",
     "baseline-browser-mapping": "^2.9.19",
-    "eslint": "^10.0.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
