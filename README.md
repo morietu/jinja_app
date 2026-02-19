@@ -73,10 +73,16 @@ python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 ```
 
+export BILLING_STUB_PLAN=premium
+python manage.py runserver
+
 **Places API 新ルートを使う場合**
 ```bash
 PLACES_API_NEW=1 python manage.py runserver 8000
 ```
+
+### 起動時、プロジェクトルートでのコマンド
+make dev
 
 ### Web
 

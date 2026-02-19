@@ -501,24 +501,30 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {
-            "format": "%(levelname)s %(name)s: %(message)s",
-        },
+        "simple": {"format": "%(levelname)s %(name)s: %(message)s"},
     },
     "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "simple",
-        },
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+    },
+    "root": {  # ← これが無いと “大半のログ” が死ぬ
+        "handlers": ["console"],
+        "level": "INFO",
     },
     "loggers": {
-        # あなたが見たいものだけ INFO で出す
+        "django.server": {  # ← runserver のアクセスログ
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "temples.services.concierge_chat": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
-        # （任意）候補正規化まわり全般も見たいなら
-        # "temples.services": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "temples.api_views_concierge": {   # ←追加
+        "handlers": ["console"],
+        "level": "INFO",
+        "propagate": False,
+    },
     },
 }

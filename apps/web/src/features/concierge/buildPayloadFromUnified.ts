@@ -15,6 +15,7 @@ type NormalizedItemBase = {
   imageUrl: string | null;
   breakdown: any | null;
   detailHref?: string; // ない時は undefined（nullは使わない）
+  isDummy?: boolean;
 };
 
 type NormalizedRegistered = NormalizedItemBase & {
@@ -62,8 +63,12 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
     (r?.place_id != null ? String(r.place_id).trim() : null) ??
     (r?.placeId != null ? String(r.placeId).trim() : null);
 
-  // ✅ href生成はここだけ（P1）
-  const detailHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
+  const isDummy = r?.is_dummy === true || r?.__dummy === true;
+
+  // href生成（ただしダミーは詳細禁止）
+  const rawHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
+  const detailHref = isDummy ? undefined : rawHref;
+
 
   // DEBUG: これで現実を見る
   if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
@@ -98,6 +103,7 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       imageUrl,
       breakdown,
       detailHref,
+      isDummy,
       goriyakuTags: [],
       initialFav: false,
     };
@@ -116,41 +122,65 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       imageUrl,
       breakdown,
       detailHref,
+      isDummy,
+      // ダミーなら detailLabel は無意味なので空にしてもいい（表示側で使わない）
       detailLabel: "神社の詳細を見る",
     };
   }
 
   return null;
 }
-
 function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
   const out: NormalizedItem[] = [];
   const seenShrine = new Set<number>();
   const seenPlace = new Set<string>();
   const norm = (s: string) => s.trim().toLowerCase();
 
-  // 1) registered を先に確保（混在したら registered 勝ちを保証）
+  // placeId -> out index（registered only）
+  const registeredByPlace = new Map<string, number>();
+
+  // 1) registered を先に確保
   for (const item of items) {
     if (item.kind !== "registered") continue;
 
     if (seenShrine.has(item.shrineId)) continue;
     seenShrine.add(item.shrineId);
 
+    out.push(item);
+
+    // ★ push 後の index を保存
     if (item.placeId) {
       const k = norm(item.placeId);
-      if (k) seenPlace.add(k);
+      if (k) {
+        seenPlace.add(k);
+        registeredByPlace.set(k, out.length - 1);
+      }
     }
-
-    out.push(item);
   }
 
-  // 2) place は後から（registered に同placeIdがいたら落ちる）
+  // 2) place は後から
   for (const item of items) {
     if (item.kind !== "place") continue;
 
     const k = norm(item.placeId);
     if (!k) continue;
-    if (seenPlace.has(k)) continue;
+
+    if (seenPlace.has(k)) {
+      // ★ breakdown だけ救出
+      const idx = registeredByPlace.get(k);
+      if (idx != null) {
+        const reg = out[idx];
+        if (
+          reg?.kind === "registered" &&
+          (reg.breakdown == null || typeof reg.breakdown !== "object") &&
+          item.breakdown &&
+          typeof item.breakdown === "object"
+        ) {
+          out[idx] = { ...reg, breakdown: item.breakdown };
+        }
+      }
+      continue;
+    }
 
     seenPlace.add(k);
     out.push(item);
@@ -192,6 +222,19 @@ export function buildPayloadFromUnified(
   const isLimitReached = note === "limit-reached" || remainingFree === 0;
 
   const mode = (u as any)?.data?._signals?.mode ?? null;
+  const rsRaw = (u as any)?.data?._signals?.result_state ?? (u as any)?.data?._signals?.resultState ?? null;
+
+  const resultState =
+    rsRaw && typeof rsRaw === "object"
+      ? {
+          matched_count: typeof rsRaw.matched_count === "number" ? rsRaw.matched_count : undefined,
+          fallback_mode: typeof rsRaw.fallback_mode === "string" ? rsRaw.fallback_mode : "none",
+          fallback_reason_ja: typeof rsRaw.fallback_reason_ja === "string" ? rsRaw.fallback_reason_ja : null,
+          ui_disclaimer_ja: typeof rsRaw.ui_disclaimer_ja === "string" ? rsRaw.ui_disclaimer_ja : null,
+          requested_extra_condition:
+            typeof rsRaw.requested_extra_condition === "string" ? rsRaw.requested_extra_condition : null,
+        }
+      : null;
 
   // ✅ recommendations が無いが理由はある → payload 返す
   if (!hasRecs && (reply || isLimitReached)) {
@@ -214,7 +257,7 @@ export function buildPayloadFromUnified(
     return {
       version: 1,
       sections,
-      meta: { mode, note, reply, remainingFree, tid },
+      meta: { mode, note, reply, remainingFree, tid, resultState },
     };
   }
 
@@ -264,7 +307,7 @@ export function buildPayloadFromUnified(
   return {
     version: 1,
     sections,
-    meta: { mode, note, reply, remainingFree, tid },
+    meta: { mode, note, reply, remainingFree, tid, resultState },
   };
 }
 
