@@ -80,7 +80,7 @@ jobs:
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Show import path & locate temples
         shell: bash
@@ -208,6 +208,12 @@ jobs:
             libblas3 liblapack3 libopenblas0 libgfortran5
           version: 2
 
+      - name: Disable Microsoft apt repos (avoid 403 on runners)
+        run: |
+          set -euxo pipefail
+          sudo sh -c 'for f in /etc/apt/sources.list.d/*.list; do [ -f "$f" ] && sed -i "s|^deb .*packages\\.microsoft\\.com|# &|g" "$f"; done' || true
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.list /etc/apt/sources.list.d/microsoft-prod.list || true
+
       # ★ BLAS/LAPACK はキャッシュ復元と別に必ず明示導入
       - name: Install BLAS/LAPACK runtime (for GDAL)
         run: |
@@ -218,7 +224,7 @@ jobs:
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Wait for DB
         run: |
