@@ -1,14 +1,25 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/apps/web"
+  - package-ecosystem: "npm"   # pnpmでもここは npm 扱いのことが多い（内部でpnpm検出する）
+    directory: "/"             # ← 重要：workspaceルート
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    target-branch: "develop"
+
     groups:
       web-deps:
         patterns:
-          - "*"
+          - "next"
+          - "react"
+          - "react-dom"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "tailwind-merge"
+          - "@storybook/*"
+          - "storybook"
+          - "lucide-react"
+          - "@typescript-eslint/*"
+          - "typescript-eslint"
 
   - package-ecosystem: "pip"
     directory: "/backend"
