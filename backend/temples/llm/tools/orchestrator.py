@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 from typing import Any, Dict, List
+from django.conf import settings
 
 from .db_search import search_db_shrines
 from .places_search import search_places_text
@@ -45,6 +46,32 @@ def chat_to_plan(
     )
     candidates: List[Dict[str, Any]] = sorted([*db, *places], key=lambda x: x["distance_m"])[:12]
 
+    # 3) LLM Disabledなら必ずフォールバック（MUST NOT 外部通信）
+    if not bool(getattr(settings, "USE_LLM_CONCIERGE", False)):
+        picked = candidates[:3]
+        out = {
+            "plan_id": plan_id,
+            "summary": "近い順で候補を提示します（LLM Disabled フォールバック）。",
+            "shrines": [
+                {
+                    "name": s["name"],
+                    "id": s.get("id"),
+                    "place_id": s.get("place_id"),
+                    "reason": "現在地から近いため。",
+                    "distance_m": int(s["distance_m"]),
+                    "duration_min": rough_route(int(s["distance_m"]), transport),
+                    "lat": s.get("lat"),
+                    "lng": s.get("lng"),
+                }
+                for s in picked
+            ],
+            "tips": [
+                "朝は比較的空いています。",
+                "参拝作法を確認してから臨みましょう。",
+            ],
+        }
+        return out
+
     # 3) OpenAIキーが無ければフォールバック（距離順 上位3件）
     if not (OpenAI and os.getenv("OPENAI_API_KEY")):
         picked = candidates[:3]
@@ -75,10 +102,7 @@ def chat_to_plan(
     client = OpenAI()
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": f"現在地: lat={lat}, lng={lng}, 移動手段: {transport}",
-        },
+        {"role": "user", "content": f"現在地: lat={lat}, lng={lng}, 移動手段: {transport}"},
         {"role": "user", "content": f"要望: {message}"},
         {
             "role": "user",
@@ -94,5 +118,4 @@ def chat_to_plan(
     )
     out = resp.output_parsed or {}
     out["plan_id"] = plan_id
-    # 安全のためサーバ側でduration再計算（LLMの誤差を抑える）
     return _recalc_duration(out, transport)
