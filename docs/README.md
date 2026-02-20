@@ -30,6 +30,9 @@
 - 実装は `backend/temples/llm/` 配下  
 - 方針：自由会話はしない。1回解析して構造化し、推薦・距離計算・フォールバックはサーバ側で決める。
 
+- Concierge chat 仕様（LLM ON/OFF定義、contract fields、ログの見方）
+  - `concierge_spec.md`
+
 （必要になったら追加予定）
 - `llm/overview.md`（予定）
 

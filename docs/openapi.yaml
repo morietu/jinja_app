@@ -103,6 +103,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/ConciergeHistoryDetail"
 
+  /api/concierge/chat/:
+    post:
+      tags: [Concierge]
+      summary: Concierge chat recommendations
+      description: >
+        コンシェルジュ推薦を返す。契約フィールドは data._need / recommendations[].breakdown / data._signals.mode を保証する。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConciergeChatRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConciergeChatResponse"
+
 
   /api/directions/:
     get:
@@ -299,3 +319,187 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ConciergeMessage"
+    
+        # ----------------------------
+    # Concierge Chat (contract)
+    # ----------------------------
+
+    ConciergeChatRequest:
+      type: object
+      required: [message, candidates]
+      properties:
+        message:
+          type: string
+          description: "ユーザー入力（message/query のどちらかは必須運用だが、契約は message を基準にする）"
+        query:
+          type: string
+          nullable: true
+          description: "互換用: message の別名"
+        birthdate:
+          type: string
+          nullable: true
+          example: "1984-05-15"
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        goriyaku_tag_ids:
+          type: array
+          nullable: true
+          items: { type: integer }
+        extra_condition:
+          type: string
+          nullable: true
+        flow:
+          type: string
+          nullable: true
+          enum: ["A", "B"]
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name: { type: string }
+              formatted_address: { type: string, nullable: true }
+              address: { type: string, nullable: true }
+              lat: { type: number, nullable: true }
+              lng: { type: number, nullable: true }
+              distance_m: { type: number, nullable: true }
+              place_id: { type: string, nullable: true }
+              shrine_id: { type: integer, nullable: true }
+              goriyaku_tag_ids:
+                type: array
+                nullable: true
+                items: { type: integer }
+              popular_score: { type: number, nullable: true }
+
+    ConciergeNeed:
+      type: object
+      required: [tags, hits]
+      additionalProperties: false
+      properties:
+        tags:
+          type: array
+          maxItems: 3
+          items: { type: string }
+        hits:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    ConciergeBreakdownWeights:
+      type: object
+      required: [element, need, popular]
+      additionalProperties: false
+      properties:
+        element: { type: number }
+        need: { type: number }
+        popular: { type: number }
+
+    ConciergeBreakdown:
+      type: object
+      required:
+        - score_element
+        - score_need
+        - score_popular
+        - score_total
+        - weights
+        - matched_need_tags
+      additionalProperties: true
+      properties:
+        score_element: { type: integer }
+        score_need: { type: integer }
+        score_popular:
+          type: number
+          minimum: 0
+          maximum: 1
+        score_total: { type: number }
+        weights:
+          $ref: "#/components/schemas/ConciergeBreakdownWeights"
+        matched_need_tags:
+          type: array
+          items: { type: string }
+
+    ConciergeSignalsMode:
+      type: object
+      required: [flow, weights, astro_bonus_enabled]
+      additionalProperties: true
+      properties:
+        flow: { type: string, enum: ["A", "B"] }
+        weights:
+          $ref: "#/components/schemas/ConciergeBreakdownWeights"
+        astro_bonus_enabled: { type: boolean }
+        description: { type: string, nullable: true }
+        ui_label_ja: { type: string, nullable: true }
+        ui_note_ja: { type: string, nullable: true }
+
+    ConciergeSignals:
+      type: object
+      required: [mode]
+      additionalProperties: true
+      properties:
+        mode:
+          $ref: "#/components/schemas/ConciergeSignalsMode"
+        # 他は運用で増えるので optional のまま
+        result_state:
+          type: object
+          nullable: true
+        llm:
+          type: object
+          nullable: true
+
+    ConciergeRecommendation:
+      type: object
+      required: [name, reason, breakdown]
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        reason: { type: string }
+        breakdown:
+          $ref: "#/components/schemas/ConciergeBreakdown"
+
+        # --- 以下は運用で付く/付かないので optional ---
+        location: { type: string, nullable: true }
+        display_name: { type: string, nullable: true }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        distance_m: { type: number, nullable: true }
+        place_id: { type: string, nullable: true }
+        shrine_id: { type: integer, nullable: true }
+        popular_score: { type: number, nullable: true }
+        astro_priority: { type: integer, nullable: true }
+        astro_elements:
+          type: array
+          nullable: true
+          items: { type: string }
+        astro_tags:
+          type: array
+          nullable: true
+          items: { type: string }
+
+    ConciergeChatData:
+      type: object
+      required: [_need, recommendations, _signals]
+      additionalProperties: true
+      properties:
+        _need:
+          $ref: "#/components/schemas/ConciergeNeed"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConciergeRecommendation"
+        _signals:
+          $ref: "#/components/schemas/ConciergeSignals"
+
+    ConciergeChatResponse:
+      type: object
+      required: [ok, data]
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        data:
+          $ref: "#/components/schemas/ConciergeChatData"
