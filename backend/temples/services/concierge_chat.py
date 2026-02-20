@@ -530,22 +530,22 @@ def _attach_breakdown(
 
     # --- element score ---
     pri_raw = rec.get("astro_priority")
-    if isinstance(pri_raw, int):
-        score_element = int(pri_raw)
-        pri = int(pri_raw)
-    else:
-        score_element = 0
-        pri = 0
+    pri = int(pri_raw) if isinstance(pri_raw, int) else 0
+
+    # birthdate があれば常に再計算（contract優先）
+    if birthdate:
         try:
-            if birthdate:
-                from temples.domain.astrology import element_priority, sun_sign_and_element
-                prof = sun_sign_and_element(birthdate)
-                if prof:
-                    shrine_elems = rec.get("astro_elements") or []
-                    pri = int(element_priority(prof.element, shrine_elems))
-                    score_element = pri
+            from temples.domain.astrology import element_priority, sun_sign_and_element
+
+            prof = sun_sign_and_element(birthdate)
+            if prof:
+                shrine_elems = rec.get("astro_elements") or []
+                pri = int(element_priority(prof.element, shrine_elems))
         except Exception:
             pass
+    
+    score_element = int(pri)
+
 
     # --- need score: contract = need_tags ∩ shrine_astro_tags ---
     shrine_tags = rec.get("astro_tags") or []
@@ -881,15 +881,12 @@ def build_chat_recommendations(     # noqa: C901
     llm_used = False
     llm_error: str | None = None
 
-    if _use_llm():
-        try:
-            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
-            recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
-            llm_used = True
-        except Exception as e:
-            llm_error = f"{type(e).__name__}: {e}"
-            recs = _seed_recs_from_candidates(valid_candidates, size=3)
-    else:
+    try:
+        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+        recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
+        llm_used = _use_llm()
+    except Exception as e:
+        llm_error = f"{type(e).__name__}: {e}"
         recs = _seed_recs_from_candidates(valid_candidates, size=3)
 
     if isinstance(recs, list):
@@ -1308,46 +1305,40 @@ def build_chat_recommendations(     # noqa: C901
     # -----------------------------
     # 11. 最終3件確定（痩せ検知ログ）
     # -----------------------------
-    pool_all = list(recs.get("recommendations") or [])
-    log.info(
-        "[svc/chat] finalize_3 enter pool=%d", len([x for x in pool_all if isinstance(x, dict)])
-    )
+    pool_all = [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
+    pool_n = len(pool_all)
 
-    # result_state が dict のときだけ触る（今のコード流儀に合わせる）
-    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
-        # pool_count: 内部候補（dictだけ数える）
-        recs["_signals"]["result_state"]["pool_count"] = len([x for x in pool_all if isinstance(x, dict)])
-
-    recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
+    log.info("[svc/chat] finalize_3 enter pool=%d", pool_n)
 
     if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
-        recs["_signals"]["result_state"]["displayed_count"] = len(
-            [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
-        )
+        recs["_signals"]["result_state"]["pool_count"] = pool_n
 
-    # ✅ finalize_3 で candidates 由来の item が追加されるので breakdown を補完する
-    filled = 0
-    for r in (recs.get("recommendations") or []):
-        if not isinstance(r, dict):
-            continue
-        if isinstance(r.get("breakdown"), dict):
-            continue
-        _attach_breakdown(
-            r,
-            birthdate=birthdate,
-            need_tags=need_tags,
-            weights=WEIGHTS,
-            astro_bonus_enabled=astro_bonus_enabled,
-        )
-        filled += 1
+    filled = 0  # breakdown backfill 件数（ログ用）
 
-    # ✅ 補完後に items を確定させる（ズレ防止）
+    # ★ 3件未満のときだけ補完
+    if pool_n < 3:
+        recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
+
+        if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+            recs["_signals"]["result_state"]["displayed_count"] = len(
+                [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
+            )
+
+        # finalize_3 で追加された分だけ breakdown 補完
+        for r in (recs.get("recommendations") or []):
+            if isinstance(r, dict) and not isinstance(r.get("breakdown"), dict):
+                _attach_breakdown(
+                    r,
+                    birthdate=birthdate,
+                    need_tags=need_tags,
+                    weights=WEIGHTS,
+                    astro_bonus_enabled=astro_bonus_enabled,
+                )
+                filled += 1
+
     items = recs.get("recommendations") or []
-
     log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
-
-
     if distance_mode:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],

@@ -68,6 +68,11 @@ def _safe_extract_intent(text: str):
         return None
 
 
+def extract_intent(text: str):
+    """Test monkeypatch compatibility shim."""
+    return _safe_extract_intent(text)
+
+
 
 # --- pytest 安定化：外部 export された BILLING_STUB_* に引きずられない ---
 _ORIG_BILLING_STUB_PLAN = os.environ.get("BILLING_STUB_PLAN")
@@ -387,7 +392,7 @@ class ConciergeChatView(APIView):
             log.info("[api/chat] computed bias=%r (from lat/lng/radius_m)", bias)
 
         # intent は常に返す
-        intent = _safe_extract_intent(query)
+        intent = extract_intent(query)
 
         # ---- user 解決（DRFが未認証でもBearerから復元）----
         user, token = _resolve_user_and_token(request)
