@@ -39,10 +39,30 @@
 ```
 
 - `enabled`: 設定上LLMが許可されているか
-- `used`: 実装上は enabled を反映（※現状、外部到達保証ではない）
+- `enabled=false` でも `used=true` になり得る（suggest() の試行有無を示すため）。外部LLM到達とは無関係。
+- `used`: suggest() を試行したか（外部LLM到達を保証しない）
 - `error`: suggest失敗時の例外情報
 
+
+## 1.3 LLM Disabled の禁止事項（厳守）
+
+LLM Disabled のとき、以下は禁止する：
+
+- 外部LLM（OpenAI等）への HTTP/SDK 経由の通信
+- 外部推論API（LLMに準ずる第三者API）への通信（プロキシ経由も含む）
+- 「キー未設定だから叩けない」など、結果論での非通信に依存する運用
+- 推論目的の外部API呼び出しは原則禁止（分類器/要約API等、LLM相当のものを含む）
+
+> Disabled は「叩けない」ではなく「叩かない」。
+
+## 1.4 Orchestrator の位置づけ
+
+- Orchestrator を呼ぶこと自体は、LLMの外部通信を意味しない
+- LLM Disabled のとき、Orchestrator は「ルールベース／ローカル完結」の実装であることが期待される
+- Orchestrator 内で外部LLM呼び出しが必要な場合は、LLM Enabled のときのみ許可する
 ---
+
+
 
 # 2. API Contract（破壊禁止項目）
 * この契約は docs/openapi.yaml によって強制される。
