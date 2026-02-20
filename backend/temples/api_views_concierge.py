@@ -1,6 +1,7 @@
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
 
+
 from typing import Any, Dict, Optional
 
 import logging
@@ -17,9 +18,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
+# これを消す / コメントアウト
+# from temples.llm import extract_intent
+# from temples.llm import orchestrator as orch
 
-from temples.llm import extract_intent
-from temples.llm import orchestrator as orch
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.services.concierge_history import append_chat
@@ -30,20 +32,40 @@ from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.models import ConciergeUsage
 
 log = logging.getLogger(__name__)
-
+def _use_llm() -> bool:
+    return bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
 
 # --- compat: tests monkeypatch 用に module attribute を生やす ---
-# import 時に orch 側の依存で落ちても、このモジュール自体は import できるようにする
 try:
-    ConciergeOrchestrator = orch.ConciergeOrchestrator
-    orchestrate_concierge = orch.orchestrate_concierge
+    if _use_llm():
+        from temples.llm import orchestrator as orch
+        ConciergeOrchestrator = orch.ConciergeOrchestrator
+        orchestrate_concierge = orch.orchestrate_concierge
+    else:
+        raise RuntimeError("LLM disabled")
 except Exception:  # pragma: no cover
     ConciergeOrchestrator = None  # type: ignore[misc,assignment]
-
-    def orchestrate_concierge(*args, **kwargs):  # type: ignore[no-redef]
+    def orchestrate_concierge(*args, **kwargs):
         return {"recommendations": []}
 
 
+def _use_llm() -> bool:
+    return bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
+
+
+def _safe_extract_intent(text: str):
+    """
+    LLM無効なら intent は None（or 最小のヒューリスティック）で返す。
+    view層で OpenAI を絶対に叩かない。
+    """
+    if not _use_llm():
+        return None
+
+    try:
+        from temples.llm import extract_intent
+        return extract_intent(text)  # 既存APIに合わせる
+    except Exception:
+        return None
 
 
 
@@ -267,6 +289,13 @@ class ConciergeChatView(APIView):
     def post(self, request, *args, **kwargs):
         log.info("[concierge] chat.post")
         data = request.data or {}
+        # --- debug: raw payload ---
+        log.info("[api/chat] raw keys=%s", sorted(list(data.keys()))[:60])
+        log.info("[api/chat] raw bias=%r", data.get("bias"))
+        log.info("[api/chat] raw lat/lng/radius_m=%r/%r/%r",
+                 data.get("lat"), data.get("lng"), data.get("radius_m"))
+        filters0 = data.get("filters") if isinstance(data.get("filters"), dict) else None
+        log.info("[api/chat] raw filters=%r", filters0)
         
 
         # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
@@ -303,6 +332,7 @@ class ConciergeChatView(APIView):
             data.get("extra_condition"),
         )
 
+
         message = (data.get("message") or "").strip()
         query = (data.get("query") or "").strip()
 
@@ -326,10 +356,14 @@ class ConciergeChatView(APIView):
         lat = _to_float(data.get("lat"))
         lng = _to_float(data.get("lng"))
 
+        lat_src = "payload"
         if (lat is None or lng is None) and area:
             pt = _geocode_area_for_chat(area=area)
             if pt:
                 lat, lng = pt
+                lat_src = "geocode(area)"
+
+        log.info("[api/chat] lat/lng=%r/%r src=%s area=%r", lat, lng, lat_src, area)
 
         # candidates は補完 lat/lng を使う
         candidates = user_candidates + build_chat_candidates(
@@ -350,9 +384,10 @@ class ConciergeChatView(APIView):
         if lat is not None and lng is not None:
             r_m = _parse_radius(data)
             bias = {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
+            log.info("[api/chat] computed bias=%r (from lat/lng/radius_m)", bias)
 
         # intent は常に返す
-        intent = extract_intent(query)
+        intent = _safe_extract_intent(query)
 
         # ---- user 解決（DRFが未認証でもBearerから復元）----
         user, token = _resolve_user_and_token(request)

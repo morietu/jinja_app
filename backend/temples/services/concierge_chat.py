@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import logging
 import re
+import math
+
+
 from typing import Any, Dict, List, Optional
+from django.conf import settings
 
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
@@ -666,6 +670,80 @@ def _astro_enabled(birthdate: Optional[str]) -> bool:
     except Exception:
         return False
 
+def _use_llm() -> bool:
+    """
+    OpenAI無し運用のためのスイッチ。
+    - settings.CONCIERGE_USE_LLM が True のときだけLLMを使う
+    - 未設定なら False（安全側）
+    """
+    return bool(getattr(settings, "CONCIERGE_USE_LLM", False))
+
+
+def _seed_recs_from_candidates(valid_candidates: list[dict], *, size: int = 3) -> dict:
+    """
+    LLMなしの初期推薦:
+    - valid_candidates は距離順ソート済み前提
+    """
+    items: list[dict] = []
+    for c in valid_candidates[:size]:
+        if not isinstance(c, dict):
+            continue
+        nm = (c.get("name") or "").strip()
+        if not nm:
+            continue
+        x = dict(c)
+        x.setdefault("name", nm)
+        x.setdefault("reason", "")
+        items.append(x)
+    return {"recommendations": _dedupe_by_name(items)}
+
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    # 地球半径（m）
+    R = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lng2 - lng1)
+
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlmb / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+def _fill_distance_m(candidates: list[dict], *, bias: Optional[dict]) -> None:
+    """
+    candidates の distance_m を bias(lat/lng) から補完する。
+    - bias が無い/latlng無い場合は何もしない
+    - candidate lat/lng が無い場合もスキップ
+    - distance_m が既にあれば尊重
+    """
+    if not bias:
+        return
+    lat0 = bias.get("lat")
+    lng0 = bias.get("lng")
+    if lat0 is None or lng0 is None:
+        return
+
+    try:
+        lat0 = float(lat0)
+        lng0 = float(lng0)
+    except Exception:
+        return
+
+    for c in candidates or []:
+        if not isinstance(c, dict):
+            continue
+        if c.get("distance_m") is not None:
+            continue
+        lat = c.get("lat")
+        lng = c.get("lng")
+        if lat is None or lng is None:
+            continue
+        try:
+            c["distance_m"] = float(_haversine_m(lat0, lng0, float(lat), float(lng)))
+        except Exception:
+            # 失敗しても黙ってスキップ（距離は補助情報）
+            continue
+
 
 # Contract:
 # A) no candidates & no astro -> passthrough top3
@@ -761,6 +839,30 @@ def build_chat_recommendations(     # noqa: C901
         if isinstance(c, dict) and (c.get("name") or "").strip() and not _is_test_candidate(c)
     ]
 
+    # bias が無いなら candidates から合成（最低限 lat/lng を作る）
+    if (not bias or bias.get("lat") is None or bias.get("lng") is None) and valid_candidates:
+        c0 = next(
+            (c for c in valid_candidates if c.get("lat") is not None and c.get("lng") is not None),
+            None,
+        )
+        if c0:
+            # view から来る形に寄せる（radius は適当でOK）
+            bias = {
+                "lat": float(c0["lat"]),
+                "lng": float(c0["lng"]),
+                "radius": 8000.0,
+                "radius_m": 8000.0, 
+            }
+            log.info("[svc/chat] bias synthesized from candidates: %r", bias)
+
+    # ✅ bias があるなら常に距離補完（ここが大事）
+    if bias and bias.get("lat") is not None and bias.get("lng") is not None:
+        _fill_distance_m(valid_candidates, bias=bias)
+    else:
+        log.info("[svc/chat] distance_fill skipped (no bias)")
+    
+
+
     # 距離順（distance_m 無しは最後）
     valid_candidates.sort(key=_cand_dist_key)
 
@@ -776,12 +878,19 @@ def build_chat_recommendations(     # noqa: C901
     )
 
     # 2. LLMで初期推薦を取得
-    try:
-        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+    llm_used = False
+    llm_error: str | None = None
 
-        recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
-    except Exception:
-        recs = {"recommendations": []}
+    if _use_llm():
+        try:
+            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+            recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
+            llm_used = True
+        except Exception as e:
+            llm_error = f"{type(e).__name__}: {e}"
+            recs = _seed_recs_from_candidates(valid_candidates, size=3)
+    else:
+        recs = _seed_recs_from_candidates(valid_candidates, size=3)
 
     if isinstance(recs, list):
         recs = {"recommendations": recs}
@@ -1163,25 +1272,16 @@ def build_chat_recommendations(     # noqa: C901
 
     log.info("[svc/chat] sort_mode=%s", "distance" if distance_mode else "score")
 
-    def _score_key(rec: Any) -> tuple[float, int]:
+    def _score_key(rec: Any) -> tuple[float, float, int, str]:
         if not isinstance(rec, dict):
-            return (0.0, 0)
-        try:
-            score_total = float(rec.get("_score_total", 0.0))
-        except Exception:
-            score_total = 0.0
-        try:
-            astro_pri = int(rec.get("astro_priority", 0))
-        except Exception:
-            astro_pri = 0
-        return (score_total, astro_pri)
+            return (0.0, 1e18, 0, "")
+        score = float(rec.get("_score_total") or 0.0)
+        d = rec.get("distance_m")
+        dist = float(d) if isinstance(d, (int, float)) else 1e18
+        astro = int(rec.get("astro_priority") or 0)
+        name = str(rec.get("name") or "")
+        return (-score, dist, -astro, name)
 
-    # 4) まずはスコア順に並べる
-    recs["recommendations"] = sorted(
-        [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-        key=_score_key,
-        reverse=True,
-    )
 
 
 
@@ -1256,8 +1356,7 @@ def build_chat_recommendations(     # noqa: C901
     else:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-            key=_score_key,
-            reverse=True,
+            key=_score_key,   # ✅ reverse=True は付けない
         )
 
     
@@ -1289,6 +1388,12 @@ def build_chat_recommendations(     # noqa: C901
         if s in xs:
             xs.remove(s)
         return [s] + xs
+
+    # ✅ 表示対象を recommendations 本体で 3件に確定（混在防止）
+    recs["recommendations"] = [
+        r for r in (recs.get("recommendations") or []) if isinstance(r, dict)
+    ][:3]
+    items = recs["recommendations"]
 
     # 12. 表示用整形
     soft_tags = set(((recs.get("_extra") or {}).get("kinds") or {}).get("soft_signal") or [])
@@ -1371,5 +1476,30 @@ def build_chat_recommendations(     # noqa: C901
 
     if not isinstance(recs.get("_explain"), dict):
         recs["_explain"] = {"summary": None, "per_item": {}}
+
+    # --- UI向け: message を必ず返す（LLM無しでも喋る） ---
+    if not isinstance(recs.get("message"), str) or not recs["message"].strip():
+        top_names: list[str] = []
+        for r in items:  # recs["recommendations"][:3] じゃなく items
+            nm = (r.get("display_name") or r.get("name") or "").strip()
+            if nm:
+                top_names.append(nm)
+
+        if top_names:
+            recs["message"] = (
+                "候補から近さ・相性スコアで3件に絞りました。"
+                f"（{', '.join(top_names)}）"
+            )
+        else:
+            recs["message"] = "条件に合いそうな神社が見つかりませんでした。条件を少しゆるめて試してください。"
+
+    # --- デバッグ: LLM利用状況 ---
+    if not isinstance(recs.get("_signals"), dict):
+        recs["_signals"] = {}
+    recs["_signals"]["llm"] = {
+        "enabled": _use_llm(),
+        "used": llm_used,
+        "error": llm_error,
+    }
 
     return recs
