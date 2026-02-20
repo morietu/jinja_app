@@ -13,12 +13,15 @@ PLACEHOLDER: Dict[str, str] = {
     "content": "(LLM disabled or error: returning placeholder)",
 }
 
-
 class DummyLLMClient:
-    """テスト用のダミークライアント。呼ばれたら分かるように例外を出す。"""
+    """テスト用のダミークライアント。"""
+
+    responses = None
+    chat = None
 
     def __getattr__(self, name: str) -> Any:
-        raise RuntimeError("LLM disabled in tests (DummyLLMClient accessed)")
+        raise RuntimeError("LLM disabled (DummyLLMClient accessed)")
+
 
 
 def make_openai_client(
@@ -31,6 +34,9 @@ def make_openai_client(
     - TESTING=1 のとき：外部呼び出しを避けるため Dummy を返す
     - それ以外：openai>=1.0,<2 が必要
     """
+    if not getattr(settings, "CONCIERGE_USE_LLM", False):
+        return DummyLLMClient()
+
     if getattr(settings, "TESTING", False):
         return DummyLLMClient()
 
@@ -49,6 +55,8 @@ def make_openai_client(
     if base_url:
         return OpenAI(api_key=api_key, base_url=base_url)
     return OpenAI(api_key=api_key)
+
+
 
 
 class LLMClient:
@@ -73,9 +81,10 @@ class LLMClient:
                 self._mode = "chat"
             else:
                 self._mode = None
-        except Exception:
+        except Exception as e:
             self._client = None
             self._mode = None
+            # 追加: 明確にログに出したいならここで logging
 
     def _to_input_text(self, messages: List[Dict[str, Any]]) -> str:
         # system/user/assistant を直列化（Responses APIの文字列入力用）

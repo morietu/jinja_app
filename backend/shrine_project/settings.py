@@ -7,6 +7,9 @@ import dj_database_url
 import environ
 from urllib.parse import urlparse
 
+CONCIERGE_USE_LLM = False
+USE_LLM_CONCIERGE = CONCIERGE_USE_LLM
+
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
