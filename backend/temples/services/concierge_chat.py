@@ -761,7 +761,7 @@ def build_chat_recommendations(     # noqa: C901
     flow: str = "A",  # "A" or "B"
 ) -> Dict[str, Any]:
     """
-    ... docstring ...
+    See: docs/concierge_spec.md
     """
     # ✅ リクエスト値を退避（後で flow を倒しても追跡できる）
     requested_flow = flow

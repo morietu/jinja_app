@@ -63,3 +63,8 @@
 
 - 開発 TODO / 優先度  
   - `90_roadmap.md`
+
+## 🧭 Concierge（仕様）
+
+- Concierge仕様（LLMモード / Contract / 運用）
+  - `concierge_spec.md`
