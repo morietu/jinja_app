@@ -215,17 +215,28 @@ def get_llm_adapter(
     if not enabled:
         return NullAdapter()
 
-    if (provider or "").lower() == "openai":
-        return OpenAIAdapter(
-            model=model or "gpt-4o-mini",
-            timeout_ms=timeout_ms,
-            prompts_dir=prompts_dir,
-            temperature=kwargs.get("temperature", 0.2),
-            max_tokens=kwargs.get("max_tokens", 800),
-            base_url=kwargs.get("base_url"),
-            force_chat=kwargs.get("force_chat", True),
-            force_json=kwargs.get("force_json", True),
-            retries=kwargs.get("retries", 2),
-            backoff_s=kwargs.get("backoff_s", 0.5),
-        )
+    prov = (provider or "").lower()
+    if prov != "openai":
+        return NullAdapter()
+
+    # openai SDK が無ければ即 Null
+    if openai is None:
+        return NullAdapter()
+
+    # キーが無ければ即 Null（プロジェクト方針）
+    if not (os.getenv("OPENAI_API_KEY") or kwargs.get("api_key")):
+        return NullAdapter()
+
+    return OpenAIAdapter(
+        model=model or "gpt-4o-mini",
+        timeout_ms=timeout_ms,
+        prompts_dir=prompts_dir,
+        temperature=kwargs.get("temperature", 0.2),
+        max_tokens=kwargs.get("max_tokens", 800),
+        base_url=kwargs.get("base_url"),
+        force_chat=kwargs.get("force_chat", True),
+        force_json=kwargs.get("force_json", True),
+        retries=kwargs.get("retries", 2),
+        backoff_s=kwargs.get("backoff_s", 0.5),
+    )
     return NullAdapter()

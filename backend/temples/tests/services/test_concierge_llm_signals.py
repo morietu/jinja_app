@@ -49,3 +49,29 @@ def test_llm_enabled_used_true_even_if_orchestrator_raises(settings, monkeypatch
     assert llm.get("enabled") is True
     assert llm.get("used") is True
     assert isinstance(llm.get("error"), str) and llm["error"]
+
+@pytest.mark.django_db
+def test_llm_disabled_never_calls_openai_factory(settings, monkeypatch):
+    settings.CONCIERGE_USE_LLM = False
+
+    # OpenAIクライアント生成が走ったら事故
+    import temples.llm.client as client_mod
+    def _boom(*a, **k):
+        raise AssertionError("make_openai_client must not be called when LLM disabled")
+    monkeypatch.setattr(client_mod, "make_openai_client", _boom, raising=True)
+
+    out = build_chat_recommendations(**_min_input())
+    llm = (out.get("_signals") or {}).get("llm") or {}
+    assert llm.get("enabled") is False
+    assert llm.get("used") is False
+
+@pytest.mark.django_db
+def test_llm_disabled_never_uses_openai_adapter(settings, monkeypatch):
+    settings.CONCIERGE_USE_LLM = False
+
+    import temples.recommendation.llm_adapter as a
+    def _boom(*a_, **k_):
+        raise AssertionError("OpenAIAdapter must not be constructed when LLM disabled")
+    monkeypatch.setattr(a, "OpenAIAdapter", _boom, raising=True)
+
+    build_chat_recommendations(**_min_input())

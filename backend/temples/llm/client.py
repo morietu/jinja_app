@@ -4,8 +4,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
-
-from .config import OPENAI_API_KEY, LLMConfig
+from .config import LLMConfig
 
 # LLM呼べない環境（TESTINGなど）で返すプレースホルダー
 PLACEHOLDER: Dict[str, str] = {
@@ -14,15 +13,17 @@ PLACEHOLDER: Dict[str, str] = {
 }
 
 class DummyLLMClient:
-    """テスト用のダミークライアント。"""
-
+    """
+    LLM無効時の安全な置物。
+    - getattr(..., "chat", None) などの存在確認で落ちない
+    - 実際の呼び出し経路には入らない（_mode=None になる想定）
+    """
     responses = None
     chat = None
 
-    def __getattr__(self, name: str) -> Any:
-        raise RuntimeError("LLM disabled (DummyLLMClient accessed)")
-
-
+    # もし「呼ばれたら即落ち」を明示したいなら、下の2行を有効化
+    # responses = _Responses()
+    # chat = _Chat()
 
 def make_openai_client(
     cfg: Optional[LLMConfig] = None,
@@ -31,8 +32,7 @@ def make_openai_client(
 ) -> Any:
     """
     OpenAI v1 SDK クライアントを生成（lazy import）。
-    - TESTING=1 のとき：外部呼び出しを避けるため Dummy を返す
-    - それ以外：openai>=1.0,<2 が必要
+    - LLM disabled / TESTING / SDKなし / APIキーなし → Dummy を返す（落とさない）
     """
     if not getattr(settings, "CONCIERGE_USE_LLM", False):
         return DummyLLMClient()
@@ -40,51 +40,44 @@ def make_openai_client(
     if getattr(settings, "TESTING", False):
         return DummyLLMClient()
 
-    # lazy import（モジュール読み込み時の ImportError を避ける）
+    cfg = cfg or LLMConfig.load(validate=False)
+    api_key = api_key or cfg.api_key or os.getenv("OPENAI_API_KEY")
+    base_url = base_url or cfg.base_url
+
+    if not api_key:
+        return DummyLLMClient()
+
     try:
         from openai import OpenAI
-    except Exception as e:
-        raise ImportError(
-            "OpenAI Python SDK v1 is required. Install with: pip install 'openai>=1.0,<2'"
-        ) from e
-
-    cfg = cfg or LLMConfig.load()
-    api_key = api_key or cfg.api_key or os.getenv("OPENAI_API_KEY") or OPENAI_API_KEY
-    base_url = base_url or cfg.base_url
+    except Exception:
+        return DummyLLMClient()
 
     if base_url:
         return OpenAI(api_key=api_key, base_url=base_url)
     return OpenAI(api_key=api_key)
 
 
-
-
 class LLMClient:
-    """
-    - OpenAI v1 の Responses API を優先（なければ chat.completions）
-    - 失敗時は PLACEHOLDER を返す
-    """
-
     def __init__(self, cfg: Optional[LLMConfig] = None) -> None:
-        self.cfg: LLMConfig = cfg or LLMConfig.load()
+        # ✅ ここが重要：LLM無効時に validate で死なない
+        self.cfg: LLMConfig = cfg or LLMConfig.load(validate=False)
+
         self._client: Any | None
         self._mode: str | None
 
         try:
             self._client = make_openai_client(self.cfg)
-            # Responses API 優先
+
+            # Dummy ならモード無しでOK
             if getattr(self._client, "responses", None) and not self.cfg.force_chat:
                 self._mode = "responses"
-            elif getattr(self._client, "chat", None) and getattr(
-                self._client.chat, "completions", None
-            ):
+            elif getattr(self._client, "chat", None) and getattr(self._client.chat, "completions", None):
                 self._mode = "chat"
             else:
                 self._mode = None
-        except Exception as e:
+        except Exception:
             self._client = None
             self._mode = None
-            # 追加: 明確にログに出したいならここで logging
 
     def _to_input_text(self, messages: List[Dict[str, Any]]) -> str:
         # system/user/assistant を直列化（Responses APIの文字列入力用）

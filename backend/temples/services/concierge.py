@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict, cast
 
 from .places import places_client  # ← 統一して使う
 
+from django.conf import settings
+
 UiMode = Literal["walk", "car"]
 Mode = UiMode
 
@@ -51,8 +53,6 @@ def _short_label_from_details(details: Dict[str, Any]) -> Optional[str]:
 
 
 # ---- Types -------------------------------------------------------------------
-
-
 
 class ShrineCandidate(TypedDict):
     name: str
@@ -101,10 +101,11 @@ def make_plan(
     mode: Mode,
     time_limit: Optional[str] = None,
 ) -> PlanResult:
-    if not OPENAI_API_KEY:
+    if not getattr(settings, "CONCIERGE_USE_LLM", False):
         return make_plan_dummy(benefit, mode)
-    return make_plan_dummy(benefit, mode)
 
+    # 将来: ここに本実装を差し込む
+    return make_plan_dummy(benefit, mode)
 
 # ---- Concierge Service -------------------------------------------------------
 class ConciergeService:

@@ -59,17 +59,9 @@ class LLMConfig:
         return self
 
     @classmethod
-    def load(cls) -> "LLMConfig":
-        # モデル名は LLM_MODEL を第一優先、なければ OPENAI_MODEL を後方互換で参照
-        model = _getenv("LLM_MODEL") or _getenv("OPENAI_MODEL") or "gpt-4o-mini"
-
-        temperature = _get_float("LLM_TEMPERATURE", 0.3)
-        max_tokens = _get_int("LLM_MAX_TOKENS", 512)
-        retries = _get_int("LLM_RETRIES", 2)
-        backoff_s = _get_float("LLM_BACKOFF_S", 0.5)
-        coord_round = _get_int("LLM_COORD_ROUND", 3)
-
-        return cls(
+    def load(cls, *, validate: bool = True) -> "LLMConfig":
+        ...
+        cfg = cls(
             api_key=_getenv("OPENAI_API_KEY", "") or "",
             model=model,
             temperature=temperature,
@@ -80,4 +72,5 @@ class LLMConfig:
             retries=retries,
             backoff_s=backoff_s,
             coord_round=coord_round,
-        ).validate()
+        )
+        return cfg.validate() if validate else cfg
