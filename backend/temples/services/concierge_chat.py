@@ -878,13 +878,19 @@ def build_chat_recommendations(     # noqa: C901
     )
 
     # 2. LLMで初期推薦を取得
+    llm_enabled = _use_llm()
     llm_used = False
     llm_error: str | None = None
 
     try:
         from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+
+        # enabled=true のときだけ「外部LLM到達し得る経路を試行した」扱い
+        if llm_enabled:
+            llm_used = True
+
         recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
-        llm_used = _use_llm()
+
     except Exception as e:
         llm_error = f"{type(e).__name__}: {e}"
         recs = _seed_recs_from_candidates(valid_candidates, size=3)
@@ -954,6 +960,11 @@ def build_chat_recommendations(     # noqa: C901
             "requested_extra_condition": (extra_condition or "").strip() or None,
             "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
             "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+        }
+        recs["_signals"]["llm"] = {
+            "enabled": llm_enabled,
+            "used": llm_used,
+            "error": llm_error,
         }
         return recs
 
