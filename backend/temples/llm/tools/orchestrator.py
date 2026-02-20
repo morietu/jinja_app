@@ -47,7 +47,7 @@ def chat_to_plan(
     candidates: List[Dict[str, Any]] = sorted([*db, *places], key=lambda x: x["distance_m"])[:12]
 
     # 3) LLM Disabledなら必ずフォールバック（MUST NOT 外部通信）
-    if not bool(getattr(settings, "USE_LLM_CONCIERGE", False)):
+    if not bool(getattr(settings, "CONCIERGE_USE_LLM", False)):
         picked = candidates[:3]
         out = {
             "plan_id": plan_id,

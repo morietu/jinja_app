@@ -55,7 +55,7 @@ class ConciergeOrchestrator:
 
     def __init__(self, client: Optional[LLMClient] = None) -> None:
         self.client: LLMClient = client or LLMClient()
-        self.enabled: bool = bool(getattr(settings, "USE_LLM_CONCIERGE", False))
+        self.enabled: bool = bool(getattr(settings, "CONCIERGE_USE_LLM", False))
 
     def _fallback_from_candidates(
         self, candidates: List[Dict[str, Any]]
