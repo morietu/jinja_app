@@ -7,8 +7,6 @@ import dj_database_url
 import environ
 from urllib.parse import urlparse
 
-CONCIERGE_USE_LLM = False
-USE_LLM_CONCIERGE = CONCIERGE_USE_LLM
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -49,7 +47,7 @@ if USE_SQLITE and USE_GIS:
 # --- environ init & load .env (最初に読む) ---
 env = environ.Env(
     DEBUG=(bool, True),
-    USE_LLM_CONCIERGE=(bool, False),
+    CONCIERGE_USE_LLM=(bool, False),
     LLM_MODEL=(str, "gpt-4o-mini"),
     LLM_PROVIDER=(str, "openai"),
     LLM_TIMEOUT_MS=(int, 2500),
@@ -95,8 +93,13 @@ if not SECRET_KEY:
 DEBUG = env.bool("DEBUG", default=True)
 
 # --- LLM flags ---
-# USE_LLM_CONCIERGE = env.bool("USE_LLM_CONCIERGE")
-USE_LLM_CONCIERGE = False
+# 正: CONCIERGE_USE_LLM
+# 互換: USE_LLM_CONCIERGE（過去の env 名を吸収）
+CONCIERGE_USE_LLM = env.bool("CONCIERGE_USE_LLM", default=False) or env.bool(
+    "USE_LLM_CONCIERGE", default=False
+)
+# backward-compat (deprecated)
+USE_LLM_CONCIERGE = CONCIERGE_USE_LLM
 LLM_MODEL = env.str("LLM_MODEL")
 LLM_PROVIDER = env.str("LLM_PROVIDER")
 LLM_TIMEOUT_MS = env.int("LLM_TIMEOUT_MS")
