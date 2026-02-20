@@ -57,7 +57,8 @@ Webを中心に開発し、将来的にMobile（Expo）へ展開予定です。
 - Expo（WIP / 休眠運用あり）
 
 ### AI
-- OpenAI Responses API（Structured Outputs）
+-	OpenAI Responses API（任意・意図抽出用途のみ）
+-	デフォルトではLLMは無効（CONCIERGE_USE_LLM=0）
 
 ---
 
@@ -298,7 +299,7 @@ export async function GET(req: NextRequest) {
 
 ### コンシェルジュページ（`/concierge`）
 - AIによる神社提案
-- チャット形式での相談
+- 相談フォーム形式での入力（自由会話なし）
 - フィルター機能（生年月日、ご利益タグ）
 
 ### マイページ（`/mypage`）
@@ -327,6 +328,19 @@ export async function GET(req: NextRequest) {
    # Next.jsのターミナル出力
 ```
 
+### LLMを有効にする場合（任意）
+
+デフォルトではLLMは無効です（CONCIERGE_USE_LLM=0）。
+有効化する場合のみ、以下を設定してください。
+
+```bash
+CONCIERGE_USE_LLM=1
+OPENAI_API_KEY=...
+# 任意
+LLM_MODEL=...
+LLM_MAX_TOKENS=...
+LLM_BASE_URL=...
+``` 
 ### よくある問題
 
 **問題**: 401エラーが頻発する
