@@ -2,7 +2,7 @@
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
-
+from django.urls import reverse
 
 @pytest.mark.django_db
 def test_places_text_search_missing_query_returns_400():
@@ -49,11 +49,20 @@ def test_places_photo_missing_reference_returns_400():
     assert resp.status_code == 400
 
 
+
+
 @pytest.mark.django_db
 def test_places_nearby_missing_location_returns_400():
     """
-    /api/places/nearby-search/ で location 無し → 400
+    /api/places/nearby/ で lat/lng 無し → 400
     """
-    url = reverse("temples:places-nearby-search")
-    resp = APIClient().get(url, data={})
-    assert resp.status_code == 400
+    url = reverse("temples:places-nearby")
+    res = APIClient().get(url)  # lat/lng なし
+    assert res.status_code == 400
+
+
+@pytest.mark.django_db
+def test_places_nearby_hyphen_missing_location_returns_400():
+    url = reverse("temples:places-nearby-search-legacy-hyphen")
+    res = APIClient().get(url)
+    assert res.status_code == 400

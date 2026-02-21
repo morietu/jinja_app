@@ -12,6 +12,8 @@ from django.conf import settings as dj_settings
 from django.db.models.signals import pre_save
 from rest_framework.test import APIClient
 from django.conf import settings
+from django.core.cache import cache
+
 
 
 # NoGISジョブ（CIのみ）で厳密チェック
@@ -326,3 +328,10 @@ def _fast_password_hashers(settings):
 def _force_dummy_route_provider(monkeypatch, settings):
     os.environ["ROUTE_PROVIDER"] = "dummy"
     settings.ROUTE_PROVIDER = "dummy"
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache_between_tests():
+    cache.clear()
+    yield
+    cache.clear()

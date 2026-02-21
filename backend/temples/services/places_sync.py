@@ -8,7 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from temples.models import PlaceRef, PlaceCache
-
+from temples.services import places as places_service
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 外部I/O（Google Places呼び出し）はここから “1箇所” に閉じ込める
@@ -23,10 +23,8 @@ def _google_places_nearby_search(
     keyword: str,
     limit: int,
 ) -> Dict[str, Any]:
-    from temples.services.places import nearby_search
-
-    # services/places.py の nearb_search は正規化された呼び口になってる前提
-    return nearby_search(
+    # ✅ モジュール経由で呼ぶ（patch耐性が上がる）
+    return places_service.nearby_search(
         lat=lat,
         lng=lng,
         radius_m=radius_m,
@@ -210,14 +208,7 @@ def sync_nearby_seed(
     fetched = 0
     requests_used = 0
 
-    # B案: places.py を再利用するので upstream は 0〜複数回になり得る
-    # req_history の差分で “実リクエスト数” を計測して budget を守る
     try:
-        # ✅ 実リクエスト数を計測（B案: places.py 再利用の必須条件）
-        from temples.services.places import req_history  # google_places.req_history の別名
-
-        before = len(req_history)
-
         raw = _google_places_nearby_search(
             lat=lat,
             lng=lng,
@@ -225,9 +216,7 @@ def sync_nearby_seed(
             keyword=keyword,
             limit=limit,
         )
-
-        after = len(req_history)
-        requests_used += max(0, after - before)
+        requests_used += 0 if raw.get("cached") is True else 1
 
     except Exception as e:
         errors.append({"type": "places_request_failed", "error": str(e)})
