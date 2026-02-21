@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.cache import cache
+from django.urls import resolve
 from rest_framework.test import APIClient
 
 
@@ -73,7 +74,7 @@ def test_nearby_search_throttled(settings):
         # 連打すると 429 になるはず（レート次第で回数は多少前後OK）
         for _ in range(80):
             res = client.get(
-                "/api/places/nearby_search/",
+                "/api/places/nearby/",
                 {"lat": 35.0, "lng": 139.0, "radius": 1000},
             )
             if res.status_code == 429:
@@ -84,3 +85,32 @@ def test_nearby_search_throttled(settings):
             "Too Many Requests(429) が返らない — "
             "settings.REST_FRAMEWORK のスロットル設定を確認してください"
         )
+
+@pytest.mark.django_db
+def test_places_nearby_route_is_not_captured_by_detail():
+    """
+    /api/places/<str:id>/ に /api/places/nearby/ が吸われない保証。
+    """
+    m = resolve("/api/places/nearby/")
+    assert m.url_name != "places-detail-short"
+    assert m.url_name == "places-nearby"
+
+
+@pytest.mark.django_db
+def test_places_nearby_hyphen_route_is_not_captured_by_detail():
+    """
+    /api/places/<str:id>/ に /api/places/nearby-search/ が吸われない保証。
+    """
+    m = resolve("/api/places/nearby-search/")
+    assert m.url_name != "places-detail-short"
+    assert m.url_name == "places-nearby-search-legacy-hyphen"
+
+
+@pytest.mark.django_db
+def test_places_nearby_underscore_route_is_not_captured_by_detail():
+    """
+    /api/places/<str:id>/ に /api/places/nearby_search/ が吸われない保証。
+    """
+    m = resolve("/api/places/nearby_search/")
+    assert m.url_name != "places-detail-short"
+    assert m.url_name == "places-nearby-search-legacy"

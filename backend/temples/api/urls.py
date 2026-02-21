@@ -156,12 +156,14 @@ urlpatterns = [
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
-    path("places/nearby-search/", nearby_search, name="places-nearby-search"),
+    
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
     path("places/find/", places_find, name="places-find-lite"),
     path("places/resolve/", PlacesResolveView.as_view(), name="places-resolve"),
+    path("places/nearby-search/", nearby_search_legacy, name="places-nearby-search-legacy-hyphen"),
+    path("places/nearby/", nearby_search, name="places-nearby"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
     path("place-caches/", place_cache_list, name="place-cache-list"),
 

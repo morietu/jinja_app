@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     let upstream: Response;
     try {
-      upstream = await djFetch(`/api/places/nearby-search/?${qs}`, {
+      upstream = await djFetch(`/api/places/nearby/?${qs}`, {
         cache: "no-store",
         headers: { Accept: "application/json" },
       });

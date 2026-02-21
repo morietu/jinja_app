@@ -10,11 +10,13 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+
 
 from temples import services  # services.google_places を各所で利用
 from temples.services.shrine_rules import is_shrine_like, prefer_explicit_jinja
@@ -215,6 +217,7 @@ def text_search_legacy(request):
 
 # --- /api/places/nearby_search/ ---
 @extend_schema(
+    operation_id="api_places_nearby_retrieve",
     summary="Places: nearby search",
     parameters=[
         OpenApiParameter("lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True),
@@ -363,11 +366,6 @@ def nearby_search(request):
     out.sort(key=lambda x: x["distance_m"] if isinstance(x.get("distance_m"), int) else 10**12)
     data["results"] = out
     return Response(data)
-
-
-
-
-
 
 # レガシー入口（/api/places/nearby_search/）
 nearby_search.throttle_scope = "places-nearby"
