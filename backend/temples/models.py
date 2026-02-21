@@ -7,6 +7,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models as dj_models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
+from .models_places_seeds import PlacesSeed, PlacesSeedState  # noqa
 
 # GeoDjango switch
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(

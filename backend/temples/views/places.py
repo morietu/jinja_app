@@ -11,6 +11,7 @@ from temples import services
 from temples.services.places import PlacesError
 
 
+
 # ---------- helpers ----------
 
 def _to_bool(v: Optional[str]) -> bool:
@@ -120,7 +121,7 @@ class PlacesTextSearchView(DualScopedThrottleView):
     def get(self, request):
         try:
             params = {
-                "q": request.query_params.get("q"),
+                "query": request.query_params.get("q"),
                 "lat": _to_float(request.query_params.get("lat")),
                 "lng": _to_float(request.query_params.get("lng")),
                 "radius": _to_int(request.query_params.get("radius")),

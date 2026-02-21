@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import sys
 import hashlib
 import json
 import logging
 import os
-import re
-import unicodedata
 from hashlib import md5
 from math import atan2, cos, radians, sin
-from typing import Callable, Any, Dict, Optional, Tuple, Mapping
+from typing import Callable, Any, Dict, Optional, Tuple
 from urllib.parse import urlencode
 
 import requests
@@ -23,8 +20,12 @@ from . import google_places  # 低レベルHTTPクライアント（関数型）
 from rest_framework import serializers
 
 from django.db import transaction
-from django.db import IntegrityError
 from .google_places import findplacefromtext  # noqa: F401
+from .places_heuristics import (
+    is_shinto_candidate,
+    looks_buddhist_by_name,
+    norm_name,
+)
 
 
 req_history = google_places.req_history
@@ -222,6 +223,7 @@ def _norm_params(params: dict) -> dict:
 # ----------------------------
 # パブリックAPI（View から呼ばれる想定）
 # ----------------------------
+# NOTE: google_places.text_search は params の "q" と "query" の両方を受ける（互換維持）
 def places_text_search(params: Dict[str, Any]) -> Dict[str, Any]:
     """Text Search（キャッシュ付）"""
     params = dict(params or {})
@@ -289,7 +291,19 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
         center = None
 
     raw = (data or {}).get("results") or []
-    filtered = [r for r in raw if _is_shinto_shrine_row(r)]
+    filtered = [r for r in raw if is_shinto_candidate(r)]
+
+    if DEBUG_PLACES_RANKING:
+        # 「落とした理由」の概算（雑でOK）
+        dropped = []
+        for x in raw:
+            nm = x.get("name") or ""
+            tp = set(x.get("types") or [])
+            if "buddhist_temple" in tp or looks_buddhist_by_name(nm):
+                dropped.append({"name": nm, "reason": "buddhist"})
+        logger.info("places.rank dropped.preview | %s", dropped[:10])
+    
+    
     # 取得状況のログ
     _dbg(
         "nearby.fetch",
@@ -330,8 +344,8 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
     
     # 完全一致が無ければ Text Search から1件注入（一般名詞はスキップ）
     if (not is_generic_keyword) and (not pagetoken) and (center is not None):
-        key = _norm(keyword)
-        has_exact = any(_norm(r.get("name")) == key for r in sorted_results)
+        key = norm_name(keyword)
+        has_exact = any(norm_name(r.get("name")) == key for r in sorted_results)
         if not has_exact:
             try:
                 hit = _find_exact_from_text_nearby(
@@ -341,7 +355,7 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
                 _dbg("inject.error", err=str(e))
                 hit = None
 
-            if hit and _is_shinto_shrine_row(hit):
+            if hit and is_shinto_candidate(hit):
                 pid = hit.get("place_id")
                 sorted_results = [x for x in sorted_results if x.get("place_id") != pid]
                 sorted_results.insert(0, hit)
@@ -361,7 +375,7 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 
             ts = places_text_search(ts_params)
 
-            ts_results = [r for r in (ts.get("results") or []) if _is_shinto_shrine_row(r)]
+            ts_results = [r for r in (ts.get("results") or []) if is_shinto_candidate(r)]
             ts_results = _sort_results_for_query(ts_results, keyword, center=center)
             ts_results = _ensure_exact_on_top(ts_results, keyword)
 
@@ -624,16 +638,8 @@ def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[s
     正規化済み TextSearch の最初の『神社だけ』から1件返す。
     address / location / photo_url を整形。なければ詳細で補完。
     """
-
-    def _is_shinto(r: Dict[str, Any]) -> bool:
-        types = set(r.get("types") or [])
-        name = r.get("name") or ""
-        if "buddhist_temple" in types:
-            return False
-        return ("shinto_shrine" in types) or ("神社" in name)
-
     data = places_text_search({"query": q, "language": _lang_or_default(language)})
-    results = [r for r in ((data or {}).get("results") or []) if _is_shinto(r)]
+    results = [r for r in ((data or {}).get("results") or []) if is_shinto_candidate(r)]
     if not results:
         return None
 
@@ -650,7 +656,6 @@ def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[s
         "location": ({"lat": lat, "lng": lng} if (lat is not None and lng is not None) else None),
     }
 
-    # 不足は Details で補完
     if out["address"] is None or out["location"] is None:
         try:
             det = places_details(out["place_id"], {"language": _lang_or_default(language)})
@@ -664,17 +669,9 @@ def text_search_first(q: str, language: Optional[str] = None) -> Optional[Dict[s
                 out["location"] = {"lat": la2, "lng": ln2}
         except Exception:
             pass
+
     return out
 
-
-# ---- ranking / filtering helpers ---------------------------------
-def _norm(s: Optional[str]) -> str:
-    """日本語名の簡易正規化（NFKC→小文字→記号/空白除去）。"""
-    if not s:
-        return ""
-    s = unicodedata.normalize("NFKC", str(s)).casefold()
-    s = re.sub(r"[ \u3000\-\.\,，。/／\(\)（）「」『』【】\[\]~～・]+", "", s)
-    return s
 
 
 def _haversine_m(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -691,7 +688,7 @@ def _keyword_match_score(name: Optional[str], keyword: Optional[str]) -> float:
     """
     簡易マッチ度。完全一致>前方一致>部分一致>それ以外。
     """
-    n, k = _norm(name), _norm(keyword)
+    n, k = norm_name(name), norm_name(keyword)
     if not k or not n:
         return 0.0
     if n == k:
@@ -703,16 +700,6 @@ def _keyword_match_score(name: Optional[str], keyword: Optional[str]) -> float:
     return 0.0
 
 
-def _is_shinto_shrine_row(r: Dict[str, Any]) -> bool:
-    """
-    神社系のみ通す（buddhist_temple は除外）。
-    低レイヤーの正規化結果（types/name）がある前提。
-    """
-    types = set(r.get("types") or [])
-    name = r.get("name") or ""
-    if "buddhist_temple" in types:
-        return False
-    return ("shinto_shrine" in types) or ("神社" in name)
 
 
 def _sort_results_for_query(
@@ -738,11 +725,11 @@ def _sort_results_for_query(
 
 def _ensure_exact_on_top(results: list, keyword: Optional[str]) -> list:
     """リスト内に完全一致があれば先頭へ（安定移動）。"""
-    key = _norm(keyword)
+    key = norm_name(keyword)
     if not key:
         return results
     for i, r in enumerate(results or []):
-        if _norm(r.get("name")) == key:
+        if norm_name(r.get("name")) == key:
             return [r] + [x for j, x in enumerate(results) if j != i]
     return results
 
@@ -762,7 +749,7 @@ def _find_exact_from_text_nearby(
     lang = _lang_or_default(language)
 
     def _ok_and_dist(r: Dict[str, Any], tgt_norm: str) -> Optional[float]:
-        n = _norm(r.get("name"))
+        n = norm_name(r.get("name"))
         if not (n == tgt_norm or n.startswith(tgt_norm) or tgt_norm in n):
             return None
         if center is None or r.get("lat") is None or r.get("lng") is None:
@@ -770,7 +757,7 @@ def _find_exact_from_text_nearby(
         d = _haversine_m(center, (float(r["lat"]), float(r["lng"])))
         return d if d <= radius_m * 1.4 else None
 
-    tgt = _norm(keyword)
+    tgt = norm_name(keyword)
 
     # ---- 1) Find Place from Text を優先（より指名性が高い）
     try:
