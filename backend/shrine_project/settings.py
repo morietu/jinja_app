@@ -341,13 +341,13 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.ScopedRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/min",
         "user": "100/min",
-        # フィーチャ別スコープ（デフォルト値）
-        "concierge": "1000/min",
+
+        # feature scopes
+        "concierge": "8/min",          # ← 仕様として固定
         "places": "30/min",
         "places-nearby": "30/min",
         "shrines": "60/min",
@@ -362,49 +362,34 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
-# ベースのレート辞書
-_rates = REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
 
-# ingest だけ環境変数で上書きできるようにする（ローカル検証用）
-_rates["shrines_ingest"] = os.getenv("THROTTLE_SHRINES_INGEST", _rates.get("shrines_ingest", "1/min"))
+_rates = REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
 
-# DEFAULT_THROTTLE_CLASSES が未設定な場合の保険（現状ほぼ意味ないが残しておくならこの程度）
-REST_FRAMEWORK.setdefault(
-    "DEFAULT_THROTTLE_CLASSES",
-    [
-        "rest_framework.throttling.ScopedRateThrottle",
-    ],
-)
+# env 上書き（必要なときだけ）
+if os.getenv("THROTTLE_CONCIERGE"):
+    _rates["concierge"] = os.environ["THROTTLE_CONCIERGE"]
 
-# ベースのレート辞書
-_rates = REST_FRAMEWORK.setdefault("DEFAULT_THROTTLE_RATES", {})
+if os.getenv("THROTTLE_PLACES_NEARBY"):
+    _rates["places-nearby"] = os.environ["THROTTLE_PLACES_NEARBY"]
 
-# 環境変数で上書きしたい場合（あれば使う、なければ上のデフォルトのまま）
-_rates["concierge"] = os.getenv("THROTTLE_CONCIERGE", _rates.get("concierge", "5/day"))
-_rates["places-nearby"] = os.getenv(
-    "THROTTLE_PLACES_NEARBY",
-    _rates.get("places-nearby", "30/min"),
-)
+if os.getenv("THROTTLE_SHRINES_INGEST"):
+    _rates["shrines_ingest"] = os.environ["THROTTLE_SHRINES_INGEST"]
 
-# ローカルでスロットルをほぼ無効にしたいとき
+# ローカルでスロットルほぼ無効（例外: ingestは守る）
 if os.getenv("DISABLE_THROTTLE", "0") == "1":
     for k in list(_rates.keys()):
-        if k == "shrines_ingest":
-            continue
-        _rates[k] = "1000/min" if k != "user" else "2000/min"
+        if k != "shrines_ingest":
+            _rates[k] = "1000/min"
 
-# 旧 env 名があれば concierge だけ上書き（互換）
-_concierge_rate = os.getenv("CONCIERGE_THROTTLE")
-if _concierge_rate:
-    _rates["concierge"] = _concierge_rate
+# 旧 env 名互換（これも “あれば上書き” だけ）
+if os.getenv("CONCIERGE_THROTTLE"):
+    _rates["concierge"] = os.environ["CONCIERGE_THROTTLE"]
 
-# pytest 中は concierge をさらに緩める（places-nearby はそのまま）
+# pytest は concierge を緩めない（仕様固定）
+# 必要なら「テスト専用scope」だけいじる
 if IS_PYTEST:
-    _rates["concierge"] = "1000/min"
-
-    # ★ Nearby search はテストで 429 を確実に出したいのでかなり厳しく
-    #   （30/min のままだと環境によっては 80 回叩いても閾値に届かないことがある）
     _rates["places-nearby"] = "2/min"
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Shrine API",
