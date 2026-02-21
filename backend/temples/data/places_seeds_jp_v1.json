@@ -1,0 +1,11 @@
+{
+  "version": "v1",
+  "default": { "radius_m": 2000, "limit": 20, "keyword": "神社" },
+  "seeds": [
+    { "pref": "東京都", "label": "pref_capital", "name": "東京都庁", "lat": 35.689592, "lng": 139.691722 },
+    { "pref": "東京都", "label": "largest_city", "name": "渋谷駅", "lat": 35.658034, "lng": 139.701636 },
+    { "pref": "東京都", "label": "tourism", "name": "浅草寺", "lat": 35.714765, "lng": 139.796655 }
+  ]
+}
+
+
