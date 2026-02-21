@@ -1,6 +1,7 @@
 # backend/temples/tests/test_concierge_rate_limit.py
-
 import pytest
+from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -10,8 +11,29 @@ import temples.api_views_concierge as concierge_view
 
 
 @pytest.fixture(autouse=True)
+def _clear_throttle_cache():
+    # DRF throttle は cache を使うのでテスト間汚染を消す
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _disable_drf_throttle_for_concierge(settings):
+    """
+    このファイルは「無料回数(ConciergeUsage)」の挙動テスト。
+    DRF側(8/min)が混ざるとノイズなので、conciergeだけ無効化する。
+    """
+    rates = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    old = rates.get("concierge")
+    rates["concierge"] = "100000/min"
+    yield
+    rates["concierge"] = old
+
+
+@pytest.fixture(autouse=True)
 def _stub_concierge(monkeypatch):
-    # 1) intent: LLM 触る余地をゼロにする
+    # intent: LLM触らない
     monkeypatch.setattr(
         concierge_view,
         "extract_intent",
@@ -19,7 +41,7 @@ def _stub_concierge(monkeypatch):
         raising=True,
     )
 
-    # 2) candidates: あっても空で返す（必要なら）
+    # candidates: 空でOK（軽く）
     monkeypatch.setattr(
         concierge_view,
         "build_chat_candidates",
@@ -27,7 +49,7 @@ def _stub_concierge(monkeypatch):
         raising=True,
     )
 
-    # 3) chat本体: 重い/外部依存を回さない
+    # chat本体: 外部依存なしで固定レスポンス
     def _fake_recs(*a, **k):
         return {
             "recommendations": [{"name": "X"}],
@@ -41,8 +63,6 @@ def _stub_concierge(monkeypatch):
         _fake_recs,
         raising=True,
     )
-
-
 
 
 @pytest.mark.django_db
@@ -60,11 +80,7 @@ def test_rate_limit_authenticated_user():
     remainings = []
 
     for _ in range(7):
-        res = client.post(
-            "/api/concierge/chat/",
-            {"query": "仕事運を上げたい"},
-            format="json",
-        )
+        res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
         assert res.status_code == 200
         replies.append(res.data.get("reply"))
         remainings.append(res.data.get("remaining_free"))
