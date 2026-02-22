@@ -435,6 +435,14 @@ def photo(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail(request, id: str):
+
+
+    try:
+        id = validate_google_place_id(id)
+    except serializers.ValidationError as e:
+        return Response(e.detail, status=400)
+
+
     gp = services.google_places
     try:
         data = gp.detail(place_id=id) if hasattr(gp, "detail") else gp.details(place_id=id)
@@ -486,6 +494,11 @@ def detail_query(request):
     pid = (request.query_params.get("place_id") or "").strip()
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
+    
+    try:
+        pid = validate_google_place_id(pid)
+    except serializers.ValidationError as e:
+        return Response(e.detail, status=400)
     # path 版と同じロジックを使う
     return detail(request, id=pid)
 
