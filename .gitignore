@@ -91,3 +91,6 @@ real.jpg
 # local scratch cookies
 apps/web/cookies.txt
 cookies.txt
+
+# generated
+backend/openapi.json
