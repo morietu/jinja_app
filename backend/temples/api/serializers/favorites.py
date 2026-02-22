@@ -5,8 +5,12 @@ import re
 from rest_framework import serializers
 from temples.models import Favorite, PlaceRef, Shrine
 from temples.services.places import get_or_sync_place
+from typing import Any, Optional
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
-PLACE_ID_RE = re.compile(r"^[A-Za-z0-9._=-]{10,200}$")
+# Google Place ID は基本 "ChI" で始まる
+PLACE_ID_RE = re.compile(r"^ChI[A-Za-z0-9_-]{11,197}$")
 
 
 class ShrineLiteSerializer(serializers.Serializer):
@@ -18,20 +22,21 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Favorite
-        fields = ["id", "shrine", "place_id", "place", "created_at"]  # 実フィールドに合わせて調整
+        fields = ["id", "shrine", "place_id", "place", "created_at"]
 
-    def get_place(self, obj):
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_place(self, obj) -> Optional[dict[str, Any]]:
         if not obj.place_id:
             return None
 
-        # ★ api_views から渡された一括ロード結果を優先
+        # ★ context から一括ロード済みデータを優先
         ctx_places = self.context.get("places") or {}
         pr = ctx_places.get(obj.place_id)
 
-        # フォールバック（単体取得：N+1は list() 側で回避済み）
+        # ★ フォールバック（place_id で検索）
         if pr is None:
             pr = (
-                PlaceRef.objects.filter(pk=obj.place_id)
+                PlaceRef.objects.filter(place_id=obj.place_id)
                 .only("place_id", "name", "address", "latitude", "longitude")
                 .first()
             )
@@ -42,11 +47,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "place_id": pr.place_id,
             "name": pr.name,
             "address": pr.address,
-            "location": {"lat": pr.latitude, "lng": pr.longitude},
+            "location": {
+                "lat": pr.latitude,
+                "lng": pr.longitude,
+            },
         }
 
-
-# backend/temples/api/serializers/favorites.py
 
 class FavoriteUpsertSerializer(serializers.ModelSerializer):
     shrine_id = serializers.PrimaryKeyRelatedField(
@@ -84,7 +90,7 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
         if not (has_shrine or has_place):
             raise serializers.ValidationError("either shrine_id or place_id is required")
         if has_place and not PLACE_ID_RE.match(str(pid)):
-            raise serializers.ValidationError("invalid place_id format")
+            raise serializers.ValidationError({"place_id": "must be a Google Place ID starting with 'ChI'."})
         return attrs
 
     def create(self, validated):
@@ -96,6 +102,9 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
             return obj
 
         pid = raw.get("place_id")
-        get_or_sync_place(pid)
-        obj, _ = Favorite.objects.get_or_create(user=user, place_id=pid)
+        if not pid or not PLACE_ID_RE.match(str(pid)):
+            raise serializers.ValidationError({"place_id": "must be a Google Place ID starting with 'ChI'."})
+
+        get_or_sync_place(str(pid))
+        obj, _ = Favorite.objects.get_or_create(user=user, place_id=str(pid))
         return obj
