@@ -423,6 +423,39 @@ def photo(request):
     resp["Cache-Control"] = "public, max-age=3600"
     return resp
 
+def _detail_impl(place_id: str):
+    gp = services.google_places
+    try:
+        data = gp.detail(place_id=place_id) if hasattr(gp, "detail") else gp.details(place_id=place_id)
+    except Exception:
+        logger.exception("places.detail で例外が発生しました")
+        return Response(
+            {"detail": "places.detail は内部エラーのため失敗しました"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    src = data.get("result") or data.get("place") or data or {}
+
+    out = {
+        "place_id": src.get("place_id") or place_id,
+        "name": src.get("name"),
+        "address": src.get("formatted_address") or src.get("vicinity"),
+        "rating": src.get("rating"),
+        "user_ratings_total": src.get("user_ratings_total"),
+        "types": src.get("types") or [],
+    }
+
+    loc = ((src.get("geometry") or {}).get("location")) or {}
+    if "lat" in loc and "lng" in loc:
+        out["location"] = {"lat": loc["lat"], "lng": loc["lng"]}
+
+    photos = src.get("photos") or []
+    if photos and isinstance(photos, list):
+        ref = photos[0].get("photo_reference")
+        if ref:
+            out["photo_reference"] = ref
+
+    return Response(out)
 
 # --- /api/places/<id>/（detail by path） ---
 @extend_schema(
@@ -435,53 +468,16 @@ def photo(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail(request, id: str):
-    id = (id or "").strip()
-    if not id:
+    pid = (id or "").strip()
+    if not pid:
         return Response({"detail": "place_id is required"}, status=400)
-
-
-    gp = services.google_places
-    try:
-        data = gp.detail(place_id=id) if hasattr(gp, "detail") else gp.details(place_id=id)
-    except Exception:
-        logger.exception("places.detail で例外が発生しました")
-        return Response(
-            {"detail": "places.detail は内部エラーのため失敗しました"},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-
-    src = data.get("result") or data.get("place") or data or {}
-
-    # 必須フィールドを整形
-    out = {
-        "place_id": src.get("place_id") or id,
-        "name": src.get("name"),
-        "address": src.get("formatted_address") or src.get("vicinity"),
-        "rating": src.get("rating"),
-        "user_ratings_total": src.get("user_ratings_total"),
-        "types": src.get("types") or [],
-    }
-    loc = ((src.get("geometry") or {}).get("location")) or {}
-    if "lat" in loc and "lng" in loc:
-        out["location"] = {"lat": loc["lat"], "lng": loc["lng"]}
-
-    # 互換のため photo_reference もあれば1枚だけ拾う
-    photos = src.get("photos") or []
-    if photos and isinstance(photos, list):
-        ref = photos[0].get("photo_reference")
-        if ref:
-            out["photo_reference"] = ref
-
-    return Response(out)
-
+    return _detail_impl(pid)
 
 # --- /api/places/detail/?place_id=...（detail by query） ---
 @extend_schema(
     operation_id="api_places_detail_by_query",
     summary="Places: detail (query version)",
-    parameters=[
-        OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True)
-    ],
+    parameters=[OpenApiParameter("place_id", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True)],
     responses={200: PlaceDetailResponse},
     tags=["places"],
 )
@@ -491,22 +487,17 @@ def detail_query(request):
     pid = (request.query_params.get("place_id") or "").strip()
     if not pid:
         return Response({"detail": "place_id is required"}, status=400)
-
-    # path 版と同じロジックを使う（形式チェックはしない）
-    return detail(request, id=pid)
+    return _detail_impl(pid)
 
 
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def detail_short(request, id: str):
-    # DRF Request のときは _request を渡す（Django HttpRequest）
-    try:
-        from rest_framework.request import Request as DRFRequest
-    except Exception:
-        DRFRequest = None
-    dj_req = request._request if (DRFRequest and isinstance(request, DRFRequest)) else request
-    return detail(dj_req, id=id)
+    pid = (id or "").strip()
+    if not pid:
+        return Response({"detail": "place_id is required"}, status=400)
+    return _detail_impl(pid)
 
 
 @extend_schema(
