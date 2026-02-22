@@ -4,10 +4,24 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema
+
 
 User = get_user_model()
 
+class PublicProfileResponseSerializer(serializers.Serializer):
+    username = serializers.CharField(required=False)
+    nickname = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    bio = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    icon = serializers.CharField(required=False, allow_null=True)
+    is_public = serializers.BooleanField(required=False)
 
+@extend_schema(
+    operation_id="api_public_profile_retrieve",
+    responses={200: PublicProfileResponseSerializer},
+    tags=["profiles"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def public_profile(request, username: str):

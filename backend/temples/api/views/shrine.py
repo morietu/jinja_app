@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 import math
 
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import serializers
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+
 from django.conf import settings
 from django.db.models import F, Q, Value
 from django.db.models.functions import Coalesce
@@ -13,6 +20,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.decorators import action
 from temples.services.places import get_or_create_shrine_by_place_id, PlacesError
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema
 from django.http import Http404
 from django.db.models import Q
 from temples.services import places
@@ -72,7 +81,24 @@ def _use_real_gis() -> bool:
         getattr(settings, "DISABLE_GIS_FOR_TESTS", False)
     )
 
+class NearestShrineItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name_jp = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
+    distance = serializers.FloatField(required=False)
 
+class NearestShrinesResponseSerializer(serializers.Serializer):
+    results = NearestShrineItemSerializer(many=True)
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="api_shrines_nearest_list",
+        responses={200: NearestShrinesResponseSerializer},
+        tags=["shrines"],
+    )
+)
 # ---- Legacy shim: /api/shrines/nearest/ を JSON 配列で返す ----
 class NearestShrinesAPIView(APIView):
     permission_classes = [AllowAny]

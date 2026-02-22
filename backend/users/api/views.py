@@ -1,16 +1,17 @@
 # users/api/views.py
+# users/api/views.py
 from django.conf import settings
 from django.db.models import Sum, Count
 
-from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from users.models import UserProfile
+from drf_spectacular.utils import extend_schema
 
+from users.models import UserProfile
 from temples.models import GoshuinImage
 
 from .serializers import (
@@ -21,13 +22,26 @@ from .serializers import (
 
 
 def _storage_limit_bytes() -> int:
-    # まずは env がなければ 200MB
     return int(getattr(settings, "STORAGE_LIMIT_BYTES", 200 * 1024 * 1024))
+
+
+class MeStorageResponseSerializer(serializers.Serializer):
+    total_bytes = serializers.IntegerField()
+    total_images = serializers.IntegerField()
+    limit_bytes = serializers.IntegerField()
+    remaining_bytes = serializers.IntegerField()
+    is_over_limit = serializers.BooleanField()
+
 
 class MeStorageView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        operation_id="api_users_me_storage_retrieve",
+        responses={200: MeStorageResponseSerializer},
+        tags=["users"],
+    )
     def get(self, request):
         qs = GoshuinImage.objects.filter(goshuin__user=request.user)
 
@@ -52,7 +66,6 @@ class MeStorageView(APIView):
                 "is_over_limit": is_over_limit,
             }
         )
-
 
 class MeView(APIView):
     authentication_classes = [JWTAuthentication]

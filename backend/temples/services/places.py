@@ -426,17 +426,19 @@ def places_photo(photo_reference: str, maxwidth: int = 800) -> Tuple[bytes, str,
 # 付帯ユースケース（DB同期など）
 # ----------------------------
 def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
-    pr: Optional[PlaceRef] = PlaceRef.objects.filter(pk=place_id).first()
+    pr = PlaceRef.objects.filter(pk=place_id).first()
     if pr and not force:
         return pr
 
-    # 低レベル details は {status, result, ...} を返すので result を抜く
-    data = _wrap_call(google_places.details, place_id=place_id, language=_lang_or_default(None))
-    result = (data or {}).get("result") or {}  # ←ここが肝
+    data = _wrap_call(
+        google_places.details,
+        place_id=place_id,
+        language=_lang_or_default(None),
+    )
+    result = (data or {}).get("result") or {}
 
     name = result.get("name")
     if not name:
-        # PlaceRef.name は NOT NULL なので、壊れたデータは保存しない
         raise PlacesError("place details missing name", status=502)
 
     address = result.get("formatted_address") or result.get("vicinity")
@@ -444,12 +446,11 @@ def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
     lat = loc.get("lat")
     lng = loc.get("lng")
 
-    pr, _created = PlaceRef.objects.update_or_create(
-        pk=place_id,
+    pr, _ = PlaceRef.objects.update_or_create(
+        pk=place_id,  # ← PKで統一（place_id=...でも同じ意味だけど意図が明確）
         defaults={
-            "place_id": place_id,
             "name": name,
-            "address": address,
+            "address": address or "",
             "latitude": lat,
             "longitude": lng,
             "snapshot_json": result,

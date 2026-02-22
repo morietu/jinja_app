@@ -1,8 +1,12 @@
 # backend/temples/api/views/places_resolve.py
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
+from __future__ import annotations
+
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework import status, serializers
+
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter
 from django.utils import timezone
 from django.db import IntegrityError
 from typing import Any, Dict
@@ -12,7 +16,52 @@ from temples.services import places
 from temples.services import places_rank as rank
 from temples.services.places import PlacesError, get_or_create_shrine_by_place_id
 
+# ---- schema-only serializers (decoratorより上に置く) ----
 
+
+class PlacesResolveItemSerializer(serializers.Serializer):
+    place_id = serializers.CharField(required=False)
+    name = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    formatted_address = serializers.CharField(required=False, allow_blank=True)
+    geometry = serializers.JSONField(required=False)
+
+
+class PlacesResolveGetResponseSerializer(serializers.Serializer):
+    results = PlacesResolveItemSerializer(many=True)
+
+
+class PlacesResolvePostRequestSerializer(serializers.Serializer):
+    place_id = serializers.CharField()
+
+
+class PlacesResolvePostResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    shrine_id = serializers.IntegerField()
+    place_id = serializers.CharField()
+    candidate_id = serializers.IntegerField()
+
+
+# ---- view ----
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="api_places_resolve_search",
+        parameters=[
+            OpenApiParameter("q", str, required=True),
+            OpenApiParameter("limit", int, required=False),
+        ],
+        responses={200: PlacesResolveGetResponseSerializer},
+        tags=["places"],
+    ),
+    post=extend_schema(
+        operation_id="api_places_resolve_create",
+        request=PlacesResolvePostRequestSerializer,
+        responses={200: PlacesResolvePostResponseSerializer},
+        tags=["places"],
+    ),
+)
 class PlacesResolveView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -62,8 +111,6 @@ class PlacesResolveView(APIView):
 
         return Response({"results": [_normalize_result_for_api(r) for r in results]}, status=status.HTTP_200_OK)
 
-
-
     def post(self, request):
         place_id = (request.data or {}).get("place_id")
         if not place_id:
@@ -93,7 +140,7 @@ class PlacesResolveView(APIView):
                 if c.status not in (ShrineCandidate.Status.APPROVED, ShrineCandidate.Status.REJECTED):
                     c.status = c.status or ShrineCandidate.Status.AUTO
 
-                c.save(update_fields=["name_jp","address","lat","lng","synced_at","source","status"])
+                c.save(update_fields=["name_jp", "address", "lat", "lng", "synced_at", "source", "status"])
             else:
                 c = ShrineCandidate.objects.create(
                     place_id=place_id,

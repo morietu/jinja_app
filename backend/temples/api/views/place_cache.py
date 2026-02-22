@@ -8,6 +8,9 @@ from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema
+
 
 from temples.models import PlaceCache
 
@@ -35,7 +38,19 @@ def _parse_int(s: str | None, *, default: int, min_: int, max_: int) -> int:
 def _parse_bool(s: str | None) -> bool:
     return (s or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
+class PlaceCacheItemSerializer(serializers.Serializer):
+    # 実際に返してるキーに合わせて増やす
+    place_id = serializers.CharField(required=False)
+    name = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    lat = serializers.FloatField(required=False)
+    lng = serializers.FloatField(required=False)
 
+@extend_schema(
+    operation_id="api_place_cache_list",
+    responses={200: PlaceCacheItemSerializer(many=True)},
+    tags=["places"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def place_cache_list(request):

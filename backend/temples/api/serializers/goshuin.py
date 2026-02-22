@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from django.conf import settings
 from rest_framework import serializers
-from temples.models import Goshuin
 
 from temples.models import Goshuin, GoshuinImage
 from temples.api.serializers.validators import validate_image_file
-
+from typing import Optional
+from drf_spectacular.utils import extend_schema_field, OpenApiTypes
 
 MAX_BYTES = getattr(settings, "GOSHUIN_IMAGE_MAX_BYTES", 10 * 1024 * 1024)
 ALLOWED_CT = {"image/jpeg", "image/png", "image/webp"}
@@ -66,7 +66,8 @@ class GoshuinSerializer(serializers.ModelSerializer):
         model = Goshuin
         fields = ["id", "image_url", "is_public", "created_at", "updated_at", "shrine"]
 
-    def get_image_url(self, obj):
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_image_url(self, obj) -> Optional[str]:
         request = self.context.get("request")
 
         # 1) 旧: Goshuin.image が存在する環境を吸収

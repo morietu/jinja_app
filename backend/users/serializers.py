@@ -1,8 +1,16 @@
+from __future__ import annotations
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from users.models import UserProfile
+from typing import Optional, Any
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
+
 
 User = get_user_model()
+
+class MeIconUploadSerializer(serializers.Serializer):
+    icon = serializers.ImageField()
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -45,25 +53,31 @@ class MeSerializer(serializers.ModelSerializer):
         return UserProfile.objects.filter(user=user).first()
 
     # ---- getters (read) ----
-    def get_nickname(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_nickname(self, obj) -> str:
         p = self._profile_of(obj)
         return p.nickname if (p and p.nickname not in (None, "")) else obj.username
 
-    def get_is_public(self, obj):
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_public(self, obj) -> bool:
         p = self._profile_of(obj)
         return bool(p.is_public) if p else False
 
-    def get_bio(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_bio(self, obj) -> Optional[str]:
         p = self._profile_of(obj)
         return p.bio if p else None
 
-    def get_icon(self, obj):
-        p = UserProfile.objects.filter(user=obj).first()
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_icon(self, obj) -> Optional[str]:
+        p = self._profile_of(obj)
         if p and p.icon:
-            return self.context["request"].build_absolute_uri(p.icon.url)
+            req = self.context.get("request")
+            return req.build_absolute_uri(p.icon.url) if req else p.icon.url
         return None
 
-    def get_profile(self, obj):
+    @extend_schema_field(UserProfileSerializer)
+    def get_profile(self, obj) -> Optional[dict[str, Any]]:
         p = self._profile_of(obj)
         return UserProfileSerializer(p).data if p else None
 

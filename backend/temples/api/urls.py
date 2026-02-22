@@ -17,6 +17,8 @@ from temples.api.views.place_cache import place_cache_list
 from temples.api.views.places_resolve import PlacesResolveView
 
 from temples.api_views import FavoriteViewSet
+from django.views.decorators.http import require_http_methods
+
 
 
 # Concierge の互換シム
@@ -103,12 +105,33 @@ my_goshuin_detail_view = MyGoshuinViewSet.as_view(
     {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
 )
 
+# --- My Goshuin（単数形互換）: schemaから除外するラッパー ---
+@extend_schema(exclude=True)
+def my_goshuin_list_compat(request, *args, **kwargs):
+    return my_goshuin_list_view(request, *args, **kwargs)
+
+@extend_schema(exclude=True)
+def my_goshuin_detail_compat(request, *args, **kwargs):
+    return my_goshuin_detail_view(request, *args, **kwargs)
+
 # ViewSet の明示エイリアス（reverse 名称の安定化）
 shrine_list_view = ShrineViewSet.as_view({"get": "list", "post": "create"})
 shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # /data/ 用
 
 def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
     raise Http404()
+
+
+@extend_schema(exclude=True)
+def my_goshuin_detail_compat(request, *args, **kwargs):
+    return my_goshuin_detail_view(request, *args, **kwargs)
+
+
+@extend_schema(exclude=True)
+@require_http_methods(["POST"])
+def concierge_chat_compat_noslash(request, *args, **kwargs):
+    return concierge_chat_compat(request, *args, **kwargs)
+
 
 urlpatterns = [
     # ---- Routes -----------------------------------------------------------
@@ -126,21 +149,21 @@ urlpatterns = [
     
 
     # --- My Goshuin（単数形互換） ---
-    path("my/goshuin/", my_goshuin_list_view, name="my-goshuin-list-compat"),
-    path("my/goshuin/<int:pk>/", my_goshuin_detail_view, name="my-goshuin-detail-compat"),
+    # path("my/goshuin/", my_goshuin_list_compat, name="my-goshuin-list-compat"),
+    # path("my/goshuin/<int:pk>/", my_goshuin_detail_compat, name="my-goshuin-detail-compat"),
 
     # ---- Popular ----------------------------------------------------------
     path("populars/", PopularShrineListView.as_view(), name="popular-shrines"),
 
     # ---- Concierge --------------------------------------------------------
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
-    path("concierge/chat", concierge_chat_compat, name="concierge-chat-noslash"),
+    path("concierge/chat", concierge_chat_compat_noslash, name="concierge-chat-noslash"),
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
 
     path("concierge-threads/", ConciergeThreadListView.as_view(), name="concierge-thread-list"),
-    path("concierge-threads", ConciergeThreadListView.as_view(), name="concierge-thread-list-noslash"),
+    
     path("concierge-threads/<int:pk>/", ConciergeThreadDetailView.as_view(), name="concierge-thread-detail"),
-    path("concierge-threads/<int:pk>", ConciergeThreadDetailView.as_view(), name="concierge-thread-detail-noslash"),
+
 
     # ---- Billing ----------------------------------------------------------
     path("billing/status/", BillingStatusLegacyView.as_view(), name="billing-status-legacy"),
@@ -172,6 +195,7 @@ urlpatterns = [
     path("geocodes/reverse/", geocode_reverse, name="geocodes-reverse"),
     path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
     path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
+
 
     # router は最後に1回だけ
     path("", include(router.urls)),

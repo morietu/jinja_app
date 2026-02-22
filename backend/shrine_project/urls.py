@@ -95,6 +95,12 @@ def whoami_jwt(request):
     )
 
 
+@extend_schema(exclude=True)
+def schema_alias(request):
+    schema_view = SpectacularAPIView.as_view(renderer_classes=[OpenApiJsonRenderer])
+    return schema_view(request)
+
+
 urlpatterns = [
     path("", index),
     path("favicon.ico", favicon),
@@ -121,19 +127,21 @@ urlpatterns = [
     # schema/docs
     path("api/schemas/swagger/", SpectacularSwaggerView.as_view(url_name="api-schemas"), name="api-docs"),
     path("api/schemas/redoc/", SpectacularRedocView.as_view(url_name="api-schemas"), name="api-redoc"),
-    path("api/schemas/", SpectacularAPIView.as_view(renderer_classes=[OpenApiJsonRenderer]), name="api-schemas"),
-    path("api/schemas/", SpectacularAPIView.as_view(renderer_classes=[OpenApiJsonRenderer]), name="schema"),
-    re_path(r"^api/schema/?$", RedirectView.as_view(url="/api/schemas/", permanent=False)),
+    path(
+        "api/schemas/",
+        SpectacularAPIView.as_view(renderer_classes=[OpenApiJsonRenderer]),
+        name="api-schemas",
+    ),
+    path("api/schema/", schema_alias, name="schema"),
+    re_path(r"^api/schema$", RedirectView.as_view(url="/api/schema/", permanent=False)),
     re_path(r"^api/schema/swagger-ui/?$", RedirectView.as_view(url="/api/schemas/swagger/", permanent=False)),
     re_path(r"^api/schema/redoc/?$", RedirectView.as_view(url="/api/schemas/redoc/", permanent=False)),
 
     # misc
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
-    path("healthz", healthz, name="healthz_noslash"),
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
-    path("goriyaku-tags/", goriyaku_tags_list),
 ]
 
 if settings.DEBUG:
