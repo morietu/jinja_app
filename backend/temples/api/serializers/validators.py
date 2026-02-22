@@ -63,3 +63,8 @@ def validate_place_id_permissive(value: str) -> str:
 # backward compat: old name used by older modules / imports.
 # Keep until all call sites are migrated.
 validate_place_id = validate_place_id_permissive
+
+# backward compat (old name) - strict
+validate_google_place_id = validate_google_place_id_strict
+
+

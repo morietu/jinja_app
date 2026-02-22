@@ -9,7 +9,8 @@ from drf_spectacular.types import OpenApiTypes
 
 from temples.models import Favorite, PlaceRef, Shrine
 from temples.services.places import get_or_sync_place
-from temples.api.serializers.validators import validate_google_place_id
+from temples.api.serializers.validators import validate_google_place_id_strict
+
 
 
 class ShrineLiteSerializer(serializers.Serializer):
@@ -86,7 +87,7 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
 
         if has_place:
             # ★ここが重要：確定した place_id を attrs に入れる
-            attrs["place_id"] = validate_google_place_id(str(pid))
+            attrs["place_id"] = validate_google_place_id_strict(str(pid))
 
         return attrs
 
