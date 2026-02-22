@@ -1,20 +1,20 @@
 # backend/temples/api/serializers/favorites.py
+from __future__ import annotations
 
-import re
+from typing import Any, Optional
 
 from rest_framework import serializers
-from temples.models import Favorite, PlaceRef, Shrine
-from temples.services.places import get_or_sync_place
-from typing import Any, Optional
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
-# Google Place ID は基本 "ChI" で始まる
-PLACE_ID_RE = re.compile(r"^ChI[A-Za-z0-9_-]{11,197}$")
+from temples.models import Favorite, PlaceRef, Shrine
+from temples.services.places import get_or_sync_place
+from temples.api.serializers.validators import validate_google_place_id
 
 
 class ShrineLiteSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+
 
 class FavoriteSerializer(serializers.ModelSerializer):
     shrine = ShrineLiteSerializer(read_only=True)
@@ -29,11 +29,9 @@ class FavoriteSerializer(serializers.ModelSerializer):
         if not obj.place_id:
             return None
 
-        # ★ context から一括ロード済みデータを優先
         ctx_places = self.context.get("places") or {}
         pr = ctx_places.get(obj.place_id)
 
-        # ★ フォールバック（place_id で検索）
         if pr is None:
             pr = (
                 PlaceRef.objects.filter(place_id=obj.place_id)
@@ -47,10 +45,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "place_id": pr.place_id,
             "name": pr.name,
             "address": pr.address,
-            "location": {
-                "lat": pr.latitude,
-                "lng": pr.longitude,
-            },
+            "location": {"lat": pr.latitude, "lng": pr.longitude},
         }
 
 
@@ -66,7 +61,6 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):
-        # --- compat: e2e の target_type/target_id を吸収 ---
         raw = (self.initial_data or {}) if isinstance(self.initial_data, dict) else {}
         ttype = raw.get("target_type") or raw.get("targetType")
         tid = raw.get("target_id") or raw.get("targetId")
@@ -77,11 +71,11 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
                 try:
                     attrs["shrine"] = Shrine.objects.get(pk=int(tid))
                 except Exception:
-                    raise serializers.ValidationError("invalid shrine_id")
+                    raise serializers.ValidationError({"shrine_id": "invalid shrine_id"})
             elif t == "place":
                 raw["place_id"] = str(tid)
             else:
-                raise serializers.ValidationError("invalid target_type")
+                raise serializers.ValidationError({"target_type": "invalid target_type"})
 
         has_shrine = attrs.get("shrine") is not None
         pid = raw.get("place_id")
@@ -89,22 +83,21 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
 
         if not (has_shrine or has_place):
             raise serializers.ValidationError("either shrine_id or place_id is required")
-        if has_place and not PLACE_ID_RE.match(str(pid)):
-            raise serializers.ValidationError({"place_id": "must be a Google Place ID starting with 'ChI'."})
+
+        if has_place:
+            # ★ここが重要：確定した place_id を attrs に入れる
+            attrs["place_id"] = validate_google_place_id(str(pid))
+
         return attrs
 
-    def create(self, validated):
+    def create(self, validated_data):
         user = self.context["request"].user
-        raw = (self.initial_data or {}) if isinstance(self.initial_data, dict) else {}
 
-        if validated.get("shrine") is not None:
-            obj, _ = Favorite.objects.get_or_create(user=user, shrine=validated["shrine"])
+        if validated_data.get("shrine") is not None:
+            obj, _ = Favorite.objects.get_or_create(user=user, shrine=validated_data["shrine"])
             return obj
 
-        pid = raw.get("place_id")
-        if not pid or not PLACE_ID_RE.match(str(pid)):
-            raise serializers.ValidationError({"place_id": "must be a Google Place ID starting with 'ChI'."})
-
-        get_or_sync_place(str(pid))
-        obj, _ = Favorite.objects.get_or_create(user=user, place_id=str(pid))
+        pid = validated_data["place_id"]  # ★rawじゃなくvalidated
+        get_or_sync_place(pid)
+        obj, _ = Favorite.objects.get_or_create(user=user, place_id=pid)
         return obj

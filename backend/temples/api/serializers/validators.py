@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from rest_framework import serializers
 from PIL import Image, UnidentifiedImageError
 
@@ -40,3 +41,12 @@ def validate_image_file(
             f.seek(0)  # verify() で読まれるので戻す
         except Exception:
             pass
+
+# Google Place ID は基本 "ChI" で始まる（いまの方針）
+_PLACE_ID_RE = re.compile(r"^ChI[A-Za-z0-9_-]{11,197}$")
+
+def validate_google_place_id(value: str) -> str:
+    v = (value or "").strip()
+    if not v or not _PLACE_ID_RE.match(v):
+        raise serializers.ValidationError({"place_id": "must be a Google Place ID starting with 'ChI'."})
+    return v
