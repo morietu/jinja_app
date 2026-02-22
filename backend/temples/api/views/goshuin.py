@@ -16,6 +16,7 @@ from temples.models import Goshuin, GoshuinImage
 from temples.serializers.routes import MyGoshuinCreateSerializer
 from temples.api.serializers.goshuin import GoshuinSerializer
 from temples.services.goshuin_limit import get_my_goshuin_limit
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 log = logging.getLogger(__name__)
 
@@ -56,12 +57,18 @@ class PublicGoshuinViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
     
 
-
+@extend_schema_view(
+    list=extend_schema(responses={200: GoshuinSerializer(many=True)}),
+    retrieve=extend_schema(responses={200: GoshuinSerializer}),
+    create=extend_schema(request=MyGoshuinCreateSerializer, responses={201: GoshuinSerializer}),
+    partial_update=extend_schema(responses={200: GoshuinSerializer}),
+)
 
 class MyGoshuinViewSet(viewsets.ViewSet):
     """
     /api/my/goshuins/ 用（自分の御朱印 CRUD）
     """
+    serializer_class = GoshuinSerializer
     authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]

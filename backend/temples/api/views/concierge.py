@@ -1,38 +1,54 @@
 # backend/temples/api/views/concierge.py
+from __future__ import annotations
+
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import serializers
 
 from temples.models import ConciergeThread, ConciergeMessage
-
-from temples.api_views_concierge import (
-    chat,
-    plan,
-    chat_legacy,
-    plan_legacy,
-    ConciergeChatView as ConciergeChatView,
-    ConciergePlanView as ConciergePlanView,
-    ConciergeChatViewLegacy as ConciergeChatViewLegacy,
-    ConciergePlanViewLegacy as ConciergePlanViewLegacy,
-)
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 
-# ✅ helper（ファイル上部に置く）
-def _thread_last_message(thread: ConciergeThread) -> str | None:
-    m = (
-        ConciergeMessage.objects.filter(thread=thread)
-        .order_by("-created_at", "-id")
-        .values_list("content", flat=True)
-        .first()
+# ---- serializers (schema用。嘘つかない最低限) -------------------------------
+
+class ConciergeThreadListItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(allow_blank=True, required=False)
+    last_message = serializers.CharField(allow_null=True, required=False)
+    last_message_at = serializers.CharField(allow_null=True, required=False)
+    message_count = serializers.IntegerField()
+
+class ConciergeThreadListResponseSerializer(serializers.Serializer):
+    results = ConciergeThreadListItemSerializer(many=True)
+
+class ConciergeMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    role = serializers.CharField()
+    content = serializers.CharField()
+    created_at = serializers.CharField(allow_null=True, required=False)
+
+class ConciergeThreadDetailResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(allow_blank=True, required=False)
+    last_message = serializers.CharField(allow_null=True, required=False)
+    last_message_at = serializers.CharField(allow_null=True, required=False)
+    message_count = serializers.IntegerField()
+    messages = ConciergeMessageSerializer(many=True)
+    recommendations = serializers.JSONField(required=False, allow_null=True)
+    recommendations_v2 = serializers.JSONField(required=False, allow_null=True)
+
+# ---- views ------------------------------------------------------------------
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="api_concierge_threads_list",
+        responses={200: ConciergeThreadListResponseSerializer},
+        tags=["concierge"],
     )
-    return m
-
-def _thread_message_count(thread: ConciergeThread) -> int:
-    return ConciergeMessage.objects.filter(thread=thread).count()
-
-
+)
 class ConciergeThreadListView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_scope = "concierge"
@@ -52,10 +68,15 @@ class ConciergeThreadListView(APIView):
                     "message_count": _thread_message_count(t),
                 }
             )
-
         return Response({"results": items}, status=status.HTTP_200_OK)
 
-
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="api_concierge_threads_detail",
+        responses={200: ConciergeThreadDetailResponseSerializer},
+        tags=["concierge"],
+    )
+)
 class ConciergeThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_scope = "concierge"
@@ -85,3 +106,17 @@ class ConciergeThreadDetailView(APIView):
             "recommendations_v2": getattr(thread, "recommendations_v2", None),
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+
+# ---- helpers ----------------------------------------------------------------
+
+def _thread_last_message(thread: ConciergeThread) -> str | None:
+    return (
+        ConciergeMessage.objects.filter(thread=thread)
+        .order_by("-created_at", "-id")
+        .values_list("content", flat=True)
+        .first()
+    )
+
+def _thread_message_count(thread: ConciergeThread) -> int:
+    return ConciergeMessage.objects.filter(thread=thread).count()

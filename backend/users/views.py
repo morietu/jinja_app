@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .serializers import MeSerializer
+from .serializers import MeSerializer, MeIconUploadSerializer
 from users.models import UserProfile
 
 log = logging.getLogger(__name__)
@@ -65,6 +65,7 @@ class CurrentUserView(GenericAPIView):
 
 
 class MeIconUploadView(GenericAPIView):
+    serializer_class = MeIconUploadSerializer
     authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]

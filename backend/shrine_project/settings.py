@@ -394,6 +394,9 @@ if IS_PYTEST:
 SPECTACULAR_SETTINGS = {
     "TITLE": "Shrine API",
     "VERSION": "v1",
+    "PREPROCESSING_HOOKS": [
+        "temples.api.schema_hooks.preprocess_exclude_compat_paths",
+    ],
 }
 
 CACHES = {

@@ -1,4 +1,4 @@
-# backend/temples/api_views.py
+# backend/temples/api_views_legacy.py
 # -*- coding: utf-8 -*-
 import re
 import unicodedata

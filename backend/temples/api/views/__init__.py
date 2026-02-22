@@ -11,7 +11,7 @@ from temples.api_views_concierge import (
     ConciergePlanViewLegacy,
 )
 
-from .concierge import ConciergeThreadListView, ConciergeThreadDetailView
+
 
 __all__ = [
     "chat",
@@ -22,6 +22,4 @@ __all__ = [
     "ConciergePlanView",
     "ConciergeChatViewLegacy",
     "ConciergePlanViewLegacy",
-    "ConciergeThreadListView",
-    "ConciergeThreadDetailView",
 ]
