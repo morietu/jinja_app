@@ -15,7 +15,7 @@ from temples.models import ShrineCandidate, PlaceRef
 from temples.services import places
 from temples.services import places_rank as rank
 from temples.services.places import PlacesError, get_or_create_shrine_by_place_id
-from temples.api.serializers.validators import validate_place_id
+from temples.api.serializers.validators import validate_place_id_permissive
 
 
 # ---- schema-only serializers (decoratorより上に置く) ----
@@ -119,7 +119,7 @@ class PlacesResolveView(APIView):
             return Response({"detail": "place_id is required"}, status=400)
 
         try:
-            place_id = validate_place_id(str(place_id))
+            place_id = validate_place_id_permissive(str(place_id))
         except serializers.ValidationError as e:
             return Response(e.detail, status=400)
 

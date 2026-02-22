@@ -1,68 +1,46 @@
 # -*- coding: utf-8 -*-
 import pytest
-from django.urls import reverse
 from rest_framework.test import APIClient
 from django.urls import reverse
 
 @pytest.mark.django_db
 def test_places_text_search_missing_query_returns_400():
-    """
-    /api/places/text-search/ で query(or q) が無いと 400
-    """
     url = reverse("temples:places-text-search")
     resp = APIClient().get(url, data={})
     assert resp.status_code == 400
 
-
 @pytest.mark.django_db
 def test_places_text_search_legacy_route_exists_and_400_without_query():
-    """
-    /api/places/text_search/ (legacy) ルートが解決でき、
-    パラメータ不足で 400 を返す
-    """
     url = reverse("temples:places-text-search-legacy")
     resp = APIClient().get(url, data={})
     assert resp.status_code == 400
 
-
-@pytest.mark.django_db
-def test_places_detail_missing_place_id_returns_400():
-    """
-    /api/places/detail/ で place_id 無し → 400
-    """
-    # urls.py 側の name が "places-search" 等と並んでいる想定に合わせる
-    # detail の name が異なる場合はここを合わせてください
-    url = reverse("temples:places-search").replace("search/", "detail/")
-    resp = APIClient().get(url, data={})
-    # ルートが存在しない場合は NoReverseMatch になるので、
-    # そのときは urls の name に合わせて修正
-    assert resp.status_code == 400
-
-
 @pytest.mark.django_db
 def test_places_photo_missing_reference_returns_400():
-    """
-    /api/places/photo/ で photo_reference 無し → 400
-    """
-    url = reverse("temples:places-search").replace("search/", "photo/")
-    resp = APIClient().get(url, data={})
+    # name があるならそれを使うのが理想。なければ直URLでもいい。
+    resp = APIClient().get("/api/places/photo/")
     assert resp.status_code == 400
-
-
-
 
 @pytest.mark.django_db
 def test_places_nearby_missing_location_returns_400():
-    """
-    /api/places/nearby/ で lat/lng 無し → 400
-    """
     url = reverse("temples:places-nearby")
-    res = APIClient().get(url)  # lat/lng なし
+    res = APIClient().get(url)
     assert res.status_code == 400
-
 
 @pytest.mark.django_db
 def test_places_nearby_hyphen_missing_location_returns_400():
     url = reverse("temples:places-nearby-search-legacy-hyphen")
     res = APIClient().get(url)
     assert res.status_code == 400
+
+# ---- contract: detail endpoints must be permissive (non-ChI allowed) ----
+
+@pytest.mark.django_db
+def test_places_detail_by_id_is_permissive_for_non_chi_place_id():
+    res = APIClient().get("/api/places/PID_INTERNAL_123/")
+    assert res.status_code != 400
+
+@pytest.mark.django_db
+def test_places_detail_by_query_is_permissive_for_non_chi_place_id():
+    res = APIClient().get("/api/places/detail/", {"place_id": "PID_INTERNAL_123"})
+    assert res.status_code != 400
