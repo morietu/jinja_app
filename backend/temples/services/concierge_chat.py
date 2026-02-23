@@ -1159,6 +1159,10 @@ def build_chat_recommendations(     # noqa: C901
         except Exception:
             r.pop("id", None)
 
+    if goriyaku_tag_ids:
+        n_with_tags = sum(1 for c in valid_candidates if isinstance(c, dict) and isinstance(c.get("goriyaku_tag_ids"), list) and len(c.get("goriyaku_tag_ids")) > 0)
+        log.info("[svc/chat] cand goriyaku_tag_ids attached=%d/%d", n_with_tags, len(valid_candidates))
+
     # -----------------------------
     # Step7. ユーザーフィルタ（痩せ検知ログ）
     # -----------------------------
