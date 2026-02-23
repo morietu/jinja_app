@@ -759,6 +759,7 @@ def build_chat_recommendations(     # noqa: C901
     goriyaku_tag_ids: Optional[List[int]] = None,
     extra_condition: Optional[str] = None,
     flow: str = "A",  # "A" or "B"
+    trace_id: str | None = None,
 ) -> Dict[str, Any]:
     """
     See: docs/concierge_spec.md
@@ -800,8 +801,6 @@ def build_chat_recommendations(     # noqa: C901
     except Exception:
         pass
     
-    log.info("[svc/chat] ENTER build_chat_recommendations query=%r candidates=%d", (query or "")[:30], len(candidates or []))
-
     # --- DEBUG: raw place-id stats (before normalize) ---
     def _nonempty(d: dict, k: str) -> bool:
         v = d.get(k)
@@ -815,6 +814,9 @@ def build_chat_recommendations(     # noqa: C901
                 log.info("[svc/chat] raw %s nonempty=%d/%d", k, n, len(raw))
     except Exception:
         pass
+
+    raw_dicts = [c for c in (candidates or []) if isinstance(c, dict)]
+    raw_total = len(raw_dicts)
 
     # 0. candidates 正規化（入口で一度だけ）
     candidates = _normalize_candidates_for_chat(candidates)
@@ -838,6 +840,18 @@ def build_chat_recommendations(     # noqa: C901
         for c in candidates
         if isinstance(c, dict) and (c.get("name") or "").strip() and not _is_test_candidate(c)
     ]
+
+    normalized_total = len([c for c in (candidates or []) if isinstance(c, dict)])
+    log.info(
+        "[svc/chat] trace=%s stage=candidates raw=%d normalized=%d valid=%d astro_on=%s bias=%s/%s",
+        trace_id,
+        raw_total,
+        normalized_total,
+        len(valid_candidates),
+        "Y" if _astro_enabled(birthdate) else "N",
+        "Y" if (bias and bias.get("lat") is not None) else "N",
+        "Y" if (bias and bias.get("lng") is not None) else "N",
+    )
 
     # bias が無いなら candidates から合成（最低限 lat/lng を作る）
     if (not bias or bias.get("lat") is None or bias.get("lng") is None) and valid_candidates:
@@ -877,19 +891,17 @@ def build_chat_recommendations(     # noqa: C901
         len(candidates or []),
     )
 
-    # 2. LLMで初期推薦を取得
+    # 2. LLMで初期推薦を取得（LLM無効なら呼ばない）
     llm_enabled = _use_llm()
-    llm_used = False
+    # spec: enabled=true の失敗経路でも used=true を維持
+    llm_used = bool(llm_enabled)
     llm_error: str | None = None
 
     try:
         from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
 
-        # enabled=true のときだけ「外部LLM到達し得る経路を試行した」扱い
-        if llm_enabled:
-            llm_used = True
-
-        recs: Any = Orchestrator().suggest(query=query, candidates=valid_candidates)
+        orch = Orchestrator()
+        recs: Any = orch.suggest(query=query, candidates=valid_candidates)
 
     except Exception as e:
         llm_error = f"{type(e).__name__}: {e}"
@@ -924,6 +936,7 @@ def build_chat_recommendations(     # noqa: C901
 
     # debugに最終値を入れる
     recs["_debug"] = recs.get("_debug") if isinstance(recs.get("_debug"), dict) else {}
+    recs["_debug"]["trace_id"] = trace_id
     recs["_debug"]["requested_flow"] = requested_flow
     recs["_debug"]["flow"] = flow
 
@@ -1016,7 +1029,14 @@ def build_chat_recommendations(     # noqa: C901
         sample_keys = list(cand_addr.keys())[:3]
     except Exception:
         sample_keys = []
-    log.info("[svc/chat] cand_addr size=%d sample_keys=%r", len(cand_addr), sample_keys)
+
+    log.info(
+        "[svc/chat] trace=%s step5 start cand_addr=%d sample_keys=%r cache_size=%d",
+        trace_id,
+        len(cand_addr),
+        sample_keys,
+        len(lookup_addr_cache),
+    )
 
     # Step5 counters
     cand_hit = 0
@@ -1024,6 +1044,7 @@ def build_chat_recommendations(     # noqa: C901
     bf_called = 0
     miss = 0
     eligible = 0
+    
 
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
@@ -1050,7 +1071,7 @@ def build_chat_recommendations(     # noqa: C901
         else:
             # missログ
             miss += 1
-            log.info("[svc/chat] lookup_address_by_name miss name=%r key=%r", nm, nk)
+            log.info("[svc/chat] trace=%s lookup_address_by_name miss name=%r key=%r", trace_id, nm, nk)
 
             # 候補側に近いキーがあるか（軽量ヒント: contains）
             try:
@@ -1084,7 +1105,8 @@ def build_chat_recommendations(     # noqa: C901
                 r["location"] = a
 
     log.info(
-        "[svc/chat] step5 location_fill eligible=%d cand_hit=%d cache_hit=%d bf_called=%d miss=%d cand_addr=%d cache_size=%d",
+        "[svc/chat] trace=%s step5 location_fill eligible=%d cand_hit=%d cache_hit=%d bf_called=%d miss=%d cand_addr=%d cache_size=%d",
+        trace_id,
         eligible,
         cand_hit,
         cache_hit,

@@ -405,6 +405,7 @@ class ConciergeChatView(APIView):
             area=area,
             lat=lat,
             lng=lng,
+            trace_id=rid,
         )
         log.info(
             "[concierge/reco] candidates_raw rid=%s user=%d built=%d total=%d",
@@ -513,6 +514,7 @@ class ConciergeChatView(APIView):
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             extra_condition=data.get("extra_condition"),
             flow=flow,
+            trace_id=rid,
         )
 
         after_n = len(recs.get("recommendations") or [])
@@ -531,7 +533,7 @@ class ConciergeChatView(APIView):
             pass
 
         body = {"ok": True, "intent": intent, "data": recs}
-        body["_debug"] = {"before": before_n, "after": after_n, "applied": applied, "flow": flow}
+        body["_debug"] = {"rid": rid, "before": before_n, "after": after_n, "applied": applied, "flow": flow}
 
         # 非premium認証ユーザーだけ remaining_free/limit を返す
         if user is not None and not is_premium:

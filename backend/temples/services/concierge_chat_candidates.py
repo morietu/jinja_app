@@ -58,6 +58,7 @@ def build_chat_candidates(
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     limit: int = DEFAULT_LIMIT,
+    trace_id: str | None = None,
 ) -> List[Dict[str, Any]]:
     qs = Shrine.objects.all()
 
@@ -105,6 +106,22 @@ def build_chat_candidates(
         )
 
     with_pid = sum(1 for c in candidates if c.get("place_id"))
-    log.info("[svc/chat_candidates] place_id nonempty=%d/%d", with_pid, len(candidates))
+    miss_latlng = sum(1 for c in candidates if c.get("lat") is None or c.get("lng") is None)
+    dist_none = sum(1 for c in candidates if c.get("distance_m") is None)
+
+    log.info(
+        "[svc/chat_candidates] trace=%s count=%d with_place_id=%d miss_latlng=%d dist_none=%d "
+        "area=%r goriyaku=%s latlng_in=%s/%s limit=%d",
+        trace_id,
+        len(candidates),
+        with_pid,
+        miss_latlng,
+        dist_none,
+        (area or "")[:20] if isinstance(area, str) else area,
+        "Y" if goriyaku_tag_ids else "N",
+        "Y" if lat is not None else "N",
+        "Y" if lng is not None else "N",
+        limit,
+    )
 
     return candidates
