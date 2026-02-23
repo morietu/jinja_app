@@ -83,7 +83,8 @@ class MeView(APIView):
             user=request.user,
             defaults={"nickname": request.user.username, "is_public": True},
         )
-        return Response(UserMeSerializer(request.user, context={"request": request}).data)
+        user = type(request.user).objects.select_related("profile").get(pk=request.user.pk)
+        return Response(UserMeSerializer(user, context={"request": request}).data)
 
     @extend_schema(
         summary="Update current user profile",
@@ -96,7 +97,9 @@ class MeView(APIView):
         ser = UserProfileUpdateSerializer(prof, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         ser.save()
-        return Response(UserMeSerializer(request.user, context={"request": request}).data)
+
+        user = type(request.user).objects.select_related("profile").get(pk=request.user.pk)
+        return Response(UserMeSerializer(user, context={"request": request}).data)
 
 
 class SignupResponse(serializers.Serializer):
@@ -155,9 +158,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     except Exception:
         event_dict = {"type": getattr(event, "type", None), "data": {}}
 
-    # ---- debug log (ここが観測ポイント) ----
     etype = event_dict.get("type") or ""
-    obj = ((event_dict.get("data") or {}).get("object") or {})
+    obj = (event_dict.get("data") or {}).get("object") or {}
 
     if getattr(settings, "STRIPE_WEBHOOK_DEBUG", False) and isinstance(obj, dict):
         if etype.startswith("customer.subscription"):
@@ -170,7 +172,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
             except Exception:
                 pass
 
-            log.info(
+            log.debug(
                 "[stripe] etype=%s obj.current_period_end=%r item0.current_period_end=%r items_type=%s items_keys=%s",
                 etype,
                 obj.get("current_period_end"),

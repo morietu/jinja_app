@@ -6,7 +6,7 @@ from users.models import UserProfile
 from tests.factories import UserFactory
 from tests.utils import api_client_as
 
-ME_URL_NAME = "users-me"
+ME_URL_NAME = "users_api:me"
 
 
 @pytest.mark.django_db
