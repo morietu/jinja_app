@@ -43,4 +43,4 @@ def test_places_detail_by_id_is_permissive_for_non_chi_place_id():
 @pytest.mark.django_db
 def test_places_detail_by_query_is_permissive_for_non_chi_place_id():
     res = APIClient().get("/api/places/detail/", {"place_id": "PID_INTERNAL_123"})
-    assert res.status_code != 400
+    assert res.status_code not in (400, 500)
