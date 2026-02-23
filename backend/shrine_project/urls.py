@@ -8,7 +8,6 @@ from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve as media_serve
-
 from drf_spectacular.renderers import OpenApiJsonRenderer
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
@@ -18,11 +17,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-
 from temples import api_views_concierge as concierge
 from temples.api.views.create_superuser import create_superuser
-from temples.api.views.tags import goriyaku_tags_list
-from users.views import MeIconUploadView, MeView
 
 from .views import favicon, index
 
@@ -106,27 +102,26 @@ urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/create-superuser/", create_superuser),
     path("admin/", admin.site.urls),
-
-    # API
-    path("api/users/me/", MeView.as_view(), name="users-me"),
-    path("api/users/me/icon/", MeIconUploadView.as_view(), name="users-me-icon"),
+    # API (users/stripe webhook などは users.api.urls に集約)
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/_debug/db/", debug_db, name="debug_db"),
-
     # concierge-plan alias
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
-
     # temples
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
-
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
-
     # schema/docs
-    path("api/schemas/swagger/", SpectacularSwaggerView.as_view(url_name="api-schemas"), name="api-docs"),
-    path("api/schemas/redoc/", SpectacularRedocView.as_view(url_name="api-schemas"), name="api-redoc"),
+    path(
+        "api/schemas/swagger/",
+        SpectacularSwaggerView.as_view(url_name="api-schemas"),
+        name="api-docs",
+    ),
+    path(
+        "api/schemas/redoc/", SpectacularRedocView.as_view(url_name="api-schemas"), name="api-redoc"
+    ),
     path(
         "api/schemas/",
         SpectacularAPIView.as_view(renderer_classes=[OpenApiJsonRenderer]),
@@ -134,9 +129,13 @@ urlpatterns = [
     ),
     path("api/schema/", schema_alias, name="schema"),
     re_path(r"^api/schema$", RedirectView.as_view(url="/api/schema/", permanent=False)),
-    re_path(r"^api/schema/swagger-ui/?$", RedirectView.as_view(url="/api/schemas/swagger/", permanent=False)),
-    re_path(r"^api/schema/redoc/?$", RedirectView.as_view(url="/api/schemas/redoc/", permanent=False)),
-
+    re_path(
+        r"^api/schema/swagger-ui/?$",
+        RedirectView.as_view(url="/api/schemas/swagger/", permanent=False),
+    ),
+    re_path(
+        r"^api/schema/redoc/?$", RedirectView.as_view(url="/api/schemas/redoc/", permanent=False)
+    ),
     # misc
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
