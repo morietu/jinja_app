@@ -19,6 +19,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from temples import api_views_concierge as concierge
 from temples.api.views.create_superuser import create_superuser
+from users.api.views import MeView as ApiMeView
 
 from .views import favicon, index
 
@@ -102,6 +103,7 @@ urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/create-superuser/", create_superuser),
     path("admin/", admin.site.urls),
+    path("api/users/me/", ApiMeView.as_view(), name="users-me"),  # legacy compat
     # API (users/stripe webhook などは users.api.urls に集約)
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/_debug/db/", debug_db, name="debug_db"),

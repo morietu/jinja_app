@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from typing import Any, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
-
 from users.models import UserProfile
 
 log = logging.getLogger(__name__)
