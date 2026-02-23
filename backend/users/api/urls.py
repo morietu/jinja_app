@@ -1,9 +1,9 @@
 from django.urls import path
-
-from .views import MeView, SignupView, MeStorageView
+from . import views
 
 urlpatterns = [
-    path("users/me/", MeView.as_view(), name="users-me"),
-    path("users/signup/", SignupView.as_view(), name="users-signup"),
-    path("users/me/storage/", MeStorageView.as_view(), name="users-me-storage"),
+    path("users/me/", views.MeView.as_view(), name="me"),
+    path("users/me/storage/", views.MeStorageView.as_view(), name="me-storage"),
+    path("users/signup/", views.SignupView.as_view(), name="signup"),
+    path("stripe/webhook/", views.stripe_webhook, name="stripe-webhook"),
 ]
