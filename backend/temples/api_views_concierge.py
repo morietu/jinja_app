@@ -1,6 +1,6 @@
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
-
+import uuid
 
 from typing import Any, Dict, Optional
 
@@ -12,7 +12,6 @@ from django.conf import settings as dj_settings
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import status
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,6 +30,8 @@ from temples.services.concierge_chat_candidates import build_chat_candidates
 
 from temples.models import ConciergeUsage
 
+
+
 log = logging.getLogger(__name__)
 def _use_llm() -> bool:
     return bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
@@ -45,27 +46,54 @@ try:
         raise RuntimeError("LLM disabled")
 except Exception:  # pragma: no cover
     ConciergeOrchestrator = None  # type: ignore[misc,assignment]
-    def orchestrate_concierge(*args, **kwargs):
-        return {"recommendations": []}
 
+    def orchestrate_concierge(*args: Any, **kwargs: Any) -> dict:
+        query = ""
+        candidates = None
 
-def _use_llm() -> bool:
-    return bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
+        if args:
+            query = str(args[0] or "")
+            if len(args) >= 2 and isinstance(args[1], list):
+                candidates = args[1]
+
+        query = str(kwargs.get("query") or query or "").strip()
+
+        # ✅ kwargsが存在するならNoneも含めて尊重
+        if "candidates" in kwargs:
+            candidates = kwargs.get("candidates")
+
+        cands = [x for x in (candidates or []) if isinstance(x, dict)]
+        recs = []
+        for i, c in enumerate(cands[:3]):
+            nm = (c.get("name") or c.get("place_id") or "unknown")
+            recs.append({"name": nm, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)})
+
+        if not recs:
+            recs = [{"name": "近隣の神社", "reason": "暫定"}]
+        return {"recommendations": recs}
 
 
 def _safe_extract_intent(text: str):
-    """
-    LLM無効なら intent は None（or 最小のヒューリスティック）で返す。
-    view層で OpenAI を絶対に叩かない。
-    """
+    t = (text or "")
+
+    def _heuristic():
+        if any(k in t for k in ("縁結び", "恋", "結婚")):
+            return {"kind": "love"}
+        if any(k in t for k in ("金運", "仕事", "商売")):
+            return {"kind": "money_work"}
+        if any(k in t for k in ("厄", "厄除", "厄払い")):
+            return {"kind": "purification"}
+        return {"kind": "general"}
+
     if not _use_llm():
-        return None
+        return _heuristic()
 
     try:
         from temples.llm import extract_intent
-        return extract_intent(text)  # 既存APIに合わせる
+        out = extract_intent(text)
+        return out or _heuristic()
     except Exception:
-        return None
+        return _heuristic()
 
 
 def extract_intent(text: str):
@@ -292,7 +320,8 @@ class ConciergeChatView(APIView):
     throttle_scope = "concierge"
 
     def post(self, request, *args, **kwargs):
-        log.info("[concierge] chat.post")
+        rid = uuid.uuid4().hex[:8]
+        log.info("[concierge] chat.post rid=%s", rid)
         data = request.data or {}
         # --- debug: raw payload ---
         log.info("[api/chat] raw keys=%s", sorted(list(data.keys()))[:60])
@@ -377,6 +406,13 @@ class ConciergeChatView(APIView):
             lat=lat,
             lng=lng,
         )
+        log.info(
+            "[concierge/reco] candidates_raw rid=%s user=%d built=%d total=%d",
+            rid,
+            len(user_candidates),
+            max(len(candidates) - len(user_candidates), 0),
+            len(candidates),
+        )
 
         # ✅ テストが locationbias=8000 を見るので probe は残す（結果は使わない）
         try:
@@ -438,12 +474,6 @@ class ConciergeChatView(APIView):
             remaining = max(daily_limit - usage.count, 0)
 
         birthdate = (data.get("birthdate") or "").strip() or None
-        log.warning(
-            "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
-            birthdate,
-            data.get("birthdate"),
-            (data.get("filters") if isinstance(data.get("filters"), dict) else None),
-        )
 
         # Bルート判定は「絞り込みが実際に効いている」時だけ
         gids = data.get("goriyaku_tag_ids")
@@ -452,8 +482,27 @@ class ConciergeChatView(APIView):
         has_extra = bool((data.get("extra_condition") or "").strip())
 
         flow = "B" if (has_goriyaku or has_extra) else "A"
+        log.info(
+            "[concierge/reco] input rid=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
+            rid,
+            flow,
+            birthdate,
+            data.get("goriyaku_tag_ids"),
+            data.get("extra_condition"),
+        )
+        log.warning(
+            "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
+            birthdate,
+            data.get("birthdate"),
+            (data.get("filters") if isinstance(data.get("filters"), dict) else None),
+        )
 
         before_n = len(candidates)
+        applied = []
+        if data.get("goriyaku_tag_ids"):
+            applied.append("goriyaku_tag_ids")
+        if (data.get("extra_condition") or "").strip():
+            applied.append("extra_condition")
 
         recs = build_chat_recommendations(
             query=query,
@@ -466,21 +515,20 @@ class ConciergeChatView(APIView):
             flow=flow,
         )
 
+        after_n = len(recs.get("recommendations") or [])
+        log.info(
+            "[concierge/reco] recs_after rid=%s count=%d applied=%s flow=%s",
+            rid,
+            after_n,
+            applied,
+            flow,
+        )
+
         try:
             b0 = ((recs.get("recommendations") or [{}])[0] or {}).get("breakdown")
             log.info("[api/chat] breakdown0=%s", "Y" if isinstance(b0, dict) else "N")
         except Exception:
             pass
-
-        after_n = len(recs.get("recommendations") or [])
-        applied = []
-        if data.get("goriyaku_tag_ids"):
-            applied.append("goriyaku_tag_ids")
-        if (data.get("extra_condition") or "").strip():
-            applied.append("extra_condition")
-
-
-        
 
         body = {"ok": True, "intent": intent, "data": recs}
         body["_debug"] = {"before": before_n, "after": after_n, "applied": applied, "flow": flow}
