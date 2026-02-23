@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone as dt_timezone
 from typing import Any, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils import timezone
-from datetime import datetime, timezone as dt_timezone
 
 from users.models import UserProfile
 
 log = logging.getLogger(__name__)
 User = get_user_model()
+
+DEBUG_WEBHOOK = bool(getattr(settings, "STRIPE_WEBHOOK_DEBUG", False))
 
 
 def _to_dt_from_unix(ts: Any) -> Optional[datetime]:
@@ -22,6 +23,7 @@ def _to_dt_from_unix(ts: Any) -> Optional[datetime]:
         # Stripeはunix秒。DBはUSE_TZ=True前提で aware にする
         return datetime.fromtimestamp(int(ts), tz=dt_timezone.utc)
     except Exception:
+        # ここは障害調査の価値があるので例外は残す
         log.exception("[stripe] _to_dt_from_unix failed ts=%r type=%s", ts, type(ts).__name__)
         return None
 
@@ -109,15 +111,14 @@ def _fetch_subscription_period_end_from_api(sub_id: str) -> Optional[datetime]:
 
         sk = getattr(settings, "STRIPE_SECRET_KEY", "") or ""
         if not sk.strip():
-            log.info("[stripe] api fallback skipped: STRIPE_SECRET_KEY missing")
+            if DEBUG_WEBHOOK:
+                log.debug("[stripe] api fallback skipped: STRIPE_SECRET_KEY missing")
             return None
 
         stripe.api_key = sk.strip()
 
         sub = stripe.Subscription.retrieve(sub_id, expand=["items.data"])
-        sub_dict = (
-            sub.to_dict_recursive() if hasattr(sub, "to_dict_recursive") else dict(sub)
-        )
+        sub_dict = sub.to_dict_recursive() if hasattr(sub, "to_dict_recursive") else dict(sub)
 
         # 1) current_period_end
         dt = _to_dt_from_unix(sub_dict.get("current_period_end"))
@@ -213,12 +214,13 @@ def _apply_subscription_object(obj: dict[str, Any], *, etype: str) -> None:
     customer.subscription.*:
     - customer_id で profile を引いて status/period_end/price_id を反映
     """
-    log.info(
-        "[stripe] _apply_subscription_object HIT etype=%s sub=%r customer=%r",
-        etype,
-        obj.get("id"),
-        obj.get("customer"),
-    )
+    if DEBUG_WEBHOOK:
+        log.debug(
+            "[stripe] _apply_subscription_object HIT etype=%s sub=%r customer=%r",
+            etype,
+            obj.get("id"),
+            obj.get("customer"),
+        )
 
     customer_id = obj.get("customer")
     if not isinstance(customer_id, str) or not customer_id.strip():
@@ -231,7 +233,8 @@ def _apply_subscription_object(obj: dict[str, Any], *, etype: str) -> None:
     )
     if profile is None:
         # 入口（checkout）で customer_id 保存ができてないとここに来る
-        log.info("[stripe] profile not found for customer=%r", customer_id)
+        if DEBUG_WEBHOOK:
+            log.debug("[stripe] profile not found for customer=%r", customer_id)
         return
 
     update_fields: list[str] = ["updated_at"]
@@ -265,7 +268,7 @@ def _apply_subscription_object(obj: dict[str, Any], *, etype: str) -> None:
         profile.subscription_status = status.strip()
         update_fields.append("subscription_status")
 
-    # ---- 観測ログ（payloadの形を確定） ----
+    # ---- 観測ログ（payloadの形を確定）: DEBUG時だけ ----
     raw_cpe = obj.get("current_period_end")
     raw_cancel_at = obj.get("cancel_at")
     raw_cape = obj.get("cancel_at_period_end")
@@ -274,41 +277,44 @@ def _apply_subscription_object(obj: dict[str, Any], *, etype: str) -> None:
     item0_cpe = None
     try:
         if isinstance(items_container, dict):
-            data0 = ((items_container.get("data") or [None])[0])
+            data0 = (items_container.get("data") or [None])[0]
             if isinstance(data0, dict):
                 item0_cpe = data0.get("current_period_end")
     except Exception:
         pass
 
-    log.info(
-        "[stripe] raw types cpe=%s cancel_at=%s cape=%s items=%s item0_cpe=%s",
-        type(raw_cpe).__name__,
-        type(raw_cancel_at).__name__,
-        type(raw_cape).__name__,
-        type(items_container).__name__,
-        type(item0_cpe).__name__,
-    )
-    log.info(
-        "[stripe] raw values cpe=%r cancel_at=%r cape=%r item0_cpe=%r",
-        raw_cpe,
-        raw_cancel_at,
-        raw_cape,
-        item0_cpe,
-    )
+    if DEBUG_WEBHOOK:
+        log.debug(
+            "[stripe] raw types cpe=%s cancel_at=%s cape=%s items=%s item0_cpe=%s",
+            type(raw_cpe).__name__,
+            type(raw_cancel_at).__name__,
+            type(raw_cape).__name__,
+            type(items_container).__name__,
+            type(item0_cpe).__name__,
+        )
+        log.debug(
+            "[stripe] raw values cpe=%r cancel_at=%r cape=%r item0_cpe=%r",
+            raw_cpe,
+            raw_cancel_at,
+            raw_cape,
+            item0_cpe,
+        )
 
     # ---- 抽出 + fallback ----
     period_end = _extract_current_period_end(obj)
 
     if period_end is None and isinstance(sub_id, str) and sub_id.strip():
         period_end = _fetch_subscription_period_end_from_api(sub_id.strip())
-        log.info("[stripe] api fallback sub=%r period_end=%r", sub_id, period_end)
+        if DEBUG_WEBHOOK:
+            log.debug("[stripe] api fallback sub=%r period_end=%r", sub_id, period_end)
 
+    # INFO に残すのはこれ1行だけ（運用ログとして意味がある）
     log.info(
-        "[stripe] extracted period_end=%r sub=%r customer=%r status=%r",
-        period_end,
+        "[stripe] sub=%r customer=%r status=%r period_end=%r",
         obj.get("id"),
         obj.get("customer"),
         obj.get("status"),
+        period_end,
     )
 
     if period_end is not None:
