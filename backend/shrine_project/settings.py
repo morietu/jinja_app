@@ -411,6 +411,11 @@ AUTO_GEOCODE_ON_SAVE = os.getenv("AUTO_GEOCODE_ON_SAVE", "0").lower() in ("1", "
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "") or GOOGLE_MAPS_API_KEY
 
+# Stripe
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_DEBUG = os.getenv("STRIPE_WEBHOOK_DEBUG", "0") == "1"
+
 
 # --- Hosts / CORS ---
 def _split_csv(s, default=None):
@@ -519,6 +524,11 @@ LOGGING = {
         "handlers": ["console"],
         "level": "INFO",
         "propagate": False,
-    },
+        },
+        "users.api.views": {
+            "handlers": ["console"],
+            "level": "DEBUG" if STRIPE_WEBHOOK_DEBUG else "INFO",
+            "propagate": False,
+        },
     },
 }
