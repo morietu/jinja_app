@@ -2,17 +2,26 @@
 from __future__ import annotations
 
 import logging
-import re
 import math
-
-
+import re
 from typing import Any, Dict, List, Optional
-from django.conf import settings
 
-from temples.llm import backfill as bf
-from temples.services.concierge_candidate_normalize import normalize_candidate
+from django.conf import settings
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 from temples.domain.kyusei import kyusei_signals
+from temples.llm import backfill as bf
+from temples.services.concierge_candidate_normalize import normalize_candidate
+
+
+def _to_float(x: Any, default: float = 0.0) -> float:
+    if x is None:
+        return default
+    if isinstance(x, (float, int)):
+        return float(x)
+    if isinstance(x, str):
+        s = x.strip()
+        return float(s) if s else default
+    return default
 
 
 def _none_if_blank(x: Any) -> Any:
@@ -21,8 +30,6 @@ def _none_if_blank(x: Any) -> Any:
     if isinstance(x, str) and not x.strip():
         return None
     return x
-
-
 
 
 log = logging.getLogger(__name__)
@@ -543,9 +550,8 @@ def _attach_breakdown(
                 pri = int(element_priority(prof.element, shrine_elems))
         except Exception:
             pass
-    
-    score_element = int(pri)
 
+    score_element = int(pri)
 
     # --- need score: contract = need_tags ∩ shrine_astro_tags ---
     shrine_tags = rec.get("astro_tags") or []
@@ -670,6 +676,7 @@ def _astro_enabled(birthdate: Optional[str]) -> bool:
     except Exception:
         return False
 
+
 def _use_llm() -> bool:
     """
     OpenAI無し運用のためのスイッチ。
@@ -697,6 +704,7 @@ def _seed_recs_from_candidates(valid_candidates: list[dict], *, size: int = 3) -
         items.append(x)
     return {"recommendations": _dedupe_by_name(items)}
 
+
 def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     # 地球半径（m）
     R = 6371000.0
@@ -708,6 +716,7 @@ def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlmb / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
 
 def _fill_distance_m(candidates: list[dict], *, bias: Optional[dict]) -> None:
     """
@@ -749,7 +758,7 @@ def _fill_distance_m(candidates: list[dict], *, bias: Optional[dict]) -> None:
 # A) no candidates & no astro -> passthrough top3
 # B) no candidates & astro_on -> astrology pool
 # C) candidates present -> full flow
-def build_chat_recommendations(     # noqa: C901
+def build_chat_recommendations(  # noqa: C901
     *,
     query: str,
     language: str,
@@ -770,21 +779,18 @@ def build_chat_recommendations(     # noqa: C901
     # 距離順 key（distance_m 無しは最後）
     def _cand_dist_key(c: dict) -> tuple[int, float]:
         d = c.get("distance_m")
-        try:
-            return (0, float(d))
-        except Exception:
+        if d is None:
             return (1, 1e18)
+        return (0, _to_float(d, 1e18))
 
-    # 推薦アイテムの距離順 key（distance_m 無しは最後、同距離はnameで安定化）
     def _rec_dist_key(x: Any) -> tuple[int, float, str]:
         if not isinstance(x, dict):
             return (1, 1e18, "")
         d = x.get("distance_m")
         name = str(x.get("name") or "")
-        try:
-            return (0, float(d), name)
-        except Exception:
+        if d is None:
             return (1, 1e18, name)
+        return (0, _to_float(d, 1e18), name)
 
     # --- DEBUG: raw candidates snapshot (before normalize) ---
     try:
@@ -800,7 +806,7 @@ def build_chat_recommendations(     # noqa: C901
             )
     except Exception:
         pass
-    
+
     # --- DEBUG: raw place-id stats (before normalize) ---
     def _nonempty(d: dict, k: str) -> bool:
         v = d.get(k)
@@ -817,6 +823,55 @@ def build_chat_recommendations(     # noqa: C901
 
     raw_dicts = [c for c in (candidates or []) if isinstance(c, dict)]
     raw_total = len(raw_dicts)
+
+    def _calc_missing_fields(cands: list[dict]) -> dict:
+        total = len([c for c in cands if isinstance(c, dict)])
+        if total == 0:
+            return {
+                "total": 0,
+                "place_id": {"missing": 0, "rate": 0.0},
+                "latlng": {"missing": 0, "rate": 0.0},
+                "address": {"missing": 0, "rate": 0.0},
+            }
+
+        def _missing_place_id(c: dict) -> bool:
+            v = c.get("place_id")
+            return not (isinstance(v, str) and v.strip())
+
+        def _missing_latlng(c: dict) -> bool:
+            return c.get("lat") is None or c.get("lng") is None
+
+        def _missing_address(c: dict) -> bool:
+            a = c.get("formatted_address") or c.get("address")
+            return not (isinstance(a, str) and a.strip())
+
+        miss_place = sum(1 for c in cands if isinstance(c, dict) and _missing_place_id(c))
+        miss_latlng = sum(1 for c in cands if isinstance(c, dict) and _missing_latlng(c))
+        miss_addr = sum(1 for c in cands if isinstance(c, dict) and _missing_address(c))
+
+        return {
+            "total": total,
+            "place_id": {"missing": miss_place, "rate": miss_place / total},
+            "latlng": {"missing": miss_latlng, "rate": miss_latlng / total},
+            "address": {"missing": miss_addr, "rate": miss_addr / total},
+        }
+
+    def _attach_stats(*, recs: dict, raw_total: int, valid_candidates: list[dict]) -> None:
+        if not isinstance(recs.get("_signals"), dict):
+            recs["_signals"] = {}
+
+        rs = recs["_signals"].get("result_state")
+        rs = rs if isinstance(rs, dict) else {}
+
+        displayed = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
+
+        recs["_signals"]["stats"] = {
+            "candidate_count": int(raw_total),
+            "valid_candidate_count": int(len(valid_candidates)),
+            "pool_count": int(rs.get("pool_count") or 0),
+            "displayed_count": int(displayed),
+            "missing_fields": _calc_missing_fields(valid_candidates),
+        }
 
     # 0. candidates 正規化（入口で一度だけ）
     candidates = _normalize_candidates_for_chat(candidates)
@@ -865,7 +920,7 @@ def build_chat_recommendations(     # noqa: C901
                 "lat": float(c0["lat"]),
                 "lng": float(c0["lng"]),
                 "radius": 8000.0,
-                "radius_m": 8000.0, 
+                "radius_m": 8000.0,
             }
             log.info("[svc/chat] bias synthesized from candidates: %r", bias)
 
@@ -874,8 +929,6 @@ def build_chat_recommendations(     # noqa: C901
         _fill_distance_m(valid_candidates, bias=bias)
     else:
         log.info("[svc/chat] distance_fill skipped (no bias)")
-    
-
 
     # 距離順（distance_m 無しは最後）
     valid_candidates.sort(key=_cand_dist_key)
@@ -966,19 +1019,26 @@ def build_chat_recommendations(     # noqa: C901
 
         recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
         recs["_signals"]["result_state"] = {
-            "matched_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "matched_count": len(
+                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
+            ),
             "fallback_mode": "none",
             "fallback_reason_ja": None,
             "ui_disclaimer_ja": None,
             "requested_extra_condition": (extra_condition or "").strip() or None,
-            "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
-            "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "pool_count": len(
+                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
+            ),
+            "displayed_count": len(
+                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
+            ),
         }
         recs["_signals"]["llm"] = {
             "enabled": llm_enabled,
             "used": llm_used,
             "error": llm_error,
         }
+        _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
         return recs
 
     # 3. need（ご利益タグ）抽出
@@ -986,13 +1046,18 @@ def build_chat_recommendations(     # noqa: C901
     if isinstance(_need, dict):
         recs["_need"] = _need
 
-
     # 3.5 extra_condition（自由文）を辞書タグ化
     sort_tags: set[str] = set()
     try:
         ex = extract_extra_tags(extra_condition or "", max_tags=3)
         kinds = split_tags_by_kind(ex.tags)
-        recs["_extra"] = {"tags": list(ex.tags), "hits": dict(ex.hits), "kinds": kinds}
+        hits_raw = getattr(ex, "hits", None)
+        hits: dict[str, Any] = hits_raw if isinstance(hits_raw, dict) else {}
+
+        tags_raw = getattr(ex, "tags", [])
+        tags_list = list(tags_raw) if isinstance(tags_raw, (list, tuple, set)) else []
+
+        recs["_extra"] = {"tags": tags_list, "hits": hits, "kinds": kinds}
         sort_tags = set(kinds.get("sort_override") or [])
     except Exception:
         recs["_extra"] = {
@@ -1001,7 +1066,7 @@ def build_chat_recommendations(     # noqa: C901
             "kinds": {"sort_override": [], "hard_filter": [], "soft_signal": [], "unknown": []},
         }
         sort_tags = set()
-    
+
     # 4. 候補プール（astro_onなら広めに）
     pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
@@ -1044,7 +1109,6 @@ def build_chat_recommendations(     # noqa: C901
     bf_called = 0
     miss = 0
     eligible = 0
-    
 
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
@@ -1071,7 +1135,9 @@ def build_chat_recommendations(     # noqa: C901
         else:
             # missログ
             miss += 1
-            log.info("[svc/chat] trace=%s lookup_address_by_name miss name=%r key=%r", trace_id, nm, nk)
+            log.info(
+                "[svc/chat] trace=%s lookup_address_by_name miss name=%r key=%r", trace_id, nm, nk
+            )
 
             # 候補側に近いキーがあるか（軽量ヒント: contains）
             try:
@@ -1182,8 +1248,16 @@ def build_chat_recommendations(     # noqa: C901
             r.pop("id", None)
 
     if goriyaku_tag_ids:
-        n_with_tags = sum(1 for c in valid_candidates if isinstance(c, dict) and isinstance(c.get("goriyaku_tag_ids"), list) and len(c.get("goriyaku_tag_ids")) > 0)
-        log.info("[svc/chat] cand goriyaku_tag_ids attached=%d/%d", n_with_tags, len(valid_candidates))
+        n_with_tags = sum(
+            1
+            for c in valid_candidates
+            if isinstance(c, dict)
+            and isinstance(c.get("goriyaku_tag_ids"), list)
+            and len(c.get("goriyaku_tag_ids")) > 0
+        )
+        log.info(
+            "[svc/chat] cand goriyaku_tag_ids attached=%d/%d", n_with_tags, len(valid_candidates)
+        )
 
     # -----------------------------
     # Step7. ユーザーフィルタ（痩せ検知ログ）
@@ -1309,15 +1383,11 @@ def build_chat_recommendations(     # noqa: C901
     def _score_key(rec: Any) -> tuple[float, float, int, str]:
         if not isinstance(rec, dict):
             return (0.0, 1e18, 0, "")
-        score = float(rec.get("_score_total") or 0.0)
-        d = rec.get("distance_m")
-        dist = float(d) if isinstance(d, (int, float)) else 1e18
+        score = _to_float(rec.get("_score_total"), 0.0)
+        dist = _to_float(rec.get("distance_m"), 1e18)
         astro = int(rec.get("astro_priority") or 0)
         name = str(rec.get("name") or "")
         return (-score, dist, -astro, name)
-
-
-
 
     # -----------------------------
     # 10. lat/lng必須（ただし3件未満になるならスキップ）: 痩せ検知ログ
@@ -1347,7 +1417,9 @@ def build_chat_recommendations(     # noqa: C901
 
     log.info("[svc/chat] finalize_3 enter pool=%d", pool_n)
 
-    if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+    if isinstance(recs.get("_signals"), dict) and isinstance(
+        recs["_signals"].get("result_state"), dict
+    ):
         recs["_signals"]["result_state"]["pool_count"] = pool_n
 
     filled = 0  # breakdown backfill 件数（ログ用）
@@ -1356,13 +1428,15 @@ def build_chat_recommendations(     # noqa: C901
     if pool_n < 3:
         recs = _finalize_3(recs, candidates=valid_candidates, allow_dummy=False)
 
-        if isinstance(recs.get("_signals"), dict) and isinstance(recs["_signals"].get("result_state"), dict):
+        if isinstance(recs.get("_signals"), dict) and isinstance(
+            recs["_signals"].get("result_state"), dict
+        ):
             recs["_signals"]["result_state"]["displayed_count"] = len(
                 [x for x in (recs.get("recommendations") or []) if isinstance(x, dict)]
             )
 
         # finalize_3 で追加された分だけ breakdown 補完
-        for r in (recs.get("recommendations") or []):
+        for r in recs.get("recommendations") or []:
             if isinstance(r, dict) and not isinstance(r.get("breakdown"), dict):
                 _attach_breakdown(
                     r,
@@ -1384,19 +1458,19 @@ def build_chat_recommendations(     # noqa: C901
     else:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
-            key=_score_key,   # ✅ reverse=True は付けない
+            key=_score_key,  # ✅ reverse=True は付けない
         )
-
-    
 
     # ✅ ソート（または距離順）確定後の items を取り直す（ズレ防止）
     items = recs.get("recommendations") or []
 
     log.info(
         "[svc/chat] top3 after final sort: %r",
-        [(r.get("name"), r.get("_score_total"), r.get("distance_m")) for r in (recs.get("recommendations") or [])[:3]]
+        [
+            (r.get("name"), r.get("_score_total"), r.get("distance_m"))
+            for r in (recs.get("recommendations") or [])[:3]
+        ],
     )
-
 
     if not isinstance(items, list) or len(items) < 3:
         _ensure_signals_base(
@@ -1409,6 +1483,7 @@ def build_chat_recommendations(     # noqa: C901
             goriyaku_tag_ids=goriyaku_tag_ids,
             extra_condition=extra_condition,
         )
+        _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
         return recs
 
@@ -1453,8 +1528,6 @@ def build_chat_recommendations(     # noqa: C901
             if not isinstance(hs, list):
                 hs = []
 
-            
-
             if "energize" in soft_tags:
                 hs = _prepend_unique(hs, "前向きさ・活力を後押ししやすい雰囲気")
             if "calm" in soft_tags:
@@ -1470,8 +1543,6 @@ def build_chat_recommendations(     # noqa: C901
                 "混雑しにくい可能性",
                 "雰囲気が希望に合う可能性",
             ]
-
-
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
@@ -1502,32 +1573,31 @@ def build_chat_recommendations(     # noqa: C901
         extra_condition=extra_condition,
     )
 
-    if not isinstance(recs.get("_explain"), dict):
-        recs["_explain"] = {"summary": None, "per_item": {}}
-
     # --- UI向け: message を必ず返す（LLM無しでも喋る） ---
     if not isinstance(recs.get("message"), str) or not recs["message"].strip():
         top_names: list[str] = []
-        for r in items:  # recs["recommendations"][:3] じゃなく items
+        for r in items:
             nm = (r.get("display_name") or r.get("name") or "").strip()
             if nm:
                 top_names.append(nm)
 
         if top_names:
             recs["message"] = (
-                "候補から近さ・相性スコアで3件に絞りました。"
-                f"（{', '.join(top_names)}）"
+                f"候補から近さ・相性スコアで3件に絞りました。（{', '.join(top_names)}）"
             )
         else:
-            recs["message"] = "条件に合いそうな神社が見つかりませんでした。条件を少しゆるめて試してください。"
+            recs["message"] = (
+                "条件に合いそうな神社が見つかりませんでした。条件を少しゆるめて試してください。"
+            )
 
     # --- デバッグ: LLM利用状況 ---
     if not isinstance(recs.get("_signals"), dict):
         recs["_signals"] = {}
     recs["_signals"]["llm"] = {
-        "enabled": _use_llm(),
+        "enabled": llm_enabled,
         "used": llm_used,
         "error": llm_error,
     }
 
+    _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
     return recs
