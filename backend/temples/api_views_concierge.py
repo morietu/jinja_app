@@ -572,9 +572,6 @@ class ConciergePlanView(APIView):
         s = ConciergePlanRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
 
-        query = (s.validated_data.get("query") or "").strip()
-        if not query:
-            return Response({"query": ["この項目は必須です。"]}, status=status.HTTP_400_BAD_REQUEST)
 
         body = build_plan_response(
             request_data=request.data or {},
@@ -587,20 +584,6 @@ class ConciergePlanView(APIView):
 class ConciergePlanViewLegacy(ConciergePlanView):
     schema = None
 
-class ConciergePlanSerializer(serializers.Serializer):
-    # 既存の fields はそのまま
-
-    def validate(self, attrs):
-        area = (attrs.get("area") or attrs.get("where") or attrs.get("location_text") or "").strip()
-        lat = attrs.get("lat")
-        lng = attrs.get("lng")
-
-        # locationbias は “場所の入力” としては認めない。仕様通り。
-        if not area and (lat is None or lng is None):
-            raise serializers.ValidationError({"location": "area または lat/lng が必要です。"})
-        return attrs
-
-        
 # --- expose function-style views for URLConf / tests ---
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()

@@ -15,7 +15,6 @@ def test_plan_request_ok():
     assert s.is_valid(), s.errors
     assert s.validated_data["transportation"] == "car"
 
-
 def test_place_lite_location_typed():
     s = PlaceLiteSerializer(
         data={
@@ -25,3 +24,13 @@ def test_place_lite_location_typed():
         }
     )
     assert s.is_valid(), s.errors
+
+def test_plan_request_blank_query_returns_error():
+    s = ConciergePlanRequestSerializer(
+        data={
+            "query": "   ",
+            "area": "東京駅",
+        }
+    )
+    assert not s.is_valid()
+    assert "query" in s.errors

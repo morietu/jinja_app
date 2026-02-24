@@ -23,17 +23,18 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
     def fake_get(url, params=None, timeout=None, **kw):
         nonlocal last_findplace_params
         params = params or {}
+
         if "geocode" in url:
-            # "港区赤坂" を座標化
             return _R({"results": [{"geometry": {"location": {"lat": 35.671, "lng": 139.736}}}]})
+
         if "findplacefromtext" in url:
-            last_findplace_params = dict(params)  # locationbias 検証用
+            last_findplace_params = dict(params)
             return _R({"candidates": [{"place_id": "PID_AKASAKA"}]})
+
         if "place/details" in url:
-            return _R(
-                {"result": {"formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12"}}
-            )
-        return _R({})
+            return _R({"result": {"formatted_address": "日本、〒107-0052 東京都港区赤坂6丁目10−12"}})
+
+        raise AssertionError(f"Unexpected requests.get called: {url}")
 
     monkeypatch.setattr("temples.llm.backfill.requests.get", fake_get)
     monkeypatch.setattr("temples.api_views_concierge.requests.get", fake_get)

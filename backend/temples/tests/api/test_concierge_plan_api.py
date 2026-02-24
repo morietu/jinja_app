@@ -1,9 +1,24 @@
+import json
 import types
 
 import pytest
 from django.urls import reverse
 from temples.services.concierge import ConciergeService
 
+def assert_400_field_errors(res, *, must_have=None):
+    assert res.status_code == 400, res.content
+    body = res.json()
+    assert isinstance(body, dict)
+    # field -> list[str] 形式であること（DRF標準）
+    for k, v in body.items():
+        assert isinstance(k, str)
+        assert isinstance(v, list), (k, v)
+        assert all(isinstance(x, str) for x in v), (k, v)
+
+    if must_have:
+        for key in must_have:
+            assert key in body, body
+            assert body[key], body
 
 @pytest.fixture(autouse=True)
 def mock_places(monkeypatch):
@@ -99,3 +114,92 @@ def test_post_concierge_plan_locationbias_only_still_returns_400(client):
         content_type="application/json",
     )
     assert res.status_code == 400, res.content
+
+@pytest.mark.django_db
+def test_post_concierge_plan_radius_only_returns_400(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data=json.dumps({
+            "query": "金運 神社",
+            "radius_km": 5,
+            "transportation": "walk",
+        }),
+        content_type="application/json",
+    )
+    assert_400_field_errors(res, must_have=["location"])
+
+@pytest.mark.django_db
+def test_post_concierge_plan_area_only_returns_200(client, monkeypatch):
+    calls = {"geocode": 0}
+
+    def fake_get(url, params=None, timeout=None, **kw):
+        if "geocode" in url:
+            calls["geocode"] += 1
+
+            class R:
+                def json(self):
+                    return {
+                        "results": [
+                            {"geometry": {"location": {"lat": 35.0, "lng": 139.0}}}
+                        ]
+                    }
+
+            return R()
+
+        raise AssertionError(f"Unexpected requests.get called: {url}")
+
+    monkeypatch.setattr("temples.api_views_concierge.requests.get", fake_get)
+
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data=json.dumps(
+            {
+                "query": "縁結び",
+                "area": "東京駅",
+                "transportation": "walk",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert res.status_code == 200, res.content
+    body = res.json()
+    assert "main" in body
+    assert "route_hints" in body
+
+@pytest.mark.django_db
+def test_post_concierge_plan_latlng_only_returns_200(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data=json.dumps({
+            "query": "縁結び",
+            "lat": 35.0,
+            "lng": 139.0,
+            "transportation": "walk",
+        }),
+        content_type="application/json",
+    )
+    assert res.status_code == 200
+
+@pytest.mark.django_db
+def test_post_concierge_plan_missing_query_returns_400(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data={"area": "東京駅"},
+        content_type="application/json",
+    )
+    assert_400_field_errors(res, must_have=["query"])
+
+@pytest.mark.django_db
+def test_post_concierge_plan_blank_query_returns_400(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data={"query": "   ", "area": "東京駅"},
+        content_type="application/json",
+    )
+    assert_400_field_errors(res, must_have=["query"])

@@ -39,9 +39,6 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
     lon = serializers.FloatField(required=False, allow_null=True)
-    area = serializers.CharField(required=False, allow_blank=True)
-    where = serializers.CharField(required=False, allow_blank=True)
-    location_text = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         area = (attrs.get("area") or attrs.get("where") or attrs.get("location_text") or "").strip()
@@ -54,8 +51,13 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
             lng = attrs["lng"] = attrs["lon"]
 
         if not area and (lat is None or lng is None):
-            raise serializers.ValidationError({"location": "area または lat/lng が必要です。"})
+            raise serializers.ValidationError({"location": ["area または lat/lng が必要です。"]})
         return attrs
+    
+    def validate_query(self, v: str) -> str:
+        if not (v or "").strip():
+            raise serializers.ValidationError("この項目は必須です。")
+        return v
 
 
 class ConciergePlanResponseSerializer(serializers.Serializer):

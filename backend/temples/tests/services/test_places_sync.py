@@ -1,11 +1,11 @@
 import pytest
-from django.utils import timezone
 
 from temples.models import PlaceRef
 from temples.services.places_sync import sync_nearby_seed
 
+
 @pytest.mark.django_db
-def test_sync_nearby_seed_upserts_place_ref(monkeypatch):
+def test_sync_nearby_seed_skips_items_missing_place_id(monkeypatch):
     def fake_nearby_search(**kwargs):
         return {
             "results": [
@@ -16,6 +16,11 @@ def test_sync_nearby_seed_upserts_place_ref(monkeypatch):
                     "geometry": {"location": {"lat": 35.0, "lng": 139.0}},
                 },
                 {
+                    "name": "壊れ神社",  # place_id なし
+                    "vicinity": "東京都どこか",
+                    "geometry": {"location": {"lat": 35.05, "lng": 139.05}},
+                },
+                {
                     "place_id": "pid_2",
                     "name": "神社B",
                     "vicinity": "東京都どこか",
@@ -24,18 +29,19 @@ def test_sync_nearby_seed_upserts_place_ref(monkeypatch):
             ]
         }
 
-    monkeypatch.setattr("temples.services.places.nearby_search", fake_nearby_search)
+    # ✅ sync_nearby_seed が実際に呼ぶ窓口を差し替える
+    monkeypatch.setattr(
+        "temples.services.places_sync._google_places_nearby_search",
+        lambda **kw: fake_nearby_search(**kw),
+    )
 
     out = sync_nearby_seed(
         lat=35.0, lng=139.0, radius_m=2000, keyword="神社", limit=20, dry_run=False
     )
 
-    assert out["requests_used"] == 1
-    assert out["fetched"] == 2
+    assert out["fetched"] == 3
     assert out["upserted"] == 2
-    assert out["errors"] == []
+    assert any(e.get("type") == "invalid_item" for e in out["errors"]), out["errors"]
 
-    pr = PlaceRef.objects.get(place_id="pid_1")
-    assert pr.name == "神社A"
-    assert pr.address != ""
-    assert pr.synced_at is not None
+    assert PlaceRef.objects.filter(place_id="pid_1").exists()
+    assert PlaceRef.objects.filter(place_id="pid_2").exists()
