@@ -248,11 +248,6 @@ if DEBUG or os.getenv("CI") == "true":
     try:
         _eng = DATABASES["default"]["ENGINE"]
         _name = DATABASES["default"].get("NAME") or DATABASE_URL or "<from env>"
-        print(
-            f"[settings] IS_PYTEST={IS_PYTEST} USE_GIS={USE_GIS} USE_SQLITE={USE_SQLITE} "
-            f"ENGINE={_eng} NAME={_name}",
-            file=sys.stderr,
-        )
     except Exception:
         pass
 
@@ -528,6 +523,11 @@ LOGGING = {
         "users.api.views": {
             "handlers": ["console"],
             "level": "DEBUG" if STRIPE_WEBHOOK_DEBUG else "INFO",
+            "propagate": False,
+        },
+        "temples.services.google_places": {
+            "handlers": ["console"],
+            "level": "DEBUG",
             "propagate": False,
         },
     },

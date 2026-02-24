@@ -20,7 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from temples import api_views_concierge as concierge
 from temples.api.views.create_superuser import create_superuser
 from users.api.views import MeView as ApiMeView
-
+from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from .views import favicon, index
 
 
@@ -115,6 +115,9 @@ urlpatterns = [
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
+
+    path("api/billings/status/", BillingStatusView.as_view()),
+    path("api/billings/status-legacy/", BillingStatusLegacyView.as_view()),
     # schema/docs
     path(
         "api/schemas/swagger/",

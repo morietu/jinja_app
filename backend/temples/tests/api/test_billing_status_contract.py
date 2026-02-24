@@ -1,6 +1,12 @@
 import re
 import pytest
 from rest_framework.test import APIClient
+import os
+print("TEST_ENV",
+      os.getenv("BILLING_STUB_PLAN"),
+      os.getenv("BILLING_STUB_ACTIVE"),
+      os.getenv("BILLING_PROVIDER"))
+      
 
 ISO_Z_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
 

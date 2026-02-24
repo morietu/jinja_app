@@ -84,7 +84,7 @@ class MeSerializer(serializers.ModelSerializer):
     # ---- update (write) ----
     def update(self, instance, validated_data):
         data = dict(getattr(self, "initial_data", {}) or {})
-        print("[MeSerializer.update] initial_data:", data)
+        
 
         profile_in = data.get("profile") or {}
         if isinstance(profile_in, dict):
@@ -92,7 +92,7 @@ class MeSerializer(serializers.ModelSerializer):
                 if k in profile_in and k not in data:
                     data[k] = profile_in[k]
 
-        print("[MeSerializer.update] merged data:", data)
+        
 
 
         # User 側
@@ -110,12 +110,11 @@ class MeSerializer(serializers.ModelSerializer):
             prof.bio = data["bio"]
             changed = True
         if "is_public" in data:
-            print("[MeSerializer.update] set prof.is_public =", data["is_public"])
             prof.is_public = bool(data["is_public"])
             changed = True
         if changed:
             prof.save()
-            print("[MeSerializer.update] saved profile id=", prof.id)
+            
 
 
         return instance

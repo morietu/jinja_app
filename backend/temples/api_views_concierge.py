@@ -20,6 +20,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 # これを消す / コメントアウト
 # from temples.llm import extract_intent
 # from temples.llm import orchestrator as orch
+from temples.services.billing_state import is_premium_for_user
 
 from temples.serializers.concierge import ConciergePlanRequestSerializer
 from temples.services.concierge_chat import build_chat_recommendations
@@ -102,35 +103,8 @@ def extract_intent(text: str):
 
 
 
-# --- pytest 安定化：外部 export された BILLING_STUB_* に引きずられない ---
-_ORIG_BILLING_STUB_PLAN = os.environ.get("BILLING_STUB_PLAN")
-_ORIG_BILLING_STUB_ACTIVE = os.environ.get("BILLING_STUB_ACTIVE")
 
 
-def _billing_stub_env() -> tuple[str, str]:
-    plan = os.environ.get("BILLING_STUB_PLAN")
-    active = os.environ.get("BILLING_STUB_ACTIVE")
-
-    if getattr(dj_settings, "IS_PYTEST", False):
-        # pytest開始前から存在していた値（=外部export）は無視して free 扱いへ
-        if plan == _ORIG_BILLING_STUB_PLAN:
-            plan = None
-        if active == _ORIG_BILLING_STUB_ACTIVE:
-            active = None
-
-    plan = (plan or "free").strip().lower()
-    active = (active or "0").strip().lower()
-    return plan, active
-
-
-def _is_premium_active() -> bool:
-    plan, active = _billing_stub_env()
-    return (plan == "premium") and (active in {"1", "true", "yes", "y", "on"})
-
-
-def _billing_recommend_limit() -> int:
-    # free は少なめ / premium は多め（既存の stops が最大6なので premium=6 が自然）
-    return 6 if _is_premium_active() else 3
 
 
 def _force_user_from_bearer(req):
@@ -437,7 +411,7 @@ class ConciergeChatView(APIView):
             request.user = user
             request.auth = token
 
-        is_premium = _is_premium_active()
+        is_premium = is_premium_for_user(user)
         today = timezone.localdate()
         daily_limit = getattr(dj_settings, "CONCIERGE_DAILY_FREE_LIMIT", 5)
         remaining = None
@@ -587,14 +561,13 @@ class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
 
-    @extend_schema(
-        summary="Concierge trip plan",
-        description="query を元に簡易的な参拝プラン（stops 等）を返します。",
-        request=ConciergePlanRequestSerializer,
-        responses={200: OpenApiTypes.OBJECT},
-        tags=["concierge"],
-    )
     def post(self, request, *args, **kwargs):
+        # ★ ここを追加（chatと同じ）
+        user, token = _resolve_user_and_token(request)
+        if user is not None:
+            request.user = user
+            request.auth = token
+
         s = ConciergePlanRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
 
@@ -605,6 +578,7 @@ class ConciergePlanView(APIView):
         body = build_plan_response(
             request_data=request.data or {},
             serializer_validated=s.validated_data or {},
+            user=getattr(request, "user", None),
         )
         return Response(body, status=status.HTTP_200_OK)
 

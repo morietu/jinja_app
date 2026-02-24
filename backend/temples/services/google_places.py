@@ -4,7 +4,7 @@ import os
 import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple, cast
-
+import traceback
 import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -359,7 +359,7 @@ def _log_upstream(kind: str, url: str, params: dict) -> None:
     if "key" in masked:
         masked["key"] = "****"
     qs = "&".join(f"{k}={v}" for k, v in masked.items() if v is not None)
-    print(f"Places upstream[{kind}] {url}?{qs}", file=sys.stderr)
+    logger.info("Places upstream[%s] %s?%s", kind, url, qs)
 
 
 def textsearch(
@@ -441,6 +441,8 @@ def findplacefromtext(
         "locationbias": locationbias,
         "fields": fields,
     }
+    logger.warning("findplacefromtext called\n%s", "".join(traceback.format_stack(limit=12)))
+
     _log_upstream("findplacefromtext", url, params)
     clean = {k: v for k, v in params.items() if v is not None}
     _push_req_history(url, clean)

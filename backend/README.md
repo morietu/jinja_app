@@ -49,3 +49,28 @@ python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 
 ---
+
+# Billing: 運用契約（Single Source of Truth）
+
+## 目的
+フロント/バック/決済プロバイダ間で「課金状態の真実」を1箇所に固定し、仕様ブレを防ぐ。
+
+## 真実（Source of Truth）
+- `BILLING_PROVIDER=stub` のとき：**環境変数が真実**
+  - `BILLING_STUB_PLAN` = `free` | `premium`
+  - `BILLING_STUB_ACTIVE` = `0/1`（truthy文字列も可）
+- `BILLING_PROVIDER=stripe` のとき：**DB(UserProfile)が真実**
+  - `UserProfile.subscription_status`
+  - `UserProfile.current_period_end`
+
+## API契約
+- `/api/billings/status/` は常に以下のキーを返す：
+  - `plan`, `is_active`, `provider`, `current_period_end`, `trial_ends_at`, `cancel_at_period_end`
+- フロントが信じるべきは **`plan` と `is_active` だけ**
+  - `provider` は表示/デバッグ用（UI分岐の根拠にしない）
+
+## 実装の入口
+- 課金判定：`temples/services/billing_state.py:get_billing_status`
+- 機能制限：
+  - `is_premium_for_user(user)`
+  - `recommend_limit_for_user(user)`（premium=6, free=3）
