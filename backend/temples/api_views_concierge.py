@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework import serializers
 # これを消す / コメントアウト
 # from temples.llm import extract_intent
 # from temples.llm import orchestrator as orch
@@ -586,7 +587,20 @@ class ConciergePlanView(APIView):
 class ConciergePlanViewLegacy(ConciergePlanView):
     schema = None
 
+class ConciergePlanSerializer(serializers.Serializer):
+    # 既存の fields はそのまま
 
+    def validate(self, attrs):
+        area = (attrs.get("area") or attrs.get("where") or attrs.get("location_text") or "").strip()
+        lat = attrs.get("lat")
+        lng = attrs.get("lng")
+
+        # locationbias は “場所の入力” としては認めない。仕様通り。
+        if not area and (lat is None or lng is None):
+            raise serializers.ValidationError({"location": "area または lat/lng が必要です。"})
+        return attrs
+
+        
 # --- expose function-style views for URLConf / tests ---
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()

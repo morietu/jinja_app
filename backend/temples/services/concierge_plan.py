@@ -16,7 +16,6 @@ from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
-from temples.llm.backfill import fill_locations
 from temples.services import google_places as GP
 from temples.services.billing_state import recommend_limit_for_user
 
@@ -114,98 +113,121 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     return {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
 
 
-def _enrich_candidates_with_places(candidates, *, lat=None, lng=None, area: str | None = None):
+def _coords_from_locationbias(lb: str | None) -> tuple[float, float] | None:
     """
-    candidate に formatted_address が無ければ Places で補う（8km bias）
-    API キーが無い場合はそのまま返す
+    locationbias 形式（例: "circle:5000@35.6812,139.7671"）から (lat, lng) を抽出
     """
-    # ✅ PlanでPlacesを止めたいときは、ここで即死させる
-    if os.getenv("PLAN_DISABLE_PLACES", "0") == "1":
-        return candidates
-
-    key = (
-        getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
-        or getattr(dj_settings, "GOOGLE_API_KEY", None)
-        or os.getenv("GOOGLE_MAPS_API_KEY")
-        or os.getenv("GOOGLE_API_KEY")
-        or os.getenv("MAPS_API_KEY")
-        or os.getenv("PLACES_API_KEY")
-    )
-    if not key:
-        return candidates
-
-    def _geocode_area(text: str):
-        if not text:
-            return None
-        r = requests.get(
-            "https://maps.googleapis.com/maps/api/geocode/json",
-            params={"key": key, "address": text, "language": "ja", "region": "jp"},
-            timeout=6,
-        )
-        res = r.json().get("results") or []
-        if not res:
-            return None
-        loc = res[0].get("geometry", {}).get("location") or {}
-        if "lat" in loc and "lng" in loc:
-            return {"lat": loc["lat"], "lng": loc["lng"]}
+    if not lb:
+        return None
+    m = re.search(r"@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)", str(lb))
+    if not m:
+        return None
+    try:
+        return float(m.group(1)), float(m.group(2))
+    except Exception:
         return None
 
-    if (lat is None or lng is None) and area:
-        pt = _geocode_area(area)
-        if pt:
-            lat, lng = pt["lat"], pt["lng"]
 
-    def _find_address_by_text(text: str):
-        if not text:
-            return None
-        params = {
-            "key": key,
-            "input": text,
-            "inputtype": "textquery",
-            "language": "ja",
-            "fields": "place_id",
-        }
-        lb = None
-        if lat is not None and lng is not None:
-            lb = f"circle:8000@{lat},{lng}"
-        elif area:
-            pt = _geocode_area(area)
-            if pt:
-                lb = f"circle:8000@{pt['lat']},{pt['lng']}"
-        if lb:
-            params["locationbias"] = lb
+def _apply_cost_guarded_place_enrichment(
+    *,
+    filled: Dict[str, Any],
+    area: Optional[str],
+    language: str,
+    locbias: Optional[str],
+    disable_places: bool,
+) -> Dict[str, Any]:
+    """
+    Plan向け Places 最終補完（課金防衛版）。
+    - disable時は何もしない
+    - 最大 lookup 数を制限
+    - 1件座標を確保したら追加 lookup を止める
+    """
+    if disable_places:
+        return filled
 
-        r = requests.get(
-            "https://maps.googleapis.com/maps/api/place/findplacefromtext/json",
-            params=params,
-            timeout=8,
+    try:
+        patched: list[dict] = []
+
+        max_place_lookups = int(os.getenv("PLAN_MAX_PLACE_LOOKUPS", "2"))
+        if max_place_lookups <= 0:
+            logger.info("[plan] places_budget max=%d done=0 got_coords=0", max_place_lookups)
+            return filled
+        lookups_done = 0
+        cache: dict[str, dict] = {}
+        got_coords = 0
+
+        for r in filled.get("recommendations") or []:
+            # 🔒 文字列locationを固定したいrecは補完対象外
+            if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
+                patched.append(r)
+                continue
+
+            # すでに座標あり
+            loc = r.get("location")
+            if isinstance(loc, dict) and loc.get("lat") is not None and loc.get("lng") is not None:
+                got_coords += 1
+                patched.append(r)
+                continue
+
+            # 既に1件座標確保済みなら追加lookupしない（最低1stop運用）
+            if got_coords >= 1:
+                patched.append(r)
+                continue
+
+            # lookup上限超過なら叩かない
+            if lookups_done >= max_place_lookups:
+                patched.append(r)
+                continue
+
+            probe = (r.get("name") or "").strip()
+            if area:
+                probe = f"{probe} {area}".strip()
+
+            if not probe:
+                patched.append(r)
+                continue
+
+            # キャッシュヒット
+            if probe in cache:
+                res = cache[probe]
+            else:
+                try:
+                    res = GP.findplacefromtext(
+                        input=probe,
+                        language=language,
+                        locationbias=locbias,
+                        fields="place_id,name,formatted_address,geometry",
+                    )
+                    cache[probe] = res
+                    lookups_done += 1
+                except Exception:
+                    res = None
+
+            try:
+                cand = (res.get("candidates") or [{}])[0] if isinstance(res, dict) else {}
+                g2 = (cand.get("geometry") or {}).get("location") or {}
+                lat2, lng2 = g2.get("lat"), g2.get("lng")
+
+                if lat2 is not None and lng2 is not None:
+                    r["location"] = {"lat": float(lat2), "lng": float(lng2)}
+                    got_coords += 1
+
+                if not r.get("display_address"):
+                    addr = cand.get("formatted_address")
+                    if addr:
+                        r["display_address"] = bf._shorten_japanese_address(addr) or addr
+            except Exception:
+                pass
+
+            patched.append(r)
+
+        logger.info(
+            "[plan] places_budget max=%d done=%d got_coords=%d",
+            max_place_lookups, lookups_done, got_coords
         )
-        pid = (r.json().get("candidates") or [{}])[0].get("place_id")
-        if not pid:
-            return None
-        r2 = requests.get(
-            "https://maps.googleapis.com/maps/api/place/details/json",
-            params={"key": key, "place_id": pid, "language": "ja", "fields": "formatted_address"},
-            timeout=8,
-        )
-        return (r2.json().get("result") or {}).get("formatted_address")
-
-    out = []
-    for c in candidates or []:
-        if not isinstance(c, dict):
-            out.append(c)
-            continue
-        if c.get("formatted_address"):
-            out.append(c)
-            continue
-        q = (c.get("name") or "").strip()
-        if area:
-            q = f"{q} {area}".strip()
-        addr = _find_address_by_text(q)
-        if addr:
-            c = {**c, "formatted_address": addr}
-        out.append(c)
-    return out
+        return {"recommendations": patched}
+    except Exception:
+        return filled
 
 
 # =========================================================
@@ -481,40 +503,15 @@ def build_plan_response(
         except Exception:
             pass
 
-    # 住所補完（軽量）
-    for rec in recs.get("recommendations", []):
-        if not isinstance(rec, dict):
-            continue
-        if not rec.get("location"):
-            try:
-                addr = bf._lookup_address_by_name(rec.get("name") or "", bias=bias, lang=language)
-            except Exception:
-                addr = None
-            if addr:
-                short = bf._shorten_japanese_address(addr)
-                if short:
-                    rec["location"] = short
 
-    # 候補の住所補強（8km bias）
-    if DISABLE_PLACES:
-        enriched_candidates = candidates
-    else:
-        try:
-            lat = (bias or {}).get("lat")
-            lng = (bias or {}).get("lng")
-            enriched_candidates = _enrich_candidates_with_places(candidates, lat=lat, lng=lng, area=area)
-        except Exception:
-            enriched_candidates = candidates
 
-    if DISABLE_PLACES:
-        filled = recs
-    else:
-        try:
-            filled = fill_locations(recs, candidates=enriched_candidates, bias=bias, shorten=True)
-        except Exception:
-            filled = recs
 
-    # --- (1') fill_locations 後の保険 ---
+
+    # Places 呼び出しは「課金防衛版」(2) に一本化するため、
+    # ここでは fill_locations / candidate_enrich を使わない。
+    filled = recs
+
+    # --- (1') 保険 ---
     try:
         if area:
             short_area = _short_area(area)
@@ -577,87 +574,13 @@ def build_plan_response(
         pass
 
     # --- (2) 座標の最終補完：課金防衛版 ---
-    if DISABLE_PLACES:
-        # Placesは一切叩かない。既存データだけで進める。
-        pass
-    else:
-        try:
-            locbias = locbias_fixed
-            patched: list[dict] = []
-
-            max_place_lookups = int(os.getenv("PLAN_MAX_PLACE_LOOKUPS", "2"))
-            lookups_done = 0
-            cache: dict[str, dict] = {}
-            got_coords = 0
-
-            for r in filled.get("recommendations") or []:
-                # 🔒 文字列locationを固定したいrecは補完対象外
-                if r.get("_lock_text_loc") and isinstance(r.get("location"), str):
-                    patched.append(r)
-                    continue
-
-                # すでに座標あり
-                loc = r.get("location")
-                if isinstance(loc, dict) and loc.get("lat") is not None and loc.get("lng") is not None:
-                    got_coords += 1
-                    patched.append(r)
-                    continue
-
-                # 既に1件座標確保済みなら追加lookupしない（最低1stop運用）
-                if got_coords >= 1:
-                    patched.append(r)
-                    continue
-
-                # lookup上限超過なら叩かない
-                if lookups_done >= max_place_lookups:
-                    patched.append(r)
-                    continue
-
-                probe = (r.get("name") or "").strip()
-                if area:
-                    probe = f"{probe} {area}".strip()
-
-                if not probe:
-                    patched.append(r)
-                    continue
-
-                # キャッシュヒット
-                if probe in cache:
-                    res = cache[probe]
-                else:
-                    try:
-                        res = GP.findplacefromtext(
-                            input=probe,
-                            language=language,
-                            locationbias=locbias,
-                            fields="place_id,name,formatted_address,geometry",
-                        )
-                        cache[probe] = res
-                        lookups_done += 1
-                    except Exception:
-                        res = None
-
-                try:
-                    cand = (res.get("candidates") or [{}])[0] if isinstance(res, dict) else {}
-                    g2 = (cand.get("geometry") or {}).get("location") or {}
-                    lat2, lng2 = g2.get("lat"), g2.get("lng")
-
-                    if lat2 is not None and lng2 is not None:
-                        r["location"] = {"lat": float(lat2), "lng": float(lng2)}
-                        got_coords += 1
-
-                    if not r.get("display_address"):
-                        addr = cand.get("formatted_address")
-                        if addr:
-                            r["display_address"] = bf._shorten_japanese_address(addr) or addr
-                except Exception:
-                    pass
-
-                patched.append(r)
-
-            filled = {"recommendations": patched}
-        except Exception:
-            pass
+    filled = _apply_cost_guarded_place_enrichment(
+        filled=filled,
+        area=area,
+        language=language,
+        locbias=locbias_fixed,
+        disable_places=DISABLE_PLACES,
+    )
 
     limit = recommend_limit_for_user(user)
     recs_all = list(filled.get("recommendations") or [])
@@ -731,25 +654,46 @@ def build_plan_response(
     if not stops:
         blat = (bias or {}).get("lat")
         blng = (bias or {}).get("lng")
+
+        # 1) bias があれば従来どおり
         if blat is not None and blng is not None:
             short = _short_area(area)
             fallback_label = short or "この周辺"
             fallback_addr = short or f"{blat:.3f}, {blng:.3f}"
-            stops = [
-                {
+            stops = [{
+                "order": 1,
+                "name": fallback_label,
+                "display_address": fallback_addr,
+                "location": {"lat": blat, "lng": blng},
+                "eta_minutes": 3,
+                "travel_minutes": 3,
+                "stay_minutes": 30,
+            }]
+        else:
+            # 2) bias が無いなら locbias_fixed から座標復元して作る（5km固定でも効く）
+            pt = _coords_from_locationbias(locbias_fixed)
+            if pt:
+                lat0, lng0 = pt
+                short = _short_area(area)
+                fallback_label = short or "この周辺"
+                fallback_addr = short or f"{lat0:.3f}, {lng0:.3f}"
+                stops = [{
                     "order": 1,
                     "name": fallback_label,
                     "display_address": fallback_addr,
-                    "location": {"lat": blat, "lng": blng},
+                    "location": {"lat": lat0, "lng": lng0},
                     "eta_minutes": 3,
                     "travel_minutes": 3,
                     "stay_minutes": 30,
-                }
-            ]
+                }]
 
     main_loc = {"lat": 35.0, "lng": 135.0}
     if (bias or {}).get("lat") is not None and (bias or {}).get("lng") is not None:
         main_loc = {"lat": float(bias["lat"]), "lng": float(bias["lng"])}
+    else:
+        pt0 = _coords_from_locationbias(locbias_fixed)
+        if pt0:
+            main_loc = {"lat": pt0[0], "lng": pt0[1]}
 
     top_level = {
         "query": query,

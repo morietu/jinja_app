@@ -8,6 +8,8 @@ def test_plan_request_ok():
             "language": "ja",
             "locationbias": "circle:1500@35.715,139.797",
             "transportation": "car",
+            "lat": 35.715,
+            "lng": 139.797,
         }
     )
     assert s.is_valid(), s.errors

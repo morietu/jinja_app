@@ -39,7 +39,7 @@ def test_concierge_view_fallback_when_llm_empty(monkeypatch, client):
     
     monkeypatch.setattr("temples.llm.orchestrator.ConciergeOrchestrator", DummyOrch)
 
-    payload = {"query": "神社", "candidates": [{"name": "神社A"}], "bias": None}
+    payload = {"query":"神社","area":"東京駅","candidates":[{"name":"神社A"}]}
     resp = client.post(
         "/api/concierge/plan/", data=json.dumps(payload), content_type="application/json"
     )

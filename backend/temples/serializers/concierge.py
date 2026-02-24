@@ -32,6 +32,30 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
     transportation = serializers.ChoiceField(
         choices=["walk", "car"], required=False, default="walk"
     )
+    area = serializers.CharField(required=False, allow_blank=True)
+    where = serializers.CharField(required=False, allow_blank=True)
+    location_text = serializers.CharField(required=False, allow_blank=True)
+
+    lat = serializers.FloatField(required=False, allow_null=True)
+    lng = serializers.FloatField(required=False, allow_null=True)
+    lon = serializers.FloatField(required=False, allow_null=True)
+    area = serializers.CharField(required=False, allow_blank=True)
+    where = serializers.CharField(required=False, allow_blank=True)
+    location_text = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        area = (attrs.get("area") or attrs.get("where") or attrs.get("location_text") or "").strip()
+
+        lat = attrs.get("lat")
+        lng = attrs.get("lng")
+
+        # alias: lon → lng
+        if lng is None and attrs.get("lon") is not None:
+            lng = attrs["lng"] = attrs["lon"]
+
+        if not area and (lat is None or lng is None):
+            raise serializers.ValidationError({"location": "area または lat/lng が必要です。"})
+        return attrs
 
 
 class ConciergePlanResponseSerializer(serializers.Serializer):

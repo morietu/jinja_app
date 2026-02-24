@@ -59,6 +59,8 @@ def test_post_concierge_plan(client):
             "query": "浅草神社",
             "language": "ja",
             "locationbias": "circle:1500@35.715,139.797",
+            "lat": 35.715,
+            "lng": 139.797,
             "transportation": "walk",
         },
         content_type="application/json",
@@ -67,3 +69,33 @@ def test_post_concierge_plan(client):
     body = res.json()
     assert body["main"]["place_id"] == "PID_MAIN"
     assert body["route_hints"]["mode"] == "walk"
+
+
+@pytest.mark.django_db
+def test_post_concierge_plan_missing_area_and_latlng_returns_400(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data={
+            "query": "金運 神社",
+            "radius_km": 5,
+            "transportation": "walk",
+        },
+        content_type="application/json",
+    )
+    assert res.status_code == 400, res.content
+
+@pytest.mark.django_db
+def test_post_concierge_plan_locationbias_only_still_returns_400(client):
+    url = reverse("concierge-plan")
+    res = client.post(
+        url,
+        data={
+            "query": "金運 神社",
+            "radius_km": 5,
+            "locationbias": "circle:5000@35.6812,139.7671",
+            "transportation": "walk",
+        },
+        content_type="application/json",
+    )
+    assert res.status_code == 400, res.content
