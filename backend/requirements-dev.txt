@@ -16,7 +16,7 @@ requests-mock>=1.12.1
 
 # lint/format
 black>=24.3,<27
-ruff==0.12.8
+ruff==0.15.2
 
 # type-check（任意）
 mypy>=1.10.0
