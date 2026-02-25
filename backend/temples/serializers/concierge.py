@@ -25,39 +25,81 @@ class PlaceLiteSerializer(serializers.Serializer):
     icon = serializers.CharField(required=False, allow_null=True)
 
 
+# backend/temples/serializers/concierge.py
+from rest_framework import serializers
+
 class ConciergePlanRequestSerializer(serializers.Serializer):
     query = serializers.CharField()
     language = serializers.CharField(required=False, default="ja")
     locationbias = serializers.CharField(required=False, allow_blank=True)
+
     transportation = serializers.ChoiceField(
         choices=["walk", "car"], required=False, default="walk"
     )
+
+    # location text aliases
     area = serializers.CharField(required=False, allow_blank=True)
     where = serializers.CharField(required=False, allow_blank=True)
     location_text = serializers.CharField(required=False, allow_blank=True)
 
+    # coords aliases
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
     lon = serializers.FloatField(required=False, allow_null=True)
 
-    def validate(self, attrs):
-        area = (attrs.get("area") or attrs.get("where") or attrs.get("location_text") or "").strip()
+    # radius aliases
+    radius_m = serializers.IntegerField(required=False, allow_null=True)
+    radius_km = serializers.FloatField(required=False, allow_null=True)
 
-        lat = attrs.get("lat")
-        lng = attrs.get("lng")
-
-        # alias: lon → lng
-        if lng is None and attrs.get("lon") is not None:
-            lng = attrs["lng"] = attrs["lon"]
-
-        if not area and (lat is None or lng is None):
-            raise serializers.ValidationError({"location": ["area または lat/lng が必要です。"]})
-        return attrs
-    
     def validate_query(self, v: str) -> str:
         if not (v or "").strip():
             raise serializers.ValidationError("この項目は必須です。")
         return v
+
+    def validate(self, attrs):
+        # ---- area_resolved ----
+        area = (
+            attrs.get("area")
+            or attrs.get("where")
+            or attrs.get("location_text")
+            or ""
+        ).strip()
+        attrs["area_resolved"] = area or None
+
+        # ---- lon -> lng ----
+        if attrs.get("lng") is None and attrs.get("lon") is not None:
+            attrs["lng"] = attrs["lon"]
+
+        lat = attrs.get("lat")
+        lng = attrs.get("lng")
+
+        # ---- radius_m resolved ----
+        r_m = attrs.get("radius_m")
+        r_km = attrs.get("radius_km")
+
+        if r_m is None and r_km is not None:
+            try:
+                r_m = int(float(r_km) * 1000)
+            except Exception:
+                r_m = None
+
+        if r_m is None:
+            r_m = 8000
+
+        # 1..50000 clip
+        try:
+            r_m = int(r_m)
+        except Exception:
+            r_m = 8000
+        r_m = max(1, min(50000, r_m))
+        attrs["radius_m"] = r_m  # 以後 plan 側は radius_m だけ見ればいい
+
+        # ---- location validation ----
+        if not attrs["area_resolved"] and (lat is None or lng is None):
+            raise serializers.ValidationError({"location": ["area または lat/lng が必要です。"]})
+
+        return attrs
+
 
 
 class ConciergePlanResponseSerializer(serializers.Serializer):

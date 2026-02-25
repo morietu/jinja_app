@@ -50,23 +50,11 @@ TAG_DEITY_HINTS: Dict[str, str] = {
 # Helpers: radius / bias / places
 # =========================================================
 def _parse_radius(data: Dict[str, Any]) -> int:
-    """radius_m / radius_km を m に変換（既定 8000、1..50000 にクリップ）"""
-    if (rm := data.get("radius_m")) is not None:
-        try:
-            r = int(float(rm))
-        except Exception:
-            r = None
-    elif (rk := data.get("radius_km")) is not None:
-        if isinstance(rk, str):
-            rk = rk.strip().lower().replace("km", "")
-        try:
-            r = int(float(rk) * 1000)
-        except Exception:
-            r = None
-    else:
-        r = 8000
-
-    if r is None:
+    """serializerで正規化済みの radius_m を使う（既定 8000、1..50000 にクリップ）"""
+    rm = data.get("radius_m")
+    try:
+        r = int(float(rm)) if rm is not None else 8000
+    except Exception:
         r = 8000
     return max(1, min(50000, r))
 
@@ -74,9 +62,9 @@ def _parse_radius(data: Dict[str, Any]) -> int:
 def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     lat = data.get("lat")
     lng = data.get("lng")
-    area_text = (data.get("where") or data.get("area") or data.get("location_text") or "").strip()
+    area_text = (data.get("area_resolved") or "").strip()
 
-    # ★ area がある & lat/lng が無いなら、この場で geocode する（テストが見てる）
+    # area がある & lat/lng が無いなら、この場で geocode する（plan責務）
     if area_text and (lat is None or lng is None):
         key = (
             getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
@@ -412,49 +400,22 @@ def build_plan_response(
     transportation = serializer_validated.get("transportation", "walk")
 
     candidates = request_data.get("candidates") or []
-    area = request_data.get("area") or request_data.get("where") or request_data.get("location_text")
+    area = (serializer_validated.get("area_resolved") or "").strip() or None
 
-    # bias を構築（km/m→m, 50km clip）
-    bias = _build_bias(request_data)
+    # bias を構築（serializerが正規化した値を前提）
+    bias = _build_bias(serializer_validated)
 
     # ==== 5km 安定化: ここで locbias を一度だけ決めて固定 ====
-    locbias_fixed = request_data.get("locationbias")
+    locbias_fixed = serializer_validated.get("locationbias")
 
     DISABLE_PLACES = os.getenv("PLAN_DISABLE_PLACES", "0") == "1"
 
-    def _is_5km_flag(vd: Dict[str, Any], raw_req: Dict[str, Any]) -> bool:
-        tokens = [
-            vd.get("radius_km"),
-            raw_req.get("radius_km"),
-            vd.get("radius"),
-            raw_req.get("radius"),
-            raw_req.get("radius_m"),
-        ]
-        for v in tokens:
-            if v is None:
-                continue
-            if isinstance(v, (int, float)) and abs(float(v) - 5.0) < 1e-9:
-                return True
-            t = str(v).strip().lower()
-            if t in {"5", "5.0", "5km", "5000", "5000m"}:
-                return True
-        merged = {
-            "radius_m": vd.get("radius_m") or raw_req.get("radius_m"),
-            "radius_km": vd.get("radius_km") or raw_req.get("radius_km"),
-            "radius": vd.get("radius") or raw_req.get("radius"),
-        }
-        return _parse_radius(merged) == 5000
-
-    is_5km = _is_5km_flag(serializer_validated or {}, request_data)
-
-    if not locbias_fixed:
-        if is_5km:
-            locbias_fixed = "circle:5000@35.6812,139.7671"
-        elif bias:
-            try:
-                locbias_fixed = bf._lb_from_bias(bias)
-            except Exception:
-                locbias_fixed = None
+    # locationbias は外部入力がなければ bias から作る（固定値ハックは撤去）
+    if not locbias_fixed and bias:
+        try:
+            locbias_fixed = bf._lb_from_bias(bias)
+        except Exception:
+            locbias_fixed = None
 
     # 1) LLM 候補（monkeypatch が効くよう "遅延 import"）
     try:
