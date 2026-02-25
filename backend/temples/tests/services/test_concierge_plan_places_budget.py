@@ -88,3 +88,24 @@ def test_plan_places_budget_stops_after_getting_one_coord(monkeypatch):
 
     assert isinstance(out, dict)
     assert calls["n"] == 1
+
+def test_plan_places_budget_disable_places_skips_all(monkeypatch):
+    monkeypatch.setenv("PLAN_MAX_PLACE_LOOKUPS", "10")
+    calls = {"n": 0}
+
+    def fake_findplacefromtext(**kw):
+        calls["n"] += 1
+        return {"candidates": [{"geometry": {"location": {"lat": 1.0, "lng": 1.0}}}]}
+
+    monkeypatch.setattr(plan.GP, "findplacefromtext", fake_findplacefromtext)
+
+    out = plan._apply_cost_guarded_place_enrichment(
+        filled={"recommendations": [{"name": "神社A"}]},
+        area="東京駅",
+        language="ja",
+        locbias="circle:5000@35.0,135.0",
+        disable_places=True,  # ★ここ
+    )
+
+    assert isinstance(out, dict)
+    assert calls["n"] == 0
