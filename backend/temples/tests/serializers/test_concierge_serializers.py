@@ -79,3 +79,10 @@ def test_plan_request_missing_area_and_latlng_returns_location_error():
     )
     assert not s.is_valid()
     assert "location" in s.errors
+
+def test_plan_request_radius_km_string_with_km_is_normalized_to_radius_m():
+    s = ConciergePlanRequestSerializer(
+        data={"query": "縁結び", "lat": 35.0, "lng": 135.0, "radius_km": "5km"}
+    )
+    assert s.is_valid(), s.errors
+    assert s.validated_data["radius_m"] == 5000

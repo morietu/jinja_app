@@ -49,7 +49,7 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
 
     # radius aliases
     radius_m = serializers.IntegerField(required=False, allow_null=True)
-    radius_km = serializers.FloatField(required=False, allow_null=True)
+    radius_km = serializers.CharField(required=False, allow_null=True, allow_blank=True) 
 
     def validate_query(self, v: str) -> str:
         if not (v or "").strip():
@@ -77,9 +77,19 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
         r_m = attrs.get("radius_m")
         r_km = attrs.get("radius_km")
 
+        # radius_km は "5km" など文字列揺れを許容
         if r_m is None and r_km is not None:
             try:
-                r_m = int(float(r_km) * 1000)
+                t = str(r_km).strip().lower()
+                if t.endswith("km"):
+                    t = t[:-2].strip()
+                    r_m = int(float(t) * 1000)
+                elif t.endswith("m"):
+                    t = t[:-1].strip()
+                    r_m = int(float(t))
+                elif t:
+                    # "5" や "5.0" は km とみなす
+                    r_m = int(float(t) * 1000)
             except Exception:
                 r_m = None
 
@@ -92,7 +102,7 @@ class ConciergePlanRequestSerializer(serializers.Serializer):
         except Exception:
             r_m = 8000
         r_m = max(1, min(50000, r_m))
-        attrs["radius_m"] = r_m  # 以後 plan 側は radius_m だけ見ればいい
+        attrs["radius_m"] = r_m  # plan 側は radius_m のみ参照
 
         # ---- location validation ----
         if not attrs["area_resolved"] and (lat is None or lng is None):
