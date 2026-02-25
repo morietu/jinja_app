@@ -123,6 +123,10 @@ plan は「検索 + 経路ヒント」に責務を持つ。
   `_google_places_nearby_search()` を唯一の窓口とする
 - requests_used の算出はこの窓口の戻り値のみに依存する
 
+## 公開範囲（重要）
+`requests_used` は内部メトリクスであり、chat / plan API レスポンスには含めない。
+必要な観測はログ、管理画面、バッチ結果、メトリクス基盤等で行う。
+
 契約テスト:
 - backend/temples/tests/services/test_places_sync.py
 

@@ -216,6 +216,7 @@ def sync_nearby_seed(
             keyword=keyword,
             limit=limit,
         )
+        # NOTE: requests_used contract: only cached is True (bool) counts as 0; anything else counts as 1.
         requests_used += 0 if raw.get("cached") is True else 1
 
     except Exception as e:
