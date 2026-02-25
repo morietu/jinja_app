@@ -45,3 +45,55 @@ def test_sync_nearby_seed_skips_items_missing_place_id(monkeypatch):
 
     assert PlaceRef.objects.filter(place_id="pid_1").exists()
     assert PlaceRef.objects.filter(place_id="pid_2").exists()
+
+
+@pytest.mark.django_db
+def test_sync_nearby_seed_requests_used_is_0_when_cached(monkeypatch):
+    # cached=True なら外部I/Oを使ってない契約
+    monkeypatch.setattr(
+        "temples.services.places_sync._google_places_nearby_search",
+        lambda **kw: {
+            "cached": True,
+            "results": [
+                {
+                    "place_id": "pid_1",
+                    "name": "神社A",
+                    "vicinity": "東京都なんとか",
+                    "geometry": {"location": {"lat": 35.0, "lng": 139.0}},
+                }
+            ],
+        },
+    )
+
+    out = sync_nearby_seed(
+        lat=35.0, lng=139.0, radius_m=2000, keyword="神社", limit=20, dry_run=True
+    )
+
+    assert out["requests_used"] == 0
+    assert out["fetched"] == 1
+
+
+@pytest.mark.django_db
+def test_sync_nearby_seed_requests_used_is_1_when_not_cached(monkeypatch):
+    # cached が無い（または True ではない）なら外部I/Oを使った契約
+    monkeypatch.setattr(
+        "temples.services.places_sync._google_places_nearby_search",
+        lambda **kw: {
+            "results": [
+                {
+                    "place_id": "pid_1",
+                    "name": "神社A",
+                    "vicinity": "東京都なんとか",
+                    "geometry": {"location": {"lat": 35.0, "lng": 139.0}},
+                }
+            ],
+            # "cached": False,  # 付けても良いけど、契約としては不要（揺れの元）
+        },
+    )
+
+    out = sync_nearby_seed(
+        lat=35.0, lng=139.0, radius_m=2000, keyword="神社", limit=20, dry_run=True
+    )
+
+    assert out["requests_used"] == 1
+    assert out["fetched"] == 1

@@ -1,9 +1,21 @@
 import json
-
 import pytest
 
 
-# 1) area → geocode → findplace の locationbias を検証（あなたのテストをそのまま利用）
+def assert_chat_response_does_not_look_like_plan(body: dict):
+    # chat は plan のレスポンス形を返さない
+    assert "main" not in body
+    assert "alternatives" not in body
+    assert "route_hints" not in body
+
+    data = body.get("data") or {}
+    if isinstance(data, dict):
+        assert "main" not in data
+        assert "alternatives" not in data
+        assert "route_hints" not in data
+
+
+# 1) area → geocode → findplace の locationbias を検証
 @pytest.mark.django_db
 def test_chat_backfills_short_location(client, settings, monkeypatch):
     settings.GOOGLE_MAPS_API_KEY = "dummy"
@@ -51,20 +63,20 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
         content_type="application/json",
     )
     assert res.status_code == 200
+
     rec = res.json()["data"]["recommendations"][0]
     assert rec["name"] == "赤坂氷川神社"
-    assert rec["location"] == "港区赤坂"  # 住所短縮が効いている
+    assert rec["location"] == "港区赤坂"
 
-    # area から得た座標で locationbias（半径 8000m）が付与されていること（_enrich の既定値）
     assert last_findplace_params.get("locationbias") == "circle:8000@35.671,139.736"
+    assert_chat_response_does_not_look_like_plan(res.json())
 
 
-# 2) radius_km の伝播は内部関数への bias で検証（URL文字列に依存しない形に変更）
+# 2) radius_km の伝播は内部関数への bias で検証
 @pytest.mark.django_db
 def test_radius_km_bias_passthrough(client, settings, monkeypatch):
     settings.GOOGLE_MAPS_API_KEY = "dummy"
 
-    # Orchestrator の LLM 結果を固定
     from temples.llm.orchestrator import ConciergeOrchestrator
 
     monkeypatch.setattr(
@@ -75,7 +87,6 @@ def test_radius_km_bias_passthrough(client, settings, monkeypatch):
         },
     )
 
-    # _lookup_address_by_name に渡る bias を捕捉
     import temples.llm.backfill as bf
 
     seen = {}
@@ -93,7 +104,7 @@ def test_radius_km_bias_passthrough(client, settings, monkeypatch):
                 "query": "縁結び 徒歩",
                 "lat": 35.6812,
                 "lng": 139.7671,
-                "radius_km": 5,  # 5km → 5000m
+                "radius_km": 5,
                 "candidates": [{"name": "赤坂氷川神社"}],
             }
         ),
@@ -102,7 +113,9 @@ def test_radius_km_bias_passthrough(client, settings, monkeypatch):
     assert res.status_code == 200
     assert seen["bias"]["lat"] == 35.6812
     assert seen["bias"]["lng"] == 139.7671
-    assert seen["bias"]["radius"] == 5000  # 変換結果を直接検証
+    assert seen["bias"]["radius"] == 5000
+
+    assert_chat_response_does_not_look_like_plan(res.json())
 
 
 # 3) candidates[].formatted_address があればそれを優先し、短縮表示される
@@ -138,3 +151,5 @@ def test_candidate_formatted_address_is_used(client, settings, monkeypatch):
     assert res.status_code == 200
     rec = res.json()["data"]["recommendations"][0]
     assert rec["location"] == "港区赤坂"
+
+    assert_chat_response_does_not_look_like_plan(res.json())
