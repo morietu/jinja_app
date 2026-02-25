@@ -193,3 +193,17 @@ service は「派生値生成と外部依存」の責務を持つ。
 - テスト容易性向上
 
 を実現する。
+
+plan の location 系入力（area/lat/lng/radius）は ConciergePlanRequestSerializer で正規化し、plan 側は validated_data のみを入力ソースとする（request_data から location 系を直接参照しない）。一方 locationbias は Google Places の最適化パラメータでありドメイン概念ではないため、serializer では生成せず、入力が無い場合は plan service 側で bias から派生生成する。これにより「入力揺れ吸収」と「外部依存（Google仕様）変更耐性」を分離し、API契約の安定性を上げる。
+
+
+## Done 条件（入力揺れ吸収）
+
+以下が満たされたら「入力揺れ吸収」は完了とする。
+
+- [ ] serializer 契約テストが存在し、alias/clip/必須エラー形式が固定されている  
+      (`backend/temples/tests/serializers/test_concierge_serializers.py`)
+- [ ] plan service は location 系（area/lat/lng/radius）を `validated_data` からのみ参照し、`request_data` から直接参照しない
+- [ ] plan/chat の API 契約テストが通る（混入禁止・エラーフォーマット含む）  
+      (`backend/temples/tests/api/test_concierge_plan_api.py`, `backend/temples/tests/test_concierge_api.py`)
+- [ ] locationbias は serializer が生成せず、必要時のみ service が派生生成する（外部依存の隔離）
