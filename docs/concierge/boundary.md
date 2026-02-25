@@ -114,17 +114,15 @@ plan は「検索 + 経路ヒント」に責務を持つ。
 のための指標である。
 
 ## ルール
-- `_google_places_nearby_search()` の返り値に `cached=True` が含まれる場合のみ `requests_used += 0`
+- `_google_places_nearby_search()` の返り値に `cached=True`（bool）が含まれる場合のみ `requests_used += 0`
 - それ以外（`cached` 無し / False / 不正値含む）は `requests_used += 1`
-- cached の型が bool でない場合も True でない限り 1 とみなす
 
 ## 重要な前提
-- sync_nearby_seed は外部I/Oを直接叩かず、
-  `_google_places_nearby_search()` を唯一の窓口とする
+- sync_nearby_seed は外部I/Oを直接叩かず、`_google_places_nearby_search()` を唯一の窓口とする
 - requests_used の算出はこの窓口の戻り値のみに依存する
 
 ## 公開範囲（重要）
-`requests_used` は内部メトリクスであり、chat / plan API レスポンスには含めない。
+`requests_used` は内部メトリクスであり、chat / plan API レスポンスには含めない。  
 必要な観測はログ、管理画面、バッチ結果、メトリクス基盤等で行う。
 
 契約テスト:

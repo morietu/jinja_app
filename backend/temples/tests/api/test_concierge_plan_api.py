@@ -85,6 +85,13 @@ def test_post_concierge_plan(client):
     assert body["main"]["place_id"] == "PID_MAIN"
     assert body["route_hints"]["mode"] == "walk"
 
+    # plan は chat のレスポンス形を返さない（混入禁止）
+    assert "recommendations" not in body
+    assert "intent" not in body
+    assert "reply" not in body
+    assert "thread" not in body
+    assert "requests_used" not in body  # 内部メトリクスはAPIに返さない（必要なら）
+
 
 @pytest.mark.django_db
 def test_post_concierge_plan_missing_area_and_latlng_returns_400(client):
