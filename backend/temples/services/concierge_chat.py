@@ -1,6 +1,5 @@
-# backend/temples/services/concierge_chat.py
 from __future__ import annotations
-
+import os
 import logging
 import math
 import re
@@ -11,6 +10,14 @@ from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_b
 from temples.domain.kyusei import kyusei_signals
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
+
+
+def _max_address_lookups() -> int:
+    try:
+        v = int(os.getenv("CHAT_MAX_ADDRESS_LOOKUPS", "3"))
+        return max(v, 0)
+    except Exception:
+        return 3
 
 
 def _to_float(x: Any, default: float = 0.0) -> float:
@@ -195,6 +202,13 @@ def _clean_display_name(name: Any) -> str:
 
 def _key(n: str) -> str:
     return re.sub(r"\s+", "", _clean_display_name(n))
+
+
+def _strip_suffix(s: str) -> str:
+    for suf in ("神社", "神宮", "大社", "宮"):
+        if s.endswith(suf) and len(s) > len(suf) + 2:
+            return s[: -len(suf)]
+    return s
 
 
 def _is_noise_reason(text: str, name: str, tags_concat: str) -> bool:
@@ -753,6 +767,66 @@ def _fill_distance_m(candidates: list[dict], *, bias: Optional[dict]) -> None:
             # 失敗しても黙ってスキップ（距離は補助情報）
             continue
 
+def _has_addr(c: dict) -> bool:
+    a = c.get("formatted_address") or c.get("address")
+    return isinstance(a, str) and bool(a.strip())
+
+
+def _match_candidate_for_name(
+    *,
+    nk: str,
+    cand_by_key: dict[str, dict],
+) -> tuple[Optional[dict], dict]:
+    meta: dict = {"mode": "none", "near_key": None}
+
+    # 1) direct
+    c = cand_by_key.get(nk)
+    if isinstance(c, dict):
+        meta["mode"] = "direct"
+        return c, meta
+
+    # 2) stripped
+    nk2 = _strip_suffix(nk)
+    if nk2 and nk2 != nk:
+        c = cand_by_key.get(nk2)
+        if isinstance(c, dict):
+            meta["mode"] = "stripped"
+            meta["near_key"] = nk2
+            return c, meta
+    else:
+        nk2 = ""
+
+    # 3) near
+    probe = nk2 or nk
+    if not probe or len(probe) < 4:
+        return None, meta
+
+    keys = list(cand_by_key.keys())
+    near_keys = [k for k in keys if probe in k]
+    if not near_keys:
+        return None, meta
+
+    near_with_addr = [k for k in near_keys if _has_addr(cand_by_key.get(k, {}))]
+    pool = near_with_addr
+    if not pool:
+        return None, meta
+
+    def _rank(k: str) -> tuple[int, int, int, float]:
+        exact = 0 if k == probe else 1
+        prefix = 0 if k.startswith(probe) else 1
+        len_diff = abs(len(k) - len(probe))
+        dist = _to_float(cand_by_key.get(k, {}).get("distance_m"), 1e18)
+        return (exact, prefix, len_diff, dist)
+
+    pool.sort(key=_rank)
+    best = pool[0]
+    c = cand_by_key.get(best)
+    if isinstance(c, dict):
+        meta["mode"] = "near"
+        meta["near_key"] = best
+        return c, meta
+
+    return None, meta
 
 # Contract:
 # A) no candidates & no astro -> passthrough top3
@@ -856,22 +930,33 @@ def build_chat_recommendations(  # noqa: C901
             "address": {"missing": miss_addr, "rate": miss_addr / total},
         }
 
+
     def _attach_stats(*, recs: dict, raw_total: int, valid_candidates: list[dict]) -> None:
         if not isinstance(recs.get("_signals"), dict):
             recs["_signals"] = {}
 
+        # ✅ 既存statsを保持（location_fill 等を消さない）
+        stats = recs["_signals"].get("stats")
+        stats = stats if isinstance(stats, dict) else {}
+
+        # result_state 由来の pool_count を拾う（無いなら0）
         rs = recs["_signals"].get("result_state")
         rs = rs if isinstance(rs, dict) else {}
 
         displayed = len([x for x in (recs.get("recommendations") or []) if isinstance(x, dict)])
 
-        recs["_signals"]["stats"] = {
-            "candidate_count": int(raw_total),
-            "valid_candidate_count": int(len(valid_candidates)),
-            "pool_count": int(rs.get("pool_count") or 0),
-            "displayed_count": int(displayed),
-            "missing_fields": _calc_missing_fields(valid_candidates),
-        }
+        # ✅ 必要キーだけ上書き（merge）
+        stats.update(
+            {
+                "candidate_count": int(raw_total),
+                "valid_candidate_count": int(len(valid_candidates)),
+                "pool_count": int(rs.get("pool_count") or 0),
+                "displayed_count": int(displayed),
+                "missing_fields": _calc_missing_fields(valid_candidates),
+            }
+        )
+
+        recs["_signals"]["stats"] = stats
 
     # 0. candidates 正規化（入口で一度だけ）
     candidates = _normalize_candidates_for_chat(candidates)
@@ -947,17 +1032,19 @@ def build_chat_recommendations(  # noqa: C901
     # 2. LLMで初期推薦を取得（LLM無効なら呼ばない）
     llm_enabled = _use_llm()
     # spec: enabled=true の失敗経路でも used=true を維持
-    llm_used = bool(llm_enabled)
-    llm_error: str | None = None
+    llm_used = False
+    llm_error = None
 
-    try:
-        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
-
-        orch = Orchestrator()
-        recs: Any = orch.suggest(query=query, candidates=valid_candidates)
-
-    except Exception as e:
-        llm_error = f"{type(e).__name__}: {e}"
+    if llm_enabled:
+        try:
+            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+            recs = Orchestrator().suggest(query=query, candidates=valid_candidates)
+            llm_used = True
+        except Exception as e:
+            llm_error = f"{type(e).__name__}: {e}"
+            recs = _seed_recs_from_candidates(valid_candidates, size=3)
+            llm_used = True  # enabled で試した事実は used
+    else:
         recs = _seed_recs_from_candidates(valid_candidates, size=3)
 
     if isinstance(recs, list):
@@ -966,6 +1053,17 @@ def build_chat_recommendations(  # noqa: C901
         recs = {"recommendations": []}
     if "recommendations" not in recs or recs["recommendations"] is None:
         recs["recommendations"] = []
+    # --- ✅ TEST ONLY: 1件だけ末尾に「神社」を足して suffix 揺れを発火させる ---
+    # 使い方: CONCIERGE_DEBUG_FORCE_SUFFIX=1 を付けて起動
+    if os.getenv("CONCIERGE_DEBUG_FORCE_SUFFIX") == "1":
+        try:
+            items = recs.get("recommendations") or []
+            if isinstance(items, list) and items and isinstance(items[0], dict):
+                before = items[0].get("name")
+                items[0]["name"] = (str(before or "") + "神社").strip()
+                log.info("[svc/chat] DEBUG_FORCE_SUFFIX applied name %r -> %r", before, items[0].get("name"))
+        except Exception:
+            log.exception("[svc/chat] DEBUG_FORCE_SUFFIX failed")
 
     # Orchestrator結果を正規化（dedupe）
     items0 = recs.get("recommendations") or []
@@ -1071,193 +1169,210 @@ def build_chat_recommendations(  # noqa: C901
     pre_limit = 12 if astro_on else 3
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
 
-    # -----------------------------
-    # Step5: location埋め（観測ログ込み）
-    # -----------------------------
-    # ※確認フェーズ: cache key から bias を外す（検証を嘘にしない）
-    lookup_addr_cache: dict[str, Optional[str]] = {}
-
-    # cand_addr は「正規化キーに寄せる（挙動を単純化）」:
-    # - 候補側は必ず _key(name) で持つ
-    # - "完全一致"の生キーは持たない（ここを残すと挙動が分岐して観測がブレる）
-    cand_addr: dict[str, str] = {}
+    # 候補は正規化キーで1回だけ引けるようにして、以降の補完で共通利用する
+    cand_by_key: dict[str, dict] = {}
     for c in valid_candidates:
         nm = (c.get("name") or "").strip()
         if not nm:
             continue
+        k = _key(nm)
+        # ✅ 近い候補（先に来る）を保持。後続で上書きしない
+        if k not in cand_by_key:
+            cand_by_key[k] = c
+
+    max_lookups = _max_address_lookups()
+    # -----------------------------
+    # Step5/6: 候補補完 + location埋め（安定版）
+    # -----------------------------
+    lookup_addr_cache: dict[str, Optional[str]] = {}
+
+    cand_addr: dict[str, str] = {}
+    cand_addr_stripped: dict[str, str] = {}
+
+    for nk, c in cand_by_key.items():
         addr = c.get("formatted_address") or c.get("address")
-        if isinstance(addr, str) and addr.strip():
-            cand_addr[_key(nm)] = addr.strip()
+        if not (isinstance(addr, str) and addr.strip()):
+            continue
 
-    # cand_addr 構築ログ
-    try:
-        sample_keys = list(cand_addr.keys())[:3]
-    except Exception:
-        sample_keys = []
+        a = addr.strip()
+        cand_addr[nk] = a
 
-    log.info(
-        "[svc/chat] trace=%s step5 start cand_addr=%d sample_keys=%r cache_size=%d",
-        trace_id,
-        len(cand_addr),
-        sample_keys,
-        len(lookup_addr_cache),
-    )
+        nk2 = _strip_suffix(nk)
+        if nk2 and nk2 != nk and nk2 not in cand_addr_stripped:
+            cand_addr_stripped[nk2] = a
 
-    # Step5 counters
     cand_hit = 0
     cache_hit = 0
     bf_called = 0
     miss = 0
     eligible = 0
+    near_info_emitted = 0
+    cand_keys = tuple(cand_by_key.keys())
 
     for r in recs.get("recommendations", []) or []:
         if not isinstance(r, dict):
             continue
 
+        nm = (r.get("name") or "").strip()
+        if not nm:
+            continue
+
+        nk = _key(nm)
+        matched_c, _ = _match_candidate_for_name(nk=nk, cand_by_key=cand_by_key)
+        c = matched_c
+
+        # -----------------------------
+        # Step6: 候補情報の補完
+        # -----------------------------
+        if isinstance(c, dict):
+            if not r.get("place_id") and c.get("place_id"):
+                r["place_id"] = c.get("place_id")
+
+            if not r.get("shrine_id") and c.get("shrine_id"):
+                r["shrine_id"] = c.get("shrine_id")
+
+            if r.get("lat") is None and c.get("lat") is not None:
+                r["lat"] = c.get("lat")
+
+            if r.get("lng") is None and c.get("lng") is not None:
+                r["lng"] = c.get("lng")
+
+            if r.get("distance_m") is None and c.get("distance_m") is not None:
+                r["distance_m"] = c.get("distance_m")
+
+            addr2 = c.get("formatted_address") or c.get("address")
+            if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
+                r["address"] = addr2.strip()
+
+            if r.get("goriyaku_tag_ids") is None and c.get("goriyaku_tag_ids") is not None:
+                r["goriyaku_tag_ids"] = c.get("goriyaku_tag_ids")
+
+            if r.get("popular_score") is None and c.get("popular_score") is not None:
+                r["popular_score"] = c.get("popular_score")
+
+        # -----------------------------
+        # Step5: location 補完
+        # -----------------------------
         loc = r.get("location")
         if isinstance(loc, str) and loc.strip():
             continue
 
-        nm = (r.get("name") or "").strip()
-        if not nm:
-            continue
-        # ダミーは address lookup をスキップ
         if r.get("is_dummy") is True or nm in DUMMY_NAMES:
             continue
 
         eligible += 1
-        nk = _key(nm)
+        addr: Optional[str] = None
 
-        # 1) candidates から引けるか
+        # 1) 直接キー
         addr = cand_addr.get(nk)
-        if addr:
-            cand_hit += 1
-        else:
-            # missログ
+
+        # 1.5) suffix救済
+        if not addr:
+            nk2 = _strip_suffix(nk)
+            if nk2 and nk2 != nk:
+                addr = cand_addr_stripped.get(nk2)
+
+        # 1.6) match済み candidate からゼロコスト取得
+        if not addr and isinstance(c, dict):
+            a2 = c.get("formatted_address") or c.get("address")
+            if isinstance(a2, str) and a2.strip():
+                addr = a2.strip()
+
+        # 2) near救済
+        if not addr:
             miss += 1
-            log.info(
-                "[svc/chat] trace=%s lookup_address_by_name miss name=%r key=%r", trace_id, nm, nk
-            )
+            probe = _strip_suffix(nk) or nk
+            near_key = None
+            near = []
 
-            # 候補側に近いキーがあるか（軽量ヒント: contains）
-            try:
-                cand_keys = list(cand_addr.keys())
-                # nk が含まれる / nk を含む のどちらか
-                near = [k for k in cand_keys if (nk and nk in k) or (k and k in nk)]
-                if near:
-                    log.info("[svc/chat] miss near_keys name=%r key=%r near=%r", nm, nk, near[:5])
-            except Exception:
-                pass
+            if probe and len(probe) >= 4:
+                try:
+                    near = [k for k in cand_keys if probe in k]
 
-            # 2) cache hit?
-            ck = f"{nk}|lang={language}"  # biasは外す（確認フェーズ）
+                    near_with_addr = [
+                        k for k in near
+                        if (k in cand_addr)
+                        or (_strip_suffix(k) in cand_addr_stripped)
+                    ]
+
+                    def _near_rank(k: str) -> tuple[int, int, int]:
+                        exact = 0 if k == probe else 1
+                        prefix = 0 if k.startswith(probe) else 1
+                        len_diff = abs(len(k) - len(probe))
+                        return (exact, prefix, len_diff)
+
+                    pool = near_with_addr or near
+                    if pool:
+                        pool.sort(key=_near_rank)
+                        near_key = pool[0]
+                except Exception:
+                    near_key = None
+
+            if near_key:
+                addr = (
+                    cand_addr.get(near_key)
+                    or cand_addr_stripped.get(_strip_suffix(near_key))
+                )
+
+                if not addr:
+                    c_near = cand_by_key.get(near_key)
+                    if isinstance(c_near, dict):
+                        a2 = c_near.get("formatted_address") or c_near.get("address")
+                        if isinstance(a2, str) and a2.strip():
+                            addr = a2.strip()
+
+                if near_info_emitted < 3:
+                    log.info(
+                        "[svc/chat] miss near_keys used=%s name=%r probe=%r near_key=%r",
+                        "Y" if addr else "N",
+                        nm,
+                        probe,
+                        near_key,
+                    )
+                    near_info_emitted += 1
+
+        # 3) cache/BF
+        if not addr:
+            ck = f"{nk}|lang={language}"
+
             if ck in lookup_addr_cache:
                 cache_hit += 1
                 addr = lookup_addr_cache.get(ck)
             else:
-                # 3) BF 呼び出し（本当に 1回/rec か観測する）
-                bf_called += 1
-                try:
-                    addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
-                except Exception:
-                    addr = None
+                if bf_called < max_lookups:
+                    bf_called += 1
+                    try:
+                        addr = bf._lookup_address_by_name(nm, bias=bias, lang=language)
+                    except Exception:
+                        addr = None
                 lookup_addr_cache[ck] = addr
 
+        # -----------------------------
+        # location 反映
+        # -----------------------------
         if isinstance(addr, str) and addr.strip():
+            cand_hit += 1
             a = addr.strip()
             try:
                 r["location"] = bf._shorten_japanese_address(a) or a
             except Exception:
                 r["location"] = a
 
-    log.info(
-        "[svc/chat] trace=%s step5 location_fill eligible=%d cand_hit=%d cache_hit=%d bf_called=%d miss=%d cand_addr=%d cache_size=%d",
-        trace_id,
-        eligible,
-        cand_hit,
-        cache_hit,
-        bf_called,
-        miss,
-        len(cand_addr),
-        len(lookup_addr_cache),
-    )
+        # stats 更新
+        if not isinstance(recs.get("_signals"), dict):
+            recs["_signals"] = {}
+        stats = recs["_signals"].get("stats") or {}
 
-    # -----------------------------
-    # Step6. 候補情報の補完（lat/lng, place_id, shrine_id, address等）
-    # -----------------------------
-    cand_by_name: dict[str, dict] = {}
-    for c in valid_candidates:
-        nm = (c.get("name") or "").strip()
-        if nm:
-            cand_by_name[_key(nm)] = c
+        stats["location_fill"] = {
+            "eligible": eligible,
+            "cand_hit": cand_hit,
+            "miss": miss,
+            "bf_called": bf_called,
+            "cache_hit": cache_hit,
+        }
+        recs["_signals"]["stats"] = stats
 
-    for r in recs.get("recommendations", []) or []:
-        if not isinstance(r, dict):
-            continue
-        nm = (r.get("name") or "").strip()
-        if not nm:
-            continue
 
-        c = cand_by_name.get(_key(nm))
-        if not isinstance(c, dict):
-            continue
-
-        if not r.get("place_id") and c.get("place_id"):
-            r["place_id"] = c.get("place_id")
-
-        if not r.get("shrine_id") and c.get("shrine_id"):
-            r["shrine_id"] = c.get("shrine_id")
-
-        if r.get("lat") is None and c.get("lat") is not None:
-            r["lat"] = c.get("lat")
-        if r.get("lng") is None and c.get("lng") is not None:
-            r["lng"] = c.get("lng")
-        if r.get("distance_m") is None and c.get("distance_m") is not None:
-            r["distance_m"] = c.get("distance_m")
-
-        addr2 = c.get("formatted_address") or c.get("address")
-        if r.get("address") is None and isinstance(addr2, str) and addr2.strip():
-            r["address"] = addr2.strip()
-
-        if r.get("goriyaku_tag_ids") is None and c.get("goriyaku_tag_ids") is not None:
-            r["goriyaku_tag_ids"] = c.get("goriyaku_tag_ids")
-        if r.get("popular_score") is None and c.get("popular_score") is not None:
-            r["popular_score"] = c.get("popular_score")
-
-        if not r.get("location"):
-            addr = c.get("formatted_address") or c.get("address")
-            if isinstance(addr, str) and addr.strip():
-                try:
-                    r["location"] = bf._shorten_japanese_address(addr) or addr
-                except Exception:
-                    r["location"] = addr
-
-    # --- Step6が終わった後: id を最終確定（registeredのみ） ---
-    for r in recs.get("recommendations", []) or []:
-        if not isinstance(r, dict):
-            continue
-
-        shrine_id = r.get("shrine_id")
-        if not shrine_id:
-            r.pop("id", None)
-            continue
-
-        try:
-            r["id"] = int(shrine_id)
-        except Exception:
-            r.pop("id", None)
-
-    if goriyaku_tag_ids:
-        n_with_tags = sum(
-            1
-            for c in valid_candidates
-            if isinstance(c, dict)
-            and isinstance(c.get("goriyaku_tag_ids"), list)
-            and len(c.get("goriyaku_tag_ids")) > 0
-        )
-        log.info(
-            "[svc/chat] cand goriyaku_tag_ids attached=%d/%d", n_with_tags, len(valid_candidates)
-        )
 
     # -----------------------------
     # Step7. ユーザーフィルタ（痩せ検知ログ）

@@ -382,6 +382,18 @@ class ConciergeChatView(APIView):
             lng=lng,
             trace_id=rid,
         )
+
+        # --- ✅ TEST ONLY: 1件だけ住所を潰して miss を発火させる ---
+        # 使い方: CONCIERGE_DEBUG_FORCE_MISS=1 を付けて起動
+        if os.getenv("CONCIERGE_DEBUG_FORCE_MISS") == "1":
+            try:
+                if candidates and isinstance(candidates[0], dict):
+                    # candidates[0]["address"] = ""
+                    candidates[0]["formatted_address"] = ""
+                    log.info("[api/chat] DEBUG_FORCE_MISS applied to candidates[0] name=%r", candidates[0].get("name"))
+            except Exception:
+                log.exception("[api/chat] DEBUG_FORCE_MISS failed")
+
         log.info(
             "[concierge/reco] candidates_raw rid=%s user=%d built=%d total=%d",
             rid,
