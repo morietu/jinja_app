@@ -94,3 +94,4 @@ cookies.txt
 
 # generated
 backend/openapi.json
+backend/schema.yml
