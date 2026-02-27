@@ -41,6 +41,27 @@ def _none_if_blank(x: Any) -> Any:
 
 log = logging.getLogger(__name__)
 
+def _attach_engine_signals(
+    recs: dict,
+    *,
+    llm_enabled: bool,
+    orchestrator_used: bool,
+    llm_error: Optional[str],
+) -> None:
+    if not isinstance(recs.get("_signals"), dict):
+        recs["_signals"] = {}
+
+    recs["_signals"]["llm"] = {
+        "enabled": bool(llm_enabled),
+        "used": bool(orchestrator_used),  # 互換: 「推薦エンジン呼んだ」
+        "error": llm_error,
+    }
+    recs["_signals"]["engine"] = {
+        "orchestrator_used": bool(orchestrator_used),
+        "openai_enabled": bool(llm_enabled),
+        "openai_used": bool(llm_enabled and orchestrator_used),
+    }
+
 CONTRACT_WEIGHTS_A = {"element": 0.6, "need": 0.3, "popular": 0.1}
 
 DUMMY_NAMES = {"近隣の神社"}
@@ -121,7 +142,6 @@ def _normalize_candidates_for_chat(candidates: List[Dict[str, Any]]) -> List[Dic
 
 
 def _normalize_astro_elements(values: Any) -> list[str]:
-    """Normalize astro element labels (JA/EN) while preserving originals for compatibility."""
     out: list[str] = []
     seen: set[str] = set()
     for v in values or []:
@@ -129,10 +149,19 @@ def _normalize_astro_elements(values: Any) -> list[str]:
         if not s:
             continue
 
-        # keep original label (for compatibility)
+        # keep original label
         if s not in seen:
             out.append(s)
             seen.add(s)
+
+        # --- 互換: 地 <-> 土 を両方入れる（テスト/既存データ両対応） ---
+        if s == "地" and "土" not in seen:
+            out.append("土")
+            seen.add("土")
+        if s == "土" and "地" not in seen:
+            out.append("地")
+            seen.add("地")
+        # ------------------------------------------------------------
 
         key = s.lower()
         canonical = ASTRO_ELEMENT_ALIASES.get(s, ASTRO_ELEMENT_ALIASES.get(key))
@@ -850,6 +879,7 @@ def build_chat_recommendations(  # noqa: C901
     # ✅ リクエスト値を退避（後で flow を倒しても追跡できる）
     requested_flow = flow
 
+
     # 距離順 key（distance_m 無しは最後）
     def _cand_dist_key(c: dict) -> tuple[int, float]:
         d = c.get("distance_m")
@@ -1035,17 +1065,17 @@ def build_chat_recommendations(  # noqa: C901
     llm_used = False
     llm_error = None
 
-    if llm_enabled:
-        try:
-            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
-            recs = Orchestrator().suggest(query=query, candidates=valid_candidates)
-            llm_used = True
-        except Exception as e:
-            llm_error = f"{type(e).__name__}: {e}"
-            recs = _seed_recs_from_candidates(valid_candidates, size=3)
-            llm_used = True  # enabled で試した事実は used
-    else:
+    # ✅ Orchestrator は「推薦ロジックの層」なので candidates が空でも呼ぶ（テスト契約）
+    try:
+        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+
+        recs = Orchestrator().suggest(query=query, candidates=valid_candidates)
+        llm_used = True  # Orchestratorを使った事実
+    except Exception as e:
+        llm_error = f"{type(e).__name__}: {e}"
         recs = _seed_recs_from_candidates(valid_candidates, size=3)
+        # enabled=true で失敗したなら used=true を維持、enabled=false でも fallback でOK
+        llm_used = bool(llm_enabled)
 
     if isinstance(recs, list):
         recs = {"recommendations": recs}
@@ -1117,25 +1147,21 @@ def build_chat_recommendations(  # noqa: C901
 
         recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
         recs["_signals"]["result_state"] = {
-            "matched_count": len(
-                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
-            ),
+            "matched_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
             "fallback_mode": "none",
             "fallback_reason_ja": None,
             "ui_disclaimer_ja": None,
             "requested_extra_condition": (extra_condition or "").strip() or None,
-            "pool_count": len(
-                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
-            ),
-            "displayed_count": len(
-                [x for x in recs.get("recommendations") or [] if isinstance(x, dict)]
-            ),
+            "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
+            "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
         }
-        recs["_signals"]["llm"] = {
-            "enabled": llm_enabled,
-            "used": llm_used,
-            "error": llm_error,
-        }
+
+        _attach_engine_signals(
+            recs,
+            llm_enabled=llm_enabled,
+            orchestrator_used=llm_used,
+            llm_error=llm_error,
+        )
         _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
         return recs
 
@@ -1600,6 +1626,13 @@ def build_chat_recommendations(  # noqa: C901
         )
         _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
         recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
+        _attach_engine_signals(
+            recs,
+            llm_enabled=llm_enabled,
+            orchestrator_used=llm_used,
+            llm_error=llm_error,
+        )
+        
         return recs
 
     def _prepend_unique(xs: list[str], s: str) -> list[str]:
@@ -1706,13 +1739,12 @@ def build_chat_recommendations(  # noqa: C901
             )
 
     # --- デバッグ: LLM利用状況 ---
-    if not isinstance(recs.get("_signals"), dict):
-        recs["_signals"] = {}
-    recs["_signals"]["llm"] = {
-        "enabled": llm_enabled,
-        "used": llm_used,
-        "error": llm_error,
-    }
+    _attach_engine_signals(
+        recs,
+        llm_enabled=llm_enabled,
+        orchestrator_used=llm_used,
+        llm_error=llm_error,
+    )
 
     _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
     return recs

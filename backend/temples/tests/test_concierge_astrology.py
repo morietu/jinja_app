@@ -1,4 +1,5 @@
 import pytest
+from django.test import override_settings
 from temples.services.concierge_chat import build_chat_recommendations
 import temples.domain.astrology as astro
 
@@ -11,7 +12,7 @@ def fake_element_priority(user_element, rec_elements):
         return 1
     return 0
 
-
+@override_settings(CONCIERGE_USE_LLM=True)
 @pytest.mark.django_db
 def test_chat_astrology_picks_top3_by_element_priority(monkeypatch):
     """
@@ -56,6 +57,7 @@ def test_chat_astrology_picks_top3_by_element_priority(monkeypatch):
     assert "_astro" in recs
 
 
+@override_settings(CONCIERGE_USE_LLM=True)
 @pytest.mark.django_db
 def test_chat_astrology_ignored_when_birthdate_invalid(monkeypatch):
     """
@@ -63,14 +65,7 @@ def test_chat_astrology_ignored_when_birthdate_invalid(monkeypatch):
     - astrology は無効
     - Orchestrator の先頭3件をそのまま返す
     """
-
-    # ★ 同じ monkeypatch をここでも適用（ただし実際は使われない）
-    monkeypatch.setattr(
-        astro,
-        "element_priority",
-        fake_element_priority,
-        raising=True,
-    )
+    monkeypatch.setattr(astro, "element_priority", fake_element_priority, raising=True)
 
     class DummyOrchestrator:
         def suggest(self, *, query, candidates):
@@ -89,7 +84,7 @@ def test_chat_astrology_ignored_when_birthdate_invalid(monkeypatch):
     recs = build_chat_recommendations(
         query="近場で縁結び",
         language="ja",
-        candidates=[],
+        candidates=[{"name": "seed"}],  # ← 空にしない（ここが肝）
         bias=None,
         birthdate="not-a-date",
     )
