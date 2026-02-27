@@ -21,6 +21,8 @@ from temples.serializers.routes import (
     SimpleRouteResponseSerializer,
 )
 
+from drf_spectacular.utils import extend_schema
+
 UserModel = get_user_model()
 
 # .env(.local) で OSRM_BASE_URL を上書き（例: http://127.0.0.1:5001）
@@ -68,7 +70,7 @@ def _is_owner(user, shrine: Shrine) -> bool:
 
     return False
 
-
+@extend_schema(exclude=True)
 class RouteAPIView(APIView):
     # drf-spectacular: このビューはスキーマ対象外
     permission_classes = [AllowAny]
@@ -183,8 +185,9 @@ class RouteView(APIView):
         tags=["routes"],
     )
     @method_decorator(login_required)
-    def get(self, request, id=None):
-        shrine = get_object_or_404(Shrine, pk=id)
+    def get(self, request, pk=None, id=None, *args, **kwargs):
+        shrine_id = pk if pk is not None else id
+        shrine = get_object_or_404(Shrine, pk=shrine_id)
 
         lat = request.GET.get("lat")
         lng = request.GET.get("lng")

@@ -64,10 +64,12 @@ except ImportError:  # reverse_geocode 名
 
 # route（存在しない環境があるためフォールバックを用意）
 try:
-    from temples.api.views.route import RouteAPIView, RouteView, route_health  # type: ignore
+    from temples.api.views.route import RouteAPIView, RouteView, route_health, route_legacy  # type: ignore
 except Exception:
-    from temples.api.views.route import RouteAPIView, RouteView  # type: ignore
+    from temples.api.views.route import RouteAPIView, RouteView, route_legacy  # type: ignore
 
+    def route_health(request):
+        return JsonResponse({"status": "ok", "service": "route"})
     def route_health(request):
         return JsonResponse({"status": "ok", "service": "route"})
 
@@ -138,7 +140,7 @@ urlpatterns = [
     path("routes/", RouteAPIView.as_view(), name="routes"),
     path("shrines/<int:pk>/route/", RouteView.as_view(), name="shrine_route"),
     path("routes/health/", route_health, name="route_health"),
-    path("route/", RouteAPIView.as_view(), name="route-legacy"),
+    path("route/", route_legacy, name="route-legacy"),
 
     # ---- Shrines ----------------------------------------------------------
     
