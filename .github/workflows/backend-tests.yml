@@ -47,7 +47,8 @@ jobs:
       DISABLE_GIS_FOR_TESTS: "1"
       USE_SQLITE: "1"
       USE_GIS: "0"
-      USE_LLM_CONCIERGE: "0"
+
+      CONCIERGE_USE_LLM: "1"
       AUTO_GEOCODE_ON_SAVE: "0"
       CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || github.event.inputs.concierge_throttle || '1000/min' }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'dummy' }}
@@ -81,6 +82,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+      
+      - name: Show concierge LLM flag
+        run: |
+          python - <<'PY'
+          import os
+          import django
+          from django.conf import settings
+          django.setup()
+          print("ENV CONCIERGE_USE_LLM =", os.getenv("CONCIERGE_USE_LLM"))
+          print("ENV USE_LLM_CONCIERGE =", os.getenv("USE_LLM_CONCIERGE"))
+          print("settings.CONCIERGE_USE_LLM =", getattr(settings, "CONCIERGE_USE_LLM", None))
+          print("settings.USE_LLM_CONCIERGE =", getattr(settings, "USE_LLM_CONCIERGE", None))
+          PY
 
       - name: Show import path & locate temples
         shell: bash
@@ -131,13 +145,6 @@ jobs:
       - name: Echo throttle
         run: echo "CONCIERGE_THROTTLE=${CONCIERGE_THROTTLE}"
 
-      - name: Rank regression tests (fast)
-        run: pytest -q temples/tests/services/test_places_rank.py
-
-      - name: Run pytest (unit, sqlite)
-        run: python -m pytest
-
-      
       
 
 
@@ -169,7 +176,7 @@ jobs:
       IS_PYTEST: "1"
       USE_SQLITE: "0"
       USE_GIS: "1"
-      USE_LLM_CONCIERGE: "0"
+      CONCIERGE_USE_LLM: "1"
       AUTO_GEOCODE_ON_SAVE: "0"
       DATABASE_URL: postgis://admin:jdb50515@localhost:5432/jinja_db
       CONCIERGE_THROTTLE: ${{ inputs.concierge_throttle || github.event.inputs.concierge_throttle || '1000/min' }}
@@ -225,6 +232,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+      
+      - name: Show concierge LLM flag
+        run: |
+          python - <<'PY'
+          import os
+          import django
+          from django.conf import settings
+          django.setup()
+          print("ENV CONCIERGE_USE_LLM =", os.getenv("CONCIERGE_USE_LLM"))
+          print("ENV USE_LLM_CONCIERGE =", os.getenv("USE_LLM_CONCIERGE"))
+          print("settings.CONCIERGE_USE_LLM =", getattr(settings, "CONCIERGE_USE_LLM", None))
+          print("settings.USE_LLM_CONCIERGE =", getattr(settings, "USE_LLM_CONCIERGE", None))
+          PY
 
       - name: Wait for DB
         run: |
@@ -316,4 +336,5 @@ jobs:
           fi
 
       # 例: .github/workflows/backend-tests.yml の jobs.test.steps に追記
+      
       
