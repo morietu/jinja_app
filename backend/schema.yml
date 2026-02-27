@@ -1,0 +1,2846 @@
+openapi: 3.0.3
+info:
+  title: Shrine API
+  version: v1
+paths:
+  /api/auth/jwt/create/:
+    post:
+      operationId: api_auth_jwt_create_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/auth/jwt/refresh/:
+    post:
+      operationId: api_auth_jwt_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/auth/jwt/verify/:
+    post:
+      operationId: api_auth_jwt_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerify'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenVerify'
+          description: ''
+  /api/billings/status/:
+    get:
+      operationId: api_billings_status_retrieve
+      summary: Billing status
+      tags:
+      - billing
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingStatus'
+          description: ''
+  /api/concierge-threads/:
+    get:
+      operationId: api_concierge_threads_list
+      tags:
+      - concierge
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConciergeThreadListResponse'
+          description: ''
+  /api/concierge-threads/{id}/:
+    get:
+      operationId: api_concierge_threads_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - concierge
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConciergeThreadDetailResponse'
+          description: ''
+  /api/concierge/chat/:
+    post:
+      operationId: api_concierge_chat_create
+      description: message もしくは query を受け付ける互換ラッパ
+      summary: Concierge chat (compat)
+      tags:
+      - concierge
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+            examples:
+              WithMessage:
+                value:
+                  message: 神社を教えて
+                  lat: 35.0
+                  lng: 139.0
+                summary: with message
+              WithQuery:
+                value:
+                  query: 浅草神社
+                  lat: 35.71
+                  lng: 139.8
+                summary: with query
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                WithMessage:
+                  value:
+                    message: 神社を教えて
+                    lat: 35.0
+                    lng: 139.0
+                  summary: with message
+                WithQuery:
+                  value:
+                    query: 浅草神社
+                    lat: 35.71
+                    lng: 139.8
+                  summary: with query
+          description: ''
+  /api/concierge/plan/:
+    post:
+      operationId: api_concierge_plan_create
+      summary: Concierge plan
+      tags:
+      - concierge
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConciergePlanRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConciergePlanRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConciergePlanRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConciergePlanResponse'
+          description: ''
+  /api/favorites/:
+    get:
+      operationId: api_favorites_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Favorite'
+          description: ''
+    post:
+      operationId: api_favorites_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteUpsert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteUpsert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteUpsert'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteUpsert'
+          description: ''
+  /api/favorites/{id}/:
+    delete:
+      operationId: api_favorites_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this favorite.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/geocodes/reverse/:
+    get:
+      operationId: api_geocodes_reverse_retrieve
+      description: 緯度経度から住所を推定します。
+      summary: Reverse geocode
+      parameters:
+      - in: query
+        name: lang
+        schema:
+          type: string
+        description: '言語 (既定: ja)'
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+        description: 緯度
+        required: true
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+        description: 経度
+        required: true
+      tags:
+      - geocodes
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReverseResponse'
+          description: ''
+  /api/geocodes/search/:
+    get:
+      operationId: api_geocodes_search_retrieve
+      description: 住所/地名をクエリで与えてジオコーディングします。
+      summary: Geocode search
+      parameters:
+      - in: query
+        name: lang
+        schema:
+          type: string
+          default: ja
+          minLength: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 5
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 200
+          minLength: 1
+        required: true
+      tags:
+      - geocodes
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+          description: ''
+  /api/goriyaku-tags/:
+    get:
+      operationId: api_goriyaku_tags_list
+      tags:
+      - tags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoriyakuTagListItem'
+          description: ''
+  /api/goshuins/:
+    get:
+      operationId: api_goshuins_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Goshuin'
+          description: ''
+  /api/goshuins/{id}/:
+    get:
+      operationId: api_goshuins_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this goshuin.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goshuin'
+          description: ''
+  /api/goshuins/feed/:
+    get:
+      operationId: api_goshuins_feed_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGoshuinList'
+          description: ''
+  /api/my/goshuins/:
+    get:
+      operationId: api_my_goshuins_list
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Goshuin'
+          description: ''
+    post:
+      operationId: api_my_goshuins_create
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyGoshuinCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyGoshuinCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyGoshuinCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goshuin'
+          description: ''
+  /api/my/goshuins/{id}/:
+    get:
+      operationId: api_my_goshuins_retrieve
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goshuin'
+          description: ''
+    patch:
+      operationId: api_my_goshuins_partial_update
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGoshuin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGoshuin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGoshuin'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goshuin'
+          description: ''
+    delete:
+      operationId: api_my_goshuins_destroy
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/my/goshuins/count/:
+    get:
+      operationId: api_my_goshuins_count_retrieve
+      description: /api/my/goshuins/ 用（自分の御朱印 CRUD）
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goshuin'
+          description: ''
+  /api/place-caches/:
+    get:
+      operationId: api_place_cache_list
+      description: GET /api/place-caches/?q=...&limit=...&dedupe=1
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlaceCacheItem'
+          description: ''
+  /api/places/detail/:
+    get:
+      operationId: api_places_detail_by_query
+      summary: 'Places: detail (query version)'
+      parameters:
+      - in: query
+        name: place_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetailResponse'
+          description: ''
+  /api/places/detail/{id}/:
+    get:
+      operationId: api_places_detail_by_id
+      summary: 'Places: detail'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetailResponse'
+          description: ''
+  /api/places/find/:
+    get:
+      operationId: api_places_find_retrieve
+      summary: 'Places: find (lite)'
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: api_places_find_create
+      summary: 'Places: find (lite)'
+      tags:
+      - places
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/places/nearby/:
+    get:
+      operationId: api_places_nearby_retrieve
+      summary: 'Places: nearby search'
+      parameters:
+      - in: query
+        name: keyword
+        schema:
+          type: string
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: radius
+        schema:
+          type: integer
+      - in: query
+        name: type
+        schema:
+          type: string
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbySearchResponse'
+          description: ''
+  /api/places/photo/:
+    get:
+      operationId: api_places_photo_retrieve
+      description: |-
+        /api/places/photo/?photo_reference=...&maxwidth=...
+        services.google_places.photo は (bytes, content_type) を返す契約
+      summary: 'Places: photo (binary)'
+      parameters:
+      - in: query
+        name: maxwidth
+        schema:
+          type: integer
+      - in: query
+        name: photo_reference
+        schema:
+          type: string
+        required: true
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/places/resolve/:
+    get:
+      operationId: api_places_resolve_search
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+        required: true
+      tags:
+      - places
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlacesResolveGetResponse'
+          description: ''
+    post:
+      operationId: api_places_resolve_create
+      tags:
+      - places
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacesResolvePostRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlacesResolvePostRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlacesResolvePostRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlacesResolvePostResponse'
+          description: ''
+  /api/places/search/:
+    get:
+      operationId: api_places_search_retrieve
+      summary: 'Places: search'
+      parameters:
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: 検索クエリ（query も可）
+        required: true
+      - in: query
+        name: query
+        schema:
+          type: string
+      - in: query
+        name: radius
+        schema:
+          type: integer
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlacesSearchResponse'
+          description: ''
+  /api/places/text-search/:
+    get:
+      operationId: api_places_text_search_retrieve
+      summary: 'Places: text search'
+      parameters:
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: 検索クエリ（query も可）
+        required: true
+      - in: query
+        name: query
+        schema:
+          type: string
+      - in: query
+        name: radius
+        schema:
+          type: integer
+      tags:
+      - places
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TextSearchResponse'
+          description: ''
+  /api/populars/:
+    get:
+      operationId: api_populars_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedShrineListList'
+          description: ''
+  /api/profiles/{username}/:
+    get:
+      operationId: api_public_profile_retrieve
+      parameters:
+      - in: path
+        name: username
+        schema:
+          type: string
+        required: true
+      tags:
+      - profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfileResponse'
+          description: ''
+  /api/route/:
+    get:
+      operationId: api_route_retrieve
+      description: OSRMで2点間のルートを返す。distance(m) / duration(s) / geometry(GeoJSON LineString)。
+      summary: Compute route (OSRM)
+      parameters:
+      - in: query
+        name: from_lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: from_lng
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: mode
+        schema:
+          type: string
+        description: driving|car（car.luaのみならdriving固定でも可）
+      - in: query
+        name: to_lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: to_lng
+        schema:
+          type: number
+          format: float
+        required: true
+      tags:
+      - routes
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleRouteResponse'
+          description: ''
+    post:
+      operationId: api_route_create
+      description: （内部サービス）複数目的地向け。
+      summary: Compute multi-stop route
+      tags:
+      - routes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+          description: ''
+  /api/routes/:
+    get:
+      operationId: api_routes_retrieve
+      description: OSRMで2点間のルートを返す。distance(m) / duration(s) / geometry(GeoJSON LineString)。
+      summary: Compute route (OSRM)
+      parameters:
+      - in: query
+        name: from_lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: from_lng
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: mode
+        schema:
+          type: string
+        description: driving|car（car.luaのみならdriving固定でも可）
+      - in: query
+        name: to_lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: to_lng
+        schema:
+          type: number
+          format: float
+        required: true
+      tags:
+      - routes
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleRouteResponse'
+          description: ''
+    post:
+      operationId: api_routes_create
+      description: （内部サービス）複数目的地向け。
+      summary: Compute multi-stop route
+      tags:
+      - routes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+          description: ''
+  /api/schemas/:
+    get:
+      operationId: api_schemas_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/shrines/:
+    get:
+      operationId: api_shrines_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedShrineListList'
+          description: ''
+    post:
+      operationId: api_shrines_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShrineWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShrineWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShrineWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShrineWrite'
+          description: ''
+  /api/shrines/{id}/:
+    get:
+      operationId: api_shrines_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShrineDetail'
+          description: ''
+    patch:
+      operationId: api_shrines_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this shrine.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShrineWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShrineWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShrineWrite'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShrineWrite'
+          description: ''
+    delete:
+      operationId: api_shrines_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this shrine.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/shrines/{id}/data/:
+    get:
+      operationId: api_shrines_data_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShrineDetail'
+          description: ''
+  /api/shrines/{id}/route/:
+    get:
+      operationId: api_shrines_route_retrieve
+      summary: Route page for a shrine
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+      tags:
+      - routes
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/shrines/ingest/:
+    post:
+      operationId: api_shrines_ingest_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShrineDetail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShrineDetail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShrineDetail'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShrineDetail'
+          description: ''
+  /api/shrines/nearby/:
+    get:
+      operationId: api_shrines_nearest_list
+      tags:
+      - shrines
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearestShrinesResponse'
+          description: ''
+  /api/users/me/:
+    get:
+      operationId: api_users_me_retrieve
+      summary: Get current user profile
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+    patch:
+      operationId: api_users_me_partial_update
+      summary: Update current user profile
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+  /api/users/me/storage/:
+    get:
+      operationId: api_users_me_storage_retrieve
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeStorageResponse'
+          description: ''
+  /api/users/signup/:
+    post:
+      operationId: api_users_signup_create
+      summary: Signup
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Signup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Signup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Signup'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+          description: ''
+  /healthz/:
+    get:
+      operationId: healthz_retrieve
+      summary: Health check
+      tags:
+      - misc
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    BillingStatus:
+      type: object
+      properties:
+        plan:
+          $ref: '#/components/schemas/PlanEnum'
+        is_active:
+          type: boolean
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        trial_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancel_at_period_end:
+          type: boolean
+      required:
+      - cancel_at_period_end
+      - is_active
+      - plan
+      - provider
+    BlankEnum:
+      enum:
+      - ''
+    CategoryEnum:
+      enum:
+      - ご利益
+      - 神格
+      - 地域
+      type: string
+      description: |-
+        * `ご利益` - 願望・テーマ別
+        * `神格` - 祭神の種類
+        * `地域` - 地域や役割
+    ConciergeMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          nullable: true
+      required:
+      - content
+      - id
+      - role
+    ConciergePlanRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        language:
+          type: string
+          default: ja
+        locationbias:
+          type: string
+        transportation:
+          allOf:
+          - $ref: '#/components/schemas/TransportationEnum'
+          default: walk
+        area:
+          type: string
+        where:
+          type: string
+        location_text:
+          type: string
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        lon:
+          type: number
+          format: double
+          nullable: true
+        radius_m:
+          type: integer
+          nullable: true
+        radius_km:
+          type: string
+          nullable: true
+      required:
+      - query
+    ConciergePlanResponse:
+      type: object
+      properties:
+        query:
+          type: string
+        transportation:
+          allOf:
+          - $ref: '#/components/schemas/TransportationEnum'
+          default: walk
+        main:
+          allOf:
+          - $ref: '#/components/schemas/PlaceLite'
+          nullable: true
+        alternatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceLite'
+        route_hints:
+          type: object
+          additionalProperties: {}
+      required:
+      - query
+    ConciergeThreadDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        last_message:
+          type: string
+          nullable: true
+        last_message_at:
+          type: string
+          nullable: true
+        message_count:
+          type: integer
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConciergeMessage'
+        recommendations:
+          nullable: true
+        recommendations_v2:
+          nullable: true
+      required:
+      - id
+      - message_count
+      - messages
+    ConciergeThreadListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        last_message:
+          type: string
+          nullable: true
+        last_message_at:
+          type: string
+          nullable: true
+        message_count:
+          type: integer
+      required:
+      - id
+      - message_count
+    ConciergeThreadListResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConciergeThreadListItem'
+      required:
+      - results
+    Favorite:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        shrine:
+          allOf:
+          - $ref: '#/components/schemas/ShrineLite'
+          readOnly: true
+        place_id:
+          type: string
+          nullable: true
+          maxLength: 128
+        place:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - place
+      - shrine
+    FavoriteUpsert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        shrine_id:
+          type: integer
+          writeOnly: true
+        place_id:
+          type: string
+          writeOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+    GeocodeItem:
+      type: object
+      properties:
+        place_id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        address:
+          type: object
+          additionalProperties:
+            type: string
+        type:
+          type: string
+        class_:
+          type: string
+          title: 'Class '
+      required:
+      - lat
+      - lng
+      - name
+      - place_id
+    GoriyakuTag:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 50
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+      required:
+      - id
+      - name
+    GoriyakuTagListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
+    Goshuin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image_url:
+          type: string
+          format: uri
+          readOnly: true
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        shrine:
+          type: integer
+      required:
+      - created_at
+      - id
+      - image_url
+      - shrine
+      - updated_at
+    KindEnum:
+      enum:
+      - shrine
+      - temple
+      type: string
+      description: |-
+        * `shrine` - 神社
+        * `temple` - 寺院
+    KyuseiEnum:
+      enum:
+      - 一白水星
+      - 二黒土星
+      - 三碧木星
+      - 四緑木星
+      - 五黄土星
+      - 六白金星
+      - 七赤金星
+      - 八白土星
+      - 九紫火星
+      type: string
+      description: |-
+        * `一白水星` - 一白水星
+        * `二黒土星` - 二黒土星
+        * `三碧木星` - 三碧木星
+        * `四緑木星` - 四緑木星
+        * `五黄土星` - 五黄土星
+        * `六白金星` - 六白金星
+        * `七赤金星` - 七赤金星
+        * `八白土星` - 八白土星
+        * `九紫火星` - 九紫火星
+    Location:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+        lng:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+      required:
+      - lat
+      - lng
+    MeStorageResponse:
+      type: object
+      properties:
+        total_bytes:
+          type: integer
+        total_images:
+          type: integer
+        limit_bytes:
+          type: integer
+        remaining_bytes:
+          type: integer
+        is_over_limit:
+          type: boolean
+      required:
+      - is_over_limit
+      - limit_bytes
+      - remaining_bytes
+      - total_bytes
+      - total_images
+    ModeEnum:
+      enum:
+      - walking
+      - driving
+      type: string
+      description: |-
+        * `walking` - walking
+        * `driving` - driving
+    MyGoshuinCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        shrine:
+          type: integer
+        title:
+          type: string
+          maxLength: 100
+        is_public:
+          type: boolean
+        image:
+          type: string
+          format: uri
+          writeOnly: true
+      required:
+      - id
+      - image
+      - shrine
+    NearbySearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+        cached:
+          type: boolean
+        provider:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+    NearestShrineItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name_jp:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        distance:
+          type: number
+          format: double
+      required:
+      - id
+    NearestShrinesResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/NearestShrineItem'
+      required:
+      - results
+    NullEnum:
+      enum:
+      - null
+    PaginatedGoshuinList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Goshuin'
+    PaginatedShrineListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShrineList'
+    PatchedGoshuin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image_url:
+          type: string
+          format: uri
+          readOnly: true
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        shrine:
+          type: integer
+    PatchedShrineWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        name_jp:
+          type: string
+          maxLength: 100
+        name_romaji:
+          type: string
+          nullable: true
+          maxLength: 100
+        address:
+          type: string
+          default: ''
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        goriyaku:
+          type: string
+          nullable: true
+          description: ご利益（自由メモ）
+        sajin:
+          type: string
+          nullable: true
+          description: 祭神
+        description:
+          type: string
+          nullable: true
+        element:
+          type: string
+          nullable: true
+          description: '五行属性: 木火土金水'
+          maxLength: 10
+        kyusei:
+          nullable: true
+          description: |-
+            九星（例: 九紫火星）
+
+            * `一白水星` - 一白水星
+            * `二黒土星` - 二黒土星
+            * `三碧木星` - 三碧木星
+            * `四緑木星` - 四緑木星
+            * `五黄土星` - 五黄土星
+            * `六白金星` - 六白金星
+            * `七赤金星` - 七赤金星
+            * `八白土星` - 八白土星
+            * `九紫火星` - 九紫火星
+          oneOf:
+          - $ref: '#/components/schemas/KyuseiEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        goriyaku_tag_ids:
+          type: array
+          items:
+            type: integer
+            writeOnly: true
+          writeOnly: true
+    PatchedUserProfileUpdate:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 64
+        is_public:
+          type: boolean
+        bio:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          format: uri
+          nullable: true
+    PlaceCacheItem:
+      type: object
+      properties:
+        place_id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+    PlaceDetailResponse:
+      type: object
+      properties:
+        place_id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        rating:
+          type: number
+          format: double
+          nullable: true
+        user_ratings_total:
+          type: integer
+          nullable: true
+        types:
+          type: array
+          items:
+            type: string
+        location:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        photo_reference:
+          type: string
+      required:
+      - place_id
+    PlaceItem:
+      type: object
+      properties:
+        place_id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        types:
+          type: array
+          items:
+            type: string
+      required:
+      - place_id
+    PlaceLite:
+      type: object
+      properties:
+        place_id:
+          type: string
+          nullable: true
+        name:
+          type: string
+        address:
+          type: string
+          nullable: true
+        location:
+          $ref: '#/components/schemas/Location'
+        rating:
+          type: number
+          format: double
+          nullable: true
+        user_ratings_total:
+          type: integer
+          nullable: true
+        open_now:
+          type: boolean
+          nullable: true
+        photo_reference:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+      required:
+      - location
+      - name
+    PlacesResolveGetResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlacesResolveItem'
+      required:
+      - results
+    PlacesResolveItem:
+      type: object
+      properties:
+        place_id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        formatted_address:
+          type: string
+        geometry: {}
+    PlacesResolvePostRequest:
+      type: object
+      properties:
+        place_id:
+          type: string
+      required:
+      - place_id
+    PlacesResolvePostResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        shrine_id:
+          type: integer
+        place_id:
+          type: string
+        candidate_id:
+          type: integer
+      required:
+      - candidate_id
+      - id
+      - place_id
+      - shrine_id
+    PlacesSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+        cached:
+          type: boolean
+        provider:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+    PlanEnum:
+      enum:
+      - free
+      - premium
+      type: string
+      description: |-
+        * `free` - free
+        * `premium` - premium
+    Point:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+        lng:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+      required:
+      - lat
+      - lng
+    ProviderEnum:
+      enum:
+      - stub
+      - stripe
+      - revenuecat
+      - unknown
+      type: string
+      description: |-
+        * `stub` - stub
+        * `stripe` - stripe
+        * `revenuecat` - revenuecat
+        * `unknown` - unknown
+    PublicProfileResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        is_public:
+          type: boolean
+    ReverseResponse:
+      type: object
+      properties:
+        item:
+          allOf:
+          - $ref: '#/components/schemas/GeocodeItem'
+          nullable: true
+        cached:
+          type: boolean
+        provider:
+          type: string
+      required:
+      - cached
+      - item
+      - provider
+    RouteLeg:
+      type: object
+      properties:
+        from_:
+          allOf:
+          - $ref: '#/components/schemas/Point'
+          title: 'From '
+        to:
+          $ref: '#/components/schemas/Point'
+        distance_m:
+          type: integer
+          minimum: 0
+        duration_s:
+          type: integer
+          minimum: 0
+        geometry:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              format: double
+            maxItems: 2
+            minItems: 2
+      required:
+      - distance_m
+      - duration_s
+      - from_
+      - geometry
+      - to
+    RouteRequest:
+      type: object
+      properties:
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: walking
+        origin:
+          $ref: '#/components/schemas/Point'
+        destinations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Point'
+      required:
+      - destinations
+      - origin
+    RouteResponse:
+      type: object
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteLeg'
+        distance_m_total:
+          type: integer
+          minimum: 0
+        duration_s_total:
+          type: integer
+          minimum: 0
+        provider:
+          type: string
+        cached:
+          type: boolean
+      required:
+      - cached
+      - distance_m_total
+      - duration_s_total
+      - legs
+      - mode
+      - provider
+    SearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeocodeItem'
+        cached:
+          type: boolean
+        provider:
+          type: string
+      required:
+      - cached
+      - items
+      - provider
+    ShrineDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        name_jp:
+          type: string
+          maxLength: 100
+        name_romaji:
+          type: string
+          nullable: true
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 255
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        goriyaku:
+          type: string
+          nullable: true
+          description: ご利益（自由メモ）
+        goriyaku_tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoriyakuTag'
+          readOnly: true
+        is_favorite:
+          type: boolean
+          readOnly: true
+        distance:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+        distance_text:
+          type: string
+          nullable: true
+          readOnly: true
+        location:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        kyusei:
+          nullable: true
+          description: |-
+            九星（例: 九紫火星）
+
+            * `一白水星` - 一白水星
+            * `二黒土星` - 二黒土星
+            * `三碧木星` - 三碧木星
+            * `四緑木星` - 四緑木星
+            * `五黄土星` - 五黄土星
+            * `六白金星` - 六白金星
+            * `七赤金星` - 七赤金星
+            * `八白土星` - 八白土星
+            * `九紫火星` - 九紫火星
+          oneOf:
+          - $ref: '#/components/schemas/KyuseiEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - distance
+      - distance_text
+      - goriyaku_tags
+      - id
+      - is_favorite
+      - location
+      - name_jp
+    ShrineList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        name_jp:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 255
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        goriyaku_tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoriyakuTag'
+          readOnly: true
+        is_favorite:
+          type: boolean
+          readOnly: true
+        distance:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+        distance_text:
+          type: string
+          nullable: true
+          readOnly: true
+        location:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        kyusei:
+          nullable: true
+          description: |-
+            九星（例: 九紫火星）
+
+            * `一白水星` - 一白水星
+            * `二黒土星` - 二黒土星
+            * `三碧木星` - 三碧木星
+            * `四緑木星` - 四緑木星
+            * `五黄土星` - 五黄土星
+            * `六白金星` - 六白金星
+            * `七赤金星` - 七赤金星
+            * `八白土星` - 八白土星
+            * `九紫火星` - 九紫火星
+          oneOf:
+          - $ref: '#/components/schemas/KyuseiEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - distance
+      - distance_text
+      - goriyaku_tags
+      - id
+      - is_favorite
+      - latitude
+      - location
+      - longitude
+      - name_jp
+    ShrineLite:
+      type: object
+      properties:
+        id:
+          type: integer
+      required:
+      - id
+    ShrineWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        name_jp:
+          type: string
+          maxLength: 100
+        name_romaji:
+          type: string
+          nullable: true
+          maxLength: 100
+        address:
+          type: string
+          default: ''
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        goriyaku:
+          type: string
+          nullable: true
+          description: ご利益（自由メモ）
+        sajin:
+          type: string
+          nullable: true
+          description: 祭神
+        description:
+          type: string
+          nullable: true
+        element:
+          type: string
+          nullable: true
+          description: '五行属性: 木火土金水'
+          maxLength: 10
+        kyusei:
+          nullable: true
+          description: |-
+            九星（例: 九紫火星）
+
+            * `一白水星` - 一白水星
+            * `二黒土星` - 二黒土星
+            * `三碧木星` - 三碧木星
+            * `四緑木星` - 四緑木星
+            * `五黄土星` - 五黄土星
+            * `六白金星` - 六白金星
+            * `七赤金星` - 七赤金星
+            * `八白土星` - 八白土星
+            * `九紫火星` - 九紫火星
+          oneOf:
+          - $ref: '#/components/schemas/KyuseiEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        goriyaku_tag_ids:
+          type: array
+          items:
+            type: integer
+            writeOnly: true
+          writeOnly: true
+      required:
+      - name_jp
+    Signup:
+      type: object
+      properties:
+        username:
+          type: string
+          title: ユーザー名
+          description: この項目は必須です。半角アルファベット、半角数字、@/./+/-/_ で150文字以下にしてください。
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        email:
+          type: string
+          format: email
+          nullable: true
+      required:
+      - password
+      - username
+    SignupResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+      required:
+      - id
+      - username
+    SimpleRouteResponse:
+      type: object
+      properties:
+        distance_m:
+          type: number
+          format: double
+          minimum: 0
+        duration_s:
+          type: number
+          format: double
+          minimum: 0
+        geometry: {}
+      required:
+      - distance_m
+      - duration_s
+      - geometry
+    TextSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+        cached:
+          type: boolean
+        provider:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceItem'
+    TokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - refresh
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+    TokenVerify:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+      required:
+      - token
+    TransportationEnum:
+      enum:
+      - walk
+      - car
+      type: string
+      description: |-
+        * `walk` - walk
+        * `car` - car
+    UserMe:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          title: ユーザー名
+          description: この項目は必須です。半角アルファベット、半角数字、@/./+/-/_ で150文字以下にしてください。
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: メールアドレス
+          maxLength: 254
+        first_name:
+          type: string
+          title: 名
+          maxLength: 150
+        last_name:
+          type: string
+          title: 姓
+          maxLength: 150
+        profile:
+          allOf:
+          - $ref: '#/components/schemas/UserProfile'
+          readOnly: true
+      required:
+      - id
+      - profile
+      - username
+    UserProfile:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 64
+        is_public:
+          type: boolean
+        bio:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          format: uri
+          readOnly: true
+        icon_url:
+          type: string
+          format: uri
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - icon
+      - icon_url
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
