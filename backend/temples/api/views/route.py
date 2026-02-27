@@ -191,16 +191,21 @@ class RouteView(APIView):
         lng = request.GET.get("lng")
         has_route_params = bool(lat and lng)
 
-        # ✅ owner なら lat/lng 無しでもOK
-        # ✅ owner じゃなくても lat/lng があればOK
-        # ✅ どっちも無いなら404
         if not has_route_params and not _is_owner(request.user, shrine):
             return Response(status=404)
+
+        name = getattr(shrine, "name", None) or "目的地"
+        address = (
+            getattr(shrine, "address", None)
+            or getattr(shrine, "formatted_address", None)
+            or ""
+        )
+        dest = f"{lat},{lng}" if (lat and lng) else ""
 
         return render(
             request,
             "temples/route.html",
-            {"pk": pk, "lat": lat, "lng": lng},
+            {"name": name, "address": address, "dest": dest},
         )
 
 
@@ -230,3 +235,4 @@ def route_legacy(request, *args, **kwargs):
         return RouteAPIView.as_view()(raw_request, *args, **kwargs)
     except Exception:
         return RouteView.as_view()(raw_request, *args, **kwargs)
+

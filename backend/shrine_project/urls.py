@@ -107,17 +107,15 @@ urlpatterns = [
     # API (users/stripe webhook などは users.api.urls に集約)
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/_debug/db/", debug_db, name="debug_db"),
-    # concierge-plan alias
-    path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
+
+
     # temples
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
+    path("api/concierge/plan/", concierge.ConciergePlanView.as_view(), name="concierge-plan"),
     # JWT
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
-
-    path("api/billings/status/", BillingStatusView.as_view()),
-    path("api/billings/status-legacy/", BillingStatusLegacyView.as_view()),
     # schema/docs
     path(
         "api/schemas/swagger/",
