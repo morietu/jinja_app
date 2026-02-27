@@ -292,7 +292,7 @@ def _finalize_3(
     items = [r for r in items if isinstance(r, dict)]
     items = _dedupe_by_name(items)
 
-    used = {(r.get("name") or "").strip() for r in items if (r.get("name") or "").strip()}
+    used = {_key((r.get("name") or "").strip()) for r in items if (r.get("name") or "").strip()}
 
     for c in candidates or []:
         if len(items) >= 3:
@@ -300,13 +300,16 @@ def _finalize_3(
         if not isinstance(c, dict):
             continue
         nm = (c.get("name") or "").strip()
-        if not nm or nm in used:
+        if not nm:
+            continue
+        nk = _key(nm)
+        if nk in used:
             continue
         x = dict(c)
         x.setdefault("name", nm)
         x.setdefault("reason", "")
         items.append(x)
-        used.add(nm)
+        used.add(nk)
 
     while len(items) < 3:
         if not allow_dummy:
@@ -402,9 +405,12 @@ def _dedupe_by_name(items: list[dict]) -> list[dict]:
     out: list[dict] = []
     for r in items:
         name = (r.get("name") or "").strip()
-        if not name or name in seen:
+        if not name:
             continue
-        seen.add(name)
+        k = _key(name)  # ← ここが重要
+        if k in seen:
+            continue
+        seen.add(k)
         out.append(r)
     return out
 
@@ -421,7 +427,7 @@ def _ensure_pool_size(
     items = [r for r in items if isinstance(r, dict)]
     items = _dedupe_by_name(items)
 
-    used = {(r.get("name") or "").strip() for r in items if (r.get("name") or "").strip()}
+    used = {_key((r.get("name") or "").strip()) for r in items if (r.get("name") or "").strip()}
 
     for c in candidates or []:
         if len(items) >= size:
@@ -429,14 +435,17 @@ def _ensure_pool_size(
         if not isinstance(c, dict):
             continue
         nm = (c.get("name") or "").strip()
-        if not nm or nm in used:
+        if not nm:
+            continue
+        nk = _key(nm)
+        if nk in used:
             continue
 
         x = dict(c)
         x.setdefault("name", nm)
         x.setdefault("reason", "")
         items.append(x)
-        used.add(nm)
+        used.add(nk)
 
     recs["recommendations"] = items[:size]
     return recs
@@ -953,6 +962,8 @@ def build_chat_recommendations(  # noqa: C901
         miss_latlng = sum(1 for c in cands if isinstance(c, dict) and _missing_latlng(c))
         miss_addr = sum(1 for c in cands if isinstance(c, dict) and _missing_address(c))
 
+ 
+        
         return {
             "total": total,
             "place_id": {"missing": miss_place, "rate": miss_place / total},
@@ -1163,6 +1174,20 @@ def build_chat_recommendations(  # noqa: C901
             llm_error=llm_error,
         )
         _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
+
+        log.info(
+            "[svc/chat] OUT top3=%r",
+            [
+                {
+                    "name": r.get("name"),
+                    "key": _key(str(r.get("name") or "")),
+                    "place_id": r.get("place_id"),
+                    "distance_m": r.get("distance_m"),
+                }
+                for r in (recs.get("recommendations") or [])[:3]
+                if isinstance(r, dict)
+            ],
+        )
         return recs
 
     # 3. need（ご利益タグ）抽出
@@ -1207,6 +1232,9 @@ def build_chat_recommendations(  # noqa: C901
             cand_by_key[k] = c
 
     max_lookups = _max_address_lookups()
+    log.info("[svc/chat] valid_candidates sample=%r", [c.get("name") for c in valid_candidates[:10]])
+
+
     # -----------------------------
     # Step5/6: 候補補完 + location埋め（安定版）
     # -----------------------------
@@ -1635,6 +1663,7 @@ def build_chat_recommendations(  # noqa: C901
         
         return recs
 
+
     def _prepend_unique(xs: list[str], s: str) -> list[str]:
         if s in xs:
             xs.remove(s)
@@ -1747,4 +1776,19 @@ def build_chat_recommendations(  # noqa: C901
     )
 
     _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
+
+    if os.getenv("CONCIERGE_DEBUG_OUT_TOP3") == "1":
+        log.info(
+            "[svc/chat] OUT top3=%r",
+            [
+                {
+                    "name": r.get("name"),
+                    "key": _key(str(r.get("name") or "")),
+                    "place_id": r.get("place_id"),
+                    "distance_m": r.get("distance_m"),
+                }
+                for r in (recs.get("recommendations") or [])[:3]
+                if isinstance(r, dict)
+            ],
+        )
     return recs

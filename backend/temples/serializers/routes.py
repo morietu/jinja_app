@@ -9,9 +9,8 @@ from temples.api.serializers.goshuin import GoshuinSerializer  # noqa: F401
 from temples.api.serializers.my_goshuin import MyGoshuinCreateSerializer
 
 # route
-from temples.api.serializers.route import (  # noqa: F401
-    PointSerializer,
-    RouteLegSerializer,
+from temples.api.serializers.route import (
     RouteRequestSerializer,
     RouteResponseSerializer,
+    SimpleRouteResponseSerializer,
 )

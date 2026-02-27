@@ -2,7 +2,7 @@
 import io
 import json
 from drf_spectacular.utils import extend_schema
-from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
@@ -13,6 +13,7 @@ from temples import api_views_concierge as concierge
 
 
 @extend_schema(
+    tags=["concierge"],  # ← これを追加
     summary="Concierge chat (compat)",
     description="message もしくは query を受け付ける互換ラッパ",
     request=OpenApiTypes.OBJECT,

@@ -11,6 +11,7 @@ import requests
 from django.conf import settings as dj_settings
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -31,6 +32,7 @@ from temples.models import ConciergeThread
 from temples.services.concierge_chat_candidates import build_chat_candidates
 
 from temples.models import ConciergeUsage
+from temples.api.serializers.concierge import ConciergePlanRequestSerializer, ConciergePlanResponseSerializer
 
 
 
@@ -293,6 +295,14 @@ class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = [JWTAuthentication]
     throttle_scope = "concierge"
+
+    @extend_schema(
+        tags=["concierge"],
+        summary="Concierge chat",
+        description="message もしくは query を受け付ける互換ラッパ",
+        request=None,  # ここは雑でOK。ちゃんとやるなら serializer 用意
+        responses={200: OpenApiTypes.OBJECT},
+    )
 
     def post(self, request, *args, **kwargs):
         rid = uuid.uuid4().hex[:8]
@@ -570,9 +580,17 @@ class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None
 
 
+
 class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
+
+    @extend_schema(
+        request=ConciergePlanRequestSerializer,
+        responses={200: ConciergePlanResponseSerializer},
+        tags=["concierge"],
+        summary="Concierge plan",
+    )
 
     def post(self, request, *args, **kwargs):
         # ★ ここを追加（chatと同じ）

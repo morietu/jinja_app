@@ -40,3 +40,8 @@ class RouteResponseSerializer(serializers.Serializer):
     duration_s_total = serializers.IntegerField(min_value=0)
     provider = serializers.CharField()
     cached = serializers.BooleanField()
+
+class SimpleRouteResponseSerializer(serializers.Serializer):
+    distance_m = serializers.FloatField(min_value=0)
+    duration_s = serializers.FloatField(min_value=0)
+    geometry = serializers.JSONField()  # GeoJSON
