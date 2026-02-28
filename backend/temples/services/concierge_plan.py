@@ -16,10 +16,11 @@ from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.llm import backfill as bf
-from temples.services import google_places as GP
 from temples.services.billing_state import recommend_limit_for_user
+from temples.services import places as Places
 
 logger = logging.getLogger(__name__)
+GP = Places
 
 # =========================================================
 # Constants (推し文生成用)
@@ -83,7 +84,7 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
                 )
                 res = r.json().get("results") or []
                 if res:
-                    loc = res[0].get("geometry", {}).get("location") or {}
+                    loc = (res[0].get("geometry") or {}).get("location") or {}
                     lat = loc.get("lat", lat)
                     lng = loc.get("lng", lng)
             except Exception:
@@ -91,6 +92,7 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
 
     if lat is None or lng is None:
         return None
+
     try:
         lat = float(lat)
         lng = float(lng)
