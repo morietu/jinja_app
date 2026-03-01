@@ -10,6 +10,7 @@ from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_b
 from temples.domain.kyusei import kyusei_signals
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
+from temples.services.concierge_explanation import attach_explanations_for_chat
 
 
 def _max_address_lookups() -> int:
@@ -888,6 +889,15 @@ def build_chat_recommendations(  # noqa: C901
     # ✅ リクエスト値を退避（後で flow を倒しても追跡できる）
     requested_flow = flow
 
+    def _finalize_response(recs: dict, *, bias: Optional[dict]) -> dict:
+        return attach_explanations_for_chat(
+            recs,
+            query=query,
+            bias=bias,
+            birthdate=birthdate,
+            extra_condition=(extra_condition or "").strip() or None,
+        )
+
 
     # 距離順 key（distance_m 無しは最後）
     def _cand_dist_key(c: dict) -> tuple[int, float]:
@@ -1188,7 +1198,8 @@ def build_chat_recommendations(  # noqa: C901
                 if isinstance(r, dict)
             ],
         )
-        return recs
+
+        return _finalize_response(recs, bias=bias)
 
     # 3. need（ご利益タグ）抽出
     _need = _extract_need(query)
@@ -1641,28 +1652,6 @@ def build_chat_recommendations(  # noqa: C901
         ],
     )
 
-    if not isinstance(items, list) or len(items) < 3:
-        _ensure_signals_base(
-            recs,
-            flow=flow,
-            mode_weights=mode_weights,
-            astro_bonus_enabled=astro_bonus_enabled,
-            flow_def=flow_def,
-            birthdate=birthdate,
-            goriyaku_tag_ids=goriyaku_tag_ids,
-            extra_condition=extra_condition,
-        )
-        _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
-        recs["_signals"]["empty_reason"] = "insufficient_valid_candidates"
-        _attach_engine_signals(
-            recs,
-            llm_enabled=llm_enabled,
-            orchestrator_used=llm_used,
-            llm_error=llm_error,
-        )
-        
-        return recs
-
 
     def _prepend_unique(xs: list[str], s: str) -> list[str]:
         if s in xs:
@@ -1720,6 +1709,7 @@ def build_chat_recommendations(  # noqa: C901
                 "混雑しにくい可能性",
                 "雰囲気が希望に合う可能性",
             ]
+    
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
@@ -1791,4 +1781,4 @@ def build_chat_recommendations(  # noqa: C901
                 if isinstance(r, dict)
             ],
         )
-    return recs
+    return _finalize_response(recs, bias=bias)

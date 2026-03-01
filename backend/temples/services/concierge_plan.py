@@ -16,7 +16,7 @@ from temples.geocoding.client import geocode_google_point
 from temples.llm import backfill as bf
 from temples.services.billing_state import recommend_limit_for_user
 from temples.services import places as Places
-
+from temples.services.concierge_explanation import attach_explanations_for_plan
 logger = logging.getLogger(__name__)
 GP = Places
 
@@ -553,6 +553,21 @@ def build_plan_response(
 
     # ✅ 最後に limit
     filled["recommendations"] = recs_all[:limit]
+
+    # ✅ explanation を付与（フロント統一のため）
+    try:
+        filled = attach_explanations_for_plan(
+            filled,
+            query=query,
+            area=area,
+            bias=bias,
+            birthdate=request_data.get("birthdate"),
+            wish=(request_data.get("wish") or "").strip() or None,
+        )
+    except Exception as e:
+        logger.exception("[plan] attach_explanations failed: %s", e)
+        pass
+
 
     # 簡易 stops 生成（徒歩3分 + 滞在30分）
     stops = []
