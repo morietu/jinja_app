@@ -27,7 +27,7 @@ def test_plan_places_budget_respects_plan_max_place_lookups(monkeypatch, max_loo
         # 座標は返さない（got_coords が立たない状態で上限まで叩かせる）
         return {"candidates": [{"geometry": {"location": {}}}]}
 
-    monkeypatch.setattr(plan.GP, "findplacefromtext", fake_findplacefromtext)
+    monkeypatch.setattr(plan.Places, "findplacefromtext", fake_findplacefromtext)
 
     filled = {
         "recommendations": [
@@ -68,7 +68,7 @@ def test_plan_places_budget_stops_after_getting_one_coord(monkeypatch):
         # ここに来たらおかしい（止まってない）
         return {"candidates": [{"geometry": {"location": {"lat": 0.0, "lng": 0.0}}}]}
 
-    monkeypatch.setattr(plan.GP, "findplacefromtext", fake_findplacefromtext)
+    monkeypatch.setattr(plan.Places, "findplacefromtext", fake_findplacefromtext)
 
     filled = {
         "recommendations": [
@@ -97,7 +97,7 @@ def test_plan_places_budget_disable_places_skips_all(monkeypatch):
         calls["n"] += 1
         return {"candidates": [{"geometry": {"location": {"lat": 1.0, "lng": 1.0}}}]}
 
-    monkeypatch.setattr(plan.GP, "findplacefromtext", fake_findplacefromtext)
+    monkeypatch.setattr(plan.Places, "findplacefromtext", fake_findplacefromtext)
 
     out = plan._apply_cost_guarded_place_enrichment(
         filled={"recommendations": [{"name": "神社A"}]},

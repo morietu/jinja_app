@@ -9,16 +9,17 @@ import os
 import re
 from typing import Any, Dict, Optional
 
+from django.conf import settings
 from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
 from temples.geocoding.client import geocode_google_point
 from temples.llm import backfill as bf
-from temples.services.billing_state import recommend_limit_for_user
 from temples.services import places as Places
+from temples.services.billing_state import recommend_limit_for_user
 from temples.services.concierge_explanation import attach_explanations_for_plan
+
 logger = logging.getLogger(__name__)
-GP = Places
 
 # =========================================================
 # Constants (推し文生成用)
@@ -44,6 +45,7 @@ TAG_DEITY_HINTS: Dict[str, str] = {
     "金運": "金運上昇を願う参拝に",
     "商売繁盛": "商売繁盛を祈る参拝に",
 }
+
 
 # =========================================================
 # Helpers: radius / bias / places
@@ -161,7 +163,7 @@ def _apply_cost_guarded_place_enrichment(
                 res = cache[probe]
             else:
                 try:
-                    res = GP.findplacefromtext(
+                    res = Places.findplacefromtext(
                         input=probe,
                         language=language,
                         locationbias=locbias,
@@ -192,9 +194,13 @@ def _apply_cost_guarded_place_enrichment(
 
         logger.info(
             "[plan] places_budget max=%d done=%d got_coords=%d",
-            max_place_lookups, lookups_done, got_coords
+            max_place_lookups,
+            lookups_done,
+            got_coords,
         )
-        return {"recommendations": patched}
+        out = dict(filled)
+        out["recommendations"] = patched
+        return out
     except Exception:
         return filled
 
@@ -308,9 +314,14 @@ def _normalize_reason(rec: dict, *, query: str) -> str:
     name = (rec.get("name") or "").strip()
     raw = rec.get("reason")
     t = raw.strip() if isinstance(raw, str) else ""
-    tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
+    tags_list = [
+        str(x) for x in ((rec.get("tags") or []) + (rec.get("deities") or [])) if x is not None
+    ]
     tags = set(tags_list)
-    popular = float(rec.get("popular_score") or 0)
+    try:
+        popular = float(rec.get("popular_score") or 0)
+    except Exception:
+        popular = 0.0
 
     if t and t in TAG_DEITY_HINTS:
         t = TAG_DEITY_HINTS[t]
@@ -342,7 +353,9 @@ def normalize_name_key(name: str) -> str:
     n = re.sub(r"\s|・|-", "", n)
     n = n.replace("(", "").replace(")", "")
     n = re.sub(r"^[一-龠々〆ヵヶ]+山", "", n)
-    n = re.sub(r"(神社|大社|神宮|宮|八幡宮|天満宮|稲荷神社|稲荷|寺|院|観音|大師|不動尊|堂|社)$", "", n)
+    n = re.sub(
+        r"(神社|大社|神宮|宮|八幡宮|天満宮|稲荷神社|稲荷|寺|院|観音|大師|不動尊|堂|社)$", "", n
+    )
     aliases = {
         "浅草観音": "浅草寺",
         "金龍山浅草寺": "浅草寺",
@@ -366,7 +379,7 @@ def dedupe_recommendations(recs: list[dict]) -> list[dict]:
 # =========================================================
 # Main: build response
 # =========================================================
-def build_plan_response(
+def build_plan_response(  # noqa: C901
     *,
     request_data: Dict[str, Any],
     serializer_validated: Dict[str, Any],
@@ -386,10 +399,16 @@ def build_plan_response(
     # bias を構築（serializerが正規化した値を前提）
     bias = _build_bias(serializer_validated)
 
+    no_material = not candidates and not area and not bias
+
     # ==== 5km 安定化: ここで locbias を一度だけ決めて固定 ====
     locbias_fixed = serializer_validated.get("locationbias")
 
     DISABLE_PLACES = os.getenv("PLAN_DISABLE_PLACES", "0") == "1"
+
+    # candidates/area/bias が全部無い時だけ Places を止める
+    if no_material:
+        DISABLE_PLACES = True
 
     # locationbias は外部入力がなければ bias から作る（固定値ハックは撤去）
     if not locbias_fixed and bias:
@@ -399,11 +418,15 @@ def build_plan_response(
             locbias_fixed = None
 
     # 1) LLM 候補（monkeypatch が効くよう "遅延 import"）
-    try:
-        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+    use_llm = bool(getattr(settings, "CONCIERGE_USE_LLM", False))
+    if use_llm:
+        try:
+            from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
 
-        recs = Orchestrator().suggest(query=query, candidates=candidates)
-    except Exception:
+            recs = Orchestrator().suggest(query=query, candidates=candidates)
+        except Exception:
+            recs = {"recommendations": []}
+    else:
         recs = {"recommendations": []}
 
     # 正規化
@@ -416,7 +439,7 @@ def build_plan_response(
         recs = {"recommendations": []}
 
     # LLM が空なら candidates をそのまま recommendations にする（Planは候補が真実）
-    if not (recs.get("recommendations") or []):
+    if not no_material and not (recs.get("recommendations") or []):
         cands = [c for c in (candidates or []) if isinstance(c, dict)]
         if cands:
             recs = {
@@ -425,8 +448,11 @@ def build_plan_response(
                     for c in cands
                 ]
             }
-        else:
+        elif area or bias:
+            # area がある or bias があるなら最低限のダミーは許容（Places probe にもなる）
             recs = {"recommendations": [{"name": "近隣の神社", "reason": ""}]}
+        else:
+            recs = {"recommendations": []}
 
     # ---- (1) area があれば先頭候補に短縮住所を display に入れ、必要なら location を文字列＋ロック ----
     lock_applied = False
@@ -444,10 +470,6 @@ def build_plan_response(
                     recs["recommendations"][0] = first
         except Exception:
             pass
-
-
-
-
 
     # Places 呼び出しは「課金防衛版」(2) に一本化するため、
     # ここでは fill_locations / candidate_enrich を使わない。
@@ -529,16 +551,22 @@ def build_plan_response(
 
     def _has_coords(r: dict) -> bool:
         loc = r.get("location")
-        return isinstance(loc, dict) and (loc.get("lat") is not None) and (loc.get("lng") is not None)
+        return (
+            isinstance(loc, dict) and (loc.get("lat") is not None) and (loc.get("lng") is not None)
+        )
 
     def _has_text_loc_lock(r: dict) -> bool:
-        return bool(r.get("_lock_text_loc") and isinstance(r.get("location"), str) and r.get("location").strip())
+        return bool(
+            r.get("_lock_text_loc")
+            and isinstance(r.get("location"), str)
+            and r.get("location").strip()
+        )
 
     # 座標あり優先（fallbackは最後）
     def _sort_key(r: dict) -> tuple:
         return (
             1 if r.get("_is_fallback") else 0,  # fallbackは最後
-            0 if _has_coords(r) else 1,         # 次に座標あり優先
+            0 if _has_coords(r) else 1,  # 次に座標あり優先
         )
 
     recs_all.sort(key=_sort_key)
@@ -567,7 +595,6 @@ def build_plan_response(
     except Exception as e:
         logger.exception("[plan] attach_explanations failed: %s", e)
         pass
-
 
     # 簡易 stops 生成（徒歩3分 + 滞在30分）
     stops = []
@@ -617,15 +644,17 @@ def build_plan_response(
             short = _short_area(area)
             fallback_label = short or "この周辺"
             fallback_addr = short or f"{blat:.3f}, {blng:.3f}"
-            stops = [{
-                "order": 1,
-                "name": fallback_label,
-                "display_address": fallback_addr,
-                "location": {"lat": blat, "lng": blng},
-                "eta_minutes": 3,
-                "travel_minutes": 3,
-                "stay_minutes": 30,
-            }]
+            stops = [
+                {
+                    "order": 1,
+                    "name": fallback_label,
+                    "display_address": fallback_addr,
+                    "location": {"lat": blat, "lng": blng},
+                    "eta_minutes": 3,
+                    "travel_minutes": 3,
+                    "stay_minutes": 30,
+                }
+            ]
         else:
             # 2) bias が無いなら locbias_fixed から座標復元して作る（5km固定でも効く）
             pt = _coords_from_locationbias(locbias_fixed)
@@ -634,15 +663,17 @@ def build_plan_response(
                 short = _short_area(area)
                 fallback_label = short or "この周辺"
                 fallback_addr = short or f"{lat0:.3f}, {lng0:.3f}"
-                stops = [{
-                    "order": 1,
-                    "name": fallback_label,
-                    "display_address": fallback_addr,
-                    "location": {"lat": lat0, "lng": lng0},
-                    "eta_minutes": 3,
-                    "travel_minutes": 3,
-                    "stay_minutes": 30,
-                }]
+                stops = [
+                    {
+                        "order": 1,
+                        "name": fallback_label,
+                        "display_address": fallback_addr,
+                        "location": {"lat": lat0, "lng": lng0},
+                        "eta_minutes": 3,
+                        "travel_minutes": 3,
+                        "stay_minutes": 30,
+                    }
+                ]
 
     main_loc = {"lat": 35.0, "lng": 135.0}
     if (bias or {}).get("lat") is not None and (bias or {}).get("lng") is not None:
