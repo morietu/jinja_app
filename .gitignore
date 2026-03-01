@@ -1,10 +1,6 @@
 # ===== OS / Editor =====
 .DS_Store
 .idea/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.tox/
 .vscode/
 *.swp
 *.swo
@@ -14,16 +10,17 @@
 # ===== Python / Django =====
 __pycache__/
 *.py[cod]
-*.pyd
-*.pyo
 .venv/
 venv/
 *.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
 .coverage
 .coverage*
 coverage.xml
 htmlcov/
-coverage-html/
 db.sqlite3
 *.sqlite3
 *.sqlite3-journal
@@ -31,14 +28,20 @@ db.sqlite3
 # ===== Node / Frontend =====
 **/node_modules/
 .next/
-.turbo/
-.parcel-cache/
+out/
 dist/
 build/
-out/
-apps/web/coverage/
-apps/web/.eslintcache
+.turbo/
+.parcel-cache/
+.eslintcache
+**/.eslintcache
+storybook-static/
 apps/web/storybook-static/
+
+# ===== Coverage =====
+coverage/
+**/coverage/
+coverage-html/
 
 # ===== Logs / Media / Static =====
 backend/logs/
@@ -70,28 +73,21 @@ backend/test_jinja_db*
 api_routes.txt
 api_schema.json
 api_schema.yaml
+backend/openapi.json
+backend/schema.yml
 
 # ===== Debug artifacts =====
 photo.jpg
 real.jpg
+cookies.txt
+apps/web/cookies.txt
 
 # ===== Allow-list (keep these tracked) =====
 !.env.example
 !.coveragerc
 
-# VSCode: keep only settings we want
+# ===== VSCode allow-list =====
 **/.vscode/*
 !**/.vscode/
 !**/.vscode/settings.json
 !**/.vscode/extensions.json
-
-# root eslint cache (if created)
-.eslintcache
-
-# local scratch cookies
-apps/web/cookies.txt
-cookies.txt
-
-# generated
-backend/openapi.json
-backend/schema.yml
