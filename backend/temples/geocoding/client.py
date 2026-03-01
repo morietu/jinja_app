@@ -24,6 +24,56 @@ class GeocodingError(Exception):
     pass
 
 
+def _google_maps_api_key() -> str | None:
+    key = (
+        os.getenv("GOOGLE_MAPS_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("MAPS_API_KEY")
+        or os.getenv("PLACES_API_KEY")
+    )
+    if key:
+        return key
+    try:
+        from django.conf import settings as dj_settings
+
+        return (
+            getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
+            or getattr(dj_settings, "GOOGLE_API_KEY", None)
+        )
+    except Exception:
+        return None
+
+
+def geocode_google_point(
+    area: str,
+    *,
+    language: str = "ja",
+    region: str = "jp",
+    timeout: float = 6.0,
+) -> tuple[float, float] | None:
+    area = (area or "").strip()
+    key = _google_maps_api_key()
+    if not key or not area:
+        return None
+    try:
+        r = requests.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"key": key, "address": area, "language": language, "region": region},
+            timeout=timeout,
+        )
+        r.raise_for_status()
+        res = r.json().get("results") or []
+        if not res:
+            return None
+        loc = (res[0].get("geometry") or {}).get("location") or {}
+        lat, lng = loc.get("lat"), loc.get("lng")
+        if lat is None or lng is None:
+            return None
+        return float(lat), float(lng)
+    except Exception:
+        return None
+
+
 class GeocodingClient:
     def __init__(self, session: t.Optional[requests.Session] = None):
         self.session = session or requests.Session()

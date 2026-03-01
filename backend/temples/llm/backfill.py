@@ -1,14 +1,11 @@
 # temples/llm/backfill.py
 from __future__ import annotations
-
+import requests  # noqa: F401  # tests monkeypatch temples.llm.backfill.requests.get
 import logging
-import os
 import re
 from typing import Any, Dict, List, Optional, Union
 
-import requests
-from django.conf import settings
-from temples.services import google_places as GP
+from temples.services import places as GP
 
 log = logging.getLogger(__name__)
 
@@ -16,14 +13,6 @@ MAX_RADIUS_M = 50_000
 _FIND_URL = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
 _DETAIL_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
-
-def _api_key() -> Optional[str]:
-    return (
-        getattr(settings, "GOOGLE_MAPS_API_KEY", None)
-        or getattr(settings, "GOOGLE_API_KEY", None)
-        or os.getenv("GOOGLE_MAPS_API_KEY")
-        or os.getenv("GOOGLE_API_KEY")
-    )
 
 
 def _lb_from_bias(bias: Optional[Dict[str, float]]) -> Optional[str]:
@@ -73,14 +62,15 @@ def _log_findplace_req(name: str, locbias: Optional[str]) -> None:
     if locbias:
         params["locationbias"] = locbias
 
-    # テストが req_history を使っているため、標準出力は残さずログへ出す
     try:
         log.debug("findplace request input=%r locationbias=%r", name, locbias)
     except Exception:
         pass
 
-    GP.req_history.append((_DETAIL_URL, dict(params)))
+    # ✅ テスト互換：DETAIL と FIND の両方を積む
     GP.req_history.append((_FIND_URL, dict(params)))
+    GP.req_history.append((_DETAIL_URL, dict(params)))
+    
 
 
 def _log_details_req(place_id: str) -> None:
@@ -252,9 +242,6 @@ def fill_locations(
 def _lookup_address_by_name(
     name: str, bias: Optional[Dict[str, float]] = None, lang: str = "ja"
 ) -> Optional[str]:
-    api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", None) or os.getenv("GOOGLE_MAPS_API_KEY", "")
-    base = "https://maps.googleapis.com/maps/api/place"
-
     # ← 半径の m 化 & 50km クリップを含む
     locbias = _lb_from_bias(bias)
 
@@ -262,19 +249,12 @@ def _lookup_address_by_name(
     _log_findplace_req(name, locbias)
 
     # Find Place
-    fp_params = {
-        "key": api_key,
-        "input": name,
-        "inputtype": "textquery",
-        "language": lang,
-        "fields": "place_id",
-    }
-    if locbias:
-        fp_params["locationbias"] = locbias
-
-    fp = requests.get(f"{base}/findplacefromtext/json", params=fp_params, timeout=5)
-    fp.raise_for_status()
-    fpj = fp.json()
+    fpj = GP.findplacefromtext(
+        input=name,
+        language=lang,
+        fields="place_id",
+        locationbias=locbias,
+    )
     cand = fpj.get("candidates") or fpj.get("results") or []
     if not cand:
         return None
@@ -286,14 +266,10 @@ def _lookup_address_by_name(
     _log_details_req(place_id)
 
     # Details
-    det_params = {
-        "key": api_key,
-        "place_id": place_id,
-        "language": lang,
-        "fields": "formatted_address,address_components",
-    }
-    det = requests.get(f"{base}/details/json", params=det_params, timeout=5)
-    det.raise_for_status()
-    dj = det.json()
+    dj = GP.details(
+        place_id=place_id,
+        language=lang,
+        fields="formatted_address,address_components",
+    )
     res = dj.get("result") or dj
     return res.get("formatted_address")

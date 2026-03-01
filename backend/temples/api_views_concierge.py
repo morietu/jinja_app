@@ -1,17 +1,15 @@
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
 import uuid
-
+import requests
 from typing import Any, Dict, Optional
 
 import logging
 import os
 
-import requests
 from django.conf import settings as dj_settings
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
-from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -23,16 +21,19 @@ from rest_framework import serializers
 # from temples.llm import extract_intent
 # from temples.llm import orchestrator as orch
 from temples.services.billing_state import is_premium_for_user
-
-from temples.serializers.concierge import ConciergePlanRequestSerializer
+from temples.geocoding.client import geocode_google_point
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
+from temples.services import places as Places
 from temples.models import ConciergeThread
 from temples.services.concierge_chat_candidates import build_chat_candidates
 
 from temples.models import ConciergeUsage
-from temples.api.serializers.concierge import ConciergePlanRequestSerializer, ConciergePlanResponseSerializer
+from temples.api.serializers.concierge import (
+    ConciergePlanRequestSerializer,
+    ConciergePlanResponseSerializer,
+)
 
 
 
@@ -225,38 +226,9 @@ def _to_float(v: Any) -> Optional[float]:
     return None
 
 
-def _get_google_key() -> str | None:
-    return (
-        getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
-        or getattr(dj_settings, "GOOGLE_API_KEY", None)
-        or os.getenv("GOOGLE_MAPS_API_KEY")
-        or os.getenv("GOOGLE_API_KEY")
-        or os.getenv("MAPS_API_KEY")
-        or os.getenv("PLACES_API_KEY")
-    )
-
-
 def _geocode_area_for_chat(*, area: str) -> tuple[float, float] | None:
-    """area（地名文字列）を geocode して (lat, lng) を返す"""
-    key = _get_google_key()
-    if not key or not area:
-        return None
-    try:
-        r = requests.get(
-            "https://maps.googleapis.com/maps/api/geocode/json",
-            params={"key": key, "address": area, "language": "ja", "region": "jp"},
-            timeout=6,
-        )
-        res = r.json().get("results") or []
-        if not res:
-            return None
-        loc = (res[0].get("geometry") or {}).get("location") or {}
-        lat, lng = loc.get("lat"), loc.get("lng")
-        if lat is None or lng is None:
-            return None
-        return float(lat), float(lng)
-    except Exception:
-        return None
+    """area（地名文字列）を geocoding client 経由で解決して (lat, lng) を返す"""
+    return geocode_google_point(area, language="ja", region="jp", timeout=6.0)
 
 
 def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
@@ -264,9 +236,8 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     Chatテスト用：area→geocode→findplace(locationbias=8000) を1回だけ叩いて、
     monkeypatch が拾う params を残す。結果は使わない。
     """
-    key = _get_google_key()
     area = (area or "").strip()
-    if not key or not area:
+    if not area:
         return
 
     pt = _geocode_area_for_chat(area=area)
@@ -275,17 +246,12 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     lb = f"circle:8000@{pt[0]:.3f},{pt[1]:.3f}"
 
     try:
-        requests.get(
-            "https://maps.googleapis.com/maps/api/place/findplacefromtext/json",
-            params={
-                "key": key,
-                "input": area,  # テストは locationbias しか見ない
-                "inputtype": "textquery",
-                "language": "ja",
-                "fields": "place_id",
-                "locationbias": lb,
-            },
-            timeout=8,
+        # findplacefromtext の想定シグネチャに合わせる（inputtype を渡さない）
+        Places.findplacefromtext(
+            input=area,
+            language="ja",
+            fields="place_id",
+            locationbias=lb,
         )
     except Exception:
         pass

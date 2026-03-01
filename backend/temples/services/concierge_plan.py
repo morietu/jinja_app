@@ -9,12 +9,10 @@ import os
 import re
 from typing import Any, Dict, Optional
 
-import requests
-from django.conf import settings as dj_settings
-
 from temples.domain.fortune import fortune_profile
 from temples.domain.match import bonus_score
 from temples.domain.wish_map import get_hints_for_wish, match_wish_from_query
+from temples.geocoding.client import geocode_google_point
 from temples.llm import backfill as bf
 from temples.services.billing_state import recommend_limit_for_user
 from temples.services import places as Places
@@ -65,30 +63,11 @@ def _build_bias(data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     lng = data.get("lng")
     area_text = (data.get("area_resolved") or "").strip()
 
-    # area がある & lat/lng が無いなら、この場で geocode する（plan責務）
+    # area がある & lat/lng が無いなら geocoding client で解決する
     if area_text and (lat is None or lng is None):
-        key = (
-            getattr(dj_settings, "GOOGLE_MAPS_API_KEY", None)
-            or getattr(dj_settings, "GOOGLE_API_KEY", None)
-            or os.getenv("GOOGLE_MAPS_API_KEY")
-            or os.getenv("GOOGLE_API_KEY")
-            or os.getenv("MAPS_API_KEY")
-            or os.getenv("PLACES_API_KEY")
-        )
-        if key:
-            try:
-                r = requests.get(
-                    "https://maps.googleapis.com/maps/api/geocode/json",
-                    params={"key": key, "address": area_text, "language": "ja", "region": "jp"},
-                    timeout=6,
-                )
-                res = r.json().get("results") or []
-                if res:
-                    loc = (res[0].get("geometry") or {}).get("location") or {}
-                    lat = loc.get("lat", lat)
-                    lng = loc.get("lng", lng)
-            except Exception:
-                pass
+        pt = geocode_google_point(area_text, language="ja", region="jp", timeout=6.0)
+        if pt:
+            lat, lng = pt
 
     if lat is None or lng is None:
         return None
