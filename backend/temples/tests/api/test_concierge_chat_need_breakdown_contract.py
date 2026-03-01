@@ -5,9 +5,9 @@ import pytest
 
 URL = "/api/concierge/chat/"
 
-
+# This contract test assumes LLM enabled so orchestrator is used.
 @pytest.mark.django_db
-def test_concierge_chat_need_and_breakdown_contract(client, monkeypatch):
+def test_concierge_chat_need_and_breakdown_contract(client, monkeypatch, settings):
     """
     Contract (API):
       - res.json()["data"]["_need"] が常に dict で返る
@@ -21,6 +21,7 @@ def test_concierge_chat_need_and_breakdown_contract(client, monkeypatch):
         - weights: dict(element/need/popular)
         - matched_need_tags: list[str]
     """
+    settings.CONCIERGE_USE_LLM = True
 
     # --- need_tags.extract_need_tags を固定（辞書実装の揺れを避ける）---
     class FakeNeedExtract:

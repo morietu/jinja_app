@@ -11,6 +11,7 @@ from temples.domain.kyusei import kyusei_signals
 from temples.llm import backfill as bf
 from temples.services.concierge_candidate_normalize import normalize_candidate
 from temples.services.concierge_explanation import attach_explanations_for_chat
+from temples.services.concierge_observability import concierge_request_summary_log
 
 
 def _max_address_lookups() -> int:
@@ -42,6 +43,7 @@ def _none_if_blank(x: Any) -> Any:
 
 log = logging.getLogger(__name__)
 
+
 def _attach_engine_signals(
     recs: dict,
     *,
@@ -62,6 +64,7 @@ def _attach_engine_signals(
         "openai_enabled": bool(llm_enabled),
         "openai_used": bool(llm_enabled and orchestrator_used),
     }
+
 
 CONTRACT_WEIGHTS_A = {"element": 0.6, "need": 0.3, "popular": 0.1}
 
@@ -806,6 +809,7 @@ def _fill_distance_m(candidates: list[dict], *, bias: Optional[dict]) -> None:
             # 失敗しても黙ってスキップ（距離は補助情報）
             continue
 
+
 def _has_addr(c: dict) -> bool:
     a = c.get("formatted_address") or c.get("address")
     return isinstance(a, str) and bool(a.strip())
@@ -867,6 +871,41 @@ def _match_candidate_for_name(
 
     return None, meta
 
+
+def _emit_obs_chat(
+    final: dict,
+    *,
+    trace_id: str | None,
+    query: str,
+    requested_flow: str,
+    effective_flow: str,
+) -> None:
+    """observability ログ（失敗してもパススルー）"""
+    try:
+        rs = (
+            (final.get("_signals") or {}).get("result_state")
+            if isinstance(final.get("_signals"), dict)
+            else {}
+        )
+        stats_for_log = {
+            "fallback_mode": (rs or {}).get("fallback_mode"),
+            "matched_count": (rs or {}).get("matched_count"),
+            "pool_count": (rs or {}).get("pool_count"),
+            "displayed_count": (rs or {}).get("displayed_count"),
+        }
+        concierge_request_summary_log(
+            endpoint="chat",
+            trace_id=str(trace_id or ""),
+            query_len=len(query or ""),
+            flow_requested=str(requested_flow or ""),
+            flow_effective=str(effective_flow or ""),
+            stats=stats_for_log,
+            recommendations=final.get("recommendations") or [],
+        )
+    except Exception:
+        log.exception("[svc/chat] observability log failed (chat)")
+
+
 # Contract:
 # A) no candidates & no astro -> passthrough top3
 # B) no candidates & astro_on -> astrology pool
@@ -897,7 +936,6 @@ def build_chat_recommendations(  # noqa: C901
             birthdate=birthdate,
             extra_condition=(extra_condition or "").strip() or None,
         )
-
 
     # 距離順 key（distance_m 無しは最後）
     def _cand_dist_key(c: dict) -> tuple[int, float]:
@@ -972,15 +1010,12 @@ def build_chat_recommendations(  # noqa: C901
         miss_latlng = sum(1 for c in cands if isinstance(c, dict) and _missing_latlng(c))
         miss_addr = sum(1 for c in cands if isinstance(c, dict) and _missing_address(c))
 
- 
-        
         return {
             "total": total,
             "place_id": {"missing": miss_place, "rate": miss_place / total},
             "latlng": {"missing": miss_latlng, "rate": miss_latlng / total},
             "address": {"missing": miss_addr, "rate": miss_addr / total},
         }
-
 
     def _attach_stats(*, recs: dict, raw_total: int, valid_candidates: list[dict]) -> None:
         if not isinstance(recs.get("_signals"), dict):
@@ -1082,21 +1117,24 @@ def build_chat_recommendations(  # noqa: C901
 
     # 2. LLMで初期推薦を取得（LLM無効なら呼ばない）
     llm_enabled = _use_llm()
-    # spec: enabled=true の失敗経路でも used=true を維持
+
     llm_used = False
     llm_error = None
 
-    # ✅ Orchestrator は「推薦ロジックの層」なので candidates が空でも呼ぶ（テスト契約）
-    try:
-        from temples.llm.orchestrator import ConciergeOrchestrator as Orchestrator
+    if llm_enabled:
+        try:
+            from temples.llm import orchestrator as orch_mod
 
-        recs = Orchestrator().suggest(query=query, candidates=valid_candidates)
-        llm_used = True  # Orchestratorを使った事実
-    except Exception as e:
-        llm_error = f"{type(e).__name__}: {e}"
+            llm_used = True  # enabled=true で suggest() を試行した事実
+            recs = orch_mod.ConciergeOrchestrator().suggest(
+                query=query,
+                candidates=valid_candidates,
+            )
+        except Exception as e:
+            llm_error = f"{type(e).__name__}: {e}"
+            recs = _seed_recs_from_candidates(valid_candidates, size=3)
+    else:
         recs = _seed_recs_from_candidates(valid_candidates, size=3)
-        # enabled=true で失敗したなら used=true を維持、enabled=false でも fallback でOK
-        llm_used = bool(llm_enabled)
 
     if isinstance(recs, list):
         recs = {"recommendations": recs}
@@ -1104,6 +1142,7 @@ def build_chat_recommendations(  # noqa: C901
         recs = {"recommendations": []}
     if "recommendations" not in recs or recs["recommendations"] is None:
         recs["recommendations"] = []
+
     # --- ✅ TEST ONLY: 1件だけ末尾に「神社」を足して suffix 揺れを発火させる ---
     # 使い方: CONCIERGE_DEBUG_FORCE_SUFFIX=1 を付けて起動
     if os.getenv("CONCIERGE_DEBUG_FORCE_SUFFIX") == "1":
@@ -1112,7 +1151,11 @@ def build_chat_recommendations(  # noqa: C901
             if isinstance(items, list) and items and isinstance(items[0], dict):
                 before = items[0].get("name")
                 items[0]["name"] = (str(before or "") + "神社").strip()
-                log.info("[svc/chat] DEBUG_FORCE_SUFFIX applied name %r -> %r", before, items[0].get("name"))
+                log.info(
+                    "[svc/chat] DEBUG_FORCE_SUFFIX applied name %r -> %r",
+                    before,
+                    items[0].get("name"),
+                )
         except Exception:
             log.exception("[svc/chat] DEBUG_FORCE_SUFFIX failed")
 
@@ -1142,64 +1185,7 @@ def build_chat_recommendations(  # noqa: C901
     recs["_debug"]["requested_flow"] = requested_flow
     recs["_debug"]["flow"] = flow
 
-    # candidates が無い & astro も無い -> passthrough top3（テスト契約）
-    if not valid_candidates and not astro_on:
-        recs["recommendations"] = (recs.get("recommendations") or [])[:3]
-
-        for r in recs["recommendations"]:
-            if r.get("location") is None:
-                r["location"] = ""
-            if r.get("name"):
-                cleaned = _clean_display_name(r["name"])
-                r["display_name"] = cleaned
-                r["name"] = cleaned
-            try:
-                r["reason"] = normalize_reason_for_chat(r, query=query)
-            except Exception:
-                r["reason"] = "静かに手を合わせたい社"
-            try:
-                r["bullets"] = build_bullets_for_chat(r, query=query)
-            except Exception:
-                r["bullets"] = [
-                    "落ち着いて参拝しやすい",
-                    "混雑しにくい可能性",
-                    "雰囲気が希望に合う可能性",
-                ]
-
-        recs["_signals"] = recs.get("_signals") if isinstance(recs.get("_signals"), dict) else {}
-        recs["_signals"]["result_state"] = {
-            "matched_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
-            "fallback_mode": "none",
-            "fallback_reason_ja": None,
-            "ui_disclaimer_ja": None,
-            "requested_extra_condition": (extra_condition or "").strip() or None,
-            "pool_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
-            "displayed_count": len([x for x in recs.get("recommendations") or [] if isinstance(x, dict)]),
-        }
-
-        _attach_engine_signals(
-            recs,
-            llm_enabled=llm_enabled,
-            orchestrator_used=llm_used,
-            llm_error=llm_error,
-        )
-        _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
-
-        log.info(
-            "[svc/chat] OUT top3=%r",
-            [
-                {
-                    "name": r.get("name"),
-                    "key": _key(str(r.get("name") or "")),
-                    "place_id": r.get("place_id"),
-                    "distance_m": r.get("distance_m"),
-                }
-                for r in (recs.get("recommendations") or [])[:3]
-                if isinstance(r, dict)
-            ],
-        )
-
-        return _finalize_response(recs, bias=bias)
+    # ✅ ここで return しない。Step3 以降に続ける。
 
     # 3. need（ご利益タグ）抽出
     _need = _extract_need(query)
@@ -1243,8 +1229,9 @@ def build_chat_recommendations(  # noqa: C901
             cand_by_key[k] = c
 
     max_lookups = _max_address_lookups()
-    log.info("[svc/chat] valid_candidates sample=%r", [c.get("name") for c in valid_candidates[:10]])
-
+    log.info(
+        "[svc/chat] valid_candidates sample=%r", [c.get("name") for c in valid_candidates[:10]]
+    )
 
     # -----------------------------
     # Step5/6: 候補補完 + location埋め（安定版）
@@ -1355,9 +1342,9 @@ def build_chat_recommendations(  # noqa: C901
                     near = [k for k in cand_keys if probe in k]
 
                     near_with_addr = [
-                        k for k in near
-                        if (k in cand_addr)
-                        or (_strip_suffix(k) in cand_addr_stripped)
+                        k
+                        for k in near
+                        if (k in cand_addr) or (_strip_suffix(k) in cand_addr_stripped)
                     ]
 
                     def _near_rank(k: str) -> tuple[int, int, int]:
@@ -1374,10 +1361,7 @@ def build_chat_recommendations(  # noqa: C901
                     near_key = None
 
             if near_key:
-                addr = (
-                    cand_addr.get(near_key)
-                    or cand_addr_stripped.get(_strip_suffix(near_key))
-                )
+                addr = cand_addr.get(near_key) or cand_addr_stripped.get(_strip_suffix(near_key))
 
                 if not addr:
                     c_near = cand_by_key.get(near_key)
@@ -1436,8 +1420,6 @@ def build_chat_recommendations(  # noqa: C901
             "cache_hit": cache_hit,
         }
         recs["_signals"]["stats"] = stats
-
-
 
     # -----------------------------
     # Step7. ユーザーフィルタ（痩せ検知ログ）
@@ -1630,6 +1612,7 @@ def build_chat_recommendations(  # noqa: C901
     items = recs.get("recommendations") or []
     log.info("[svc/chat] breakdown backfilled=%d", filled)
     log.info("[svc/chat] finalize_3 exit items=%d", len([x for x in items if isinstance(x, dict)]))
+
     if distance_mode:
         recs["recommendations"] = sorted(
             [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)],
@@ -1651,7 +1634,6 @@ def build_chat_recommendations(  # noqa: C901
             for r in (recs.get("recommendations") or [])[:3]
         ],
     )
-
 
     def _prepend_unique(xs: list[str], s: str) -> list[str]:
         if s in xs:
@@ -1709,7 +1691,6 @@ def build_chat_recommendations(  # noqa: C901
                 "混雑しにくい可能性",
                 "雰囲気が希望に合う可能性",
             ]
-    
 
     # 13. astro picked
     if isinstance(recs.get("_astro"), dict):
@@ -1767,18 +1748,9 @@ def build_chat_recommendations(  # noqa: C901
 
     _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
 
-    if os.getenv("CONCIERGE_DEBUG_OUT_TOP3") == "1":
-        log.info(
-            "[svc/chat] OUT top3=%r",
-            [
-                {
-                    "name": r.get("name"),
-                    "key": _key(str(r.get("name") or "")),
-                    "place_id": r.get("place_id"),
-                    "distance_m": r.get("distance_m"),
-                }
-                for r in (recs.get("recommendations") or [])[:3]
-                if isinstance(r, dict)
-            ],
-        )
-    return _finalize_response(recs, bias=bias)
+    # ✅ ここ（最後）でだけ finalize + observability + return
+    final = _finalize_response(recs, bias=bias)
+    _emit_obs_chat(
+        final, trace_id=trace_id, query=query, requested_flow=requested_flow, effective_flow=flow
+    )
+    return final

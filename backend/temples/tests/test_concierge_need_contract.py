@@ -1,11 +1,12 @@
 # backend/temples/tests/test_concierge_need_contract.py
 import pytest
 
+from temples.models import Shrine
 from temples.services.concierge_chat import build_chat_recommendations
 
 
 @pytest.mark.django_db
-def test_concierge_need_contract_need_and_breakdown(monkeypatch):
+def test_concierge_need_contract_need_and_breakdown(monkeypatch, settings):
     """
     Contract:
       - build_chat_recommendations は data._need を返す
@@ -19,16 +20,18 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
         - weights: {element, need, popular}
         - matched_need_tags: need_tags ∩ shrine_astro_tags
     """
+    settings.CONCIERGE_USE_LLM = True
+    monkeypatch.setenv("CHAT_MAX_ADDRESS_LOOKUPS", "0")
 
     query = "最近疲れが取れない。転職も不安。"
 
     # --- need_tags.extract_need_tags を固定（辞書実装の揺れを避ける）---
+    import temples.domain.need_tags as need
+
     class FakeNeedExtract:
         def __init__(self):
             self.tags = ["career", "mental", "rest"]
             self.hits = {"career": ["転職"], "mental": ["不安"], "rest": ["疲れ"]}
-
-    import temples.domain.need_tags as need
 
     monkeypatch.setattr(
         need,
@@ -51,7 +54,6 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
         raising=True,
     )
 
-    # 土（earth）一致なら2、水なら1、それ以外0（最小の検証用）
     def fake_element_priority(user_elem, shrine_elems):
         shrine_elems = shrine_elems or []
         s = {str(x).strip() for x in shrine_elems if str(x).strip()}
@@ -64,6 +66,8 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
     monkeypatch.setattr(astro, "element_priority", fake_element_priority, raising=True)
 
     # --- Orchestrator を固定（recommendations 3件）---
+    import temples.llm.orchestrator as orch
+
     class DummyOrchestrator:
         def suggest(self, *, query, candidates):
             return {
@@ -71,28 +75,26 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
                     {
                         "name": "A",
                         "reason": "",
-                        "popular_score": 8.0,           # score_popular=0.8 を期待
-                        "astro_elements": ["土"],       # score_element=2 を期待
+                        "popular_score": 8.0,  # score_popular=0.8
+                        "astro_elements": ["土"],  # score_element=2
                         "astro_tags": ["career", "rest"],
                     },
                     {
                         "name": "B",
                         "reason": "",
-                        "popular_score": 3.0,           # score_popular=0.3
-                        "astro_elements": ["水"],       # score_element=1
+                        "popular_score": 3.0,  # score_popular=0.3
+                        "astro_elements": ["水"],  # score_element=1
                         "astro_tags": ["mental"],
                     },
                     {
                         "name": "C",
                         "reason": "",
-                        "popular_score": 0.0,           # score_popular=0.0
-                        "astro_elements": ["火"],       # score_element=0
+                        "popular_score": 0.0,  # score_popular=0.0
+                        "astro_elements": ["火"],  # score_element=0
                         "astro_tags": [],
                     },
                 ]
             }
-
-    import temples.llm.orchestrator as orch
 
     monkeypatch.setattr(orch, "ConciergeOrchestrator", DummyOrchestrator, raising=True)
 
@@ -116,12 +118,9 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
     items = recs["recommendations"]
     assert len(items) == 3
 
-    # A: element=2, need=2, popular=0.8
     a = items[0]
     assert a["name"] == "A"
-    assert "breakdown" in a
     bd = a["breakdown"]
-
     assert bd["weights"] == {"element": 0.6, "need": 0.3, "popular": 0.1}
     assert bd["score_element"] == 2
     assert bd["matched_need_tags"] == ["career", "rest"]
@@ -131,18 +130,70 @@ def test_concierge_need_contract_need_and_breakdown(monkeypatch):
     expected_total = 2 * 0.6 + 2 * 0.3 + 0.8 * 0.1
     assert bd["score_total"] == pytest.approx(expected_total, rel=1e-6)
 
-    # B: element=1, need=1, popular=0.3
-    b = items[1]
-    bd = b["breakdown"]
-    assert bd["score_element"] == 1
-    assert bd["matched_need_tags"] == ["mental"]
-    assert bd["score_need"] == 1
-    assert bd["score_popular"] == 0.3
+    b = items[1]["breakdown"]
+    assert b["score_element"] == 1
+    assert b["matched_need_tags"] == ["mental"]
+    assert b["score_need"] == 1
+    assert b["score_popular"] == 0.3
 
-    # C: element=0, need=0, popular=0.0
-    c = items[2]
-    bd = c["breakdown"]
-    assert bd["score_element"] == 0
-    assert bd["matched_need_tags"] == []
-    assert bd["score_need"] == 0
-    assert bd["score_popular"] == 0.0
+    c = items[2]["breakdown"]
+    assert c["score_element"] == 0
+    assert c["matched_need_tags"] == []
+    assert c["score_need"] == 0
+    assert c["score_popular"] == 0.0
+
+
+@pytest.mark.django_db
+def test_chat_astrology_uses_db_astro_elements_and_picks_top3(monkeypatch, settings):
+    """
+    NOTE:
+      - このテストは LLM enabled 前提（settings.CONCIERGE_USE_LLM=True）。
+      - candidates=[] のため、LLM無効だと orchestrator が呼ばれず recommendations が空になりうる。
+      - 目的は「recommendations に astro_elements が無くても DB から attach され、top3 が pick される」ことの検証。
+    """
+    settings.CONCIERGE_USE_LLM = True
+    monkeypatch.setenv("CHAT_MAX_ADDRESS_LOOKUPS", "0")
+
+    Shrine.objects.create(name_jp="A", astro_elements=["fire"])
+    Shrine.objects.create(name_jp="B", astro_elements=["water"])
+    Shrine.objects.create(name_jp="C", astro_elements=["fire"])
+    Shrine.objects.create(name_jp="D", astro_elements=[])
+    Shrine.objects.create(name_jp="E", astro_elements=["fire"])
+
+    import temples.llm.orchestrator as orch
+
+    class DummyOrchestrator:
+        def suggest(self, *, query, candidates):
+            return {
+                "recommendations": [
+                    {"name": "A", "reason": ""},
+                    {"name": "B", "reason": ""},
+                    {"name": "C", "reason": ""},
+                    {"name": "D", "reason": ""},
+                    {"name": "E", "reason": ""},
+                ]
+            }
+
+    monkeypatch.setattr(orch, "ConciergeOrchestrator", DummyOrchestrator, raising=True)
+
+    import temples.domain.astrology as astro
+
+    def fake_element_priority(user_element, rec_elements):
+        rec_elements = rec_elements or []
+        if "fire" in rec_elements:
+            return 2
+        if "water" in rec_elements:
+            return 1
+        return 0
+
+    monkeypatch.setattr(astro, "element_priority", fake_element_priority, raising=True)
+
+    recs = build_chat_recommendations(
+        query="近場で縁結び",
+        language="ja",
+        candidates=[],
+        bias=None,
+        birthdate="2000-03-21",
+    )
+
+    assert len(recs["recommendations"]) == 3
