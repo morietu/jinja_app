@@ -4,19 +4,17 @@ from django.urls import include, path
 from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
 
-
+from temples.api.views.shrine_public import PublicShrineDetailView
 from temples.api.views.public_profile import public_profile
 from temples.api.views.search import places_find
 from temples.api.views.shrine import PopularShrineListView
 from temples.api.views.tags import goriyaku_tags_list
 from temples.api.views.goshuin_feed import PublicGoshuinFeedView
-
 from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.place_cache import place_cache_list
-
 from temples.api.views.places_resolve import PlacesResolveView
-
 from temples.api_views import FavoriteViewSet
+
 from django.views.decorators.http import require_http_methods
 
 
@@ -147,8 +145,9 @@ urlpatterns = [
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
-    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     
+    path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
+    path("public/shrines/<int:pk>/", PublicShrineDetailView.as_view(), name="public-shrine-detail"),
 
     # --- My Goshuin（単数形互換） ---
     # path("my/goshuin/", my_goshuin_list_compat, name="my-goshuin-list-compat"),

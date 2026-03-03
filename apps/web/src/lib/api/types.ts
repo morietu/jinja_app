@@ -22,13 +22,17 @@ export type ShrineBase = {
   name_jp: string;
   name_romaji?: string | null;
   address: string;
-  lat?: number | null;
-  lng?: number | null;
+
+  latitude: number | null;
+  longitude: number | null;
+
+  // うっかり参照をコンパイルで殺す
+  lat?: never;
+  lng?: never;
+
   main_photo?: string | null;
   main_photo_url?: string | null;
   photo_urls?: string[] | null;
-  latitude: number;
-  longitude: number;
   goriyaku?: string;
   sajin?: string;
   description?: string | null;
