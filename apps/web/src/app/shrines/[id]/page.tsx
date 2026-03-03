@@ -17,7 +17,7 @@ import { fetchPublicGoshuinsForShrine } from "../../../lib/api/publicGoshuins";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
-import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
+
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;

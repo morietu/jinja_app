@@ -305,6 +305,7 @@ class ShrineViewSet(viewsets.ModelViewSet):
         try:
             shrine = get_or_create_shrine_by_place_id(place_id)
             data = ShrineDetailSerializer(shrine, context={"request": request}).data
+            data["place_id"] = place_id
             return Response(data, status=status.HTTP_200_OK)
         except PlacesError as e:
             return Response({"detail": str(e)}, status=getattr(e, "status", 502) or 502)

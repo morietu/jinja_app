@@ -1,5 +1,5 @@
 import "server-only";
-import type { Shrine, Paginated } from "./types";
+import type { Shrine } from "./types";
 import { resolveServerBaseUrl } from "@/lib/server/resolveServerBaseUrl";
 
 export async function getShrinePublicServer(id: number): Promise<Shrine> {
