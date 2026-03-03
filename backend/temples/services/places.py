@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+
 import os
 from hashlib import md5
 from math import atan2, cos, radians, sin
@@ -195,15 +196,29 @@ class PlacesError(Exception):
         super().__init__(message)
         self.status = status
 
-
 def _wrap_call(fn, *args, **kwargs):
     try:
-        # ✅ よくある「params(dict) を1個渡す」パターンを救済
         if len(args) == 1 and isinstance(args[0], dict) and not kwargs:
             return fn(**args[0])
         return fn(*args, **kwargs)
+
+    except PlacesError:
+        raise
+
+    except requests.HTTPError as e:
+        code = getattr(getattr(e, "response", None), "status_code", None)
+        raise PlacesError(
+            f"upstream http error{f' ({code})' if code else ''}",
+            status=502,
+        ) from e
+
     except Exception as e:
-        raise PlacesError(str(e), status=500) from e
+        # ここも str(e) を返すのは危ないケースがあるので控えめに
+        raise PlacesError("upstream error", status=502) from e
+
+    except Exception as e:
+        # その他も外部依存寄りなので 502 に寄せる（少なくとも 500 連発は防げる）
+        raise PlacesError(str(e), status=502) from e
 
 
 def _lang_or_default(language: Optional[str]) -> str:

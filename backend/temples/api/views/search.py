@@ -5,6 +5,7 @@ import logging
 import time
 import math
 
+
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponse
@@ -28,6 +29,7 @@ from temples.api.serializers.places import (
 )
 from temples.services import google_places as GP
 from temples.services import places as PlacesSvc
+from temples.services.places import places_photo, PlacesError
 
 logger = logging.getLogger(__name__)
 
@@ -406,7 +408,6 @@ nearby_search_legacy.throttle_scope = "places-nearby"
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@cache_page(60 * 60)  # 1時間キャッシュ（実運用イメージ）
 def photo(request):
     """
     /api/places/photo/?photo_reference=...&maxwidth=...
@@ -416,12 +417,26 @@ def photo(request):
     if not ref:
         return Response({"detail": "photo_reference is required"}, status=400)
     maxwidth = request.query_params.get("maxwidth")
+    try:
+        mw = int(maxwidth) if maxwidth is not None else 800
+    except Exception:
+        mw = 800
 
-    blob, content_type = services.google_places.photo(photo_reference=ref, maxwidth=maxwidth)
+    try:
+        blob, content_type, _ttl = places_photo(ref, maxwidth=mw)
+    except PlacesError as e:
+        # status が 500 でも、ここは upstream 依存なので 502 に寄せる
+        logger.info("places.photo failed: %s", str(e))
+        return Response(
+            {"detail": "places.photo failed"},
+            status=getattr(e, "status", 502) or 502,
+        )
+
     resp = HttpResponse(blob, content_type=content_type)
-    # テストが見るのはこのヘッダ
-    resp["Cache-Control"] = "public, max-age=3600"
+    resp["Cache-Control"] = f"public, max-age={_ttl}"
     return resp
+
+    
 
 def _detail_impl(place_id: str):
     gp = services.google_places

@@ -1,6 +1,6 @@
 import types
 
-from backend.temples.api.throttles import PlacesNearbyThrottle
+from temples.api.throttles import PlacesNearbyThrottle
 
 
 def _req(user=None, meta=None):

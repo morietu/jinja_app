@@ -6,7 +6,7 @@ import importlib
 import types
 import pytest
 
-from backend.temples import route_service as rs
+from temples import route_service as rs
 
 
 # --- 小道具 ---

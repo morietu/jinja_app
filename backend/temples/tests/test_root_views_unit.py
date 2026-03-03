@@ -1,7 +1,7 @@
 import json
 from django.test import RequestFactory
 
-from backend.shrine_project import views
+from shrine_project import views
 
 
 def test_index_json_response():

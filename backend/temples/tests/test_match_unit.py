@@ -3,7 +3,7 @@
 import math
 import pytest
 
-from backend.temples.domain.match import bonus_score
+from temples.domain.match import bonus_score
 
 
 def test_empty_tags_returns_zero():
