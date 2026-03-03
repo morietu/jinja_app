@@ -1,4 +1,4 @@
-import type { Shrine } from "@/lib/api/types"; // ← ここに統一
+import type { Shrine } from "@/lib/api/shrines";
 
 export type ShrineCardAdapterProps = {
   shrineId: number;

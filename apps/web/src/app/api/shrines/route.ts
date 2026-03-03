@@ -10,16 +10,10 @@ function buildUpstreamPath(req: NextRequest, basePath: string) {
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-/**
- * Upstream response を「なるべく壊さず」返す。
- * - content-type だけ手動セットだと Set-Cookie / Cache-Control 等を落としがちなので
- *   必要なものを拾って返す
- */
 async function passthrough(upstream: Response) {
-  const body = await upstream.arrayBuffer(); // JSONでもOK、将来バイナリでも壊れない
+  const body = await upstream.arrayBuffer();
   const res = new NextResponse(body, { status: upstream.status });
 
-  // hop-by-hop header は基本除外（proxyの基本）
   const hopByHop = new Set([
     "connection",
     "keep-alive",
@@ -34,39 +28,25 @@ async function passthrough(upstream: Response) {
   upstream.headers.forEach((value, key) => {
     const k = key.toLowerCase();
     if (hopByHop.has(k)) return;
-
-    // set-cookie は複数あり得るので append
     if (k === "set-cookie") {
       res.headers.append("set-cookie", value);
       return;
     }
-
     res.headers.set(key, value);
   });
 
-  // 万が一 upstream が content-type を返さないケースの保険
-  if (!res.headers.get("content-type")) {
-    res.headers.set("content-type", "application/json");
-  }
-
+  if (!res.headers.get("content-type")) res.headers.set("content-type", "application/json");
   return res;
 }
 
 export async function GET(req: NextRequest) {
+  // ✅ Django 側に public 一覧があるならここを /api/public/shrines/ に寄せる
+  // まだ無いなら暫定で /api/shrines/ のままでもOK（ただし “public扱い” と決める）
   const upstreamPath = buildUpstreamPath(req, "/api/shrines/");
   const upstream = await djFetch(req, upstreamPath, { method: "GET" });
   return passthrough(upstream);
 }
 
-export async function POST(req: NextRequest) {
-  // ここは JSON 前提なので json() のままでOK（将来ファイル送るなら text/arrayBuffer に変更）
-  const json = await req.json();
-
-  const upstream = await djFetch(req, "/api/shrines/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(json),
-  });
-
-  return passthrough(upstream);
+export async function POST() {
+  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { getShrine } from "@/lib/api/shrines";
+import { getShrinePublic } from "@/lib/api/shrines";
 import type { Shrine } from "@/lib/api/shrines";
 
 function enc(v: string) {
@@ -44,7 +44,7 @@ export default function NaviPage() {
     setError(null);
     setShrine(null);
 
-    getShrine(id)
+    getShrinePublic(id)
       .then(setShrine)
       .catch(() => setError("神社情報の取得に失敗しました"));
 
@@ -52,8 +52,9 @@ export default function NaviPage() {
   }, [id, getLocation]);
 
   const destination = useMemo(() => {
-    const lat = Number((shrine as any)?.latitude ?? (shrine as any)?.lat ?? NaN);
-    const lng = Number((shrine as any)?.longitude ?? (shrine as any)?.lng ?? NaN);
+    const lat = Number(shrine?.latitude ?? NaN);
+    const lng = Number(shrine?.longitude ?? NaN);
+    
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return { lat, lng };
   }, [shrine]);

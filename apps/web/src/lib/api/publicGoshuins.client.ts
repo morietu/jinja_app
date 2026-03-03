@@ -1,11 +1,11 @@
+// apps/web/src/lib/api/publicGoshuins.client.ts
 import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 
-export async function fetchPublicGoshuinsForShrine(shrineId: number): Promise<PublicGoshuinItem[]> {
+export async function fetchPublicGoshuinsForShrineClient(shrineId: number): Promise<PublicGoshuinItem[]> {
   const url = `/api/public/goshuins?limit=12&offset=0&shrine=${encodeURIComponent(String(shrineId))}`;
 
   try {
     const res = await fetch(url, { cache: "no-store" });
-
     if (!res.ok) return [];
 
     const json: any = await res.json();

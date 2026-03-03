@@ -51,6 +51,7 @@ def test_openapi_conventions(client: APIClient):
             "/api/my/goshuins/",
             "/api/my/goshuins/{id}/",
             "/api/my/goshuins/count/",
+            "/api/public/shrines/{id}/",
             
         }
         if p not in exceptions and not pluralish.search(p):

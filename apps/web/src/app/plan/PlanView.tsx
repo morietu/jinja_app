@@ -7,12 +7,26 @@ import {
   type ConciergePlanRec,
   type ConciergePlanStop,
 } from "@/api/conciergePlan";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const abortName = "AbortError";
 
 type InitialQuery = { q?: string; tab?: string; page?: number };
 
 export default function PlanView({ initialQuery }: { initialQuery: InitialQuery }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [pathname, searchParams]);
+
   const [q, setQ] = useState(initialQuery.q ?? "");
   const [tab, setTab] = useState(initialQuery.tab ?? "overview");
   const [page, setPage] = useState(initialQuery.page ?? 1);
@@ -24,9 +38,35 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
 
   const abortRef = useRef<AbortController | null>(null);
 
+  const setSP = useCallback(
+    (patch: Record<string, string | number | null | undefined>, opts?: { replace?: boolean }) => {
+      const sp = new URLSearchParams(searchParams?.toString());
+
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === null || v === "") sp.delete(k);
+        else sp.set(k, String(v));
+      }
+
+      const qs = sp.toString();
+      const url = qs ? `${pathname}?${qs}` : pathname;
+
+      if (opts?.replace ?? true) router.replace(url);
+      else router.push(url);
+    },
+    [router, pathname, searchParams],
+  );
+
+  // URL -> state（戻る/共有/リロードで state が追従する）
   useEffect(() => {
-    setPage(1);
-  }, [recs]);
+    const q0 = searchParams.get("q") ?? "";
+    const tab0 = searchParams.get("tab") ?? "overview";
+    const page0Raw = Number(searchParams.get("page") ?? "1");
+    const page0 = Number.isFinite(page0Raw) && page0Raw > 0 ? page0Raw : 1;
+
+    if (q0 !== q) setQ(q0);
+    if (tab0 !== tab) setTab(tab0);
+    if (page0 !== page) setPage(page0);
+  }, [searchParams, q, tab, page]);
 
   const runSearch = useCallback(async () => {
     const query = q.trim();
@@ -46,12 +86,18 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
       const nextRecs = Array.isArray(list) ? list : [];
       setRecs(nextRecs);
 
-
       const st = (json?.stops ?? []) as ConciergePlanStop[];
       const nextStops = Array.isArray(st) ? st : [];
       setStops(nextStops);
 
-      if (tab === "route" && nextStops.length === 0) setTab("overview");
+      // 検索成功したら page=1 に戻す（state + URL）
+      setPage(1);
+      setSP({ q: query, tab, page: 1 }, { replace: false }); // 検索は履歴に残すなら push相当
+
+      if (tab === "route" && nextStops.length === 0) {
+        setTab("overview");
+        setSP({ tab: "overview" });
+      }
     } catch (e: any) {
       if (e?.name === abortName) return;
 
@@ -60,18 +106,26 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
 
       setRecs([]);
       setStops([]);
-      if (tab === "route") setTab("overview");
+      setPage(1);
+      setSP({ page: 1 });
+
+      if (tab === "route") {
+        setTab("overview");
+        setSP({ tab: "overview" });
+      }
     } finally {
       setLoading(false);
     }
-  }, [q, tab]);
+  }, [q, tab, setSP]);
 
+  // 初回：URLにqがあるなら検索（initialQueryはSSRからの初期注入用）
   useEffect(() => {
     if ((initialQuery.q ?? "").trim()) void runSearch();
     return () => abortRef.current?.abort();
   }, [initialQuery.q, runSearch]);
 
   const primary = recs[0] ?? null;
+
   const title = primary?.display_name ?? primary?.name ?? "おすすめの神社";
   const reason = primary?.reason ?? "条件に合う候補から選びました。必要なら条件を追加できます。";
   const bullets = (
@@ -82,8 +136,24 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
   const PAGE_SIZE = 5;
   const maxPage = Math.max(1, Math.ceil(recs.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), maxPage);
-
   const pagedRecs = recs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const goTab = (nextTab: string) => {
+    setTab(nextTab);
+    setSP({ tab: nextTab });
+  };
+
+  const prevPage = () => {
+    const next = Math.max(1, safePage - 1);
+    setPage(next);
+    setSP({ page: next });
+  };
+
+  const nextPageFn = () => {
+    const next = Math.min(maxPage, safePage + 1);
+    setPage(next);
+    setSP({ page: next });
+  };
 
   return (
     <main className="p-4 max-w-4xl mx-auto">
@@ -111,37 +181,17 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
       <div className="mb-4 flex gap-2">
         <button
           className={`px-3 py-1 rounded ${tab === "overview" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          onClick={() => setTab("overview")}
+          onClick={() => goTab("overview")}
         >
           概要
         </button>
         <button
           className={`px-3 py-1 rounded ${tab === "route" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          onClick={() => setTab("route")}
+          onClick={() => goTab("route")}
           disabled={!stops.length}
           title={!stops.length ? "ルート情報がありません" : ""}
         >
           ルート
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <button
-          className="px-3 py-1 border rounded mr-2 disabled:opacity-60"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={safePage <= 1}
-        >
-          前へ
-        </button>
-        <span className="text-sm">
-          ページ: {safePage} / {maxPage}
-        </span>
-        <button
-          className="px-3 py-1 border rounded ml-2"
-          onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
-          disabled={safePage >= maxPage}
-        >
-          次へ
         </button>
       </div>
 
@@ -188,10 +238,11 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
 
       {tab === "overview" && recs.length > 0 && (
         <>
-          <div className="mb-6">
+          {/* ページUIはここだけ。二重にしない。 */}
+          <div className="mt-4 mb-2 flex items-center gap-2">
             <button
-              className="px-3 py-1 border rounded mr-2 disabled:opacity-60"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1 border rounded disabled:opacity-60"
+              onClick={prevPage}
               disabled={safePage <= 1}
             >
               前へ
@@ -200,15 +251,15 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
               ページ: {safePage} / {maxPage}
             </span>
             <button
-              className="px-3 py-1 border rounded ml-2"
-              onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
+              className="px-3 py-1 border rounded disabled:opacity-60"
+              onClick={nextPageFn}
               disabled={safePage >= maxPage}
             >
               次へ
             </button>
           </div>
 
-          <section className="mt-4 rounded-xl border bg-white p-4">
+          <section className="rounded-xl border bg-white p-4">
             <h2 className="text-sm font-semibold text-slate-900">候補</h2>
             <ol className="mt-3 space-y-2">
               {pagedRecs.map((r, i) => (

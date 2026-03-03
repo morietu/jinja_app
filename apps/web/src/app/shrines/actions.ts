@@ -1,28 +1,15 @@
 "use server";
-import type { Shrine } from "@/lib/api/types";
-import { ApiError } from "@/lib/api/ApiError";
 
-// 一覧
+import { ApiError } from "@/lib/api/ApiError";
+import type { Shrine } from "@/lib/api/shrines";
+import { headers } from "next/headers";
+
+// 一覧（public）
 export async function getShrines(): Promise<Shrine[]> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/shrines/`, {
-    cache: "no-store",
-  });
+  const res = await fetch("/api/shrines/", { cache: "no-store" });
   if (!res.ok) throw new ApiError("API error", res.status);
   return res.json();
 }
-
-// 追加
-
-export type CreateShrineInput = {
-  name_jp: string;
-  address?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  goriyaku?: string | null;
-  sajin?: string | null;
-  goriyakuTagIds: number[];
-  kind?: "shrine" | "temple";
-};
 
 export async function createShrine(input: {
   name_jp: string;
@@ -38,9 +25,16 @@ export async function createShrine(input: {
     goriyaku_tag_ids: input.goriyakuTagIds ?? [],
   };
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/shrines/`, {
+  // cookie を明示で forward（BFF側で token 化するなら重要）
+  const h = await headers();
+  const cookie = h.get("cookie") ?? "";
+
+  const res = await fetch("/api/my/shrines/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
     body: JSON.stringify(payload),
     cache: "no-store",
   });
@@ -48,8 +42,6 @@ export async function createShrine(input: {
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
 
-  if (!res.ok) {
-    throw new ApiError(body?.detail ?? "API error", res.status, body);
-  }
+  if (!res.ok) throw new ApiError(body?.detail ?? "API error", res.status, body);
   return body as Shrine;
 }

@@ -1,7 +1,7 @@
 // apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
 
-import { getShrine, type Shrine } from "@/lib/api/shrines";
+import { getShrinePublic, type Shrine } from "@/lib/api/shrines";
 import { serverLog } from "@/lib/server/logging";
 
 import { gmapsDirUrl } from "@/lib/maps";
@@ -17,7 +17,7 @@ import { fetchPublicGoshuinsForShrine } from "../../../lib/api/publicGoshuins";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
-
+import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -60,7 +60,7 @@ export default async function Page({ params, searchParams }: Props) {
 
   let shrine: Shrine | null;
   try {
-    shrine = await getShrine(numericId);
+    shrine = await getShrinePublic(numericId);
   } catch (e) {
     serverLog("error", "GET_SHRINE_FAILED", {
       shrineId: numericId,
@@ -92,8 +92,9 @@ export default async function Page({ params, searchParams }: Props) {
 
   const pageTitle = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
 
-  const latNum = Number(s.lat ?? s.latitude ?? NaN);
-  const lngNum = Number(s.lng ?? s.longitude ?? NaN);
+
+  const latNum = Number(s.latitude ?? NaN);
+  const lngNum = Number(s.longitude ?? NaN);
   const hasLocation =
     Number.isFinite(latNum) &&
     Number.isFinite(lngNum) &&
@@ -118,7 +119,16 @@ export default async function Page({ params, searchParams }: Props) {
   const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
 
   // page.tsx（publicGoshuins の取得直後あたり）
-  const publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
+  let publicGoshuins: Awaited<ReturnType<typeof fetchPublicGoshuinsForShrine>> = [];
+  try {
+    publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
+  } catch (e) {
+    serverLog("warn", "GET_PUBLIC_GOSHUINS_FAILED", {
+      shrineId: numericId,
+      message: e instanceof Error ? e.message : String(e),
+    });
+    publicGoshuins = [];
+  }
 
   const signals = {
     publicGoshuinsCount: publicGoshuins.length,

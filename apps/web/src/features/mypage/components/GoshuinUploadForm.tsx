@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { uploadMyGoshuin } from "@/lib/api/goshuin";
-import { getShrine, type Shrine } from "@/lib/api/shrines";
+import { getShrinePrivate, type Shrine } from "@/lib/api/shrines";
 
 type Props = { onUploaded?: (g: any) => void };
 
@@ -41,7 +41,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
       }
       setShrineLoading(true);
       try {
-        const s = await getShrine(shrineId);
+        const s = await getShrinePrivate(shrineId);
         if (alive) setShrine(s);
       } catch {
         if (alive) setShrine(null);
@@ -88,7 +88,7 @@ export default function GoshuinUploadForm({ onUploaded }: Props) {
 
       if (!hasShrineName) {
         try {
-          const s = shrine ?? (await getShrine(shrineId));
+          const s = shrine ?? (await getShrinePrivate(shrineId));
           patched = {
             ...patched,
             shrine_id: patched.shrine_id ?? shrineId,

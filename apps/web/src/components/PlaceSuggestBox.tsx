@@ -17,7 +17,7 @@ type Props = {
 };
 
 async function ingest(place_id: string): Promise<Shrine> {
-  const r = await fetch("/api/shrines/ingest", {
+  const r = await fetch("/api/my/shrines/ingest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
@@ -127,7 +127,8 @@ export function PlaceSuggestBox({ value, onChange, onSelect, limit = 10 }: Props
                     const shrine = await ingest(p.place_id);
                     onSelect(shrine);
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : String(e));
+                    const msg = e instanceof Error ? e.message : String(e);
+                    setError(msg.includes("401") ? "取り込みにはログインが必要です。" : msg);
                   } finally {
                     setIngestingKey(null);
                   }

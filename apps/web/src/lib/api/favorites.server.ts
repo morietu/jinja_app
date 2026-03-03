@@ -1,15 +1,14 @@
 // apps/web/src/lib/api/favorites.server.ts
+import "server-only";
 import { headers } from "next/headers";
 import type { Favorite } from "./favorites";
+import { resolveServerBaseUrlFromHeaders } from "@/lib/server/resolveServerBaseUrl";
 
 export async function getFavoritesServer(): Promise<Favorite[]> {
   const h = await headers();
-
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const baseUrl = `${proto}://${host}`;
-
   const cookie = h.get("cookie") ?? "";
+
+  const baseUrl = resolveServerBaseUrlFromHeaders(h);
 
   const r = await fetch(`${baseUrl}/api/favorites/`, {
     headers: cookie ? { cookie } : undefined,
