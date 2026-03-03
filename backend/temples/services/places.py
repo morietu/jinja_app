@@ -132,6 +132,27 @@ def _cache_key(ns: str, payload: Dict[str, Any]) -> str:
 
 ERROR_STATUSES = {"OVER_QUERY_LIMIT", "REQUEST_DENIED", "INVALID_REQUEST"}
 
+def _get_or_set_bytes(
+    ns: str,
+    payload: Dict[str, Any],
+    fetcher: Callable[[], Tuple[bytes, str]],
+    ttl: int,
+) -> tuple[Tuple[bytes, str], bool]:
+    key = _cache_key(ns, payload)
+
+    cached = cache.get(key)
+    if (
+        isinstance(cached, tuple)
+        and len(cached) == 2
+        and isinstance(cached[0], (bytes, bytearray))
+        and isinstance(cached[1], str)
+    ):
+        return (bytes(cached[0]), cached[1]), True
+
+    content, content_type = fetcher()
+    cache.set(key, (content, content_type), ttl)
+    return (content, content_type), False
+
 def _get_or_set(
     ns: str,
     payload: Dict[str, Any],
@@ -144,7 +165,6 @@ def _get_or_set(
 
     # 正常な dict キャッシュだけ採用
     if isinstance(cached, dict):
-        # 過去にミスでエラーをキャッシュしてた場合の保険（任意）
         if cached.get("status") in ERROR_STATUSES:
             cache.delete(key)
         else:
@@ -156,7 +176,7 @@ def _get_or_set(
 
     data = fetcher()
 
-    # dict 以外は採用しない（= None）
+    # dict 以外は採用しない
     if not isinstance(data, dict):
         return None, False
 
@@ -394,33 +414,50 @@ def places_nearby_search(params: Dict[str, Any]) -> Dict[str, Any]:
 def places_details(place_id: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     params = dict(params or {})
     params.setdefault("language", _lang_or_default(params.get("language")))
+    params.setdefault("fields", "place_id,name,formatted_address,geometry,types,photos,icon")
+
+    payload = {"endpoint": "details", "place_id": place_id, "language": params["language"], "fields": params["fields"]}
 
     def fetch():
-        data = _wrap_call(google_places.details, place_id=place_id, **params)
-        return (data or {}).get("result") or {}
+        return _wrap_call(google_places.details, place_id=place_id, **params)
 
-    payload = {"endpoint": "details", "place_id": place_id, **_norm_params(params)}
     data, _ = _get_or_set("details", payload, fetch, DEFAULT_TTL)
-    return data or {}
+    if not isinstance(data, dict):
+        return {}
 
+    if data.get("status") in ERROR_STATUSES:
+        return {}
+
+    return (data.get("result") or {})
 
 def places_photo(photo_reference: str, maxwidth: int = 800) -> Tuple[bytes, str, int]:
-    """
-    Photo（キャッシュ付）
-    Returns: (content_bytes, content_type, max_age)
-    """
     if not photo_reference:
         raise PlacesError("photo_reference is required", status=400)
 
     payload = {"endpoint": "photo", "ref": photo_reference, "w": maxwidth}
 
     def fetch():
-        content, content_type = _wrap_call(google_places.photo, photo_reference, maxwidth=maxwidth)
-        return (content, content_type or "image/jpeg")
+        content, content_type = _wrap_call(
+            google_places.photo, photo_reference, maxwidth=maxwidth
+        )
 
-    (content, content_type), _ = _get_or_set("photo", payload, fetch, PHOTO_TTL)
-    return content, content_type, PHOTO_TTL
+        # content-type を素の mime に正規化（`; charset=...` など除去）
+        ct = (content_type or "image/jpeg").split(";", 1)[0].strip().lower()
 
+        if not content or not ct.startswith("image/"):
+            raise PlacesError(f"invalid photo response: content_type={ct}", status=502)
+
+        return (content, ct)
+
+    try:
+        (content, content_type), _ = _get_or_set_bytes("photo", payload, fetch, PHOTO_TTL)
+        return content, content_type, PHOTO_TTL
+    except PlacesError:
+        # 上に投げる。ビューが 502 にしてくれる想定ならこれでOK
+        raise
+    except Exception as e:
+        # 予期せぬ型の壊れ方は 502 に丸める（画像は “外部依存” なので妥当）
+        raise PlacesError(str(e), status=502) from e
 
 # ----------------------------
 # 付帯ユースケース（DB同期など）
@@ -434,12 +471,21 @@ def get_or_sync_place(place_id: str, force: bool = False) -> PlaceRef:
         google_places.details,
         place_id=place_id,
         language=_lang_or_default(None),
+        fields="place_id,name,formatted_address,geometry,types,photos,icon",
     )
-    result = (data or {}).get("result") or {}
 
+    status_ = (data or {}).get("status")
+    if status_ in ERROR_STATUSES:
+        # error_message があれば拾う
+        msg = (data or {}).get("error_message") or f"google places details failed: {status_}"
+        raise PlacesError(msg, status=502)
+
+    result = (data or {}).get("result") or {}
     name = result.get("name")
     if not name:
+        # ここは「nameが本当に無い」時だけ落とす
         raise PlacesError("place details missing name", status=502)
+
 
     address = result.get("formatted_address") or result.get("vicinity")
     loc = ((result.get("geometry") or {}).get("location") or {})
