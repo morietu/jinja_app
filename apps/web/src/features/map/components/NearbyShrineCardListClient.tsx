@@ -19,6 +19,25 @@ type NearbyItemView = PlacesNearbyResponse["results"][number] & {
 
 const DEBUG = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEBUG_LOG === "1";
 
+function dedupeKey(p: any) {
+  const sid = p?.shrine_id ?? null;
+  const pid = p?.place_id ?? null;
+  if (pid) return `place:${pid}`;
+  if (sid) return `shrine:${sid}`;
+  // fallbackは “idx混ぜると毎回変わってデバッグ不能” なので注意
+  return `fallback:${p?.name ?? ""}:${p?.lat ?? ""},${p?.lng ?? ""}:${p?.address ?? ""}`;
+}
+
+function logDedupe(label: string, arr: any[]) {
+  if (!DEBUG) return;
+  const keys = arr.map((p) => dedupeKey(p));
+  const unique = new Set(keys);
+  clientLog(label, { total: keys.length, unique: unique.size, dup: keys.length - unique.size });
+  // 必要ならこれも（重いので普段はオフ）
+  // console.log(keys);
+}
+
+
 function clientLog(event: string, payload?: Record<string, unknown>) {
   if (!DEBUG) return;
   console.log(`[map] ${event}`, payload ?? {});
@@ -112,7 +131,10 @@ export default function NearbyShrineCardListClient() {
         const data = (await r.json()) as PlacesNearbyResponse;
         const results = Array.isArray(data?.results) ? data.results : [];
 
-        // ✅ ルール1：ここで一括で View Model 化（スマート！）
+        
+        
+        
+        // ✅ ここで一括で View Model 化
         const viewItems: NearbyItemView[] = results.map((p) => ({
           ...p,
           detailHref: buildMapDetailHref({
@@ -121,6 +143,8 @@ export default function NearbyShrineCardListClient() {
             tid,
           }),
         }));
+
+
 
         setItems(viewItems);
         setState(viewItems.length === 0 ? "empty" : "ready");
@@ -140,6 +164,10 @@ export default function NearbyShrineCardListClient() {
     fetchNearby(coords.lat, coords.lng);
     return () => abortRef.current?.abort();
   }, [coords, fetchNearby]);
+
+  useEffect(() => {
+    logDedupe("NEARBY_RENDER_ITEMS", items);
+  }, [items]);
 
   // UI Helper
   const title = loadingLoc ? "位置情報を取得中…" : "近くの神社";
@@ -219,14 +247,14 @@ export default function NearbyShrineCardListClient() {
       {/* リスト表示 */}
       {state !== "loading" && items.length > 0 ? (
         <ul className="space-y-3">
-          {items.map((p, idx) => {
+          {items.map((p) => {
             const shrineId = (p as any).shrine_id ?? null;
 
             const key =
               p.place_id ??
               (shrineId
                 ? `shrine:${shrineId}`
-                : `fallback:${p.name}:${p.lat ?? ""},${p.lng ?? ""}:${p.address ?? ""}:${idx}`);
+                : `fallback:${p.name}:${p.lat ?? ""},${p.lng ?? ""}:${p.address ?? ""}`);
 
             return (
               <li key={key} className="rounded-2xl border bg-white p-4 shadow-sm">
