@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ConciergeClientSimple from "./ConciergeClientSimple";
+import ConciergeClientFull from "../ConciergeClientFull";
 
 function Fallback() {
   return (
@@ -12,7 +12,7 @@ function Fallback() {
 export default function Page() {
   return (
     <Suspense fallback={<Fallback />}>
-      <ConciergeClientSimple />
+      <ConciergeClientFull />
     </Suspense>
   );
 }
