@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import ShrineCard from "@/components/shrine/ShrineCard";
+import ShrineCard from "@/components/shrines/ShrineConciergeCard";
 
 type Props = React.ComponentProps<typeof ShrineCard> & {
   tid?: string | null;

@@ -1,5 +1,5 @@
 // apps/web/src/components/shrine/detail/ShrineDetailArticle.tsx
-import ShrineCard from "@/components/shrine/ShrineCard";
+import ShrineCard from "@/components/shrines/ShrineConciergeCard";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";

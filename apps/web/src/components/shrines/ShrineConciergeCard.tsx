@@ -1,4 +1,4 @@
-// apps/web/src/components/shrine/ShrineCard.tsx
+// apps/web/src/components/shrines/ShrineConciergeCard.tsx
 "use client";
 
 import * as React from "react";
@@ -9,8 +9,7 @@ import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
-
-type Props = {
+export type ShrineConciergeCardProps = {
   shrineId: number;
   title: string;
   address?: string | null;
@@ -45,7 +44,7 @@ function DisclosureSection({ title, children }: { title: string; children: React
   );
 }
 
-export default function ShrineCard({
+export default function ShrineConciergeCard({
   shrineId,
   title,
   address,
@@ -69,10 +68,9 @@ export default function ShrineCard({
 
   hideDisclosure = false,
   variant = "list",
-}: Props) {
+}: ShrineConciergeCardProps) {
   const isHero = variant === "hero";
 
-  // ✅ Hero強制（散らかり防止）
   const effHideDescription = isHero ? true : hideDescription;
   const effHideBadges = isHero ? true : hideBadges;
   const effHideLeftMark = isHero ? true : hideLeftMark;
@@ -84,16 +82,13 @@ export default function ShrineCard({
   const effBreakdown = isHero ? null : breakdown;
   const effBadgesOverride = isHero ? [] : badgesOverride;
 
-  // hook（条件分岐不可なので常に呼ぶ）
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
-  // description/address/detail
   const safeDescription = effHideDescription ? "" : (description ?? "");
   const addr = effHideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
   const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? buildShrineHref(shrineId) : undefined);
   const cardDetailHref = effHideDetailLink ? undefined : safeDetailHref;
 
-  // favorite button
   const favButton = !effShowFavorite ? null : (
     <button
       onClick={toggle}
@@ -107,7 +102,6 @@ export default function ShrineCard({
     </button>
   );
 
-  // badges
   const reasonLabel = pickReasonLabel(effBreakdown);
   const defaultBadges = ["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null]
     .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
@@ -116,7 +110,6 @@ export default function ShrineCard({
   const badges =
     effBadgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
 
-  // disclosure（hero は eff で潰れる）
   const shouldHideDisclosure = effHideDisclosure || variant === "detail";
   const disclosureTitle = shouldHideDisclosure ? undefined : "おすすめ理由を見る";
   const disclosureBody = shouldHideDisclosure ? undefined : (

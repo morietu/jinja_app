@@ -5,8 +5,7 @@ import DetailSection from "@/components/shrine/DetailSection";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
-import ShrineCard from "@/components/shrine/ShrineCard";
-
+import ShrineCard from "@/components/shrines/ShrineConciergeCard";
 
 import type {
   ConciergeSectionsPayload,
