@@ -1,6 +1,8 @@
+// apps/web/src/lib/auth/AuthProvider.tsx
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react"; // ✅ useMemo削除
+import { usePathname } from "next/navigation";
 
 type User = { id: number; email?: string; name?: string; username?: string } | null;
 
@@ -30,7 +32,16 @@ async function fetchMe(): Promise<User> {
   return await r.json();
 }
 
+function shouldAutoFetchMe(pathname: string | null): boolean {
+  if (!pathname) return true;
+  if (pathname === "/concierge") return false;
+  if (pathname.startsWith("/concierge/full")) return true;
+  return true;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,24 +51,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
-        await refreshMe();
+        if (shouldAutoFetchMe(pathname)) {
+          await refreshMe();
+        } else {
+          if (!cancelled) setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   const login = async (username: string, password: string) => {
     const r = await fetch("/api/auth/login", {
       method: "POST",
-      credentials: "include", // ✅必須
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
     if (!r.ok) throw new Error("login failed");
-    await refreshMe(); // ✅ここで user を更新
+    await refreshMe();
   };
 
   const logout = async () => {

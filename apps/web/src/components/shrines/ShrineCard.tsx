@@ -3,6 +3,12 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+function formatDistance(m?: number | null) {
+  if (typeof m !== "number" || !Number.isFinite(m)) return null;
+  if (m < 1000) return `${Math.round(m)}m`;
+  return `${(m / 1000).toFixed(1)}km`;
+}
+
 
 export type ShrineCardProps = {
   name: string;
@@ -66,7 +72,7 @@ export function ShrineCard(props: ShrineCardProps) {
         </div>
 
         <div className="mt-2 text-sm text-gray-700 flex gap-3">
-          {typeof distanceM === "number" ? <span>{distanceM}m</span> : null}
+          {formatDistance(distanceM) ? <span>{formatDistance(distanceM)}</span> : null}
           {typeof rating === "number" ? (
             <span>
               {rating.toFixed(1)}

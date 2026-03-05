@@ -28,8 +28,14 @@ export function ShrineList({
 
   return (
     <div className={`${wrapClass} ${className}`}>
-      {items.map(({ id, cardProps }) => (
-        <ShrineCard key={id} {...cardProps} />
+      {items.map(({ id, cardProps }, idx) => (
+        <ShrineCard
+          key={id}
+          {...cardProps}
+          recommendReason={
+            idx === 0 ? `✨ いちばんおすすめ：${cardProps.recommendReason ?? ""}`.trim() : cardProps.recommendReason
+          }
+        />
       ))}
     </div>
   );

@@ -20,6 +20,22 @@ export type ConciergeResponse = {
       place_id?: string | null;
       shrine_id?: number | null;
       popular_score?: number | null;
+
+      // ✅ 追加（実レスポンスに存在）
+      bullets?: string[] | null;
+      explanation?: {
+        version?: number | null;
+        summary?: string | null;
+        reasons?: Array<{
+          code?: string | null;
+          label?: string | null;
+          text?: string | null;
+          strength?: "low" | "mid" | "high" | null;
+          evidence?: Record<string, unknown> | null;
+        }> | null;
+        disclaimer?: string | null;
+      } | null;
+
       breakdown?: {
         matched_need_tags?: string[] | null;
         score_total?: number | null;
