@@ -1,7 +1,7 @@
 // apps/web/src/lib/auth/AuthProvider.tsx
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react"; // ✅ useMemo削除
+import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type User = { id: number; email?: string; name?: string; username?: string } | null;
@@ -23,19 +23,58 @@ export const useAuth = () => {
   return ctx;
 };
 
+/* =========================
+ * ログイン復元フラグ（/concierge用）
+ * ======================= */
+const LS_AUTH = "auth:logged_in";
+
+function markLoggedIn() {
+  try {
+    localStorage.setItem(LS_AUTH, "1");
+  } catch {}
+}
+function markLoggedOut() {
+  try {
+    localStorage.removeItem(LS_AUTH);
+  } catch {}
+}
+function maybeLoggedIn(): boolean {
+  try {
+    return localStorage.getItem(LS_AUTH) === "1";
+  } catch {
+    return false;
+  }
+}
+
 async function fetchMe(): Promise<User> {
   const r = await fetch("/api/users/me/", {
     credentials: "include",
     cache: "no-store",
   });
-  if (!r.ok) return null;
+
+  if (r.status === 401) {
+    return null;
+  }
+
+  if (!r.ok) {
+    throw new Error("failed to fetch user");
+  }
+
   return await r.json();
 }
 
 function shouldAutoFetchMe(pathname: string | null): boolean {
   if (!pathname) return true;
+
+  // ✅ ログイン画面は未ログインが前提なので叩かない
+  if (pathname === "/login" || pathname === "/signup") return false;
+
+  // ✅ concierge(Simple) でも叩かない（ノイズ消し）
   if (pathname === "/concierge") return false;
+
+  // 実験場はOK
   if (pathname.startsWith("/concierge/full")) return true;
+
   return true;
 }
 
@@ -58,7 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (shouldAutoFetchMe(pathname)) {
           await refreshMe();
         } else {
-          if (!cancelled) setUser(null);
+          // /concierge: 基本は叩かない
+          // ただし「ログイン済みフラグ」があるなら復元のために叩く（ログインボタンを消すため）
+          if (maybeLoggedIn()) {
+            await refreshMe();
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -78,11 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ username, password }),
     });
     if (!r.ok) throw new Error("login failed");
+
+    markLoggedIn();
     await refreshMe();
   };
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    markLoggedOut();
     setUser(null);
   };
 
