@@ -31,17 +31,24 @@ const LS_AUTH = "auth:logged_in";
 function markLoggedIn() {
   try {
     localStorage.setItem(LS_AUTH, "1");
-  } catch {}
+  } catch {
+    // localStorage が使えない環境（Safari私用/SSR等）は無視してOK
+  }
 }
+
 function markLoggedOut() {
   try {
     localStorage.removeItem(LS_AUTH);
-  } catch {}
+  } catch {
+    // localStorage が使えない環境（Safari私用/SSR等）は無視してOK
+  }
 }
+
 function maybeLoggedIn(): boolean {
   try {
     return localStorage.getItem(LS_AUTH) === "1";
   } catch {
+    // localStorage が使えない環境では未ログイン扱い
     return false;
   }
 }
@@ -53,6 +60,7 @@ async function fetchMe(): Promise<User> {
   });
 
   if (r.status === 401) {
+    markLoggedOut(); // ✅ フラグ腐敗を掃除
     return null;
   }
 
