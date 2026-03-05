@@ -2,6 +2,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ShrineList, type ShrineListItem } from "./ShrineList";
 import { ShrineCardSkeleton } from "./ShrineCardSkeleton";
+import sample from "@/viewmodels/concierge/fixtures/concierge.sample.json";
+import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
 
 const baseItem: ShrineListItem = {
   id: "chi_a",
@@ -125,4 +127,11 @@ export const LoadingGrid: Story = {
       ))}
     </div>
   ),
+};
+
+export const ConciergeFixture: Story = {
+  args: {
+    variant: "list",
+    items: conciergeToShrineListItems(sample as unknown as ConciergeResponse),
+  },
 };

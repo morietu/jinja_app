@@ -1,7 +1,6 @@
 // apps/web/src/app/shrines/page.tsx
 "use client";
-
-import ShrineCard from "@/components/shrine/ShrineCard";
+import { ShrineCard } from "@/components/shrines/ShrineCard";
 import { useShrineCards } from "@/hooks/useShrineCards";
 
 export default function ShrinesPage() {
@@ -17,7 +16,14 @@ export default function ShrinesPage() {
       <ul className="grid gap-4">
         {cards.map((p) => (
           <li key={p.shrineId}>
-            <ShrineCard {...p} />
+            <ShrineCard
+              name={p.title}
+              address={p.address ?? undefined}
+              recommendReason={p.description ?? undefined}
+              imageUrl={p.imageUrl ?? undefined}
+              tags={p.badges ?? []}
+              href={`/shrines/${p.shrineId}`}
+            />
           </li>
         ))}
       </ul>

@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "data": {
+    "_need": {
+      "tags": ["金運", "仕事運", "厄除け"],
+      "hits": {
+        "emotion": ["焦り", "不安"],
+        "goal": ["転職", "収入安定"]
+      }
+    },
+    "recommendations": [
+      {
+        "name": "浅草神社",
+        "display_name": "浅草神社",
+        "reason": "金運と仕事運の両方に寄せやすく、今の不安定さを整える導線が作れるため。",
+        "location": "東京都台東区浅草2-3-1",
+        "lat": 35.7147,
+        "lng": 139.7967,
+        "distance_m": 420,
+        "place_id": "ChIJxxxxxxxxxxxxxxxx",
+        "shrine_id": 123,
+        "popular_score": 0.82,
+        "astro_priority": 2,
+        "astro_elements": ["火", "土"],
+        "astro_tags": ["開運", "浄化"],
+        "breakdown": {
+          "score_element": 30,
+          "score_need": 45,
+          "score_popular": 0.82,
+          "score_total": 76.7,
+          "weights": { "element": 0.3, "need": 0.6, "popular": 0.1 },
+          "matched_need_tags": ["金運", "仕事運"]
+        }
+      }
+    ],
+    "_signals": {
+      "mode": {
+        "flow": "A",
+        "weights": { "element": 0.3, "need": 0.6, "popular": 0.1 },
+        "astro_bonus_enabled": true,
+        "ui_label_ja": "おすすめ（バランス）",
+        "ui_note_ja": "気持ちと目的の一致度を優先"
+      }
+    }
+  }
+}

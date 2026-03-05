@@ -1,10 +1,9 @@
-// src/components/shrines/ShrineCard.tsx
+// apps/web/src/components/shrines/ShrineCardLite.tsx
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-
-export type ShrineCardProps = {
+export type ShrineCardLiteProps = {
   name: string;
   address?: string | null;
   recommendReason?: string | null;
@@ -18,7 +17,8 @@ export type ShrineCardProps = {
   onToggleFavorite?: () => void;
 };
 
-export function ShrineCard(props: ShrineCardProps) {
+export function ShrineCardLite(props: ShrineCardLiteProps) {
+  // 中身はそのまま（props名だけ一致させる）
   const {
     name,
     address,
@@ -46,7 +46,6 @@ export function ShrineCard(props: ShrineCardProps) {
           <div className="min-w-0">
             <div className="font-semibold truncate">{name}</div>
             {address ? <div className="text-sm text-gray-600 truncate">{address}</div> : null}
-
             {recommendReason ? <div className="mt-1 text-xs text-gray-600 line-clamp-2">{recommendReason}</div> : null}
           </div>
 
@@ -97,4 +96,4 @@ export function ShrineCard(props: ShrineCardProps) {
   );
 }
 
-export default ShrineCard;
+export default ShrineCardLite;
