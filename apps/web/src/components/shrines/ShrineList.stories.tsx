@@ -104,7 +104,7 @@ export const LoadingList: Story = {
     variant: "list",
     items: [],
   },
-  render: (args) => (
+  render: (_args) => (
     <div className="flex flex-col gap-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <ShrineCardSkeleton key={i} />
@@ -118,7 +118,7 @@ export const LoadingGrid: Story = {
     variant: "grid",
     items: [],
   },
-  render: (args) => (
+  render: (_args) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
         <ShrineCardSkeleton key={i} />
