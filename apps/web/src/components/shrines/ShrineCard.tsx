@@ -32,6 +32,7 @@ export function ShrineCard(props: ShrineCardProps) {
   const body = (
     <div className="rounded-xl border p-4 flex gap-4">
       <div className="w-28 h-20 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         {imageUrl ? <img src={imageUrl} alt={name} className="w-full h-full object-cover" /> : null}
       </div>
 
