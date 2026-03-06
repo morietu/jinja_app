@@ -9,7 +9,6 @@ function formatDistance(m?: number | null) {
   return `${(m / 1000).toFixed(1)}km`;
 }
 
-
 export type ShrineCardProps = {
   name: string;
   address?: string | null;
@@ -39,6 +38,8 @@ export function ShrineCard(props: ShrineCardProps) {
     onToggleFavorite,
   } = props;
 
+  const distText = formatDistance(distanceM);
+
   const body = (
     <div className="rounded-xl border p-4 flex gap-4">
       <div className="w-28 h-20 rounded-lg bg-gray-100 overflow-hidden shrink-0">
@@ -52,7 +53,6 @@ export function ShrineCard(props: ShrineCardProps) {
           <div className="min-w-0">
             <div className="font-semibold truncate">{name}</div>
             {address ? <div className="text-sm text-gray-600 truncate">{address}</div> : null}
-
             {recommendReason ? <div className="mt-1 text-xs text-gray-600 line-clamp-2">{recommendReason}</div> : null}
           </div>
 
@@ -72,7 +72,7 @@ export function ShrineCard(props: ShrineCardProps) {
         </div>
 
         <div className="mt-2 text-sm text-gray-700 flex gap-3">
-          {formatDistance(distanceM) ? <span>{formatDistance(distanceM)}</span> : null}
+          {distText ? <span>{distText}</span> : null}
           {typeof rating === "number" ? (
             <span>
               {rating.toFixed(1)}

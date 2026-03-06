@@ -345,34 +345,83 @@ def _generic_by_popular(popular: float) -> str:
         return "地域で親しまれる社"
     return "静かに手を合わせたい社"
 
+NEED_LABEL = {
+    "career": "転機・仕事",
+    "mental": "不安・心",
+    "love": "恋愛",
+    "money": "金運",
+}
 
-def normalize_reason_for_chat(rec: dict, *, query: str) -> str:
+def _hint_from_need_tags(need_tags: list[str] | None) -> str | None:
+    if not need_tags:
+        return None
+    key = str(need_tags[0])
+    head = NEED_LABEL.get(key, key)
+    return f"{head}に向き合う参拝に"
+
+def _hint_from_need(rec: dict) -> str | None:
+    bd = rec.get("breakdown")
+    if not isinstance(bd, dict):
+        return None
+    matched = bd.get("matched_need_tags") or []
+    if not matched:
+        return None
+    key = str(matched[0])
+    head = NEED_LABEL.get(key, key)
+    return f"{head}に向き合う参拝に"
+
+def normalize_reason_for_chat(rec: dict, *, query: str, need_tags: list[str] | None = None) -> str:
     name = (rec.get("name") or "").strip()
     raw = rec.get("reason")
     t = raw.strip() if isinstance(raw, str) else ""
 
     tags_list = (rec.get("tags") or []) + (rec.get("deities") or [])
     tags = set(tags_list)
+
     try:
         popular = float(rec.get("popular_score") or 0)
     except Exception:
         popular = 0.0
 
+    # 初期値（内部処理用）
+    rec["reason_source"] = "raw"
+
     if t and t in TAG_DEITY_HINTS:
         t = TAG_DEITY_HINTS[t]
+        rec["reason_source"] = "tag_deity_hint"
+
     if _is_noise_reason(t, name, "".join([str(x) for x in tags_list])):
         t = ""
+        rec["reason_source"] = "noise_cleared"
 
     if not t:
         t = _hint_from_tags(tags) or ""
+        if t:
+            rec["reason_source"] = "tags"
+
+    if not t:
+        t = _hint_from_need_tags(need_tags) or ""
+        if t:
+            rec["reason_source"] = "need_tags"
+
     if not t:
         t = _hint_from_query(query) or ""
+        if t:
+            rec["reason_source"] = "query"
+
     if not t:
         t = _generic_by_popular(popular)
+        rec["reason_source"] = "popular_generic"
 
     t = t[:30] if len(t) > 30 else t
-    return t or "静かに手を合わせたい社"
+    if not t:
+        rec["reason_source"] = "fallback_static"
 
+    # ✅ prefix 統一（集計しやすい形に揃える）
+    src = rec.get("reason_source") or "unknown"
+    rec["reason_source"] = f"reason:{src}"
+
+    return t or "静かに手を合わせたい社"
 
 def build_bullets_for_chat(rec: dict, *, query: str) -> list[str]:
     bullets: list[str] = []
@@ -1665,10 +1714,33 @@ def build_chat_recommendations(  # noqa: C901
             r["display_name"] = cleaned
             r["name"] = cleaned
 
-        try:
-            r["reason"] = normalize_reason_for_chat(r, query=query)
-        except Exception:
-            r["reason"] = "静かに手を合わせたい社"
+        # --- Step12: reason ---
+        matched = []
+        bd = r.get("breakdown")
+        if isinstance(bd, dict):
+            matched = bd.get("matched_need_tags") or []
+
+        if matched:
+            # ✅ 意図統一: 元データの reason を捨てて UI理由を作る
+            r.pop("reason", None)
+
+            label = {
+                "career": "転機・仕事",
+                "mental": "不安・心",
+                "love": "恋愛",
+                "money": "金運",
+            }
+            head = label.get(str(matched[0]), str(matched[0]))
+            r["reason"] = f"{head}に向き合う参拝に"
+            r["reason_source"] = "reason:matched_need_tags"
+        else:
+            try:
+                r.pop("reason", None)
+                r["reason"] = normalize_reason_for_chat(r, query=query, need_tags=need_tags)
+                # normalize_reason_for_chat が reason_source を reason:* にしてくれる
+            except Exception:
+                r["reason"] = "静かに手を合わせたい社"
+                r["reason_source"] = "reason:fallback_static"
 
         # soft_signal を highlights へ注入（スコアはいじらない）
         if soft_tags:

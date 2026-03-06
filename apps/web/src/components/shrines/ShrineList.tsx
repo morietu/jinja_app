@@ -28,15 +28,12 @@ export function ShrineList({
 
   return (
     <div className={`${wrapClass} ${className}`}>
-      {items.map(({ id, cardProps }, idx) => (
-        <ShrineCard
-          key={id}
-          {...cardProps}
-          recommendReason={
-            idx === 0 ? `✨ いちばんおすすめ：${cardProps.recommendReason ?? ""}`.trim() : cardProps.recommendReason
-          }
-        />
-      ))}
+      {items.map(({ id, cardProps }, idx) => {
+        const rr = cardProps.recommendReason?.trim();
+        const decorated = idx === 0 && rr ? `✨ いちばんおすすめ：${rr}` : (rr ?? undefined);
+
+        return <ShrineCard key={id} {...cardProps} recommendReason={decorated} />;
+      })}
     </div>
   );
 }

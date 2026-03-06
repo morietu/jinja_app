@@ -1,6 +1,27 @@
 // apps/web/src/lib/api/concierge/normalize.ts
 import type { ConciergeRecommendation } from "./types";
 
+function toTrimmedString(v: unknown): string | null {
+  if (v == null) return null;
+  const s = typeof v === "string" ? v : String(v);
+  const t = s.trim();
+  return t ? t : null;
+}
+
+function pickReason(r: Record<string, any>): string | null {
+  const exp = r.explanation;
+  const expReason0 = Array.isArray(exp?.reasons) ? exp.reasons[0] : null;
+
+  return (
+    toTrimmedString(r.reason) ??
+    toTrimmedString(r.one_liner) ??
+    toTrimmedString(expReason0?.text) ??
+    toTrimmedString(exp?.summary) ??
+    (Array.isArray(r.bullets) ? toTrimmedString(r.bullets[0]) : null) ??
+    null
+  );
+}
+
 export function normalizeRecommendations(input: unknown): ConciergeRecommendation[] {
   if (!Array.isArray(input)) return [];
 
@@ -13,7 +34,7 @@ export function normalizeRecommendations(input: unknown): ConciergeRecommendatio
       const loc = typeof r.location === "string" ? r.location.trim() : "";
       const display_address = (r.display_address ?? null) || (loc ? loc : null);
 
-      const reason = typeof r.reason === "string" ? r.reason.trim() : r.reason == null ? null : String(r.reason).trim();
+      const reason = pickReason(r);
 
       return {
         ...r,
@@ -21,7 +42,6 @@ export function normalizeRecommendations(input: unknown): ConciergeRecommendatio
         display_name: (r.display_name ?? "").toString().trim() || name,
         display_address,
         reason,
-        // ✅ backend: is_dummy を優先し、旧 __dummy も拾う
         is_dummy: r.is_dummy === true || r.__dummy === true,
         __dummy: r.__dummy === true,
       } as ConciergeRecommendation;

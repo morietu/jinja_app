@@ -12,18 +12,33 @@ def _top3_snapshot(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for r in recs[:3]:
         if not isinstance(r, dict):
             continue
+
         exp = r.get("explanation") or {}
         reasons = exp.get("reasons") or []
-        codes = [
-            str(x.get("code"))
-            for x in reasons
-            if isinstance(x, dict) and x.get("code") is not None
-        ]
+        first_reason_text = None
+        if reasons and isinstance(reasons[0], dict):
+            first_reason_text = reasons[0].get("text")
+
+        bullets = r.get("bullets") or []
+        bullets0 = bullets[0] if isinstance(bullets, list) and bullets else None
+
         out.append({
+            "shrine_id": r.get("shrine_id"),
+            "place_id": r.get("place_id"),
             "name": r.get("display_name") or r.get("name"),
+
+            # 本丸
+            "reason": r.get("reason"),
+            "bullets0": bullets0,
+            "ex_summary": exp.get("summary"),
+            "ex_reason0": first_reason_text,
+
+            # もし入ってたら見る（後述の reason_source を仕込む用）
+            "reason_source": r.get("reason_source"),
+
+            # 既存の補助情報も残すと便利
             "distance_m": r.get("distance_m"),
             "score_total": r.get("_score_total"),
-            "reason_codes": codes,
         })
     return out
 

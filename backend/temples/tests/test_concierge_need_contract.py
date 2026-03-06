@@ -197,3 +197,111 @@ def test_chat_astrology_uses_db_astro_elements_and_picks_top3(monkeypatch, setti
     )
 
     assert len(recs["recommendations"]) == 3
+
+@pytest.mark.django_db
+def test_concierge_reason_source_contract(monkeypatch, settings):
+    """
+    Contract:
+      - matched_need_tags がある推薦は reason_source == "reason:matched_need_tags"
+      - それ以外の推薦も reason_source は "reason:" prefix を持つ
+    """
+    settings.CONCIERGE_USE_LLM = True
+    monkeypatch.setenv("CHAT_MAX_ADDRESS_LOOKUPS", "0")
+
+    query = "最近疲れが取れない。転職も不安。"
+
+    # --- need_tags.extract_need_tags を固定 ---
+    import temples.domain.need_tags as need
+
+    class FakeNeedExtract:
+        def __init__(self):
+            self.tags = ["career", "mental", "rest"]
+            self.hits = {"career": ["転職"], "mental": ["不安"], "rest": ["疲れ"]}
+
+    monkeypatch.setattr(
+        need,
+        "extract_need_tags",
+        lambda q, max_tags=3: FakeNeedExtract(),
+        raising=True,
+    )
+
+    # --- astrology を固定 ---
+    import temples.domain.astrology as astro
+
+    class _Prof:
+        sign = "牡牛座"
+        element = "土"
+
+    monkeypatch.setattr(
+        astro,
+        "sun_sign_and_element",
+        lambda birthdate: _Prof(),
+        raising=True,
+    )
+
+    def fake_element_priority(user_elem, shrine_elems):
+        shrine_elems = shrine_elems or []
+        s = {str(x).strip() for x in shrine_elems if str(x).strip()}
+        if "土" in s:
+            return 2
+        if "水" in s:
+            return 1
+        return 0
+
+    monkeypatch.setattr(astro, "element_priority", fake_element_priority, raising=True)
+
+    # --- orchestrator を固定 ---
+    import temples.llm.orchestrator as orch
+
+    class DummyOrchestrator:
+        def suggest(self, *, query, candidates):
+            return {
+                "recommendations": [
+                    {
+                        "name": "A",
+                        "reason": "古い理由が入っていても上書きされるべき",
+                        "popular_score": 8.0,
+                        "astro_elements": ["土"],
+                        "astro_tags": ["career", "rest"],
+                    },
+                    {
+                        "name": "B",
+                        "reason": "",
+                        "popular_score": 3.0,
+                        "astro_elements": ["水"],
+                        "astro_tags": ["mental"],
+                    },
+                    {
+                        "name": "C",
+                        "reason": "",
+                        "popular_score": 0.0,
+                        "astro_elements": ["火"],
+                        "astro_tags": [],
+                    },
+                ]
+            }
+
+    monkeypatch.setattr(orch, "ConciergeOrchestrator", DummyOrchestrator, raising=True)
+
+    recs = build_chat_recommendations(
+        query=query,
+        language="ja",
+        candidates=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+        bias=None,
+        birthdate="1984-05-15",
+    )
+
+    items = recs["recommendations"]
+    by_name = {x["name"]: x for x in items}
+
+    # matched case
+    assert by_name["A"]["breakdown"]["matched_need_tags"] == ["career", "rest"]
+    assert by_name["A"]["reason_source"] == "reason:matched_need_tags"
+
+    # non-matched / normalize_reason_for_chat 経由の case
+    assert by_name["B"]["reason_source"].startswith("reason:")
+    assert by_name["C"]["reason_source"].startswith("reason:")
+
+    # 念のため raw のまま漏れていないことを確認
+    assert by_name["B"]["reason_source"] != "raw"
+    assert by_name["C"]["reason_source"] != "fallback_static"

@@ -10,16 +10,19 @@ export type ConciergeRequest = {
 
 function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeResponse {
   const recs = Array.isArray(u?.data?.recommendations) ? u.data.recommendations : [];
+  const needTags = Array.isArray((u as any)?.data?._need?.tags) ? ((u as any).data._need.tags as string[]) : [];
 
-  // ConciergeResponse の最低限に落とす（viewmodelが読むのはここだけ）
   return {
     ok: !!u?.ok,
     data: {
+      _need: { tags: needTags }, // ✅ これを足す
       recommendations: recs.map((r: any) => ({
         name: r?.name ?? r?.display_name ?? "",
         display_name: r?.display_name ?? null,
-        reason: r?.reason ?? r?.one_liner ?? null, // ← 無ければそれっぽい要約に逃がす
-        location: r?.location ?? r?.address ?? null,
+        reason: r?.reason ?? null,
+        bullets: Array.isArray(r?.bullets) ? r.bullets : null,
+        explanation: r?.explanation ?? null,
+        location: r?.display_address ?? r?.location ?? r?.address ?? null,
         lat: r?.lat ?? null,
         lng: r?.lng ?? null,
         distance_m: r?.distance_m ?? null,
@@ -36,15 +39,15 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
   const text = req.text?.trim();
   if (!text) return { ok: false };
 
-  // ✅ 既存の /concierge/chat と同じ流れで叩く
   const raw = await postConciergeChat({ query: text });
-
-  // axiosレスポンス/生payload 両対応（useConciergeChatと揃える）
   const payload = raw && typeof raw === "object" && "data" in (raw as any) ? (raw as any).data : raw;
 
   const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
+
+  const ok = payload?.ok !== false && recs.length > 0; // ✅ここがポイント
+
   const unified: UnifiedConciergeResponse = {
-    ok: payload?.ok === false ? false : true,
+    ok,
     stop_reason: payload?.stop_reason ?? null,
     note: payload?.note ?? null,
     reply: typeof (payload?.reply ?? payload?.data?.reply) === "string" ? (payload.reply ?? payload.data.reply) : null,
