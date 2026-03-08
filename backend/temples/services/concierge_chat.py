@@ -1693,7 +1693,12 @@ def build_chat_recommendations(  # noqa: C901
     recs["recommendations"] = [
         r for r in (recs.get("recommendations") or []) if isinstance(r, dict)
     ][:3]
-    items = recs["recommendations"]
+    # ✅ 最終表示件数を result_state に同期
+    if isinstance(recs.get("_signals"), dict) and isinstance(
+        recs["_signals"].get("result_state"), dict
+    ):
+        recs["_signals"]["result_state"]["displayed_count"] = len(items)
+
 
     # 12. 表示用整形
     soft_tags = set(((recs.get("_extra") or {}).get("kinds") or {}).get("soft_signal") or [])

@@ -10,16 +10,10 @@ URL = "/api/concierge/chat/"
 def test_concierge_chat_need_and_breakdown_contract(client, monkeypatch, settings):
     """
     Contract (API):
-      - res.json()["data"]["_need"] が常に dict で返る
-        - tags: list[str] (最大3件想定)
-        - hits: dict[str, list[str]]
-      - res.json()["data"]["recommendations"][i]["breakdown"] が返る
-        - score_element: int
-        - score_need: int
-        - score_popular: float (0..1)
-        - score_total: float
-        - weights: dict(element/need/popular)
-        - matched_need_tags: list[str]
+        - fallback 時、res.json()["data"]["_signals"]["result_state"] が dict で返る
+        - result_state に fallback 情報が入る
+        - displayed_count / pool_count が recommendations 件数と一致する
+        - recommendations[i].reason_source が "reason:" prefix を持つ
     """
     settings.CONCIERGE_USE_LLM = True
 
@@ -161,3 +155,86 @@ def test_concierge_chat_need_and_breakdown_contract(client, monkeypatch, setting
         assert isinstance(bd["score_total"], float)
         assert isinstance(bd["weights"], dict)
         assert isinstance(bd["matched_need_tags"], list)
+
+@pytest.mark.django_db
+def test_concierge_chat_result_state_and_reason_source_contract(client, monkeypatch, settings):
+    """
+    Contract (API):
+      - res.json()["data"]["_signals"]["result_state"] が常に dict で返る
+      - fallback 時は result_state に fallback 情報が入る
+      - displayed_count / pool_count が recommendations 件数と一致する
+      - recommendations[i].reason_source が "reason:" prefix を持つ
+    """
+    settings.CONCIERGE_USE_LLM = False
+
+    payload = {
+        "message": "近場で参拝したい",
+        "lat": 35.0,
+        "lng": 139.0,
+        "goriyaku_tag_ids": [999],  # どの候補にも一致しない -> fallback を起こす
+        "candidates": [
+            {
+                "name": "A",
+                "lat": 35.001,
+                "lng": 139.001,
+                "distance_m": 100.0,
+                "goriyaku_tag_ids": [1],
+                "popular_score": 8.0,
+            },
+            {
+                "name": "B",
+                "lat": 35.002,
+                "lng": 139.002,
+                "distance_m": 200.0,
+                "goriyaku_tag_ids": [2],
+                "popular_score": 5.0,
+            },
+            {
+                "name": "C",
+                "lat": 35.003,
+                "lng": 139.003,
+                "distance_m": 300.0,
+                "goriyaku_tag_ids": [3],
+                "popular_score": 3.0,
+            },
+        ],
+    }
+
+    r = client.post(URL, data=json.dumps(payload), content_type="application/json")
+    assert r.status_code == 200
+
+    j = r.json()
+    assert j.get("ok") is True
+    assert "data" in j and isinstance(j["data"], dict)
+
+    data = j["data"]
+
+    assert "_signals" in data and isinstance(data["_signals"], dict)
+    assert "result_state" in data["_signals"] and isinstance(data["_signals"]["result_state"], dict)
+
+    rs = data["_signals"]["result_state"]
+    recs = data.get("recommendations")
+    assert isinstance(recs, list)
+    assert len(recs) == 3
+
+    # fallback contract
+    assert rs["matched_count"] == 0
+    assert rs["fallback_mode"] == "nearby_unfiltered"
+    assert rs["fallback_reason_ja"] == "条件に一致する神社が見つかりませんでした（0件）"
+    assert rs["ui_disclaimer_ja"] == "代わりに近い神社を表示しています（条件は反映されていません）"
+    assert rs["requested_extra_condition"] is None
+
+    # count contract
+    assert rs["displayed_count"] == len(recs)
+    assert rs["pool_count"] == len(recs)
+
+    # reason_source contract
+    by_name = {x.get("name"): x for x in recs if isinstance(x, dict)}
+    assert set(by_name.keys()) >= {"A", "B", "C"}
+
+    for nm in ("A", "B", "C"):
+        it = by_name[nm]
+        assert isinstance(it.get("reason"), str)
+        assert it["reason"]
+        assert isinstance(it.get("reason_source"), str)
+        assert it["reason_source"].startswith("reason:")
