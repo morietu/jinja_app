@@ -182,3 +182,69 @@ def attach_explanations_for_chat(
             )
 
     return recs
+
+
+def build_explanation_for_plan_rec(
+    rec: Dict[str, Any],
+    *,
+    query: str,
+    area: Optional[str],
+    bias: Optional[Dict[str, float]],
+    birthdate: Optional[str] = None,
+    wish: Optional[str] = None,
+) -> Dict[str, Any]:
+    breakdown = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
+    matched = breakdown.get("matched_need_tags") or []
+    matched = [str(x) for x in matched if str(x).strip()]
+
+    bullets = rec.get("bullets") if isinstance(rec.get("bullets"), list) else []
+    bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
+
+    summary = rec.get("reason") if isinstance(rec.get("reason"), str) and rec.get("reason").strip() else ""
+    reasons: List[dict] = []
+
+    if matched:
+        label = NEED_LABEL.get(matched[0], matched[0])
+        reasons.append(_reason(
+            "NEED_MATCH",
+            "相談との一致",
+            f"{label}に関する相談内容との一致が見られます。",
+            strength="high",
+            evidence={"matched_need_tags": matched},
+        ))
+
+    if bullets:
+        reasons.append(_reason(
+            "SHRINE_FEATURE",
+            "神社の特徴",
+            bullets[0],
+            strength="mid",
+            evidence={"bullet": bullets[0]},
+        ))
+
+    if area:
+        reasons.append(_reason(
+            "AREA_MATCH",
+            "エリアとの一致",
+            f"{area}エリアで参拝先を整理しています。",
+            strength="mid",
+            evidence={"area": area},
+        ))
+
+    if wish:
+        reasons.append(_reason(
+            "WISH_MATCH",
+            "願いごととの一致",
+            f"願いごと「{wish}」も踏まえて候補を整理しています。",
+            strength="mid",
+            evidence={"wish": wish},
+        ))
+
+    reasons = _take3(reasons)
+
+    return {
+        "version": 1,
+        "summary": summary or "条件に合わせて候補を整理しました。",
+        "reasons": reasons,
+        "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
+    }

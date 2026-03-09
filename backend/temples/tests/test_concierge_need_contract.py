@@ -900,6 +900,6 @@ def test_concierge_explanation_contract(monkeypatch, settings):
 
     assert any(r["code"] == "NEED_MATCH" for r in exp["reasons"])
     assert any(r["code"] == "SHRINE_FEATURE" for r in exp["reasons"])
-    assert any(r["code"] == "DISTANCE" for r in exp["reasons"])
+    assert not any(r["code"] == "DISTANCE" for r in exp["reasons"])
     assert not any(r["code"] == "REASON_SOURCE" for r in exp["reasons"])
     assert not any(r["code"] == "SCORE" for r in exp["reasons"])

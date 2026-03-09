@@ -1,7 +1,7 @@
 "use client";
 
 import { ShrineList } from "@/components/shrines/ShrineList";
-import sample from "@/../fixtures/concierge.sample.json";
+import sample from "@/viewmodels/concierge/fixtures/concierge.sample.json";
 import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
 
 export default function ConciergeFixturePage() {
