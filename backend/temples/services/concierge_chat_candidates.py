@@ -72,14 +72,34 @@ def build_chat_candidates(
             | Q(name_romaji__icontains=area)
         )
 
+    NOISY_SHRINE_NAMES = [
+        "x",
+        "x2",
+        "noaddr",
+        "住所なし神社",
+        "test神社",
+        "テスト候補神社",
+        "テスト神社",
+        "テスト神社2",
+        "テスト神社-1770895174",
+    ]
+
+    qs = qs.exclude(name_jp__in=NOISY_SHRINE_NAMES)
+    qs = qs.exclude(name_jp__startswith="テスト")
+    qs = qs.exclude(name_jp__istartswith="test")
+
     qs = qs.select_related("place_ref")
+
+    qs = qs.exclude(latitude__isnull=True, longitude__isnull=True)
+    qs = qs.exclude(address="")
 
     if hasattr(Shrine, "popular_score"):
         qs = qs.order_by("-popular_score", "id")
     else:
         qs = qs.order_by("id")
 
-    qs = qs[:limit]
+    pool_limit = max(limit * 5, 50)
+    qs = qs[:pool_limit]
 
     candidates: List[Dict[str, Any]] = []
     for s in qs:
@@ -98,6 +118,11 @@ def build_chat_candidates(
                 "lat": s.latitude,
                 "lng": s.longitude,
                 "distance_m": dist,
+                "goriyaku": getattr(s, "goriyaku", None),
+                "description": getattr(s, "description", None),
+                "astro_tags": getattr(s, "astro_tags", None),
+                "astro_elements": getattr(s, "astro_elements", None),
+                "astro_priority": getattr(s, "astro_priority", None),
                 "goriyaku_tag_ids": list(s.goriyaku_tags.values_list("id", flat=True))
                 if hasattr(s, "goriyaku_tags")
                 else [],
