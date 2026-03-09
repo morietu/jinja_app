@@ -441,6 +441,7 @@ def build_chat_recommendations(
     # -------------------------------------------------------------------
     pre_limit = 12
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
+    recs = _merge_candidate_fields(recs, candidates=valid_candidates)
 
     # -------------------------------------------------------------------
     # 修正③: スコアを計算する（need score は astro_tags だけでなく
@@ -699,7 +700,52 @@ def _ensure_pool_size(
     recs["recommendations"] = current
     return recs
 
+def _merge_candidate_fields(
+    recs: Dict[str, Any],
+    *,
+    candidates: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    by_id: Dict[Any, Dict[str, Any]] = {}
+    by_name: Dict[str, Dict[str, Any]] = {}
 
+    for c in candidates:
+        if not isinstance(c, dict):
+            continue
+
+        cid = c.get("shrine_id") or c.get("id")
+        if cid is not None:
+            by_id[cid] = c
+
+        name = str(c.get("name") or "").strip()
+        if name:
+            by_name[name] = c
+
+    merged: List[Dict[str, Any]] = []
+
+    for r in recs.get("recommendations") or []:
+        if not isinstance(r, dict):
+            continue
+
+        base = None
+        rid = r.get("shrine_id") or r.get("id")
+        if rid is not None:
+            base = by_id.get(rid)
+
+        if base is None:
+            name = str(r.get("name") or "").strip()
+            if name:
+                base = by_name.get(name)
+
+        if base:
+            row = dict(base)
+            row.update(r)  # orchestrator の reason 等は優先
+            merged.append(row)
+        else:
+            merged.append(r)
+
+    recs = dict(recs)
+    recs["recommendations"] = merged
+    return recs
 # ---------------------------------------------------------------------------
 # 修正③: need score を astro_tags だけでなく goriyaku / description にも反応させる
 # ---------------------------------------------------------------------------
