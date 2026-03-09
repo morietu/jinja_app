@@ -1,4 +1,3 @@
-// apps/web/src/lib/api/conciergeClient.ts
 import { postConciergeChat } from "@/lib/api/concierge";
 import type { ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
 import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
@@ -8,18 +7,31 @@ export type ConciergeRequest = {
   text: string;
 };
 
+type ConciergeDataLike = {
+  _need?: { tags?: string[] };
+  _signals?: Record<string, unknown> | null;
+  message?: string | null;
+  recommendations?: unknown[];
+};
+
 function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeResponse {
-  const recs = Array.isArray(u?.data?.recommendations) ? u.data.recommendations : [];
-  const needTags = Array.isArray((u as any)?.data?._need?.tags) ? ((u as any).data._need.tags as string[]) : [];
+  const data: ConciergeDataLike =
+    u?.data && typeof u.data === "object" && !Array.isArray(u.data) ? (u.data as ConciergeDataLike) : {};
+
+  const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+  const needTags = Array.isArray(data._need?.tags) ? data._need.tags : [];
 
   return {
     ok: !!u?.ok,
     data: {
-      _need: { tags: needTags }, // ✅ これを足す
+      _need: { tags: needTags },
+      _signals: data._signals ?? null,
+      message: typeof data.message === "string" ? data.message : null,
       recommendations: recs.map((r: any) => ({
         name: r?.name ?? r?.display_name ?? "",
         display_name: r?.display_name ?? null,
         reason: r?.reason ?? null,
+        reason_source: r?.reason_source ?? null,
         bullets: Array.isArray(r?.bullets) ? r.bullets : null,
         explanation: r?.explanation ?? null,
         location: r?.display_address ?? r?.location ?? r?.address ?? null,
@@ -40,21 +52,34 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
   if (!text) return { ok: false };
 
   const raw = await postConciergeChat({ query: text });
-  const payload = raw && typeof raw === "object" && "data" in (raw as any) ? (raw as any).data : raw;
+  const rawObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const payload = rawObj && "data" in rawObj ? rawObj.data : raw;
 
-  const recs = normalizeRecommendations(payload?.data?.recommendations ?? payload?.recommendations);
+  const payloadData =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>).data &&
+        typeof (payload as Record<string, unknown>).data === "object" &&
+        !Array.isArray((payload as Record<string, unknown>).data)
+        ? ((payload as Record<string, unknown>).data as Record<string, unknown>)
+        : (payload as Record<string, unknown>)
+      : {};
 
-  const ok = payload?.ok !== false && recs.length > 0; // ✅ここがポイント
+  const recs = normalizeRecommendations(payloadData.recommendations);
+
+  const ok = (payload as any)?.ok !== false;
 
   const unified: UnifiedConciergeResponse = {
     ok,
-    stop_reason: payload?.stop_reason ?? null,
-    note: payload?.note ?? null,
-    reply: typeof (payload?.reply ?? payload?.data?.reply) === "string" ? (payload.reply ?? payload.data.reply) : null,
-    remaining_free: typeof payload?.remaining_free === "number" ? payload.remaining_free : null,
-    thread: payload?.thread ?? null,
+    stop_reason: (payload as any)?.stop_reason ?? null,
+    note: (payload as any)?.note ?? null,
+    reply:
+      typeof ((payload as any)?.reply ?? payloadData.reply) === "string"
+        ? (((payload as any)?.reply ?? payloadData.reply) as string)
+        : null,
+    remaining_free: typeof (payload as any)?.remaining_free === "number" ? (payload as any).remaining_free : null,
+    thread: (payload as any)?.thread ?? null,
     data: {
-      ...(payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data) ? payload.data : {}),
+      ...payloadData,
       recommendations: recs,
     },
   };

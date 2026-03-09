@@ -1,6 +1,17 @@
-# temples/services/concierge_explanation.py
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
+import logging
+
+log = logging.getLogger(__name__)
+
+NEED_LABEL = {
+    "career": "転機・仕事",
+    "mental": "不安・心",
+    "love": "恋愛",
+    "money": "金運",
+    "rest": "休息",
+}
+
 
 def _fmt_km(distance_m: Any) -> Optional[str]:
     try:
@@ -14,6 +25,7 @@ def _fmt_km(distance_m: Any) -> Optional[str]:
         return f"{int(round(d))}m"
     return f"{km:.1f}km"
 
+
 def _take3(xs: List[dict]) -> List[dict]:
     strength_pri = {"high": 0, "mid": 1, "low": 2}
     code_pri = {
@@ -22,18 +34,31 @@ def _take3(xs: List[dict]) -> List[dict]:
         "ELEMENT_MATCH": 2,
         "NEED_MATCH": 3,
         "WISH_MATCH": 4,
-        "START_POINT": 5,
-        "DISTANCE": 6,
-        "POPULARITY": 7,
+        "REASON_SOURCE": 5,
+        "SHRINE_FEATURE": 6,
+        "START_POINT": 7,
+        "DISTANCE": 8,
+        "POPULARITY": 9,
+        "SCORE": 10,
     }
     ys = [x for x in xs if isinstance(x, dict)]
-    ys.sort(key=lambda x: (
-        strength_pri.get(x.get("strength"), 9),
-        code_pri.get(x.get("code"), 99),
-    ))
+    ys.sort(
+        key=lambda x: (
+            strength_pri.get(x.get("strength"), 9),
+            code_pri.get(x.get("code"), 99),
+        )
+    )
     return ys[:3]
 
-def _reason(code: str, label: str, text: str, *, evidence: Optional[dict] = None, strength: str = "mid") -> dict:
+
+def _reason(
+    code: str,
+    label: str,
+    text: str,
+    *,
+    evidence: Optional[dict] = None,
+    strength: str = "mid",
+) -> dict:
     return {
         "code": code,
         "label": label,
@@ -42,101 +67,65 @@ def _reason(code: str, label: str, text: str, *, evidence: Optional[dict] = None
         "evidence": evidence or {},
     }
 
-def build_explanation_for_plan_rec(
+def build_explanation_for_chat_rec(
     rec: Dict[str, Any],
     *,
     query: str,
-    area: Optional[str],
     bias: Optional[Dict[str, float]],
     birthdate: Optional[str] = None,
-    wish: Optional[str] = None,
+    extra_condition: Optional[str] = None,
 ) -> Dict[str, Any]:
+    breakdown = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
+    matched = breakdown.get("matched_need_tags") or []
+    matched = [str(x) for x in matched if str(x).strip()]
+
+    bullets = rec.get("bullets") if isinstance(rec.get("bullets"), list) else []
+    bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
+
+    summary = rec.get("reason") if isinstance(rec.get("reason"), str) and rec.get("reason").strip() else ""
     reasons: List[dict] = []
 
-    # 1) AREA_MATCH
-    if isinstance(area, str) and area.strip():
+    if matched:
+        label = NEED_LABEL.get(matched[0], matched[0])
         reasons.append(_reason(
-            "AREA_MATCH", "エリア一致",
-            f"{area.strip()}周辺で組み立てています。",
-            strength="high", evidence={"area": area.strip()},
+            "NEED_MATCH",
+            "相談との一致",
+            f"今の相談内容と、{label}に関わる願いごとが重なる神社です。",
+            strength="high",
+            evidence={"matched_need_tags": matched},
         ))
 
-    # 1.5) START_POINT
-    if bias and bias.get("lat") is not None and bias.get("lng") is not None:
+    if bullets:
         reasons.append(_reason(
-            "START_POINT", "起点座標",
-            "指定された起点付近を優先しています。",
-            strength="mid", evidence={"lat": bias.get("lat"), "lng": bias.get("lng")},
+            "SHRINE_FEATURE",
+            "神社の特徴",
+            bullets[0],
+            strength="mid",
+            evidence={"bullet": bullets[0]},
         ))
 
-    # 2) BREAKDOWN（chatで効く本体）
-    bd = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
-
-    se = bd.get("score_element")
-    if isinstance(se, int) and se >= 2:
+    extra = (extra_condition or "").strip()
+    if extra:
         reasons.append(_reason(
-            "ELEMENT_MATCH", "気質との相性",
-            "あなたの気質との相性が強めです。",
-            strength="high", evidence={"score_element": se},
-        ))
-    elif isinstance(se, int) and se == 1:
-        reasons.append(_reason(
-            "ELEMENT_MATCH", "気質との相性",
-            "あなたの気質とほどよく相性が合います。",
-            strength="mid", evidence={"score_element": se},
+            "USER_CONDITION",
+            "追加条件",
+            f"追加条件「{extra}」も考慮しています。",
+            strength="mid",
+            evidence={"extra_condition": extra},
         ))
 
-    mnt = bd.get("matched_need_tags") or []
-    if isinstance(mnt, list):
-        mnt = [str(x) for x in mnt if str(x).strip()][:2]
-    if mnt:
-        reasons.append(_reason(
-            "NEED_MATCH", "願いとの一致",
-            f"希望（{', '.join(mnt)}）に関連する傾向があります。",
-            strength="mid", evidence={"matched_need_tags": mnt},
-        ))
-
-    # 3) WISH_MATCH（既存 reason を使う。ここで発明しない）
-    base_reason = rec.get("reason")
-    if isinstance(base_reason, str) and base_reason.strip():
-        reasons.append(_reason(
-            "WISH_MATCH", "願いとの相性",
-            base_reason.strip(), strength="mid",
-        ))
-
-    # 4) DISTANCE
-    dk = _fmt_km(rec.get("distance_m"))
-    if dk:
-        reasons.append(_reason(
-            "DISTANCE", "行きやすさ",
-            f"起点から約{dk}です。",
-            strength="low", evidence={"distance_m": rec.get("distance_m")},
-        ))
-
-    # 5) POPULARITY
-    try:
-        pop = float(rec.get("popular_score") or 0.0)
-    except Exception:
-        pop = 0.0
-    if pop >= 4:
-        reasons.append(_reason(
-            "POPULARITY", "人気",
-            "参拝者が多く評判の傾向があります。",
-            strength="low", evidence={"popular_score": pop},
-        ))
-
-    # 最後に上位3つ
     reasons = _take3(reasons)
-
-    name = (rec.get("display_name") or rec.get("name") or "").strip() or "この候補"
-    summary = f"{name}は、条件に沿って組み込まれた候補です。" if reasons else f"{name}を候補に入れています。"
 
     return {
         "version": 1,
-        "summary": summary,
+        "summary": summary or "条件に合わせて候補を整理しました。",
         "reasons": reasons,
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
     }
+
+
+
+
 
 def attach_explanations_for_plan(
     filled: Dict[str, Any],
@@ -156,12 +145,13 @@ def attach_explanations_for_plan(
             r["explanation"] = build_explanation_for_plan_rec(
                 r,
                 query=query,
-                area=area,          # ✅ planはareaを渡す
+                area=area,
                 bias=bias,
                 birthdate=birthdate,
-                wish=wish,          # ✅ planのwish
+                wish=wish,
             )
     return filled
+
 
 def attach_explanations_for_chat(
     recs: Dict[str, Any],
@@ -175,32 +165,20 @@ def attach_explanations_for_chat(
     if not isinstance(items, list):
         return recs
 
-    # chatはarea無し前提
-    area = None
-
     for r in items:
         if isinstance(r, dict):
-            exp = build_explanation_for_plan_rec(
+            exp = build_explanation_for_chat_rec(
                 r,
                 query=query,
-                area=area,
                 bias=bias,
                 birthdate=birthdate,
-                wish=None,  # ← chatのextra_conditionをwish扱いしないならNone
+                extra_condition=extra_condition,
             )
-
-            # extra_condition を出したいなら explanation 側に「根拠」として差し込む
-            extra = (extra_condition or "").strip()
-            if extra and isinstance(exp.get("reasons"), list):
-                uc = _reason(
-                    "USER_CONDITION", "追加条件",
-                    f"追加条件「{extra}」も考慮しています。",
-                    strength="mid",
-                    evidence={"extra_condition": extra},
-                )
-                exp["reasons"].append(uc)
-                exp["reasons"] = _take3(exp["reasons"])
-
             r["explanation"] = exp
+            log.info(
+                "[expl/chat] name=%r reasons=%r",
+                r.get("name"),
+                exp.get("reasons"),
+            )
 
     return recs

@@ -26,13 +26,7 @@ export type ConciergeRecommendation = {
   address?: string | null;
   display_address?: string | null;
 
-  location?:
-    | string
-    | null
-    | {
-        lat: number;
-        lng: number;
-      };
+  location?: string | null;
 
   lat?: number | null;
   lng?: number | null;
@@ -46,7 +40,22 @@ export type ConciergeRecommendation = {
   tags?: string[];
   deities?: string[];
 
-  reason: string;
+  reason?: string | null;
+  reason_source?: string | null;
+
+  bullets?: string[] | null;
+  explanation?: {
+    version?: number | null;
+    summary?: string | null;
+    reasons?: Array<{
+      code?: string | null;
+      label?: string | null;
+      text?: string | null;
+      strength?: "low" | "mid" | "high" | null;
+      evidence?: Record<string, unknown> | null;
+    }> | null;
+    disclaimer?: string | null;
+  } | null;
 
   photo_url?: string | null;
   is_dummy?: boolean;
@@ -62,9 +71,11 @@ export type ConciergeChatData = {
   recommendations?: ConciergeRecommendation[];
   raw?: string;
   reply?: string;
+  message?: string | null;
 
   _need?: ConciergeNeed;
-  _astro?: any; // まずは緩めでOK（後で型にする）
+  _astro?: any;
+  _signals?: Record<string, unknown> | null;
 };
 
 export type ConciergeChatResponse = {

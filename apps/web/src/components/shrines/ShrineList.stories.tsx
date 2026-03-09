@@ -2,8 +2,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ShrineList, type ShrineListItem } from "./ShrineList";
 import { ShrineCardSkeleton } from "./ShrineCardSkeleton";
-import sample from "@/viewmodels/concierge/fixtures/concierge.sample.json";
-import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
+//import sample from "@/fixtures/concierge.sample.json";
+//import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
 
 const baseItem: ShrineListItem = {
   id: "chi_a",
@@ -129,9 +129,89 @@ export const LoadingGrid: Story = {
   ),
 };
 
-export const ConciergeFixture: Story = {
+//export const ConciergeFixture: Story = {
+  //args: {
+    //variant: "list",
+    //items: conciergeToShrineListItems(sample as unknown as ConciergeResponse),
+  //},
+// };
+
+export const ConciergeProductLevel: Story = {
   args: {
     variant: "list",
-    items: conciergeToShrineListItems(sample as unknown as ConciergeResponse),
+    headerMessage: "相談内容と近さをもとに、参拝候補を3件に整理しました。",
+    notice: "代わりに近い神社を表示しています（条件は反映されていません）",
+    items: [
+      {
+        id: "shrine_10",
+        cardProps: {
+          name: "神社A",
+          address: "東京都千代田区",
+          recommendReason: "転機・仕事に向き合う参拝に",
+          subReason: "落ち着いて気持ちを整えやすい雰囲気",
+          compatibilityLabels: ["転機・仕事", "休息"],
+          distanceM: 123,
+          imageUrl: "https://placehold.co/320x240",
+          tags: ["転機・仕事", "休息"],
+          href: "/shrines/10",
+          isFavorited: false,
+          onToggleFavorite: () => {},
+          isTopPick: true,
+          explanationSummary: "今の願いごとに向き合う参拝先",
+          explanationReasons: [
+            {
+              code: "NEED_MATCH",
+              label: "相談との一致",
+              text: "転機・仕事に関する相談内容との一致が見られます。",
+              strength: "high",
+            },
+            {
+              code: "SHRINE_FEATURE",
+              label: "神社の特徴",
+              text: "落ち着いて気持ちを整えやすい雰囲気",
+              strength: "mid",
+            },
+            {
+              code: "DISTANCE",
+              label: "行きやすさ",
+              text: "起点から約123mです。",
+              strength: "low",
+            },
+          ],
+        },
+      },
+      {
+        id: "place_abc",
+        cardProps: {
+          name: "神社B",
+          address: "東京都港区",
+          recommendReason: "不安・心に向き合う参拝に",
+          subReason: "静かに参拝しやすい",
+          compatibilityLabels: ["不安・心"],
+          distanceM: 456,
+          imageUrl: null,
+          tags: ["不安・心", "休息"],
+          href: undefined,
+          isFavorited: false,
+          onToggleFavorite: () => {},
+        },
+      },
+      {
+        id: "name_%E7%A5%9E%E7%A4%BEC",
+        cardProps: {
+          name: "神社C",
+          address: "東京都渋谷区",
+          recommendReason: "金運に向き合う参拝に",
+          subReason: "前向きさ・活力を後押ししやすい雰囲気",
+          compatibilityLabels: ["金運"],
+          distanceM: 789,
+          imageUrl: null,
+          tags: ["金運"],
+          href: undefined,
+          isFavorited: true,
+          onToggleFavorite: () => {},
+        },
+      },
+    ],
   },
 };

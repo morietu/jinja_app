@@ -1,4 +1,3 @@
-// apps/web/src/viewmodels/conciergeToShrineList.ts
 import type { ShrineListItem } from "@/components/shrines/ShrineList";
 
 /**
@@ -9,10 +8,13 @@ export type ConciergeResponse = {
   ok: boolean;
   data?: {
     _need?: { tags?: string[] };
+    _signals?: Record<string, unknown> | null;
+    message?: string | null;
     recommendations?: Array<{
       name: string;
       display_name?: string | null;
       reason?: string | null;
+      reason_source?: string | null;
       location?: string | null;
       lat?: number | null;
       lng?: number | null;
@@ -20,8 +22,6 @@ export type ConciergeResponse = {
       place_id?: string | null;
       shrine_id?: number | null;
       popular_score?: number | null;
-
-      // ✅ 追加（実レスポンスに存在）
       bullets?: string[] | null;
       explanation?: {
         version?: number | null;
@@ -35,7 +35,6 @@ export type ConciergeResponse = {
         }> | null;
         disclaimer?: string | null;
       } | null;
-
       breakdown?: {
         matched_need_tags?: string[] | null;
         score_total?: number | null;
@@ -44,10 +43,30 @@ export type ConciergeResponse = {
   };
 };
 
+const NEED_LABELS: Record<string, string> = {
+  career: "転機・仕事",
+  mental: "不安・心",
+  love: "恋愛",
+  money: "金運",
+  rest: "休息",
+};
+
 function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommendations"]>[number]) {
   if (typeof r.shrine_id === "number") return `shrine_${r.shrine_id}`;
   if (r.place_id) return `place_${r.place_id}`;
   return `name_${encodeURIComponent(r.name)}`;
+}
+
+function normalizeTagList(tags: string[] | null | undefined): string[] {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((t): t is string => typeof t === "string")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function toDisplayTag(tag: string): string {
+  return NEED_LABELS[tag] ?? tag;
 }
 
 /**
@@ -56,31 +75,57 @@ function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommend
  */
 export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListItem[] {
   if (!resp?.ok) return [];
-  const recs = resp.data?.recommendations ?? [];
-  const fallbackTags = resp.data?._need?.tags ?? [];
 
-  return recs.map((r) => {
+  const recs = resp.data?.recommendations ?? [];
+  const fallbackTags = normalizeTagList(resp.data?._need?.tags);
+
+  console.log(
+    recs.map((r) => ({
+      name: r.name,
+      reasons: r.explanation?.reasons,
+    }))
+  );
+
+  return recs.map((r, idx) => {
     const id = safeId(r);
     const name = r.display_name ?? r.name;
 
-    // タグは「マッチしたタグ優先」→なければ_need.tags
-    const tags = (r.breakdown?.matched_need_tags?.length ? r.breakdown?.matched_need_tags : fallbackTags) ?? [];
+    const matchedTags = normalizeTagList(r.breakdown?.matched_need_tags);
+    const rawTags = matchedTags.length ? matchedTags : fallbackTags;
 
-    // rating/reviewCount がないので、ひとまず人気スコアを “ratingっぽく” 見せない（誤解の元）
-    // 将来 Google rating を取れるようになったらここで差し替え。
+    const tags = rawTags.map(toDisplayTag).slice(0, 5);
+    const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 2);
+
+    const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
+
+    const explanationSummary = r.explanation?.summary ?? null;
+
+    const explanationReasons =
+      r.explanation?.reasons?.map((x) => ({
+        code: x.code ?? null,
+        label: x.label ?? null,
+        text: x.text ?? null,
+        strength: x.strength ?? null,
+      })) ?? null;
+
     return {
       id,
       cardProps: {
         name,
         address: r.location ?? undefined,
         recommendReason: r.reason ?? undefined,
+        subReason,
+        compatibilityLabels,
         distanceM: typeof r.distance_m === "number" ? r.distance_m : undefined,
         rating: undefined,
         reviewCount: undefined,
-        imageUrl: null, // place photoが繋がったらここでURL組む
+        imageUrl: null,
         tags,
         href: typeof r.shrine_id === "number" ? `/shrines/${r.shrine_id}` : undefined,
         isFavorited: false,
+        isTopPick: idx === 0,
+        explanationSummary,
+        explanationReasons,
       },
     };
   });

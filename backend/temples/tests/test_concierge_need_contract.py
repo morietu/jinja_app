@@ -779,7 +779,7 @@ def test_concierge_message_contract_normal_and_empty(monkeypatch, settings):
 
     assert isinstance(recs.get("message"), str)
     assert recs["message"]
-    assert "候補から近さ・相性スコアで3件に絞りました。" in recs["message"]
+    assert "相談内容と近さをもとに、参拝候補を3件に整理しました。" in recs["message"]
 
     class DummyOrchestratorEmpty:
         def suggest(self, *, query, candidates):
@@ -834,7 +834,72 @@ def test_concierge_message_includes_top_names_contract(monkeypatch, settings):
 
     assert isinstance(recs.get("message"), str)
     assert recs["message"]
-    assert "候補から近さ・相性スコアで3件に絞りました。" in recs["message"]
+    assert "相談内容と近さをもとに、参拝候補を3件に整理しました。" in recs["message"]
     assert "A" in recs["message"]
     assert "B" in recs["message"]
     assert "C" in recs["message"]
+
+
+@pytest.mark.django_db
+def test_concierge_explanation_contract(monkeypatch, settings):
+    settings.CONCIERGE_USE_LLM = True
+    monkeypatch.setenv("CHAT_MAX_ADDRESS_LOOKUPS", "0")
+
+    import temples.domain.need_tags as need
+    class FakeNeedExtract:
+        def __init__(self):
+            self.tags = ["mental"]
+            self.hits = {"mental": ["不安"]}
+
+    monkeypatch.setattr(
+        need,
+        "extract_need_tags",
+        lambda q, max_tags=3: FakeNeedExtract(),
+        raising=True,
+    )
+
+    import temples.llm.orchestrator as orch
+    class DummyOrchestrator:
+        def suggest(self, *, query, candidates):
+            return {
+                "recommendations": [
+                    {
+                        "name": "A",
+                        "reason": "",
+                        "popular_score": 8.0,
+                        "astro_tags": ["mental"],
+                        "highlights": ["落ち着いて気持ちを整えやすい雰囲気"],
+                        "distance_m": 420.0,
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(orch, "ConciergeOrchestrator", DummyOrchestrator, raising=True)
+
+    recs = build_chat_recommendations(
+        query="最近不安が強い",
+        language="ja",
+        candidates=[{"name": "A"}],
+        bias=None,
+        birthdate=None,
+    )
+
+    item = recs["recommendations"][0]
+    assert item["reason"] == "不安・心に向き合う参拝に"
+    assert isinstance(item["bullets"], list)
+    assert item["bullets"][0] == "落ち着いて気持ちを整えやすい雰囲気"
+    assert item["reason_source"] == "reason:matched_need_tags"
+
+    exp = item["explanation"]
+    assert isinstance(exp, dict)
+    assert exp["summary"] == item["reason"]
+    assert isinstance(exp["reasons"], list)
+    assert len(exp["reasons"]) >= 1
+
+
+
+    assert any(r["code"] == "NEED_MATCH" for r in exp["reasons"])
+    assert any(r["code"] == "SHRINE_FEATURE" for r in exp["reasons"])
+    assert any(r["code"] == "DISTANCE" for r in exp["reasons"])
+    assert not any(r["code"] == "REASON_SOURCE" for r in exp["reasons"])
+    assert not any(r["code"] == "SCORE" for r in exp["reasons"])

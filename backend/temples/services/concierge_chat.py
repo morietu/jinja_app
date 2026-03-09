@@ -1693,11 +1693,13 @@ def build_chat_recommendations(  # noqa: C901
     recs["recommendations"] = [
         r for r in (recs.get("recommendations") or []) if isinstance(r, dict)
     ][:3]
-    # ✅ 最終表示件数を result_state に同期
+
     if isinstance(recs.get("_signals"), dict) and isinstance(
         recs["_signals"].get("result_state"), dict
     ):
-        recs["_signals"]["result_state"]["displayed_count"] = len(items)
+        recs["_signals"]["result_state"]["displayed_count"] = len(recs["recommendations"])
+
+    items = recs["recommendations"]
 
 
     # 12. 表示用整形
@@ -1808,7 +1810,7 @@ def build_chat_recommendations(  # noqa: C901
 
         if top_names:
             recs["message"] = (
-                f"候補から近さ・相性スコアで3件に絞りました。（{', '.join(top_names)}）"
+                f"相談内容と近さをもとに、参拝候補を3件に整理しました。（{', '.join(top_names)}）"
             )
         else:
             recs["message"] = (
@@ -1825,8 +1827,38 @@ def build_chat_recommendations(  # noqa: C901
 
     _attach_stats(recs=recs, raw_total=raw_total, valid_candidates=valid_candidates)
 
+    # explanation付与前
+    log.info(
+        "[svc/chat] before_expl top3=%r",
+        [
+            {
+                "name": r.get("name"),
+                "has_explanation": bool(r.get("explanation")),
+                "reason": r.get("reason"),
+                "bullets": r.get("bullets"),
+                "distance_m": r.get("distance_m"),
+            }
+            for r in (recs.get("recommendations") or [])
+            if isinstance(r, dict)
+        ],
+    )
+
     # ✅ ここ（最後）でだけ finalize + observability + return
     final = _finalize_response(recs, bias=bias)
+
+    # explanation付与後
+    log.info(
+        "[svc/chat] after_expl top3=%r",
+        [
+            {
+                "name": r.get("name"),
+                "has_explanation": bool(r.get("explanation")),
+                "reason_count": len((r.get("explanation") or {}).get("reasons") or []),
+            }
+            for r in (final.get("recommendations") or [])
+            if isinstance(r, dict)
+        ],
+    )
     _emit_obs_chat(
         final, trace_id=trace_id, query=query, requested_flow=requested_flow, effective_flow=flow
     )
