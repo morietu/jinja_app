@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from django.conf import settings
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 from temples.llm import backfill as bf
-
+from temples.services.concierge_explanations import attach_explanations_for_chat
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -27,8 +27,8 @@ def _normalize_astro_elements(elements: Any) -> list:
 
 NEED_SYNONYMS: Dict[str, List[str]] = {
     "career": [
-        "仕事", "転職", "就職", "職場", "出世", "昇進", "キャリア", "働き方",
-        "将来", "進路", "独立", "起業", "天職", "適職", "背中を押して", "勝負",
+        "仕事運", "転職", "出世", "昇進", "勝運",
+        "導き", "挑戦", "後押し", "道を開く",
     ],
     "mental": [
         "不安", "悩み", "つらい", "苦しい", "しんどい", "落ち込む", "落ち込み",
@@ -58,10 +58,13 @@ NEED_PRIORITY = {
 }
 # need タグと、goriyaku / description テキストに含まれるキーワードの対応表
 NEED_TEXT_HINTS: Dict[str, List[str]] = {
-    "career": ["仕事運", "仕事", "転職", "出世", "昇進", "勝運"],
+    "career": [
+        "仕事運", "転職", "出世", "昇進", "勝運",
+        "導き", "挑戦", "後押し", "道を開く",
+    ],
     "mental": ["厄除", "厄払い", "心", "癒し", "浄化", "落ち着", "静か"],
     "love":   ["縁結び", "恋愛", "良縁", "夫婦円満"],
-    "money":  ["金運", "財運", "福徳"],
+    "money": ["金運", "財運", "福徳", "商売繁盛", "事業", "商売"],
     "rest":   ["休息", "癒し", "静か", "落ち着", "気持ちを整"],
 }
 
@@ -100,7 +103,15 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "career_change": "career",
     "work": "career",
     "fortune": "money",
+    "courage": "career",
+    "challenge": "career",
+    "ambition": "career",
+    "success": "career",
+    "study": "career",
 }
+
+STUDY_QUERY_HINTS = ["学業", "受験", "合格", "試験", "勉強", "資格"]
+STUDY_SHRINE_HINTS = ["学業成就", "合格祈願"]
 
 def _normalize_need_tag(tag: Any) -> str:
     s = str(tag or "").strip().lower()
@@ -218,52 +229,22 @@ def _attach_reason_source(rec: Dict[str, Any]) -> None:
         if isinstance(x, str) and str(x).strip()
     ][:2]
 
-    reasons: List[Dict[str, str]] = []
-
     if matched:
         first = matched[0]
         reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
         reason_source = "reason:matched_need_tags"
-
-        for label in NEED_BULLET_LABELS.get(first, []):
-            text = str(label).strip()
-            if text:
-                reasons.append({
-                    "code": "NEED_MATCH",
-                    "label": text,
-                })
-
     else:
         raw_reason = str(rec.get("reason") or "").strip()
         if raw_reason:
             reason = "この神社ならではの特徴があります。"
             reason_source = "reason:normalized_original"
-            reasons.append({
-                "code": "NORMALIZED_REASON",
-                "label": raw_reason,
-            })
         else:
             reason = "相談内容に合うご利益・特徴があります。"
             reason_source = "reason:fallback"
-            reasons.append({
-                "code": "FALLBACK",
-                "label": reason,
-            })
-
-    if bullets:
-        reasons.append({
-            "code": "SHRINE_FEATURE",
-            "label": bullets[0],
-        })
 
     rec["reason"] = reason
     rec["reason_source"] = reason_source
     rec["bullets"] = bullets
-    rec["explanation"] = {
-        "summary": reason,
-        "reasons": reasons,
-        "bullets": bullets,
-    }
 
 def _resolve_mode_weights(
     *,
@@ -434,7 +415,12 @@ def build_chat_recommendations(
             llm_error = f"{type(e).__name__}: {e}"
             recs = _seed_recs_from_candidates(valid_candidates, size=12)
     else:
-        recs = _seed_recs_from_candidates(valid_candidates, size=12)
+        prefiltered = _prefilter_candidates_for_need(
+            valid_candidates,
+            need_tags=need_tags,
+            query=query,
+        )
+        recs = _seed_recs_from_candidates(prefiltered, size=12)
 
     # -------------------------------------------------------------------
     # pool のサイズを 12 件に保証する（LLM が少なく返してきた場合も補填）
@@ -455,6 +441,7 @@ def build_chat_recommendations(
                 need_tags=need_tags,
                 weights=weights,
                 astro_bonus_enabled=astro_bonus_enabled,
+                query=query,
             )
             _apply_soft_signal_highlights(
                 rec,
@@ -637,6 +624,14 @@ def build_chat_recommendations(
         "result_state": result_state,
     }
 
+    recs = attach_explanations_for_chat(
+        recs,
+        query=query,
+        bias=bias,
+        birthdate=birthdate,
+        extra_condition=extra_condition,
+    )
+
     return recs
 
 # ---------------------------------------------------------------------------
@@ -644,15 +639,12 @@ def build_chat_recommendations(
 # ---------------------------------------------------------------------------
 
 def _seed_recs_from_candidates(
-    candidates: List[Dict[str, Any]],
+    candidates: Optional[List[Dict[str, Any]]],
     size: int = 12,
 ) -> Dict[str, Any]:
-    """
-    候補リストをそのまま recommendations に詰めて返す。
-    LLM が使えないときのフォールバック。
-    """
+    safe_candidates = list(candidates or [])
     return {
-        "recommendations": list(candidates[:size]),
+        "recommendations": safe_candidates[:size],
         "_seed": True,
     }
 
@@ -757,6 +749,7 @@ def _attach_breakdown(
     need_tags: List[str],
     weights: Dict[str, float],
     astro_bonus_enabled: bool = False,
+    query: str = "",
 ) -> None:
     """
     rec（1件の神社辞書）にスコアの内訳を追加する。
@@ -798,31 +791,28 @@ def _attach_breakdown(
     # --- need スコア（② goriyaku / description テキストとの一致） ---
     goriyaku_text = str(rec.get("goriyaku") or "")
     description_text = str(rec.get("description") or "")
-    material = f"{goriyaku_text} {description_text}"  # 検索対象テキスト
-
+    material = f"{goriyaku_text} {description_text}"
+    
     matched_by_text: List[str] = []
     for tag in need_tags_clean:
         hints = NEED_TEXT_HINTS.get(tag, [])
-        # ヒントキーワードがテキストに含まれていればマッチとみなす
         if any(hint in material for hint in hints):
             matched_by_text.append(tag)
+    
+    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
+    study_bonus = 0
+    if is_study_query and any(h in material for h in STUDY_SHRINE_HINTS):
+        study_bonus = 1
 
-    # タグ一致 + テキスト一致 を重複なしでまとめる
     matched_all: List[str] = []
-    seen: set = set()
+    seen: set[str] = set()
     for t in matched_by_tag + matched_by_text:
         if t not in seen:
             matched_all.append(t)
             seen.add(t)
 
-    score_need = int(len(matched_all))
-
-    # --- popular スコア（人気度を 0〜1 に正規化） ---
-    try:
-        popular_f = float(rec.get("popular_score") or 0.0)
-    except Exception:
-        popular_f = 0.0
-    score_popular = _clamp01(popular_f / 10.0)
+    score_need = len(matched_all)
+    score_need_rank = len(matched_by_tag) * 2 + len(matched_by_text) + study_bonus
 
     # --- 重みを取り出す ---
     w1 = float(weights.get("element", 0.0))
@@ -837,11 +827,22 @@ def _attach_breakdown(
         elif pri == 1:
             astro_bonus = 0.3
 
-    # --- 合計スコア ---
-    score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
+    # --- popular スコア（人気度を 0〜1 に正規化） ---
+    try:
+        popular_f = float(rec.get("popular_score") or 0.0)
+    except Exception:
+        popular_f = 0.0
+    score_popular = _clamp01(popular_f / 10.0)
 
-    # rec にスコアと内訳を書き込む
-    rec["_score_total"] = float(score_total)
+    # --- 合計スコア ---
+    # 契約用
+    score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
+    # 内部ランキング用
+    score_total_ranked = (
+        score_element * w1 + score_need_rank * w2 + score_popular * w3 + astro_bonus
+    )
+
+    rec["_score_total"] = float(score_total_ranked)
 
     rec["breakdown"] = {
         "score_element": int(score_element),
@@ -862,9 +863,13 @@ def _attach_breakdown(
             },
             "need": {
                 "raw": int(score_need),
+                "rank_raw": int(score_need_rank),
                 "weight": float(w2),
                 "matched_tags": matched_all,
+                "matched_by_tag_count": len(matched_by_tag),
+                "matched_by_text_count": len(matched_by_text),
                 "contribution": float(score_need * w2),
+                "rank_contribution": float(score_need_rank * w2),
             },
             "popular": {
                 "raw": float(score_popular),
@@ -872,5 +877,82 @@ def _attach_breakdown(
                 "contribution": float(score_popular * w3),
             },
             "astro_bonus": float(astro_bonus) if astro_bonus_enabled else 0.0,
+            "score_total_ranked": float(score_total_ranked),
         },
     }
+
+def _prefilter_candidates_for_need(
+    candidates: List[Dict[str, Any]],
+    *,
+    need_tags: List[str],
+    query: str,
+) -> List[Dict[str, Any]]:
+    scored: List[tuple[int, float, str, Dict[str, Any]]] = []
+
+    need_tags_clean = _normalize_need_tags(need_tags, max_tags=10)
+    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
+
+    for c in candidates:
+        if not isinstance(c, dict):
+            continue
+
+        astro_tags = c.get("astro_tags") or []
+        if not isinstance(astro_tags, list):
+            astro_tags = []
+        astro_tag_set = {
+            str(t).strip() for t in astro_tags
+            if isinstance(t, str) and str(t).strip()
+        }
+
+        material = f"{c.get('goriyaku') or ''} {c.get('description') or ''}"
+
+        score = 0
+        matched: List[str] = []
+
+        for tag in need_tags_clean:
+            if tag in astro_tag_set:
+                score += 2
+                matched.append(f"{tag}:astro")
+
+            hints = NEED_TEXT_HINTS.get(tag, [])
+            if any(h in material for h in hints):
+                score += 1
+                matched.append(f"{tag}:text")
+
+        if is_study_query and any(h in material for h in STUDY_SHRINE_HINTS):
+            score += 3
+            matched.append("study:text")
+
+        row = dict(c)
+        row["_prefilter_debug"] = {
+            "score": score,
+            "matched": matched,
+        }
+
+        scored.append((
+            score,
+            float(c.get("popular_score") or 0.0),
+            str(c.get("name") or c.get("name_jp") or ""),
+            row,
+        ))
+
+    scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
+    ordered = [row for _, _, _, row in scored]
+
+    try:
+        log.info(
+            "[dbg] prefiltered_top12=%r",
+            [
+                {
+                    "name": r.get("name") or r.get("name_jp"),
+                    "prefilter": r.get("_prefilter_debug"),
+                    "astro_tags": r.get("astro_tags"),
+                    "goriyaku": r.get("goriyaku"),
+                }
+                for r in ordered[:12]
+            ],
+        )
+    except Exception:
+        pass
+
+    return ordered
