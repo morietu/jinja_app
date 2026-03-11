@@ -25,7 +25,7 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
         "id": "love_002",
         "query": "恋愛成就を願って参拝したい",
         "expected_need": "love",
-        "expected_top_names": ["出雲大社", "明治神宮", "大國魂神社"],
+        "expected_top_names": ["出雲大社", "東京大神宮", "明治神宮"],
         "note": "恋愛直球",
     },
     {
@@ -81,14 +81,14 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
         "id": "money_002",
         "query": "金運を上げたい",
         "expected_need": "money",
-        "expected_top_names": ["伏見稲荷大社", "西宮神社", "神田神社（神田明神）"],
+        "expected_top_names": ["伏見稲荷大社", "西宮神社", "今宮戎神社"],
         "note": "最重要の money 基準",
     },
     {
         "id": "money_003",
         "query": "売上を伸ばしたい",
         "expected_need": "money",
-        "expected_top_names": ["神田神社（神田明神）", "伏見稲荷大社", "松尾大社"],
+        "expected_top_names": ["神田神社（神田明神）", "伏見稲荷大社", "豊川稲荷"],
         "note": "ビジネス成果寄り",
     },
     {
@@ -116,14 +116,14 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
         "id": "mental_003",
         "query": "最近つらいので守ってほしい",
         "expected_need": "mental",
-        "expected_top_names": ["日光東照宮", "春日大社", "明治神宮"],
+        "expected_top_names": ["春日大社", "明治神宮", "伊勢神宮（内宮）"],
         "note": "守護・厄除け寄り",
     },
     {
         "id": "mental_004",
         "query": "人生の流れを整えたい",
         "expected_need": "mental",
-        "expected_top_names": ["伊勢神宮（内宮）", "明治神宮", "熊野本宮大社"],
+        "expected_top_names": ["伊勢神宮（内宮）", "熊野本宮大社", "大神神社"],
         "note": "抽象度高めの mental",
     },
     {
