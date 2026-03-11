@@ -121,7 +121,15 @@ STUDY_QUERY_HINTS = [
     "勉強",
     "入試",
 ]
+
 STUDY_SHRINE_HINTS = [
+    "学業成就",
+    "合格祈願",
+    "学問",
+]
+
+STUDY_REASON_LABEL = "学業や合格を願う参拝に"
+STUDY_REASON_HINTS = [
     "学業成就",
     "合格祈願",
     "学問",
@@ -231,7 +239,7 @@ def _apply_soft_signal_highlights(
 
     rec["highlights"] = normalized[:3]
 
-def _attach_reason_source(rec: Dict[str, Any]) -> None:
+def _attach_reason_source(rec: Dict[str, Any], *, query: str = "") -> None:
     matched = ((rec.get("breakdown") or {}).get("matched_need_tags") or [])
 
     highlights = rec.get("highlights") or []
@@ -243,10 +251,18 @@ def _attach_reason_source(rec: Dict[str, Any]) -> None:
         if isinstance(x, str) and str(x).strip()
     ][:2]
 
+    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
+    material = f"{rec.get('goriyaku') or ''} {rec.get('description') or ''}"
+    is_study_shrine = any(h in material for h in STUDY_REASON_HINTS)
+
     if matched:
         first = matched[0]
-        reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
-        reason_source = "reason:matched_need_tags"
+        if is_study_query and is_study_shrine:
+            reason = STUDY_REASON_LABEL
+            reason_source = "reason:study_query_override"
+        else:
+            reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
+            reason_source = "reason:matched_need_tags"
     else:
         raw_reason = str(rec.get("reason") or "").strip()
         if raw_reason:
@@ -461,7 +477,7 @@ def build_chat_recommendations(
                 rec,
                 soft_signal_tags=soft_signal_tags,
             )
-            _attach_reason_source(rec)
+            _attach_reason_source(rec, query=query)
 
     distance_mode = "sort_distance" in sort_tags
 
