@@ -141,3 +141,62 @@ Disabled は「叩けない」ではなく「叩かない」。
 - llm_used の意味整理
 - flow B のUX再設計
 - extra_condition のスコア寄与最適化
+
+Agents modifying these areas must ensure tests cover the change.
+
+High-risk areas include:
+api_views_concierge.py
+build_chat_recommendations()
+_attach_breakdown()
+candidate deduplication
+
+---
+
+# Coding Style
+
+Follow the existing project conventions.
+
+General rules:
+
+- Python 3.11
+- pytest
+- small functions
+- explicit naming
+- minimal magic
+
+Prefer clarity over cleverness.
+
+---
+
+# Commit Guidelines
+
+Commits should be:
+small
+focused
+test-backed
+Example:
+Add regression test for concierge candidate dedupe
+
+Avoid commits that mix:
+refactor + behavior change
+---
+
+# When in Doubt
+
+If behavior is unclear:
+
+1. Check tests
+2. Check risk register
+3. Add tests before modifying code
+
+Never guess expected behavior.
+
+---
+
+# Final Rule
+
+Tests are the source of truth.
+
+If implementation and tests disagree,
+tests must be updated only when the change is intentional
+and documented.
