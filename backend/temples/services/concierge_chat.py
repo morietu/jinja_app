@@ -110,8 +110,22 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "study": "career",
 }
 
-STUDY_QUERY_HINTS = ["学業", "受験", "合格", "試験", "勉強", "資格"]
-STUDY_SHRINE_HINTS = ["学業成就", "合格祈願"]
+STUDY_QUERY_HINTS = [
+    "受験",
+    "学業",
+    "学業成就",
+    "合格",
+    "合格祈願",
+    "試験",
+    "資格試験",
+    "勉強",
+    "入試",
+]
+STUDY_SHRINE_HINTS = [
+    "学業成就",
+    "合格祈願",
+    "学問",
+]
 
 def _normalize_need_tag(tag: Any) -> str:
     s = str(tag or "").strip().lower()
