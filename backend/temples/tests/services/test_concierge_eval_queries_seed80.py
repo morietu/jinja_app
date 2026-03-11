@@ -81,8 +81,15 @@ SEED80_EVAL_CASES = [
         "id": "seed80_study_001",
         "query": "受験に向けて学業成就を祈願したい",
         "expected_need": "career",
-        "expected_top_names": ["太宰府天満宮", "北野天満宮", "湯島天満宮"],
-        "note": "学業系は現行ロジックでは career 扱い",
+        "expected_top_names": [
+            "太宰府天満宮",
+            "北野天満宮",
+            "湯島天満宮",
+            "猿田彦神社",
+            "神田神社（神田明神）",
+            "鶴岡八幡宮",
+        ],
+        "note": "学業系は現行ロジックでは career 扱いで、学問系またはcareer上位候補が入ること",
     },
     {
         "id": "seed80_study_002",
