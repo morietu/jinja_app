@@ -285,6 +285,123 @@ def _dedupe_candidates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def _resolve_request_inputs(data: Dict[str, Any]):
+    # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
+    filters = data.get("filters") if isinstance(data.get("filters"), dict) else {}
+    for k in ("birthdate", "goriyaku_tag_ids", "extra_condition"):
+        if data.get(k) in (None, "", []) and filters.get(k) not in (None, "", []):
+            data[k] = filters.get(k)
+
+    log.debug(
+        "[concierge_chat] merged birthdate=%r goriyaku_tag_ids=%r extra_condition=%r",
+        data.get("birthdate"),
+        data.get("goriyaku_tag_ids"),
+        data.get("extra_condition"),
+    )
+
+    # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
+    filters = data.get("filters") or {}
+    if isinstance(filters, dict):
+        # birthdate
+        if not data.get("birthdate") and filters.get("birthdate"):
+            data["birthdate"] = filters.get("birthdate")
+
+    # ついでに将来用（今は未使用でも保持しておく）
+    if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
+        data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
+    if not data.get("extra_condition") and filters.get("extra_condition"):
+        data["extra_condition"] = filters.get("extra_condition")
+
+    message = (data.get("message") or "").strip()
+    query = (data.get("query") or "").strip()
+    query = message or query
+
+    language = (data.get("language") or "ja").strip()
+    area = data.get("area") or data.get("where") or data.get("location_text")
+
+    lat = _to_float(data.get("lat"))
+    lng = _to_float(data.get("lng"))
+    if (lat is None or lng is None) and area:
+        pt = _geocode_area_for_chat(area=area)
+        if pt:
+            lat, lng = pt
+
+    birthdate = data.get("birthdate")
+    goriyaku_tag_ids = data.get("goriyaku_tag_ids")
+    extra_condition = data.get("extra_condition")
+
+    return (
+        query,
+        message,
+        language,
+        area,
+        lat,
+        lng,
+        birthdate,
+        goriyaku_tag_ids,
+        extra_condition,
+    )
+
+
+def _build_chat_response(
+    intent: Dict[str, Any],
+    recs: Dict[str, Any],
+    reply: Optional[str],
+    remaining_free: Optional[int],
+    limit: Optional[int],
+    thread: Optional[Any],
+    debug: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    body: Dict[str, Any] = {"ok": True, "intent": intent, "data": recs}
+    if debug is not None:
+        body["_debug"] = debug
+    if remaining_free is not None and limit is not None:
+        body["remaining_free"] = remaining_free
+        body["limit"] = limit
+    body["reply"] = reply
+    if thread is not None:
+        body["thread"] = {"id": thread.id}
+    return body
+
+
+def _build_chat_candidates_pipeline(
+    request: Any,
+    lat: Optional[float],
+    lng: Optional[float],
+    area: Any,
+    language: str,
+) -> Tuple[List[Dict[str, Any]], int, int, int]:
+    data = request.data or {}
+    _ = language  # interface stability for future use
+
+    # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
+    raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
+    user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
+
+    raw_built_candidates = build_chat_candidates(
+        goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
+        area=area,
+        lat=lat,
+        lng=lng,
+        trace_id=getattr(request, "_concierge_trace_id", ""),
+    )
+
+    merged_candidates = user_candidates + raw_built_candidates
+    deduped_candidates = _dedupe_candidates(merged_candidates)
+
+    # 既存順序契約: user candidates 優先 + built candidates の順序を保持
+    ordered_candidates = deduped_candidates
+
+    return ordered_candidates, len(user_candidates), len(raw_built_candidates), len(merged_candidates)
+
+
+def _resolve_flow(goriyaku_tag_ids: Any, extra_condition: Any) -> str:
+    gids = goriyaku_tag_ids
+    has_goriyaku = isinstance(gids, list) and len([x for x in gids if x is not None and str(x).strip() != ""]) > 0
+    has_extra = bool((extra_condition or "").strip())
+    return "B" if (has_goriyaku or has_extra) else "A"
+
+
 class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = [JWTAuthentication]
@@ -309,93 +426,56 @@ class ConciergeChatView(APIView):
                  data.get("lat"), data.get("lng"), data.get("radius_m"))
         filters0 = data.get("filters") if isinstance(data.get("filters"), dict) else None
         log.info("[api/chat] raw filters=%r", filters0)
-        
 
-        # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
-        filters = data.get("filters") if isinstance(data.get("filters"), dict) else {}
-        for k in ("birthdate", "goriyaku_tag_ids", "extra_condition"):
-            if data.get(k) in (None, "", []) and filters.get(k) not in (None, "", []):
-                data[k] = filters.get(k)
-
-        log.debug(
-            "[concierge_chat] merged birthdate=%r goriyaku_tag_ids=%r extra_condition=%r",
-            data.get("birthdate"),
-            data.get("goriyaku_tag_ids"),
-            data.get("extra_condition"),
-        )
-
-        # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
-        filters = data.get("filters") or {}
-        if isinstance(filters, dict):
-            # birthdate
-            if not data.get("birthdate") and filters.get("birthdate"):
-                data["birthdate"] = filters.get("birthdate")
-
-        # ついでに将来用（今は未使用でも保持しておく）
-        if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
-            data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
-        if not data.get("extra_condition") and filters.get("extra_condition"):
-            data["extra_condition"] = filters.get("extra_condition")
+        payload_lat = _to_float(data.get("lat"))
+        payload_lng = _to_float(data.get("lng"))
+        (
+            query,
+            message,
+            language,
+            area,
+            lat,
+            lng,
+            birthdate_raw,
+            goriyaku_tag_ids,
+            extra_condition,
+        ) = _resolve_request_inputs(data)
 
         # --- debug: merge 後 ---
         log.info(
             "[api/chat] after_merge birthdate=%r goriyaku=%r extra=%r",
-            (data.get("birthdate") or None),
-            data.get("goriyaku_tag_ids"),
-            data.get("extra_condition"),
+            (birthdate_raw or None),
+            goriyaku_tag_ids,
+            extra_condition,
         )
-
-
-        message = (data.get("message") or "").strip()
-        query = (data.get("query") or "").strip()
 
         # ★ message が来たら問答無用で message モード（query が一緒に来ても）
         is_message_mode = bool(message)
 
-        # 実際に処理する query は message 優先（=ユーザー入力を優先）
-        query = message or query
-
         if not query:
             return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        language = (data.get("language") or "ja").strip()
-        area = data.get("area") or data.get("where") or data.get("location_text")
-
-        # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
-        raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
-        user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
-
-        # --- lat/lng 解決：top-level → 無ければ area を geocode ---
-        lat = _to_float(data.get("lat"))
-        lng = _to_float(data.get("lng"))
-
         lat_src = "payload"
-        if (lat is None or lng is None) and area:
-            pt = _geocode_area_for_chat(area=area)
-            if pt:
-                lat, lng = pt
-                lat_src = "geocode(area)"
+        if (payload_lat is None or payload_lng is None) and area and lat is not None and lng is not None:
+            lat_src = "geocode(area)"
 
         log.info("[api/chat] lat/lng=%r/%r src=%s area=%r", lat, lng, lat_src, area)
 
-
-        raw_built_candidates = build_chat_candidates(
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            area=area,
+        request._concierge_trace_id = rid
+        candidates, user_n, built_n, merged_n = _build_chat_candidates_pipeline(
+            request=request,
             lat=lat,
             lng=lng,
-            trace_id=rid,
+            area=area,
+            language=language,
         )
-
-        merged_candidates = user_candidates + raw_built_candidates
-        candidates = _dedupe_candidates(merged_candidates)
 
         log.info(
             "[concierge/reco] candidates_raw rid=%s user=%d built=%d merged=%d deduped=%d",
             rid,
-            len(user_candidates),
-            len(raw_built_candidates),
-            len(merged_candidates),
+            user_n,
+            built_n,
+            merged_n,
             len(candidates),
         )
 
@@ -432,15 +512,16 @@ class ConciergeChatView(APIView):
 
             if usage.count >= daily_limit:
                 recs = {"recommendations": []}
-                body = {
-                    "ok": True,
-                    "intent": intent,
-                    "data": recs,
-                    "reply": LIMIT_MSG,
-                    "remaining_free": 0,
-                    "limit": daily_limit,
-                    "note": "limit-reached",
-                }
+                body = _build_chat_response(
+                    intent=intent,
+                    recs=recs,
+                    reply=LIMIT_MSG,
+                    remaining_free=0,
+                    limit=daily_limit,
+                    thread=None,
+                    debug=None,
+                )
+                body["note"] = "limit-reached"
 
                 # message モードなら候補表示形式で返す（テスト要件）
                 if is_message_mode:
@@ -458,35 +539,30 @@ class ConciergeChatView(APIView):
             usage.save(update_fields=["count"])
             remaining = max(daily_limit - usage.count, 0)
 
-        birthdate = (data.get("birthdate") or "").strip() or None
+        birthdate = (birthdate_raw or "").strip() or None
 
         # Bルート判定は「絞り込みが実際に効いている」時だけ
-        gids = data.get("goriyaku_tag_ids")
-        has_goriyaku = isinstance(gids, list) and len([x for x in gids if x is not None and str(x).strip() != ""]) > 0
-
-        has_extra = bool((data.get("extra_condition") or "").strip())
-
-        flow = "B" if (has_goriyaku or has_extra) else "A"
+        flow = _resolve_flow(goriyaku_tag_ids, extra_condition)
         log.info(
             "[concierge/reco] input rid=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
             rid,
             flow,
             birthdate,
-            data.get("goriyaku_tag_ids"),
-            data.get("extra_condition"),
+            goriyaku_tag_ids,
+            extra_condition,
         )
         log.warning(
             "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
             birthdate,
-            data.get("birthdate"),
+            birthdate_raw,
             (data.get("filters") if isinstance(data.get("filters"), dict) else None),
         )
 
         before_n = len(candidates)
         applied = []
-        if data.get("goriyaku_tag_ids"):
+        if goriyaku_tag_ids:
             applied.append("goriyaku_tag_ids")
-        if (data.get("extra_condition") or "").strip():
+        if (extra_condition or "").strip():
             applied.append("extra_condition")
 
         recs = build_chat_recommendations(
@@ -495,8 +571,8 @@ class ConciergeChatView(APIView):
             candidates=candidates,
             bias=bias,
             birthdate=birthdate,
-            goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
-            extra_condition=data.get("extra_condition"),
+            goriyaku_tag_ids=goriyaku_tag_ids,
+            extra_condition=extra_condition,
             flow=flow,
             trace_id=rid,
         )
@@ -516,14 +592,6 @@ class ConciergeChatView(APIView):
         except Exception:
             pass
 
-        body = {"ok": True, "intent": intent, "data": recs}
-        body["_debug"] = {"rid": rid, "before": before_n, "after": after_n, "applied": applied, "flow": flow}
-
-        # 非premium認証ユーザーだけ remaining_free/limit を返す
-        if user is not None and not is_premium:
-            body["remaining_free"] = remaining
-            body["limit"] = daily_limit
-
         # message がある時は「候補: ...」を必ず返す（テスト要件）
         if is_message_mode:
             names = []
@@ -532,10 +600,10 @@ class ConciergeChatView(APIView):
                     nm = (r.get("display_name") or r.get("name") or "").strip()
                     if nm:
                         names.append(nm)
-            body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
+            reply = f"候補: {', '.join(names)}" if names else "候補: "
         else:
             # query モードは契約次第。とりあえず常にキーは返す
-            body["reply"] = None
+            reply = None
 
         # --- thread 保存（認証ユーザーのみ）---
         thread_obj = None
@@ -546,7 +614,7 @@ class ConciergeChatView(APIView):
             except Exception:
                 thread_id = None
 
-            reply_text = body.get("reply")
+            reply_text = reply
             if not isinstance(reply_text, str):
                 reply_text = None
 
@@ -557,8 +625,15 @@ class ConciergeChatView(APIView):
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
                 thread_obj = saved.thread
 
-        if thread_obj is not None:
-            body["thread"] = {"id": thread_obj.id}
+        body = _build_chat_response(
+            intent=intent,
+            recs=recs,
+            reply=reply,
+            remaining_free=remaining if (user is not None and not is_premium) else None,
+            limit=daily_limit if (user is not None and not is_premium) else None,
+            thread=thread_obj,
+            debug={"rid": rid, "before": before_n, "after": after_n, "applied": applied, "flow": flow},
+        )
 
         return Response(body, status=status.HTTP_200_OK)
 

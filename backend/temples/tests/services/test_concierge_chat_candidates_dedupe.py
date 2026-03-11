@@ -1,6 +1,6 @@
 import pytest
 
-from temples.api_views_concierge import _dedupe_candidates
+from temples.services.concierge_chat_candidates import _dedupe_candidates
 
 
 @pytest.mark.parametrize(

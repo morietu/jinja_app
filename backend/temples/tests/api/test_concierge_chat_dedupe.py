@@ -11,9 +11,7 @@ def test_concierge_chat_dedupes_user_and_built_candidates_by_place_id(
     settings.CONCIERGE_USE_LLM = False
 
     import temples.api_views_concierge as concierge_mod
-    import temples.services.concierge_chat as chat_mod
-
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    captured = {}
 
     monkeypatch.setattr(
         concierge_mod,
@@ -43,6 +41,17 @@ def test_concierge_chat_dedupes_user_and_built_candidates_by_place_id(
         raising=True,
     )
 
+    def fake_build_chat_recommendations(**kwargs):
+        captured["candidates"] = kwargs["candidates"]
+        return {"recommendations": kwargs["candidates"][:3]}
+
+    monkeypatch.setattr(
+        concierge_mod,
+        "build_chat_recommendations",
+        fake_build_chat_recommendations,
+        raising=True,
+    )
+
     payload = {
         "message": "近場で静かに参拝したい",
         "lat": 35.0,
@@ -68,14 +77,11 @@ def test_concierge_chat_dedupes_user_and_built_candidates_by_place_id(
     assert body["ok"] is True
 
     debug = body["_debug"]
-    assert debug["before"] == 2  # user1 + built2 -> dedupe後の candidates 数を見てるならここは実装次第
-    # 実装上 before は len(candidates) を見ているので、今のコードなら 2
-    # merged は 3 だが deduped は 2
+    assert debug["before"] == 2
 
-    recs = body["data"]["recommendations"]
-    names = [x["name"] for x in recs if isinstance(x, dict)]
-
-    assert names.count("重複神社") == 1
+    cands = captured["candidates"]
+    assert len(cands) == 2
+    assert [c.get("place_id") for c in cands] == ["PID_DUP", "PID_ONLY_BUILT"]
 
 
 @pytest.mark.django_db
@@ -83,9 +89,7 @@ def test_concierge_chat_dedupe_keeps_user_candidate_first(client, monkeypatch, s
     settings.CONCIERGE_USE_LLM = False
 
     import temples.api_views_concierge as concierge_mod
-    import temples.services.concierge_chat as chat_mod
-
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    captured = {}
 
     monkeypatch.setattr(
         concierge_mod,
@@ -102,6 +106,17 @@ def test_concierge_chat_dedupe_keeps_user_candidate_first(client, monkeypatch, s
         raising=True,
     )
 
+    def fake_build_chat_recommendations(**kwargs):
+        captured["candidates"] = kwargs["candidates"]
+        return {"recommendations": kwargs["candidates"][:3]}
+
+    monkeypatch.setattr(
+        concierge_mod,
+        "build_chat_recommendations",
+        fake_build_chat_recommendations,
+        raising=True,
+    )
+
     payload = {
         "message": "近場で参拝したい",
         "lat": 35.0,
@@ -113,6 +128,7 @@ def test_concierge_chat_dedupe_keeps_user_candidate_first(client, monkeypatch, s
                 "address": "東京都千代田区1-1",
                 "popular_score": 9.0,
                 "astro_tags": ["rest"],
+                "source": "user",
             }
         ],
     }
@@ -120,8 +136,7 @@ def test_concierge_chat_dedupe_keeps_user_candidate_first(client, monkeypatch, s
     r = client.post(URL, data=json.dumps(payload), content_type="application/json")
     assert r.status_code == 200
 
-    recs = body = r.json()["data"]["recommendations"]
-    target = next(x for x in recs if x["name"] == "重複神社")
+    cands = captured["candidates"]
+    target = next(x for x in cands if x.get("place_id") == "PID_DUP")
 
-    # user_candidates が先勝ちしていれば rest が残る可能性が高い
-    assert "rest" in (target.get("astro_tags") or [])
+    assert target["source"] == "user"
