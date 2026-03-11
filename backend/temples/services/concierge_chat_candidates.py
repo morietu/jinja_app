@@ -90,7 +90,7 @@ def build_chat_candidates(
 
     qs = qs.select_related("place_ref")
 
-    qs = qs.exclude(latitude__isnull=True, longitude__isnull=True)
+    qs = qs.filter(latitude__isnull=False, longitude__isnull=False)
     qs = qs.exclude(address="")
 
     if hasattr(Shrine, "popular_score"):

@@ -2,7 +2,9 @@
 from __future__ import annotations
 import uuid
 import requests
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
+
+
 
 import logging
 import os
@@ -256,6 +258,32 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     except Exception:
         pass
 
+def _candidate_key(c: Dict[str, Any]) -> tuple:
+    if c.get("place_id"):
+        return ("place_id", str(c["place_id"]))
+    if c.get("shrine_id") or c.get("id"):
+        return ("shrine_id", str(c.get("shrine_id") or c.get("id")))
+
+    name = str(c.get("name") or "").strip()
+    address = str(c.get("address") or c.get("formatted_address") or "").strip()
+    return ("name_address", name, address)
+
+
+def _dedupe_candidates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out: list[dict] = []
+    seen = set()
+
+    for c in items:
+        if not isinstance(c, dict):
+            continue
+        key = _candidate_key(c)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+
+    return out
+
 
 class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
@@ -350,8 +378,8 @@ class ConciergeChatView(APIView):
 
         log.info("[api/chat] lat/lng=%r/%r src=%s area=%r", lat, lng, lat_src, area)
 
-        # candidates は補完 lat/lng を使う
-        candidates = user_candidates + build_chat_candidates(
+
+        raw_built_candidates = build_chat_candidates(
             goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
             area=area,
             lat=lat,
@@ -359,22 +387,15 @@ class ConciergeChatView(APIView):
             trace_id=rid,
         )
 
-        # --- ✅ TEST ONLY: 1件だけ住所を潰して miss を発火させる ---
-        # 使い方: CONCIERGE_DEBUG_FORCE_MISS=1 を付けて起動
-        if os.getenv("CONCIERGE_DEBUG_FORCE_MISS") == "1":
-            try:
-                if candidates and isinstance(candidates[0], dict):
-                    # candidates[0]["address"] = ""
-                    candidates[0]["formatted_address"] = ""
-                    log.info("[api/chat] DEBUG_FORCE_MISS applied to candidates[0] name=%r", candidates[0].get("name"))
-            except Exception:
-                log.exception("[api/chat] DEBUG_FORCE_MISS failed")
+        merged_candidates = user_candidates + raw_built_candidates
+        candidates = _dedupe_candidates(merged_candidates)
 
         log.info(
-            "[concierge/reco] candidates_raw rid=%s user=%d built=%d total=%d",
+            "[concierge/reco] candidates_raw rid=%s user=%d built=%d merged=%d deduped=%d",
             rid,
             len(user_candidates),
-            max(len(candidates) - len(user_candidates), 0),
+            len(raw_built_candidates),
+            len(merged_candidates),
             len(candidates),
         )
 
