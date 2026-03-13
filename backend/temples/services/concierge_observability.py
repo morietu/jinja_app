@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any, Dict, List, Optional
+from temples.models_concierge_analytics import ConciergeRecommendationLog
 
 logger = logging.getLogger("concierge.observability")
 
@@ -71,3 +72,37 @@ def concierge_request_summary_log(
 
     # 1リクエスト1行JSON
     logger.info(json.dumps(payload, ensure_ascii=False))
+
+
+def save_concierge_recommendation_log(
+    *,
+    user,
+    thread,
+    query: str,
+    need_tags,
+    flow,
+    llm_enabled,
+    llm_used,
+    recommendations,
+    result_state,
+    lat=None,
+    lng=None,
+    radius_m=None,
+):
+    try:
+        ConciergeRecommendationLog.objects.create(
+            user=user,
+            thread=thread,
+            query=query or "",
+            need_tags=need_tags or [],
+            flow=flow or "",
+            llm_enabled=bool(llm_enabled),
+            llm_used=bool(llm_used),
+            recommendations=recommendations or [],
+            result_state=result_state or {},
+            lat=lat,
+            lng=lng,
+            radius_m=radius_m,
+        )
+    except Exception:
+        logger.exception("failed_to_save_concierge_log")

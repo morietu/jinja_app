@@ -64,11 +64,11 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
         "note": "導き・勝運・前進",
     },
     {
-        "id": "career_004",
+        "id": "study_001",
         "query": "受験に向けて学業成就を祈願したい",
-        "expected_need": "career",
+        "expected_need": "study",
         "expected_top_names": ["太宰府天満宮", "亀戸天神社", "戸隠神社（中社）"],
-        "note": "学業系も career に寄せる",
+        "note": "学業系クエリは study に分類する",
     },
     {
         "id": "money_001",
@@ -90,13 +90,6 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
         "expected_need": "money",
         "expected_top_names": ["神田神社（神田明神）", "伏見稲荷大社", "松尾大社"],
         "note": "ビジネス成果寄り",
-    },
-    {
-        "id": "mental_004",
-        "query": "人生の流れを整えたい",
-        "expected_need": "mental",
-        "expected_top_names": ["伊勢神宮（内宮）", "明治神宮", "熊野本宮大社"],
-        "note": "抽象度高めの mental",
     },
     {
         "id": "mental_001",

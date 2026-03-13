@@ -625,6 +625,34 @@ class ConciergeChatView(APIView):
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
                 thread_obj = saved.thread
 
+        # ---- observability: レコメンド結果をDBに保存 ----
+        from temples.services.concierge_observability import save_concierge_recommendation_log
+
+        signals = recs.get("_signals") or {}
+        llm_meta = signals.get("llm") or {}
+        result_state = signals.get("result_state") or {}
+        need_meta = recs.get("_need") or {}
+        need_tags_for_log = need_meta.get("tags") or []
+        radius_m = _parse_radius(data)
+
+        try:
+            save_concierge_recommendation_log(
+                user=user if getattr(user, "is_authenticated", False) else None,
+                thread=thread_obj,
+                query=query,
+                need_tags=need_tags_for_log,
+                flow=flow,
+                llm_enabled=bool(llm_meta.get("enabled")),
+                llm_used=bool(llm_meta.get("used")),
+                recommendations=recs.get("recommendations") or [],
+                result_state=result_state,
+                lat=lat,
+                lng=lng,
+                radius_m=radius_m,
+            )
+        except Exception:
+            log.exception("[concierge/reco] save_concierge_recommendation_log failed rid=%s", rid)
+
         body = _build_chat_response(
             intent=intent,
             recs=recs,

@@ -47,16 +47,15 @@ def test_study_queries_should_eventually_rank_study_shrines_high(query, expected
     )
 
 
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("query", "expected_tag"),
     [
-        ("受験に向けて学業成就を祈願したい", "career"),
-        ("資格試験に受かりたい", "career"),
-        ("合格祈願をしたい", "career"),
+        ("受験に向けて学業成就を祈願したい", "study"),
+        ("資格試験に受かりたい", "study"),
+        ("合格祈願をしたい", "study"),
     ],
 )
-def test_study_like_queries_currently_resolve_to_existing_need_tag(query, expected_tag, monkeypatch):
+def test_study_like_queries_resolve_to_study_need_tag(query, expected_tag, monkeypatch):
     monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
 
     recs = build_chat_recommendations(

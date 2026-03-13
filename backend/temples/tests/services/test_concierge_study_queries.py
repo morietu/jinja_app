@@ -11,19 +11,19 @@ STUDY_CASES = [
     {
         "id": "study_001",
         "query": "受験に向けて学業成就を祈願したい",
-        "expected_need": "career",
+        "expected_need": "study",
         "expected_top_names": ["太宰府天満宮", "亀戸天神社", "戸隠神社（中社）"],
     },
     {
         "id": "study_002",
         "query": "資格試験に受かりたい",
-        "expected_need": "career",
+        "expected_need": "study",
         "expected_top_names": ["太宰府天満宮", "亀戸天神社", "戸隠神社（中社）"],
     },
     {
         "id": "study_003",
         "query": "合格祈願をしたい",
-        "expected_need": "career",
+        "expected_need": "study",
         "expected_top_names": ["太宰府天満宮", "亀戸天神社", "戸隠神社（中社）"],
     },
 ]

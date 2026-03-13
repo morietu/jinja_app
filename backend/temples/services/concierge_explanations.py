@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 
 NEED_LABEL = {
     "career": "転機・仕事",
+    "study": "学業・合格",
     "mental": "不安・心",
     "love": "恋愛",
     "money": "金運",

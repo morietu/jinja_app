@@ -1,66 +1,59 @@
-# backend/temples/api/urls.py
-from django.http import Http404,  JsonResponse
+from django.http import JsonResponse
 from django.urls import include, path
+from django.views.decorators.http import require_http_methods
+
 from drf_spectacular.utils import extend_schema
 from rest_framework.routers import DefaultRouter
 
-from temples.api.views.shrine_public import PublicShrineDetailView
-from temples.api.views.public_profile import public_profile
-from temples.api.views.search import places_find
-from temples.api.views.shrine import PopularShrineListView
-from temples.api.views.tags import goriyaku_tags_list
+from temples import api_views_concierge as concierge
+from temples.api.views.billing import BillingStatusLegacyView, BillingStatusView
+from temples.api.views.compat import concierge_chat_compat
+from temples.api.views.concierge import (
+    ConciergeThreadDetailView,
+    ConciergeThreadListView,
+)
+from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
+from temples.api.views.goshuin import MyGoshuinViewSet, PublicGoshuinViewSet
 from temples.api.views.goshuin_feed import PublicGoshuinFeedView
-from temples.api.views.billing import BillingStatusView, BillingStatusLegacyView
 from temples.api.views.place_cache import place_cache_list
 from temples.api.views.places_resolve import PlacesResolveView
-from temples.api_views import FavoriteViewSet
-
-from django.views.decorators.http import require_http_methods
-
-
-
-# Concierge の互換シム
-from temples import api_views_concierge as concierge
-from temples.api.views.concierge import (
-    ConciergeThreadListView,
-    ConciergeThreadDetailView,
-)
-
-# geocode (レガシー互換も吸収)
-from temples.api.views.geocode import geocode_reverse_legacy, geocode_search_legacy
-from temples.api.views.compat import concierge_chat_compat
-
-# shrine / search
+from temples.api.views.public_profile import public_profile
 from temples.api.views.search import (
     detail,
     detail_query,
     nearby_search,
     nearby_search_legacy,
     photo,
+    places_find,
     search,
     text_search,
     text_search_legacy,
 )
 from temples.api.views.shrine import (
     NearestShrinesAPIView,
+    PopularShrineListView,
     ShrineViewSet,
 )
-from temples.api.views.goshuin import (
-    PublicGoshuinViewSet,
-    MyGoshuinViewSet,       
-)
+from temples.api.views.shrine_public import PublicShrineDetailView
+from temples.api.views.tags import goriyaku_tags_list
+from temples.api_views import FavoriteViewSet
 
+app_name = "temples"
+
+
+# geocode 名称ゆれ吸収
 try:
     from temples.api.views.geocode import search as geocode_search
-except ImportError:  # geocode_search 直名
+except ImportError:
     from temples.api.views.geocode import geocode_search  # type: ignore
 
 try:
     from temples.api.views.geocode import reverse as geocode_reverse
-except ImportError:  # reverse_geocode 名
+except ImportError:
     from temples.api.views.geocode import reverse_geocode as geocode_reverse  # type: ignore
 
-# route（存在しない環境があるためフォールバックを用意）
+
+# route フォールバック
 try:
     from temples.api.views.route import RouteAPIView, RouteView, route_health, route_legacy  # type: ignore
 except Exception:
@@ -68,10 +61,9 @@ except Exception:
 
     def route_health(request):
         return JsonResponse({"status": "ok", "service": "route"})
-    def route_health(request):
-        return JsonResponse({"status": "ok", "service": "route"})
 
-# /api/places/<id>/ のショート版。search.py に detail_short が無い環境でも動作させる。
+
+# /api/places/<id>/ のショート版フォールバック
 try:
     from temples.api.views.search import detail_short  # type: ignore
 except Exception:
@@ -90,8 +82,7 @@ except Exception:
     def detail_short(request, id: str, *args, **kwargs):  # type: ignore
         dj_req = _as_django_request(request)
         return detail(dj_req, id, *args, **kwargs)
-        
-app_name = "temples"
+
 
 router = DefaultRouter()
 router.register(r"goshuins", PublicGoshuinViewSet, basename="goshuins")
@@ -99,32 +90,10 @@ router.register(r"my/goshuins", MyGoshuinViewSet, basename="my-goshuins")
 router.register(r"shrines", ShrineViewSet, basename="shrine")
 router.register(r"favorites", FavoriteViewSet, basename="favorite")
 
-# ★ MyGoshuinViewSet のエイリアス（単数形パス用）
-my_goshuin_list_view = MyGoshuinViewSet.as_view({"get": "list", "post": "create"})
-my_goshuin_detail_view = MyGoshuinViewSet.as_view(
-    {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
-)
 
-# --- My Goshuin（単数形互換）: schemaから除外するラッパー ---
-@extend_schema(exclude=True)
-def my_goshuin_list_compat(request, *args, **kwargs):
-    return my_goshuin_list_view(request, *args, **kwargs)
-
-@extend_schema(exclude=True)
-def my_goshuin_detail_compat(request, *args, **kwargs):
-    return my_goshuin_detail_view(request, *args, **kwargs)
-
-# ViewSet の明示エイリアス（reverse 名称の安定化）
+# ViewSet の明示エイリアス
 shrine_list_view = ShrineViewSet.as_view({"get": "list", "post": "create"})
-shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})  # /data/ 用
-
-def _blocked_shrine_detail(request, pk: int, *args, **kwargs):
-    raise Http404()
-
-
-@extend_schema(exclude=True)
-def my_goshuin_detail_compat(request, *args, **kwargs):
-    return my_goshuin_detail_view(request, *args, **kwargs)
+shrine_detail_view = ShrineViewSet.as_view({"get": "retrieve"})
 
 
 @extend_schema(exclude=True)
@@ -141,17 +110,11 @@ urlpatterns = [
     path("route/", route_legacy, name="route-legacy"),
 
     # ---- Shrines ----------------------------------------------------------
-    
     path("shrines/", shrine_list_view, name="shrine_list"),
     path("shrines/<int:pk>/", shrine_detail_view, name="shrine_detail"),
     path("shrines/<int:pk>/data/", shrine_detail_view, name="shrine_detail_data"),
-    
     path("shrines/nearby/", NearestShrinesAPIView.as_view(), name="nearby"),
     path("public/shrines/<int:pk>/", PublicShrineDetailView.as_view(), name="public-shrine-detail"),
-
-    # --- My Goshuin（単数形互換） ---
-    # path("my/goshuin/", my_goshuin_list_compat, name="my-goshuin-list-compat"),
-    # path("my/goshuin/<int:pk>/", my_goshuin_detail_compat, name="my-goshuin-detail-compat"),
 
     # ---- Popular ----------------------------------------------------------
     path("populars/", PopularShrineListView.as_view(), name="popular-shrines"),
@@ -160,11 +123,8 @@ urlpatterns = [
     path("concierge/chat/", concierge_chat_compat, name="concierge-chat"),
     path("concierge/chat", concierge_chat_compat_noslash, name="concierge-chat-noslash"),
     path("concierge/plan/", concierge.plan, name="concierge-plan"),
-
     path("concierge-threads/", ConciergeThreadListView.as_view(), name="concierge-thread-list"),
-    
     path("concierge-threads/<int:pk>/", ConciergeThreadDetailView.as_view(), name="concierge-thread-detail"),
-
 
     # ---- Billing ----------------------------------------------------------
     path("billing/status/", BillingStatusLegacyView.as_view(), name="billing-status-legacy"),
@@ -180,14 +140,13 @@ urlpatterns = [
     path("places/text-search/", text_search, name="places-text-search"),
     path("places/text_search/", text_search_legacy, name="places-text-search-legacy"),
     path("places/photo/", photo, name="places-photo"),
-    
     path("places/nearby_search/", nearby_search_legacy, name="places-nearby-search-legacy"),
+    path("places/nearby-search/", nearby_search_legacy, name="places-nearby-search-legacy-hyphen"),
+    path("places/nearby/", nearby_search, name="places-nearby"),
     path("places/detail/", detail_query, name="places-detail"),
     path("places/detail/<str:id>/", detail, name="places-detail-id"),
     path("places/find/", places_find, name="places-find-lite"),
     path("places/resolve/", PlacesResolveView.as_view(), name="places-resolve"),
-    path("places/nearby-search/", nearby_search_legacy, name="places-nearby-search-legacy-hyphen"),
-    path("places/nearby/", nearby_search, name="places-nearby"),
     path("places/<str:id>/", detail_short, name="places-detail-short"),
     path("place-caches/", place_cache_list, name="place-cache-list"),
 
@@ -197,7 +156,6 @@ urlpatterns = [
     path("geocode/search/", geocode_search_legacy, name="geocode-search-legacy"),
     path("geocode/reverse/", geocode_reverse_legacy, name="geocode-reverse-legacy"),
 
-
-    # router は最後に1回だけ
+    # ---- Router -----------------------------------------------------------
     path("", include(router.urls)),
 ]

@@ -26,6 +26,10 @@ def _normalize_astro_elements(elements: Any) -> list:
     return [e for e in elements if isinstance(e, str) and e.strip()]
 
 NEED_SYNONYMS: Dict[str, List[str]] = {
+    "study": [
+        "学業", "学業成就", "合格", "合格祈願",
+        "試験", "資格試験", "受験", "勉強", "入試",
+    ],
     "career": [
         "仕事運", "転職", "出世", "昇進", "勝運",
         "導き", "挑戦", "後押し", "道を開く",
@@ -50,25 +54,86 @@ NEED_SYNONYMS: Dict[str, List[str]] = {
 }
 
 NEED_PRIORITY = {
-    "career": 0,
-    "mental": 1,
-    "love": 2,
-    "money": 3,
-    "rest": 4,
+    "study": 0,
+    "career": 1,
+    "mental": 2,
+    "love": 3,
+    "money": 4,
+    "rest": 5,
 }
 # need タグと、goriyaku / description テキストに含まれるキーワードの対応表
-NEED_TEXT_HINTS: Dict[str, List[str]] = {
-    "career": [
-        "仕事運", "転職", "出世", "昇進", "勝運",
-        "導き", "挑戦", "後押し", "道を開く",
-    ],
-    "mental": ["厄除", "厄払い", "心", "癒し", "浄化", "落ち着", "静か"],
-    "love":   ["縁結び", "恋愛", "良縁", "夫婦円満"],
-    "money": ["金運", "財運", "福徳", "商売繁盛", "事業", "商売"],
-    "rest":   ["休息", "癒し", "静か", "落ち着", "気持ちを整"],
+NEED_TEXT_WEIGHTS: Dict[str, Dict[str, int]] = {
+    "study": {
+        "合格祈願": 3,
+        "学業成就": 3,
+        "資格試験": 3,
+        "受験": 2,
+        "試験": 2,
+        "学問": 2,
+        "勉強": 1,
+        "入試": 2,
+    },
+    "career": {
+        "転職": 3,
+        "導き": 3,
+        "挑戦": 3,
+        "後押し": 3,
+        "道を開く": 3,
+        "勝運": 2,
+        "仕事運": 1,
+        "出世": 1,
+        "昇進": 1,
+        "成功": 1,
+    },
+    "mental": {
+        "厄除": 2,
+        "厄払い": 3,
+        "浄化": 2,
+        "心を整える": 2,
+        "不安": 2,
+        "落ち着く": 2,
+        "静か": 1,
+        "守護": 1,
+        "守ってほしい": 1,
+    },
+    "love": {
+        "縁結び": 3,
+        "恋愛成就": 3,
+        "良縁": 3,
+        "復縁": 2,
+        "結婚": 2,
+        "夫婦円満": 2,
+        "恋愛": 2,
+        "ご縁": 1,
+        "出会い": 1,
+    },
+    "money": {
+        "商売繁盛": 3,
+        "金運": 3,
+        "財運": 3,
+        "売上": 2,
+        "事業": 2,
+        "福徳": 2,
+        "収入": 1,
+        "資産": 1,
+        "商売": 1,
+    },
+    "rest": {
+        "休息": 3,
+        "癒し": 3,
+        "静か": 2,
+        "リセット": 2,
+        "穏やか": 2,
+        "気分転換": 2,
+        "落ち着き": 2,
+        "ひと息": 1,
+        "自然": 1,
+        "休みたい": 1,
+    },
 }
 
 NEED_REASON_LABELS: Dict[str, str] = {
+    "study": "学業や合格を願う参拝に",
     "career": "仕事や転機に向き合う参拝に",
     "mental": "不安・心に向き合う参拝に",
     "love": "ご縁や恋愛を願う参拝に",
@@ -76,23 +141,7 @@ NEED_REASON_LABELS: Dict[str, str] = {
     "rest": "心身を休めたいときの参拝に",
 }
 
-NEED_BULLET_LABELS: Dict[str, List[str]] = {
-    "career": [
-        "仕事や転機に関する願いと相性があります。",
-    ],
-    "mental": [
-        "心を整えたい相談内容と相性があります。",
-    ],
-    "love": [
-        "縁結びや恋愛成就の願いと相性があります。",
-    ],
-    "money": [
-        "金運や商売繁盛の願いと相性があります。",
-    ],
-    "rest": [
-        "落ち着いて気持ちを整えたい時に向いています。",
-    ],
-}
+
 
 NEED_TAG_ALIASES: Dict[str, str] = {
     "marriage": "love",
@@ -107,20 +156,9 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "challenge": "career",
     "ambition": "career",
     "success": "career",
-    "study": "career",
 }
 
-STUDY_QUERY_HINTS = [
-    "受験",
-    "学業",
-    "学業成就",
-    "合格",
-    "合格祈願",
-    "試験",
-    "資格試験",
-    "勉強",
-    "入試",
-]
+
 
 STUDY_SHRINE_HINTS = [
     "学業成就",
@@ -128,12 +166,6 @@ STUDY_SHRINE_HINTS = [
     "学問",
 ]
 
-STUDY_REASON_LABEL = "学業や合格を願う参拝に"
-STUDY_REASON_HINTS = [
-    "学業成就",
-    "合格祈願",
-    "学問",
-]
 
 def _normalize_need_tag(tag: Any) -> str:
     s = str(tag or "").strip().lower()
@@ -239,7 +271,7 @@ def _apply_soft_signal_highlights(
 
     rec["highlights"] = normalized[:3]
 
-def _attach_reason_source(rec: Dict[str, Any], *, query: str = "") -> None:
+def _attach_reason_source(rec: Dict[str, Any]) -> None:
     matched = ((rec.get("breakdown") or {}).get("matched_need_tags") or [])
 
     highlights = rec.get("highlights") or []
@@ -251,18 +283,10 @@ def _attach_reason_source(rec: Dict[str, Any], *, query: str = "") -> None:
         if isinstance(x, str) and str(x).strip()
     ][:2]
 
-    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
-    material = f"{rec.get('goriyaku') or ''} {rec.get('description') or ''}"
-    is_study_shrine = any(h in material for h in STUDY_REASON_HINTS)
-
     if matched:
-        first = matched[0]
-        if is_study_query and is_study_shrine:
-            reason = STUDY_REASON_LABEL
-            reason_source = "reason:study_query_override"
-        else:
-            reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
-            reason_source = "reason:matched_need_tags"
+        first = str(matched[0]).strip()
+        reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
+        reason_source = "reason:matched_need_tags"
     else:
         raw_reason = str(rec.get("reason") or "").strip()
         if raw_reason:
@@ -448,7 +472,6 @@ def build_chat_recommendations(
         prefiltered = _prefilter_candidates_for_need(
             valid_candidates,
             need_tags=need_tags,
-            query=query,
         )
         recs = _seed_recs_from_candidates(prefiltered, size=12)
 
@@ -471,13 +494,12 @@ def build_chat_recommendations(
                 need_tags=need_tags,
                 weights=weights,
                 astro_bonus_enabled=astro_bonus_enabled,
-                query=query,
             )
             _apply_soft_signal_highlights(
                 rec,
                 soft_signal_tags=soft_signal_tags,
             )
-            _attach_reason_source(rec, query=query)
+            _attach_reason_source(rec)
 
     distance_mode = "sort_distance" in sort_tags
 
@@ -771,15 +793,13 @@ def _merge_candidate_fields(
 # ---------------------------------------------------------------------------
 # 修正③: need score を astro_tags だけでなく goriyaku / description にも反応させる
 # ---------------------------------------------------------------------------
-
 def _attach_breakdown(
     rec: Dict[str, Any],
     *,
     birthdate: Optional[str],
     need_tags: List[str],
     weights: Dict[str, float],
-    astro_bonus_enabled: bool = False,
-    query: str = "",
+    astro_bonus_enabled: bool,
 ) -> None:
     """
     rec（1件の神社辞書）にスコアの内訳を追加する。
@@ -800,6 +820,7 @@ def _attach_breakdown(
     if birthdate:
         try:
             from temples.domain.astrology import element_priority, sun_sign_and_element  # type: ignore
+
             prof = sun_sign_and_element(birthdate)
             if prof:
                 shrine_elems = rec.get("astro_elements") or []
@@ -822,16 +843,29 @@ def _attach_breakdown(
     goriyaku_text = str(rec.get("goriyaku") or "")
     description_text = str(rec.get("description") or "")
     material = f"{goriyaku_text} {description_text}"
-    
+
     matched_by_text: List[str] = []
+    text_score_by_tag: Dict[str, int] = {}
+    matched_text_hints_by_tag: Dict[str, List[str]] = {}
+
     for tag in need_tags_clean:
-        hints = NEED_TEXT_HINTS.get(tag, [])
-        if any(hint in material for hint in hints):
+        text_weights = NEED_TEXT_WEIGHTS.get(tag, {})
+        score = 0
+        matched_hints: List[str] = []
+
+        for hint, weight in text_weights.items():
+            if hint in material:
+                score += int(weight)
+                matched_hints.append(hint)
+
+        if score > 0:
+            text_score_by_tag[tag] = score
+            matched_text_hints_by_tag[tag] = matched_hints
             matched_by_text.append(tag)
-    
-    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
+
+    is_study_need = "study" in need_tags_clean
     study_bonus = 0
-    if is_study_query and any(h in material for h in STUDY_SHRINE_HINTS):
+    if is_study_need and any(h in material for h in STUDY_SHRINE_HINTS):
         study_bonus = 1
 
     matched_all: List[str] = []
@@ -842,7 +876,7 @@ def _attach_breakdown(
             seen.add(t)
 
     score_need = len(matched_all)
-    score_need_rank = len(matched_by_tag) * 2 + len(matched_by_text) + study_bonus
+    score_need_rank = len(matched_by_tag) * 2 + sum(text_score_by_tag.values()) + study_bonus
 
     # --- 重みを取り出す ---
     w1 = float(weights.get("element", 0.0))
@@ -915,12 +949,11 @@ def _prefilter_candidates_for_need(
     candidates: List[Dict[str, Any]],
     *,
     need_tags: List[str],
-    query: str,
 ) -> List[Dict[str, Any]]:
     scored: List[tuple[int, float, str, Dict[str, Any]]] = []
 
     need_tags_clean = _normalize_need_tags(need_tags, max_tags=10)
-    is_study_query = any(h in (query or "") for h in STUDY_QUERY_HINTS)
+    is_study_need = "study" in need_tags_clean
 
     for c in candidates:
         if not isinstance(c, dict):
@@ -930,7 +963,8 @@ def _prefilter_candidates_for_need(
         if not isinstance(astro_tags, list):
             astro_tags = []
         astro_tag_set = {
-            str(t).strip() for t in astro_tags
+            str(t).strip()
+            for t in astro_tags
             if isinstance(t, str) and str(t).strip()
         }
 
@@ -938,33 +972,43 @@ def _prefilter_candidates_for_need(
 
         score = 0
         matched: List[str] = []
+        matched_text_hints_by_tag: Dict[str, List[str]] = {}
+        text_score_by_tag: Dict[str, int] = {}
 
         for tag in need_tags_clean:
             if tag in astro_tag_set:
                 score += 2
                 matched.append(f"{tag}:astro")
 
-            hints = NEED_TEXT_HINTS.get(tag, [])
-            if any(h in material for h in hints):
+            text_weights = NEED_TEXT_WEIGHTS.get(tag, {})
+            tag_matched_hints = [hint for hint in text_weights.keys() if hint in material]
+
+            if tag_matched_hints:
                 score += 1
                 matched.append(f"{tag}:text")
+                matched_text_hints_by_tag[tag] = tag_matched_hints
+                text_score_by_tag[tag] = sum(text_weights[h] for h in tag_matched_hints)
 
-        if is_study_query and any(h in material for h in STUDY_SHRINE_HINTS):
-            score += 3
-            matched.append("study:text")
+        if is_study_need and any(h in material for h in STUDY_SHRINE_HINTS):
+            score += 2
+            matched.append("study:text_bonus")
 
         row = dict(c)
         row["_prefilter_debug"] = {
             "score": score,
             "matched": matched,
+            "text_score_by_tag": text_score_by_tag,
+            "matched_text_hints_by_tag": matched_text_hints_by_tag,
         }
 
-        scored.append((
-            score,
-            float(c.get("popular_score") or 0.0),
-            str(c.get("name") or c.get("name_jp") or ""),
-            row,
-        ))
+        scored.append(
+            (
+                score,
+                float(c.get("popular_score") or 0.0),
+                str(c.get("name") or c.get("name_jp") or ""),
+                row,
+            )
+        )
 
     scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
     ordered = [row for _, _, _, row in scored]
