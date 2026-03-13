@@ -480,6 +480,15 @@ def build_chat_recommendations(
             need_tags=need_tags,
         )
         recs = _seed_recs_from_candidates(prefiltered, size=12)
+    
+    log.info(
+        "[dbg] route llm_requested=%r llm_effective=%r llm_used=%r seed=%r candidate_count=%d",
+        requested_llm_enabled,
+        effective_llm_enabled,
+        llm_used,
+        bool(recs.get("_seed")) if isinstance(recs, dict) else None,
+        len(valid_candidates),
+    )
 
     # -------------------------------------------------------------------
     # pool のサイズを 12 件に保証する（LLM が少なく返してきた場合も補填）
@@ -487,6 +496,16 @@ def build_chat_recommendations(
     pre_limit = 12
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
     recs = _merge_candidate_fields(recs, candidates=valid_candidates)
+
+    log.info(
+        "[dbg] pool_after_merge size=%d top_names=%r",
+        len(recs.get("recommendations") or []),
+        [
+            r.get("name")
+            for r in (recs.get("recommendations") or [])[:5]
+            if isinstance(r, dict)
+        ],
+    )
 
     # -------------------------------------------------------------------
     # 修正③: スコアを計算する（need score は astro_tags だけでなく

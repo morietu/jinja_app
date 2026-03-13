@@ -191,6 +191,7 @@ def test_concierge_eval_queries_seed80(case, monkeypatch):
         candidates=candidates,
         birthdate=None,
         flow="A",
+        llm_enabled=False,
     )
 
     assert "recommendations" in recs
