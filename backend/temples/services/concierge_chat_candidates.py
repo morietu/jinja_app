@@ -7,26 +7,15 @@ import logging
 
 from django.db.models import Q
 from temples.models import Shrine
+from temples.services.concierge_candidate_utils import (
+    _candidate_key,
+    _dedupe_candidates,
+    _to_float,
+)
 
 log = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 12
-
-
-def _to_float(v: Any) -> Optional[float]:
-    if v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    if isinstance(v, str):
-        s = v.strip()
-        if not s:
-            return None
-        try:
-            return float(s)
-        except Exception:
-            return None
-    return None
 
 
 def _distance_m(
@@ -49,33 +38,6 @@ def _distance_m(
     dl = math.radians(lng2f - lng1f)
     a = (math.sin(dphi / 2) ** 2) + (math.cos(phi1) * math.cos(phi2) * math.sin(dl / 2) ** 2)
     return int(2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
-
-
-def _candidate_key(c: Dict[str, Any]) -> tuple:
-    if c.get("place_id"):
-        return ("place_id", str(c["place_id"]))
-    if c.get("shrine_id") or c.get("id"):
-        return ("shrine_id", str(c.get("shrine_id") or c.get("id")))
-
-    name = str(c.get("name") or "").strip()
-    address = str(c.get("address") or c.get("formatted_address") or "").strip()
-    return ("name_address", name, address)
-
-
-def _dedupe_candidates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    out: list[dict] = []
-    seen = set()
-
-    for c in items:
-        if not isinstance(c, dict):
-            continue
-        key = _candidate_key(c)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(c)
-
-    return out
 
 
 def build_chat_candidates(

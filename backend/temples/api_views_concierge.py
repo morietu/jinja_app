@@ -25,6 +25,11 @@ from rest_framework import serializers
 from temples.services.billing_state import is_premium_for_user
 from temples.geocoding.client import geocode_google_point
 from temples.services.concierge_chat import build_chat_recommendations
+from temples.services.concierge_candidate_utils import (
+    _candidate_key,
+    _dedupe_candidates,
+    _to_float,
+)
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
 from temples.services import places as Places
@@ -212,22 +217,6 @@ def _parse_radius(data: Dict[str, Any]) -> int:
     return max(1, min(50000, r))
 
 
-def _to_float(v: Any) -> Optional[float]:
-    if v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    if isinstance(v, str):
-        s = v.strip()
-        if not s:
-            return None
-        try:
-            return float(s)
-        except Exception:
-            return None
-    return None
-
-
 def _geocode_area_for_chat(*, area: str) -> tuple[float, float] | None:
     """area（地名文字列）を geocoding client 経由で解決して (lat, lng) を返す"""
     return geocode_google_point(area, language="ja", region="jp", timeout=6.0)
@@ -257,33 +246,6 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
         )
     except Exception:
         pass
-
-def _candidate_key(c: Dict[str, Any]) -> tuple:
-    if c.get("place_id"):
-        return ("place_id", str(c["place_id"]))
-    if c.get("shrine_id") or c.get("id"):
-        return ("shrine_id", str(c.get("shrine_id") or c.get("id")))
-
-    name = str(c.get("name") or "").strip()
-    address = str(c.get("address") or c.get("formatted_address") or "").strip()
-    return ("name_address", name, address)
-
-
-def _dedupe_candidates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    out: list[dict] = []
-    seen = set()
-
-    for c in items:
-        if not isinstance(c, dict):
-            continue
-        key = _candidate_key(c)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(c)
-
-    return out
-
 
 def _resolve_request_inputs(data: Dict[str, Any]):
     # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
