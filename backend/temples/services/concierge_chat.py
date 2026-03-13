@@ -467,7 +467,7 @@ def build_chat_recommendations(
             )
         except Exception as e:
             llm_error = f"{type(e).__name__}: {e}"
-            recs = _seed_recs_from_candidates(valid_candidates, size=12)
+            log.exception("[build_chat_recommendations] LLM exception traceback")
     else:
         prefiltered = _prefilter_candidates_for_need(
             valid_candidates,

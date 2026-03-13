@@ -60,7 +60,13 @@ class LLMConfig:
 
     @classmethod
     def load(cls, *, validate: bool = True) -> "LLMConfig":
-        ...
+        model = _getenv("LLM_MODEL", _getenv("OPENAI_MODEL", "gpt-4.1-mini")) or "gpt-4.1-mini"
+        temperature = _get_float("LLM_TEMPERATURE", 0.2)
+        max_tokens = _get_int("LLM_MAX_TOKENS", 800)
+        retries = _get_int("LLM_RETRIES", 2)
+        backoff_s = _get_float("LLM_BACKOFF_S", 0.5)
+        coord_round = _get_int("LLM_COORD_ROUND", 3)
+
         cfg = cls(
             api_key=_getenv("OPENAI_API_KEY", "") or "",
             model=model,
@@ -74,3 +80,4 @@ class LLMConfig:
             coord_round=coord_round,
         )
         return cfg.validate() if validate else cfg
+
