@@ -20,7 +20,6 @@ from temples.services.concierge_chat_presentation import (
 from temples.services.concierge_chat_ranking import (
     _attach_breakdown,
     _prefilter_candidates_for_need,
-    _resolve_mode_meta,
     _resolve_mode_weights,
     _diversify_by_need,
 )
@@ -32,6 +31,9 @@ from temples.services.concierge_chat_need import (
     extract_need_fallback,
 )
 
+from temples.services.concierge_chat_response_meta import (
+    attach_response_meta,
+)
 log = logging.getLogger(__name__)
 
 
@@ -301,95 +303,19 @@ def build_chat_recommendations(
 
     recs["_need"] = need_payload
 
-    displayed_count = len(
-        [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
-    )
-
-    requested_extra = (extra_condition or "").strip() or None
-    requested_goriyaku = bool(goriyaku_tag_ids)
-    requested_hard_filter = bool(hard_filter_tags)
-
-    fallback_mode = "none"
-    fallback_reason_ja = None
-    ui_disclaimer_ja = None
-    matched_count = displayed_count
-
-    if requested_goriyaku or requested_hard_filter:
-        fallback_mode = "nearby_unfiltered"
-        fallback_reason_ja = "条件に一致する神社が見つかりませんでした（0件）"
-        ui_disclaimer_ja = "代わりに近い神社を表示しています（条件は反映されていません）"
-        matched_count = 0
-
-    result_state = {
-        "matched_count": matched_count,
-        "pool_count": displayed_count,
-        "displayed_count": displayed_count,
-        "fallback_mode": fallback_mode,
-        "fallback_reason_ja": fallback_reason_ja,
-        "ui_disclaimer_ja": ui_disclaimer_ja,
-        "requested_extra_condition": requested_extra,
-    }
-
-    recs["_signals"] = {
-        "mode": _resolve_mode_meta(
-            flow=flow,
-            weights=weights,
-            astro_bonus_enabled=astro_bonus_enabled,
-        ),
-        "llm": {
-            "enabled": bool(effective_llm_enabled),
-            "used": bool(effective_llm_enabled and llm_used),
-            "error": llm_error,
-        },
-        "engine": {
-            "orchestrator_used": bool(llm_used),
-            "openai_enabled": bool(effective_llm_enabled),
-            "openai_used": bool(effective_llm_enabled and llm_used),
-        },
-        "stats": {
-            "candidate_count": len(valid_candidates),
-            "valid_candidate_count": len(valid_candidates),
-            "pool_count": displayed_count,
-            "displayed_count": displayed_count,
-            "missing_fields": {
-                "total": len(valid_candidates),
-                "place_id": {
-                    "missing": sum(1 for c in valid_candidates if not c.get("place_id")),
-                    "rate": (
-                        sum(1 for c in valid_candidates if not c.get("place_id")) / len(valid_candidates)
-                        if valid_candidates else 0.0
-                    ),
-                },
-                "latlng": {
-                    "missing": sum(
-                        1 for c in valid_candidates
-                        if c.get("lat") is None or c.get("lng") is None
-                    ),
-                    "rate": (
-                        sum(
-                            1 for c in valid_candidates
-                            if c.get("lat") is None or c.get("lng") is None
-                        ) / len(valid_candidates)
-                        if valid_candidates else 0.0
-                    ),
-                },
-                "address": {
-                    "missing": sum(
-                        1 for c in valid_candidates
-                        if not (c.get("formatted_address") or c.get("address"))
-                    ),
-                    "rate": (
-                        sum(
-                            1 for c in valid_candidates
-                            if not (c.get("formatted_address") or c.get("address"))
-                        ) / len(valid_candidates)
-                        if valid_candidates else 0.0
-                    ),
-                },
-            },
-        },
-        "result_state": result_state,
-    }
+    recs = attach_response_meta(
+        recs,
+        flow=flow,
+        weights=weights,
+        astro_bonus_enabled=astro_bonus_enabled,
+        effective_llm_enabled=effective_llm_enabled,
+        llm_used=llm_used,
+        llm_error=llm_error,
+        valid_candidates=valid_candidates,
+        extra_condition=extra_condition,
+        goriyaku_tag_ids=goriyaku_tag_ids,
+        hard_filter_tags=hard_filter_tags,
+    )   
 
     recs = attach_explanations_for_chat(
         recs,
