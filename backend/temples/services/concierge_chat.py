@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional
-
-
-
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
+
 from temples.services.concierge_chat_pool import (
     _ensure_pool_size,
     _merge_candidate_fields,
@@ -42,6 +40,9 @@ from temples.services.concierge_chat_llm_route import (
     resolve_llm_route,
 )
 
+from temples.services.concierge_explanation_payload import (
+    attach_explanation_payload,
+)
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +67,36 @@ def _apply_location_backfill(
         language=language,
     )
 
+def _resolve_extra_condition_tags_compat(
+    extra_condition: Optional[str],
+) -> Dict[str, set[str]]:
+    """
+    互換用 shim。
+
+    既存テストが temples.services.concierge_chat.extract_extra_tags /
+    split_tags_by_kind を monkeypatch しているため、
+    concierge_chat.py の公開名を経由して解決する。
+    """
+    sort_tags: set[str] = set()
+    hard_filter_tags: set[str] = set()
+    soft_signal_tags: set[str] = set()
+
+    try:
+        ex = extract_extra_tags(extra_condition or "", max_tags=3)
+        kinds = split_tags_by_kind(ex.tags)
+        sort_tags = set(kinds.get("sort_override") or [])
+        hard_filter_tags = set(kinds.get("hard_filter") or [])
+        soft_signal_tags = set(kinds.get("soft_signal") or [])
+    except Exception:
+        sort_tags = set()
+        hard_filter_tags = set()
+        soft_signal_tags = set()
+
+    return {
+        "sort_tags": sort_tags,
+        "hard_filter_tags": hard_filter_tags,
+        "soft_signal_tags": soft_signal_tags,
+    }
 
 def build_chat_recommendations(
     *,
@@ -153,7 +184,7 @@ def build_chat_recommendations(
         except Exception:
             astro_profile = None
 
-    extra_tags = resolve_extra_condition_tags(extra_condition)
+    extra_tags = _resolve_extra_condition_tags_compat(extra_condition)
     sort_tags = extra_tags["sort_tags"]
     hard_filter_tags = extra_tags["hard_filter_tags"]
     soft_signal_tags = extra_tags["soft_signal_tags"]
@@ -213,6 +244,7 @@ def build_chat_recommendations(
                 soft_signal_tags=soft_signal_tags,
             )
             _attach_reason_source(rec)
+    recs = attach_explanation_payload(recs)
 
     distance_mode = "sort_distance" in sort_tags
 

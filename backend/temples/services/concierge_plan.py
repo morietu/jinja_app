@@ -17,7 +17,7 @@ from temples.geocoding.client import geocode_google_point
 from temples.llm import backfill as bf
 from temples.services import places as Places
 from temples.services.billing_state import recommend_limit_for_user
-from temples.services.concierge_explanation import attach_explanations_for_plan
+from temples.services.concierge_explanations import attach_explanations_for_plan
 
 logger = logging.getLogger(__name__)
 

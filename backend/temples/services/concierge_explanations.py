@@ -1,4 +1,3 @@
-# backend/temples/services/concierge_explanations.py
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -15,6 +14,7 @@ NEED_LABEL = {
     "rest": "休息",
 }
 
+
 def _fmt_km(distance_m: Any) -> Optional[str]:
     try:
         d = float(distance_m)
@@ -26,6 +26,7 @@ def _fmt_km(distance_m: Any) -> Optional[str]:
     if km < 1:
         return f"{int(round(d))}m"
     return f"{km:.1f}km"
+
 
 def _take3(xs: List[dict]) -> List[dict]:
     strength_pri = {"high": 0, "mid": 1, "low": 2}
@@ -51,6 +52,7 @@ def _take3(xs: List[dict]) -> List[dict]:
     )
     return ys[:3]
 
+
 def _reason(
     code: str,
     label: str,
@@ -67,6 +69,14 @@ def _reason(
         "evidence": evidence or {},
     }
 
+
+def _get_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
+    payload = rec.get("_explanation_payload")
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
 def build_explanation_for_chat_rec(
     rec: Dict[str, Any],
     *,
@@ -75,14 +85,15 @@ def build_explanation_for_chat_rec(
     birthdate: Optional[str] = None,
     extra_condition: Optional[str] = None,
 ) -> Dict[str, Any]:
-    breakdown = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
-    matched = breakdown.get("matched_need_tags") or []
+    payload = _get_explanation_payload(rec)
+
+    matched = payload.get("matched_need_tags") or []
     matched = [str(x) for x in matched if str(x).strip()]
 
-    bullets = rec.get("bullets") if isinstance(rec.get("bullets"), list) else []
+    bullets = payload.get("highlights") or []
     bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
 
-    summary = rec.get("reason") if isinstance(rec.get("reason"), str) and rec.get("reason").strip() else ""
+    summary = str(rec.get("reason") or "").strip()
     reasons: List[dict] = []
 
     if matched:
@@ -123,6 +134,7 @@ def build_explanation_for_chat_rec(
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
     }
 
+
 def build_explanation_for_plan_rec(
     rec: Dict[str, Any],
     *,
@@ -132,14 +144,15 @@ def build_explanation_for_plan_rec(
     birthdate: Optional[str] = None,
     wish: Optional[str] = None,
 ) -> Dict[str, Any]:
-    breakdown = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
-    matched = breakdown.get("matched_need_tags") or []
+    payload = _get_explanation_payload(rec)
+
+    matched = payload.get("matched_need_tags") or []
     matched = [str(x) for x in matched if str(x).strip()]
 
-    bullets = rec.get("bullets") if isinstance(rec.get("bullets"), list) else []
+    bullets = payload.get("highlights") or []
     bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
 
-    summary = rec.get("reason") if isinstance(rec.get("reason"), str) and rec.get("reason").strip() else ""
+    summary = str(rec.get("reason") or "").strip()
     reasons: List[dict] = []
 
     if matched:
@@ -188,6 +201,7 @@ def build_explanation_for_plan_rec(
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
     }
 
+
 def attach_explanations_for_chat(
     recs: Dict[str, Any],
     *,
@@ -213,6 +227,7 @@ def attach_explanations_for_chat(
             log.info("[expl/chat] name=%r reasons=%r", r.get("name"), exp.get("reasons"))
 
     return recs
+
 
 def attach_explanations_for_plan(
     filled: Dict[str, Any],

@@ -8,6 +8,10 @@ from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_b
 def resolve_extra_condition_tags(
     extra_condition: Optional[str],
 ) -> Dict[str, Set[str]]:
+    """
+    extra_condition から sort / hard_filter / soft_signal のタグ群を取り出す。
+    失敗時は空集合を返す。
+    """
     sort_tags: Set[str] = set()
     hard_filter_tags: Set[str] = set()
     soft_signal_tags: Set[str] = set()
@@ -28,3 +32,8 @@ def resolve_extra_condition_tags(
         "hard_filter_tags": hard_filter_tags,
         "soft_signal_tags": soft_signal_tags,
     }
+
+
+__all__ = [
+    "resolve_extra_condition_tags",
+]

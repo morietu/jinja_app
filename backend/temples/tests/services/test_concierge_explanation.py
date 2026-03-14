@@ -1,5 +1,5 @@
 import pytest
-from temples.services.concierge_explanation import (
+from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
     build_explanation_for_plan_rec,
 )
