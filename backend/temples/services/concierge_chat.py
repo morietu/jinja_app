@@ -34,6 +34,11 @@ from temples.services.concierge_chat_need import (
 from temples.services.concierge_chat_response_meta import (
     attach_response_meta,
 )
+from temples.services.concierge_chat_extra_condition import (
+    resolve_extra_condition_tags,
+)
+
+
 log = logging.getLogger(__name__)
 
 
@@ -144,20 +149,10 @@ def build_chat_recommendations(
         except Exception:
             astro_profile = None
 
-    sort_tags: set[str] = set()
-    hard_filter_tags: set[str] = set()
-    soft_signal_tags: set[str] = set()
-
-    try:
-        ex = extract_extra_tags(extra_condition or "", max_tags=3)
-        kinds = split_tags_by_kind(ex.tags)
-        sort_tags = set(kinds.get("sort_override") or [])
-        hard_filter_tags = set(kinds.get("hard_filter") or [])
-        soft_signal_tags = set(kinds.get("soft_signal") or [])
-    except Exception:
-        sort_tags = set()
-        hard_filter_tags = set()
-        soft_signal_tags = set()
+    extra_tags = resolve_extra_condition_tags(extra_condition)
+    sort_tags = extra_tags["sort_tags"]
+    hard_filter_tags = extra_tags["hard_filter_tags"]
+    soft_signal_tags = extra_tags["soft_signal_tags"]
 
     weights = _resolve_mode_weights(flow=flow, weights=weights)
 
