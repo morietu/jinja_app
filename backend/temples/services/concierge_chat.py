@@ -1,21 +1,33 @@
-# backend/temples/services/concierge_chat.py
-
 from __future__ import annotations
+
 from collections import Counter
 import logging
 from typing import Any, Dict, List, Optional
+
 from django.conf import settings
+
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
-from temples.llm import backfill as bf
+from temples.services.concierge_chat_pool import (
+    _ensure_pool_size,
+    _merge_candidate_fields,
+    _seed_recs_from_candidates,
+)
+from temples.services.concierge_chat_presentation import (
+    _apply_location_backfill as _presentation_apply_location_backfill,
+    _apply_soft_signal_highlights,
+    _attach_reason_source,
+    _trim_to_top3_and_fill_message,
+)
 from temples.services.concierge_chat_ranking import (
-    _resolve_mode_weights,
-    _resolve_mode_meta,
     _attach_breakdown,
     _prefilter_candidates_for_need,
+    _resolve_mode_meta,
+    _resolve_mode_weights,
 )
 from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
 )
+
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -23,12 +35,12 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-
 def _normalize_astro_elements(elements: Any) -> list:
     """astro_elements をリストに正規化する"""
     if not isinstance(elements, list):
         return []
     return [e for e in elements if isinstance(e, str) and e.strip()]
+
 
 NEED_SYNONYMS: Dict[str, List[str]] = {
     "study": [
@@ -67,17 +79,6 @@ NEED_PRIORITY = {
     "rest": 5,
 }
 
-NEED_REASON_LABELS: Dict[str, str] = {
-    "study": "学業や合格を願う参拝に",
-    "career": "仕事や転機に向き合う参拝に",
-    "mental": "不安・心に向き合う参拝に",
-    "love": "ご縁や恋愛を願う参拝に",
-    "money": "金運や商売繁盛を願う参拝に",
-    "rest": "心身を休めたいときの参拝に",
-}
-
-
-
 NEED_TAG_ALIASES: Dict[str, str] = {
     "marriage": "love",
     "romance": "love",
@@ -93,9 +94,11 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "success": "career",
 }
 
+
 def _normalize_need_tag(tag: Any) -> str:
     s = str(tag or "").strip().lower()
     return NEED_TAG_ALIASES.get(s, s)
+
 
 def _normalize_need_tags(tags: Any, *, max_tags: int = 3) -> List[str]:
     normalized: List[str] = []
@@ -107,12 +110,9 @@ def _normalize_need_tags(tags: Any, *, max_tags: int = 3) -> List[str]:
             normalized.append(nt)
     return normalized[:max_tags]
 
-SOFT_SIGNAL_HIGHLIGHTS: Dict[str, str] = {
-    "calm": "落ち着いて気持ちを整えやすい雰囲気",
-}
 
 # ---------------------------------------------------------------------------
-# 修正①: build_chat_recommendations() 側で pool を 12 件に広げる
+# need fallback
 # ---------------------------------------------------------------------------
 def _extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
     text = str(query or "").strip()
@@ -145,89 +145,26 @@ def _extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
 
     return {"tags": tags, "hits": hits}
 
+
+# ---------------------------------------------------------------------------
+# presentation 互換 shim
+# ---------------------------------------------------------------------------
 def _apply_location_backfill(
     recs: Dict[str, Any],
     *,
     bias: Optional[Dict[str, float]],
     language: str,
 ) -> None:
-    for r in recs.get("recommendations") or []:
-        if not isinstance(r, dict):
-            continue
-
-        loc = r.get("location")
-        if isinstance(loc, str) and loc.strip():
-            continue
-
-        name = str(r.get("name") or "").strip()
-        if not name:
-            continue
-
-        try:
-            addr = bf._lookup_address_by_name(name, bias=bias, lang=language)
-        except Exception:
-            addr = None
-
-        if isinstance(addr, str) and addr.strip():
-            short = bf._shorten_japanese_address(addr) or addr.strip()
-            r["location"] = short
-
-def _apply_soft_signal_highlights(
-    rec: Dict[str, Any],
-    *,
-    soft_signal_tags: set[str],
-) -> None:
-    if not isinstance(rec, dict):
-        return
-
-    highlights = rec.get("highlights") or []
-    if not isinstance(highlights, list):
-        highlights = []
-
-    normalized = [
-        str(x).strip()
-        for x in highlights
-        if isinstance(x, str) and str(x).strip()
-    ]
-
-    for tag in soft_signal_tags:
-        label = SOFT_SIGNAL_HIGHLIGHTS.get(tag)
-        if label and label not in normalized:
-            normalized.append(label)
-
-    rec["highlights"] = normalized[:3]
-
-def _attach_reason_source(rec: Dict[str, Any]) -> None:
-    matched = ((rec.get("breakdown") or {}).get("matched_need_tags") or [])
-
-    highlights = rec.get("highlights") or []
-    if not isinstance(highlights, list):
-        highlights = []
-    bullets = [
-        str(x).strip()
-        for x in highlights
-        if isinstance(x, str) and str(x).strip()
-    ][:2]
-
-    if matched:
-        first = str(matched[0]).strip()
-        reason = NEED_REASON_LABELS.get(first, "相談内容に合うご利益・特徴があります。")
-        reason_source = "reason:matched_need_tags"
-    else:
-        raw_reason = str(rec.get("reason") or "").strip()
-        if raw_reason:
-            reason = "この神社ならではの特徴があります。"
-            reason_source = "reason:normalized_original"
-        else:
-            reason = "相談内容に合うご利益・特徴があります。"
-            reason_source = "reason:fallback"
-
-    rec["reason"] = reason
-    rec["reason_source"] = reason_source
-    rec["bullets"] = bullets
-
-
-
+    """
+    互換用 shim。
+    既存テストが temples.services.concierge_chat._apply_location_backfill を
+    monkeypatch しているため、この公開名を残す。
+    """
+    _presentation_apply_location_backfill(
+        recs,
+        bias=bias,
+        language=language,
+    )
 
 
 def build_chat_recommendations(
@@ -247,15 +184,13 @@ def build_chat_recommendations(
     astro_bonus_enabled: bool = False,
     **kwargs: Any,
 ) -> Dict[str, Any]:
-    
     """
     候補リストからおすすめ神社を選んで返す関数。
 
-    修正①: pool（候補プール）のサイズを 12 件に広げた。
-    修正②: LLM が使えないときも 12 件のプールを確保する。
-    修正③: need score を astro_tags だけでなく goriyaku/description テキストにも反応させる。
-    修正④: スコアリング後のログを追加する（顔ぶれの変化を確認するため）。
+    facade はこのファイルに残し、
+    ranking / pool / presentation の責務は各モジュールへ分離する。
     """
+
     valid_candidates = [
         dict(c) for c in (candidates or [])
         if isinstance(c, dict)
@@ -335,9 +270,6 @@ def build_chat_recommendations(
 
     weights = _resolve_mode_weights(flow=flow, weights=weights)
 
-    # -------------------------------------------------------------------
-    # 修正①②: LLM の使用有無にかかわらず pool を 12 件に広げる
-    # -------------------------------------------------------------------
     requested_llm_enabled = bool(llm_enabled)
     effective_llm_enabled = bool(
         requested_llm_enabled and getattr(settings, "CONCIERGE_USE_LLM", False)
@@ -349,6 +281,7 @@ def build_chat_recommendations(
     if effective_llm_enabled:
         try:
             from temples.llm import orchestrator as orch_mod  # type: ignore
+
             llm_used = True
             recs = orch_mod.ConciergeOrchestrator().suggest(
                 query=query,
@@ -369,7 +302,7 @@ def build_chat_recommendations(
             need_tags=need_tags,
         )
         recs = _seed_recs_from_candidates(prefiltered, size=12)
-    
+
     log.info(
         "[dbg] route llm_requested=%r llm_effective=%r llm_used=%r seed=%r candidate_count=%d",
         requested_llm_enabled,
@@ -379,9 +312,6 @@ def build_chat_recommendations(
         len(valid_candidates),
     )
 
-    # -------------------------------------------------------------------
-    # pool のサイズを 12 件に保証する（LLM が少なく返してきた場合も補填）
-    # -------------------------------------------------------------------
     pre_limit = 12
     recs = _ensure_pool_size(recs, candidates=valid_candidates, size=pre_limit)
     recs = _merge_candidate_fields(recs, candidates=valid_candidates)
@@ -396,10 +326,6 @@ def build_chat_recommendations(
         ],
     )
 
-    # -------------------------------------------------------------------
-    # 修正③: スコアを計算する（need score は astro_tags だけでなく
-    #         goriyaku / description テキストにも反応させる）
-    # -------------------------------------------------------------------
     for rec in recs.get("recommendations") or []:
         if isinstance(rec, dict):
             _attach_breakdown(
@@ -436,14 +362,12 @@ def build_chat_recommendations(
             ),
         )
 
+    # ここは facade 側から呼ぶ。
+    # 既存テストが temples.services.concierge_chat._apply_location_backfill を
+    # monkeypatch しているため、presentation 側を直呼びしない。
     _apply_location_backfill(recs, bias=bias, language=language)
+    _trim_to_top3_and_fill_message(recs)
 
-    # top3だけ返す
-    recs["recommendations"] = recs["recommendations"][:3]
-
-    # -------------------------------------------------------------------
-    # 修正④: スコアリング後のログ（相談ごとに顔ぶれが変わるか確認用）
-    # -------------------------------------------------------------------
     try:
         log.info(
             "[dbg] scored_pool=%r",
@@ -460,7 +384,7 @@ def build_chat_recommendations(
             ],
         )
     except Exception:
-        pass  # ログ失敗はメイン処理に影響させない
+        pass
 
     if llm_error:
         log.warning("[build_chat_recommendations] LLM error: %s", llm_error)
@@ -477,28 +401,12 @@ def build_chat_recommendations(
             "matched_count": sum(
                 1
                 for r in (recs.get("recommendations") or [])
-                if isinstance(r, dict) and int(r.get("breakdown", {}).get("score_element", 0)) >= 2
+                if isinstance(r, dict)
+                and int(r.get("breakdown", {}).get("score_element", 0)) >= 2
             ),
         }
 
     recs["_need"] = need_payload
-
-    if not isinstance(recs.get("message"), str) or not recs["message"].strip():
-        top_names = [
-            str(r.get("name") or "").strip()
-            for r in (recs.get("recommendations") or [])
-            if isinstance(r, dict) and str(r.get("name") or "").strip()
-        ]
-
-        if top_names:
-            recs["message"] = (
-                f"相談内容と近さをもとに、参拝候補を3件に整理しました。"
-                f" {', '.join(top_names[:3])}"
-            )
-        else:
-            recs["message"] = (
-                "条件に合いそうな神社が見つかりませんでした。条件を少しゆるめて試してください。"
-            )
 
     displayed_count = len(
         [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
@@ -598,109 +506,4 @@ def build_chat_recommendations(
         extra_condition=extra_condition,
     )
 
-    return recs
-
-# ---------------------------------------------------------------------------
-# 内部ヘルパー: シード（seed）候補を作る
-# ---------------------------------------------------------------------------
-
-def _seed_recs_from_candidates(
-    candidates: Optional[List[Dict[str, Any]]],
-    size: int = 12,
-) -> Dict[str, Any]:
-    safe_candidates = list(candidates or [])
-    return {
-        "recommendations": safe_candidates[:size],
-        "_seed": True,
-    }
-
-
-def _ensure_pool_size(
-    recs: Dict[str, Any],
-    *,
-    candidates: List[Dict[str, Any]],
-    size: int = 12,
-) -> Dict[str, Any]:
-    current: List[Dict[str, Any]] = list(recs.get("recommendations") or [])
-
-    seen_ids = set()
-    seen_names = set()
-
-    for r in current:
-        rid = r.get("shrine_id") or r.get("id")
-        if rid is not None:
-            seen_ids.add(rid)
-
-        name = str(r.get("name") or "").strip()
-        if name:
-            seen_names.add(name)
-
-    for cand in candidates:
-        if len(current) >= size:
-            break
-
-        cid = cand.get("shrine_id") or cand.get("id")
-        cname = str(cand.get("name") or "").strip()
-
-        if cid is not None and cid in seen_ids:
-            continue
-        if cname and cname in seen_names:
-            continue
-
-        current.append(cand)
-
-        if cid is not None:
-            seen_ids.add(cid)
-        if cname:
-            seen_names.add(cname)
-
-    recs = dict(recs)
-    recs["recommendations"] = current
-    return recs
-
-def _merge_candidate_fields(
-    recs: Dict[str, Any],
-    *,
-    candidates: List[Dict[str, Any]],
-) -> Dict[str, Any]:
-    by_id: Dict[Any, Dict[str, Any]] = {}
-    by_name: Dict[str, Dict[str, Any]] = {}
-
-    for c in candidates:
-        if not isinstance(c, dict):
-            continue
-
-        cid = c.get("shrine_id") or c.get("id")
-        if cid is not None:
-            by_id[cid] = c
-
-        name = str(c.get("name") or "").strip()
-        if name:
-            by_name[name] = c
-
-    merged: List[Dict[str, Any]] = []
-
-    for r in recs.get("recommendations") or []:
-        if not isinstance(r, dict):
-            continue
-
-        base = None
-        rid = r.get("shrine_id") or r.get("id")
-        if rid is not None:
-            base = by_id.get(rid)
-
-        if base is None:
-            name = str(r.get("name") or "").strip()
-            if name:
-                base = by_name.get(name)
-
-        if base:
-            row = dict(base)
-            row.update(r)  # orchestrator の reason 等は優先
-            merged.append(row)
-        else:
-            merged.append(r)
-
-    recs = dict(recs)
-    recs["recommendations"] = merged
     return recs
