@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -21,7 +22,6 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "success": "career",
 }
 
-# need タグと、goriyaku / description テキストに含まれるキーワードの対応表
 NEED_TEXT_WEIGHTS: Dict[str, Dict[str, int]] = {
     "study": {
         "合格祈願": 3,
@@ -120,6 +120,16 @@ def _clamp01(v: float) -> float:
     return max(0.0, min(1.0, v))
 
 
+def _distance_decay(distance_m: Optional[float]) -> float:
+    """
+    距離を 0〜1 のスコアに変換する。
+    近いほど高い。
+    """
+    if distance_m is None or distance_m < 0:
+        return 0.0
+    return math.exp(-distance_m / 2500.0)
+
+
 def _resolve_mode_weights(
     *,
     flow: str,
@@ -130,12 +140,23 @@ def _resolve_mode_weights(
             "element": float(weights.get("element", 0.0)),
             "need": float(weights.get("need", 0.0)),
             "popular": float(weights.get("popular", 0.0)),
+            "distance": float(weights.get("distance", 0.0)),
         }
 
     if flow == "B":
-        return {"element": 0.8, "need": 0.2, "popular": 0.0}
+        return {
+            "element": 0.8,
+            "need": 0.2,
+            "popular": 0.0,
+            "distance": 0.15,
+        }
 
-    return {"element": 0.6, "need": 0.3, "popular": 0.1}
+    return {
+        "element": 0.6,
+        "need": 0.3,
+        "popular": 0.1,
+        "distance": 0.35,
+    }
 
 
 def _resolve_mode_meta(
@@ -144,10 +165,16 @@ def _resolve_mode_meta(
     weights: Dict[str, float],
     astro_bonus_enabled: bool,
 ) -> Dict[str, Any]:
+    public_weights = {
+        "element": float(weights.get("element", 0.0)),
+        "need": float(weights.get("need", 0.0)),
+        "popular": float(weights.get("popular", 0.0)),
+    }
+
     if flow == "B":
         return {
             "flow": "B",
-            "weights": dict(weights),
+            "weights": public_weights,
             "astro_bonus_enabled": bool(astro_bonus_enabled),
             "ui_label_ja": "占星術強め",
             "ui_note_ja": "生年月日（星座/四元素）を強く反映して並べ替えています",
@@ -155,7 +182,7 @@ def _resolve_mode_meta(
 
     return {
         "flow": "A",
-        "weights": dict(weights),
+        "weights": public_weights,
         "astro_bonus_enabled": bool(astro_bonus_enabled),
         "ui_label_ja": "標準",
         "ui_note_ja": "相談内容と近さをもとに並べ替えています",
@@ -173,20 +200,21 @@ def _attach_breakdown(
     """
     rec（1件の神社辞書）にスコアの内訳を追加する。
 
-    計算する3種類のスコア:
-      score_element : 生年月日と神社の相性（占星術ベース）
-      score_need    : ユーザーの悩みタグとの一致度（astro_tags + テキスト検索）
-      score_popular : 人気スコア（0〜1 に正規化）
+    契約用:
+      - breakdown.score_total
+      - breakdown.score_need
+
+    内部ランキング用:
+      - rec["_score_total"]
+      - breakdown_detail.features.need.rank_weighted
     """
 
-    # --- astro_elements を正規化 ---
     astro_elements = rec.get("astro_elements")
     if isinstance(astro_elements, list):
         rec["astro_elements"] = [
             e for e in astro_elements if isinstance(e, str) and e.strip()
         ]
 
-    # --- element スコア（生年月日 × 神社の属性） ---
     pri_raw = rec.get("astro_priority")
     pri = int(pri_raw) if isinstance(pri_raw, int) else 0
 
@@ -203,7 +231,6 @@ def _attach_breakdown(
 
     score_element = int(pri)
 
-    # --- need スコア（① astro_tags との一致） ---
     shrine_tags = rec.get("astro_tags") or []
     if not isinstance(shrine_tags, list):
         shrine_tags = []
@@ -213,28 +240,23 @@ def _attach_breakdown(
     need_tags_clean = _normalize_need_tags(need_tags, max_tags=10)
     matched_by_tag = [t for t in need_tags_clean if t in shrine_tag_set]
 
-    # --- need スコア（② goriyaku / description テキストとの一致） ---
     goriyaku_text = str(rec.get("goriyaku") or "")
     description_text = str(rec.get("description") or "")
-    material = f"{goriyaku_text} {description_text}"
+    material = f"{goriyaku_text} {description_text}".replace("　", " ")
 
     matched_by_text: List[str] = []
     text_score_by_tag: Dict[str, int] = {}
-    matched_text_hints_by_tag: Dict[str, List[str]] = {}
 
     for tag in need_tags_clean:
         text_weights = NEED_TEXT_WEIGHTS.get(tag, {})
         score = 0
-        matched_hints: List[str] = []
 
         for hint, weight in text_weights.items():
             if hint in material:
                 score += int(weight)
-                matched_hints.append(hint)
 
         if score > 0:
             text_score_by_tag[tag] = score
-            matched_text_hints_by_tag[tag] = matched_hints
             matched_by_text.append(tag)
 
     is_study_need = "study" in need_tags_clean
@@ -249,15 +271,28 @@ def _attach_breakdown(
             matched_all.append(t)
             seen.add(t)
 
+    # 契約用
     score_need = len(matched_all)
-    score_need_rank = len(matched_by_tag) * 2 + sum(text_score_by_tag.values()) + study_bonus
 
-    # --- 重みを取り出す ---
+    # 既存契約テストと相性のよい整数 rank
+    score_need_rank = (
+        len(matched_by_tag) * 2
+        + sum(text_score_by_tag.values())
+        + study_bonus
+    )
+
+    # 内部ランキング専用の強化版
+    score_need_rank_weighted = (
+        len(matched_by_tag) * 2.0
+        + sum(text_score_by_tag.values()) * 1.2
+        + study_bonus
+    )
+
     w1 = float(weights.get("element", 0.0))
     w2 = float(weights.get("need", 0.0))
     w3 = float(weights.get("popular", 0.0))
+    w4 = float(weights.get("distance", 0.0))
 
-    # --- astro ボーナス（オプション） ---
     astro_bonus = 0.0
     if astro_bonus_enabled:
         if pri == 2:
@@ -265,19 +300,34 @@ def _attach_breakdown(
         elif pri == 1:
             astro_bonus = 0.3
 
-    # --- popular スコア（人気度を 0〜1 に正規化） ---
     try:
         popular_f = float(rec.get("popular_score") or 0.0)
     except Exception:
         popular_f = 0.0
     score_popular = _clamp01(popular_f / 10.0)
 
-    # --- 合計スコア ---
-    # 契約用
-    score_total = score_element * w1 + score_need * w2 + score_popular * w3 + astro_bonus
-    # 内部ランキング用
+    raw_distance = rec.get("distance_m")
+    try:
+        distance_m = float(raw_distance) if raw_distance is not None else None
+    except Exception:
+        distance_m = None
+    score_distance = _distance_decay(distance_m)
+
+    # 契約用 total には distance を入れない
+    score_total = (
+        score_element * w1
+        + score_need * w2
+        + score_popular * w3
+        + astro_bonus
+    )
+
+    # 内部ランキング用 total
     score_total_ranked = (
-        score_element * w1 + score_need_rank * w2 + score_popular * w3 + astro_bonus
+        score_element * w1
+        + score_need_rank_weighted * w2
+        + score_popular * w3
+        + score_distance * w4
+        + astro_bonus
     )
 
     rec["_score_total"] = float(score_total_ranked)
@@ -306,17 +356,24 @@ def _attach_breakdown(
             "need": {
                 "raw": int(score_need),
                 "rank_raw": int(score_need_rank),
+                "rank_weighted": float(score_need_rank_weighted),
                 "weight": float(w2),
                 "matched_tags": matched_all,
                 "matched_by_tag_count": len(matched_by_tag),
                 "matched_by_text_count": len(matched_by_text),
                 "contribution": float(score_need * w2),
                 "rank_contribution": float(score_need_rank * w2),
+                "rank_weighted_contribution": float(score_need_rank_weighted * w2),
             },
             "popular": {
                 "raw": float(score_popular),
                 "weight": float(w3),
                 "contribution": float(score_popular * w3),
+            },
+            "distance": {
+                "raw": float(score_distance),
+                "weight": float(w4),
+                "contribution": float(score_distance * w4),
             },
             "astro_bonus": float(astro_bonus) if astro_bonus_enabled else 0.0,
             "score_total_ranked": float(score_total_ranked),
@@ -347,7 +404,7 @@ def _prefilter_candidates_for_need(
             if isinstance(t, str) and str(t).strip()
         }
 
-        material = f"{c.get('goriyaku') or ''} {c.get('description') or ''}"
+        material = f"{c.get('goriyaku') or ''} {c.get('description') or ''}".replace("　", " ")
 
         score = 0
         matched: List[str] = []
@@ -411,12 +468,67 @@ def _prefilter_candidates_for_need(
     return ordered
 
 
+def _diversify_by_need(
+    recs: List[Dict[str, Any]],
+    limit: int = 3,
+) -> List[Dict[str, Any]]:
+    """
+    上位候補で matched_need_tags の偏りを少し緩和する。
+
+    - 先頭 limit 件だけ多様化を意識
+    - ただし元のスコア順を大きく壊さない
+    - matched_need_tags が無い候補も除外しない
+    """
+    pool = [r for r in recs if isinstance(r, dict)]
+    if len(pool) <= 1:
+        return pool
+
+    picked: List[Dict[str, Any]] = []
+    used_tags: set[str] = set()
+
+    while pool and len(picked) < limit:
+        best_index: Optional[int] = None
+
+        for i, r in enumerate(pool):
+            tags = (r.get("breakdown") or {}).get("matched_need_tags") or []
+            normalized_tags = [
+                str(t).strip()
+                for t in tags
+                if isinstance(t, str) and str(t).strip()
+            ]
+
+            if not normalized_tags:
+                continue
+
+            if any(t not in used_tags for t in normalized_tags):
+                best_index = i
+                break
+
+        if best_index is None:
+            best_index = 0
+
+        picked_row = pool.pop(best_index)
+        picked.append(picked_row)
+
+        picked_tags = (picked_row.get("breakdown") or {}).get("matched_need_tags") or []
+        used_tags.update(
+            str(t).strip()
+            for t in picked_tags
+            if isinstance(t, str) and str(t).strip()
+        )
+
+    picked.extend(pool)
+    return picked
+
+
 __all__ = [
     "NEED_TEXT_WEIGHTS",
     "STUDY_SHRINE_HINTS",
     "_clamp01",
+    "_distance_decay",
     "_resolve_mode_weights",
     "_resolve_mode_meta",
     "_attach_breakdown",
     "_prefilter_candidates_for_need",
+    "_diversify_by_need",
 ]

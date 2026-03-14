@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -23,127 +22,17 @@ from temples.services.concierge_chat_ranking import (
     _prefilter_candidates_for_need,
     _resolve_mode_meta,
     _resolve_mode_weights,
+    _diversify_by_need,
 )
 from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
 )
+from temples.services.concierge_chat_need import (
+    normalize_need_tags,
+    extract_need_fallback,
+)
 
 log = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# 内部ユーティリティ
-# ---------------------------------------------------------------------------
-
-
-def _normalize_astro_elements(elements: Any) -> list:
-    """astro_elements をリストに正規化する"""
-    if not isinstance(elements, list):
-        return []
-    return [e for e in elements if isinstance(e, str) and e.strip()]
-
-
-NEED_SYNONYMS: Dict[str, List[str]] = {
-    "study": [
-        "学業", "学業成就", "合格", "合格祈願",
-        "試験", "資格試験", "受験", "勉強", "入試",
-    ],
-    "career": [
-        "仕事運", "転職", "出世", "昇進", "勝運",
-        "導き", "挑戦", "後押し", "道を開く",
-    ],
-    "mental": [
-        "不安", "悩み", "つらい", "苦しい", "しんどい", "落ち込む", "落ち込み",
-        "怖い", "心配", "迷い", "モヤモヤ", "気持ち", "心", "整えたい", "浄化",
-        "厄", "厄除け", "厄払い",
-    ],
-    "love": [
-        "恋愛", "恋", "縁結び", "良縁", "結婚", "復縁", "片思い", "両思い",
-        "夫婦", "パートナー", "出会い", "ご縁",
-    ],
-    "money": [
-        "金運", "お金", "収入", "売上", "商売繁盛", "財運", "裕福", "貯金",
-        "経済", "資産", "稼ぎたい",
-    ],
-    "rest": [
-        "休みたい", "休息", "疲れた", "疲れて", "疲労", "癒し", "静か", "落ち着きたい",
-        "落ち着く", "穏やか", "ひと息", "整えたい", "リセット", "気分転換",
-    ],
-}
-
-NEED_PRIORITY = {
-    "study": 0,
-    "career": 1,
-    "mental": 2,
-    "love": 3,
-    "money": 4,
-    "rest": 5,
-}
-
-NEED_TAG_ALIASES: Dict[str, str] = {
-    "marriage": "love",
-    "romance": "love",
-    "relationship": "love",
-    "anxiety": "mental",
-    "healing": "rest",
-    "career_change": "career",
-    "work": "career",
-    "fortune": "money",
-    "courage": "career",
-    "challenge": "career",
-    "ambition": "career",
-    "success": "career",
-}
-
-
-def _normalize_need_tag(tag: Any) -> str:
-    s = str(tag or "").strip().lower()
-    return NEED_TAG_ALIASES.get(s, s)
-
-
-def _normalize_need_tags(tags: Any, *, max_tags: int = 3) -> List[str]:
-    normalized: List[str] = []
-    for t in tags or []:
-        if not isinstance(t, str) or not t.strip():
-            continue
-        nt = _normalize_need_tag(t)
-        if nt and nt not in normalized:
-            normalized.append(nt)
-    return normalized[:max_tags]
-
-
-# ---------------------------------------------------------------------------
-# need fallback
-# ---------------------------------------------------------------------------
-def _extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
-    text = str(query or "").strip()
-    if not text:
-        return {"tags": [], "hits": {}}
-
-    counter: Counter[str] = Counter()
-    hits: Dict[str, List[str]] = {}
-
-    for tag, words in NEED_SYNONYMS.items():
-        matched_words: List[str] = []
-        for w in words:
-            if w and w in text:
-                matched_words.append(w)
-                counter[tag] += 1
-
-        if matched_words:
-            uniq: List[str] = []
-            seen = set()
-            for w in matched_words:
-                if w not in seen:
-                    uniq.append(w)
-                    seen.add(w)
-            hits[tag] = uniq
-
-    tags = sorted(
-        counter.keys(),
-        key=lambda t: (-counter[t], NEED_PRIORITY.get(t, 99), t),
-    )[:max_tags]
-
-    return {"tags": tags, "hits": hits}
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +71,7 @@ def build_chat_recommendations(
     need_tags: Optional[List[str]] = None,
     weights: Optional[Dict[str, float]] = None,
     astro_bonus_enabled: bool = False,
-    **kwargs: Any,
+    **kwargs: object,
 ) -> Dict[str, Any]:
     """
     候補リストからおすすめ神社を選んで返す関数。
@@ -200,7 +89,7 @@ def build_chat_recommendations(
 
     if need_tags:
         need_payload = {
-            "tags": _normalize_need_tags(need_tags, max_tags=3),
+            "tags": normalize_need_tags(need_tags, max_tags=3),
             "hits": {},
         }
     else:
@@ -222,17 +111,17 @@ def build_chat_recommendations(
                         cleaned_hits[k] = [str(v)]
 
             need_payload = {
-                "tags": _normalize_need_tags(raw_tags, max_tags=3),
+                "tags": normalize_need_tags(raw_tags, max_tags=3),
                 "hits": cleaned_hits,
             }
         except Exception:
-            need_payload = _extract_need_fallback(query, max_tags=3)
-            need_payload["tags"] = _normalize_need_tags(
+            need_payload = extract_need_fallback(query, max_tags=3)
+            need_payload["tags"] = normalize_need_tags(
                 need_payload.get("tags", []),
                 max_tags=3,
             )
 
-    need_tags = _normalize_need_tags(need_payload.get("tags", []), max_tags=3)
+    need_tags = normalize_need_tags(need_payload.get("tags", []), max_tags=3)
     need_payload["tags"] = need_tags
 
     log.info(
@@ -360,6 +249,10 @@ def build_chat_recommendations(
                 float(r.get("distance_m") or 1e12),
                 str(r.get("name") or ""),
             ),
+        )
+        recs["recommendations"] = _diversify_by_need(
+            recs["recommendations"],
+            limit=3,
         )
 
     # ここは facade 側から呼ぶ。
