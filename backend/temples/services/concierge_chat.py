@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from django.conf import settings
+
 
 from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 from temples.services.concierge_chat_pool import (
@@ -36,6 +36,10 @@ from temples.services.concierge_chat_response_meta import (
 )
 from temples.services.concierge_chat_extra_condition import (
     resolve_extra_condition_tags,
+)
+
+from temples.services.concierge_chat_llm_route import (
+    resolve_llm_route,
 )
 
 
@@ -156,38 +160,21 @@ def build_chat_recommendations(
 
     weights = _resolve_mode_weights(flow=flow, weights=weights)
 
-    requested_llm_enabled = bool(llm_enabled)
-    effective_llm_enabled = bool(
-        requested_llm_enabled and getattr(settings, "CONCIERGE_USE_LLM", False)
+    route = resolve_llm_route(
+        query=query,
+        valid_candidates=valid_candidates,
+        need_tags=need_tags,
+        llm_enabled=llm_enabled,
     )
 
-    llm_used = False
-    llm_error: Optional[str] = None
+    recs = route["recs"]
+    requested_llm_enabled = bool(route["requested_llm_enabled"])
+    effective_llm_enabled = bool(route["effective_llm_enabled"])
+    llm_used = bool(route["llm_used"])
+    llm_error = route["llm_error"]
 
-    if effective_llm_enabled:
-        try:
-            from temples.llm import orchestrator as orch_mod  # type: ignore
-
-            llm_used = True
-            recs = orch_mod.ConciergeOrchestrator().suggest(
-                query=query,
-                candidates=valid_candidates,
-            )
-        except Exception as e:
-            llm_error = f"{type(e).__name__}: {e}"
-            log.exception("[build_chat_recommendations] LLM exception traceback")
-
-            prefiltered = _prefilter_candidates_for_need(
-                valid_candidates,
-                need_tags=need_tags,
-            )
-            recs = _seed_recs_from_candidates(prefiltered, size=12)
-    else:
-        prefiltered = _prefilter_candidates_for_need(
-            valid_candidates,
-            need_tags=need_tags,
-        )
-        recs = _seed_recs_from_candidates(prefiltered, size=12)
+    if llm_error:
+        log.exception("[build_chat_recommendations] LLM exception traceback")
 
     log.info(
         "[dbg] route llm_requested=%r llm_effective=%r llm_used=%r seed=%r candidate_count=%d",
