@@ -90,7 +90,19 @@ def _normalize_candidate_fields(c: Dict[str, Any]) -> Dict[str, Any]:
     - 不正値はなるべく None / 空配列へ寄せる
     - 既存キーは可能な限り保持する
     """
-    row = dict(c) if isinstance(c, dict) else {}
+    row = dict(c)
+
+    lat = _to_float(row.get("lat"))
+    lng = _to_float(row.get("lng"))
+    distance_m = _to_float(row.get("distance_m"))
+
+    if lat is not None:
+        row["lat"] = lat
+    if lng is not None:
+        row["lng"] = lng
+    if distance_m is not None:
+        row["distance_m"] = distance_m
+
 
     row["name"] = _to_str_or_none(row.get("name"))
     row["place_id"] = _to_str_or_none(row.get("place_id"))
