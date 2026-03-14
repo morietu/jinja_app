@@ -77,19 +77,59 @@ def normalize_need_tags(tags: Any, *, max_tags: int = 3) -> List[str]:
             continue
 
         nt = normalize_need_tag(t)
-
         if nt and nt not in normalized:
             normalized.append(nt)
 
     return normalized[:max_tags]
 
 
-def extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
-    """
-    LLM / domain extractor が使えない場合の
-    fallback need extraction
-    """
+def _normalize_need_hits(raw_hits: Any) -> Dict[str, List[str]]:
+    cleaned_hits: Dict[str, List[str]] = {}
 
+    if not isinstance(raw_hits, dict):
+        return cleaned_hits
+
+    for k, v in raw_hits.items():
+        if not isinstance(k, str):
+            continue
+
+        key = normalize_need_tag(k)
+        if not key:
+            continue
+
+        values: List[str] = []
+
+        if isinstance(v, list):
+            for x in v:
+                s = str(x).strip()
+                if s and s not in values:
+                    values.append(s)
+        elif v is not None:
+            s = str(v).strip()
+            if s:
+                values.append(s)
+
+        if values:
+            cleaned_hits[key] = values
+
+    return cleaned_hits
+
+
+def _build_need_payload_from_domain_extract(
+    extracted: Any,
+    *,
+    max_tags: int = 3,
+) -> Dict[str, Any]:
+    raw_tags = getattr(extracted, "tags", []) or []
+    raw_hits = getattr(extracted, "hits", {}) or {}
+
+    return {
+        "tags": normalize_need_tags(raw_tags, max_tags=max_tags),
+        "hits": _normalize_need_hits(raw_hits),
+    }
+
+
+def extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
     text = str(query or "").strip()
 
     if not text:
@@ -99,7 +139,6 @@ def extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
     hits: Dict[str, List[str]] = {}
 
     for tag, words in NEED_SYNONYMS.items():
-
         matched_words: List[str] = []
 
         for w in words:
@@ -108,7 +147,6 @@ def extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
                 counter[tag] += 1
 
         if matched_words:
-
             uniq: List[str] = []
             seen = set()
 
@@ -128,3 +166,42 @@ def extract_need_fallback(query: str, *, max_tags: int = 3) -> Dict[str, Any]:
         "tags": tags,
         "hits": hits,
     }
+
+
+def resolve_need_payload(
+    *,
+    query: str,
+    need_tags: Any = None,
+    max_tags: int = 3,
+) -> Dict[str, Any]:
+    if need_tags:
+        return {
+            "tags": normalize_need_tags(need_tags, max_tags=max_tags),
+            "hits": {},
+        }
+
+    try:
+        from temples.domain.need_tags import extract_need_tags  # type: ignore
+
+        extracted = extract_need_tags(query, max_tags=max_tags)
+        payload = _build_need_payload_from_domain_extract(
+            extracted,
+            max_tags=max_tags,
+        )
+    except Exception:
+        payload = extract_need_fallback(query, max_tags=max_tags)
+        payload["tags"] = normalize_need_tags(
+            payload.get("tags", []),
+            max_tags=max_tags,
+        )
+        payload["hits"] = _normalize_need_hits(payload.get("hits", {}))
+
+    return payload
+
+
+__all__ = [
+    "normalize_need_tag",
+    "normalize_need_tags",
+    "extract_need_fallback",
+    "resolve_need_payload",
+]

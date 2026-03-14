@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional
-from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 
+from temples.domain.extra_condition_tags import extract_extra_tags, split_tags_by_kind
 from temples.services.concierge_chat_pool import (
     _ensure_pool_size,
     _merge_candidate_fields,
-    _seed_recs_from_candidates,
 )
 from temples.services.concierge_chat_presentation import (
     _apply_location_backfill as _presentation_apply_location_backfill,
@@ -17,7 +16,6 @@ from temples.services.concierge_chat_presentation import (
 )
 from temples.services.concierge_chat_ranking import (
     _attach_breakdown,
-    _prefilter_candidates_for_need,
     _resolve_mode_weights,
     _diversify_by_need,
 )
@@ -25,31 +23,22 @@ from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
 )
 from temples.services.concierge_chat_need import (
-    normalize_need_tags,
-    extract_need_fallback,
+    resolve_need_payload,
 )
-
 from temples.services.concierge_chat_response_meta import (
     attach_response_meta,
 )
-from temples.services.concierge_chat_extra_condition import (
-    resolve_extra_condition_tags,
-)
-
 from temples.services.concierge_chat_llm_route import (
     resolve_llm_route,
 )
-
 from temples.services.concierge_explanation_payload import (
     attach_explanation_payload,
 )
+from temples.services.concierge_candidate_utils import _normalize_candidate_fields
 
 log = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# presentation 互換 shim
-# ---------------------------------------------------------------------------
 def _apply_location_backfill(
     recs: Dict[str, Any],
     *,
@@ -66,6 +55,7 @@ def _apply_location_backfill(
         bias=bias,
         language=language,
     )
+
 
 def _resolve_extra_condition_tags_compat(
     extra_condition: Optional[str],
@@ -98,6 +88,7 @@ def _resolve_extra_condition_tags_compat(
         "soft_signal_tags": soft_signal_tags,
     }
 
+
 def build_chat_recommendations(
     *,
     query: str,
@@ -123,48 +114,17 @@ def build_chat_recommendations(
     """
 
     valid_candidates = [
-        dict(c) for c in (candidates or [])
+        _normalize_candidate_fields(c)
+        for c in (candidates or [])
         if isinstance(c, dict)
     ]
 
-    need_payload: Dict[str, Any]
-
-    if need_tags:
-        need_payload = {
-            "tags": normalize_need_tags(need_tags, max_tags=3),
-            "hits": {},
-        }
-    else:
-        try:
-            from temples.domain.need_tags import extract_need_tags  # type: ignore
-
-            ex = extract_need_tags(query, max_tags=3)
-            raw_tags = getattr(ex, "tags", []) or []
-            raw_hits = getattr(ex, "hits", {}) or {}
-
-            cleaned_hits: Dict[str, List[str]] = {}
-            if isinstance(raw_hits, dict):
-                for k, v in raw_hits.items():
-                    if not isinstance(k, str) or not k.strip():
-                        continue
-                    if isinstance(v, list):
-                        cleaned_hits[k] = [str(x) for x in v if str(x).strip()]
-                    elif v is not None and str(v).strip():
-                        cleaned_hits[k] = [str(v)]
-
-            need_payload = {
-                "tags": normalize_need_tags(raw_tags, max_tags=3),
-                "hits": cleaned_hits,
-            }
-        except Exception:
-            need_payload = extract_need_fallback(query, max_tags=3)
-            need_payload["tags"] = normalize_need_tags(
-                need_payload.get("tags", []),
-                max_tags=3,
-            )
-
-    need_tags = normalize_need_tags(need_payload.get("tags", []), max_tags=3)
-    need_payload["tags"] = need_tags
+    need_payload = resolve_need_payload(
+        query=query,
+        need_tags=need_tags,
+        max_tags=3,
+    )
+    need_tags = need_payload["tags"]
 
     log.info(
         "[dbg] need_tags query=%r tags=%r language=%r flow=%r extra=%r goriyaku=%r",
@@ -180,6 +140,7 @@ def build_chat_recommendations(
     if birthdate:
         try:
             from temples.domain.astrology import sun_sign_and_element  # type: ignore
+
             astro_profile = sun_sign_and_element(birthdate)
         except Exception:
             astro_profile = None
@@ -244,6 +205,7 @@ def build_chat_recommendations(
                 soft_signal_tags=soft_signal_tags,
             )
             _attach_reason_source(rec)
+
     recs = attach_explanation_payload(recs)
 
     distance_mode = "sort_distance" in sort_tags
@@ -271,9 +233,6 @@ def build_chat_recommendations(
             limit=3,
         )
 
-    # ここは facade 側から呼ぶ。
-    # 既存テストが temples.services.concierge_chat._apply_location_backfill を
-    # monkeypatch しているため、presentation 側を直呼びしない。
     _apply_location_backfill(recs, bias=bias, language=language)
     _trim_to_top3_and_fill_message(recs)
 
@@ -329,7 +288,7 @@ def build_chat_recommendations(
         extra_condition=extra_condition,
         goriyaku_tag_ids=goriyaku_tag_ids,
         hard_filter_tags=hard_filter_tags,
-    )   
+    )
 
     recs = attach_explanations_for_chat(
         recs,

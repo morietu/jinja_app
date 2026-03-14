@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from temples.services.concierge_candidate_utils import _normalize_candidate_fields
+
 
 def _seed_recs_from_candidates(
     candidates: Optional[List[Dict[str, Any]]],
     size: int = 12,
 ) -> Dict[str, Any]:
-    safe_candidates = list(candidates or [])
+    safe_candidates = [
+        _normalize_candidate_fields(c)
+        for c in (candidates or [])
+        if isinstance(c, dict)
+    ]
     return {
         "recommendations": safe_candidates[:size],
         "_seed": True,
@@ -20,7 +26,16 @@ def _ensure_pool_size(
     candidates: List[Dict[str, Any]],
     size: int = 12,
 ) -> Dict[str, Any]:
-    current: List[Dict[str, Any]] = list(recs.get("recommendations") or [])
+    current: List[Dict[str, Any]] = [
+        _normalize_candidate_fields(r)
+        for r in (recs.get("recommendations") or [])
+        if isinstance(r, dict)
+    ]
+    safe_candidates = [
+        _normalize_candidate_fields(c)
+        for c in candidates
+        if isinstance(c, dict)
+    ]
 
     seen_ids = set()
     seen_names = set()
@@ -34,7 +49,7 @@ def _ensure_pool_size(
         if name:
             seen_names.add(name)
 
-    for cand in candidates:
+    for cand in safe_candidates:
         if len(current) >= size:
             break
 
@@ -63,13 +78,16 @@ def _merge_candidate_fields(
     *,
     candidates: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    safe_candidates = [
+        _normalize_candidate_fields(c)
+        for c in candidates
+        if isinstance(c, dict)
+    ]
+
     by_id: Dict[Any, Dict[str, Any]] = {}
     by_name: Dict[str, Dict[str, Any]] = {}
 
-    for c in candidates:
-        if not isinstance(c, dict):
-            continue
-
+    for c in safe_candidates:
         cid = c.get("shrine_id") or c.get("id")
         if cid is not None:
             by_id[cid] = c
@@ -84,23 +102,24 @@ def _merge_candidate_fields(
         if not isinstance(r, dict):
             continue
 
+        row_input = _normalize_candidate_fields(r)
         base = None
 
-        rid = r.get("shrine_id") or r.get("id")
+        rid = row_input.get("shrine_id") or row_input.get("id")
         if rid is not None:
             base = by_id.get(rid)
 
         if base is None:
-            name = str(r.get("name") or "").strip()
+            name = str(row_input.get("name") or "").strip()
             if name:
                 base = by_name.get(name)
 
         if base is not None:
             row = dict(base)
-            row.update(r)  # orchestrator 側の reason などを優先
+            row.update(row_input)  # orchestrator 側の reason などを優先
             merged.append(row)
         else:
-            merged.append(r)
+            merged.append(row_input)
 
     out = dict(recs)
     out["recommendations"] = merged
