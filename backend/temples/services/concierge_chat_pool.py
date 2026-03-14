@@ -116,7 +116,9 @@ def _merge_candidate_fields(
 
         if base is not None:
             row = dict(base)
-            row.update(row_input)  # orchestrator 側の reason などを優先
+            for k, v in row_input.items():
+                if v is not None:
+                    row[k] = v
             merged.append(row)
         else:
             merged.append(row_input)
