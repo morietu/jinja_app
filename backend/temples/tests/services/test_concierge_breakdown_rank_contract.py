@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from temples.services import concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
-
 
 @pytest.mark.django_db
 def test_breakdown_score_total_is_contract_value_but_sort_uses_ranked_score(monkeypatch):
@@ -17,7 +15,6 @@ def test_breakdown_score_total_is_contract_value_but_sort_uses_ranked_score(monk
       - ただし matched_by_tag の強さ差で A が上に来る
     という状態を固定する。
     """
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
 
     candidates = [
         {

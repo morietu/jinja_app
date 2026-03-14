@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-import temples.services.concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CANDIDATES
 
@@ -18,7 +17,6 @@ from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CAND
     ],
 )
 def test_need_taxonomy_separates_study_and_career(query, expected_tag, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
 
     recs = build_chat_recommendations(
         query=query,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-import temples.services.concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CANDIDATES
 
@@ -32,7 +31,7 @@ STUDY_CASES = [
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", STUDY_CASES, ids=[c["id"] for c in STUDY_CASES])
 def test_concierge_study_queries(case, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+
 
     recs = build_chat_recommendations(
         query=case["query"],

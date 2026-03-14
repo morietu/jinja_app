@@ -536,7 +536,6 @@ class ConciergeChatView(APIView):
             goriyaku_tag_ids=goriyaku_tag_ids,
             extra_condition=extra_condition,
             flow=flow,
-            trace_id=rid,
         )
 
         after_n = len(recs.get("recommendations") or [])

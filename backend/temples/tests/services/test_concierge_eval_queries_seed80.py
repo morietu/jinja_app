@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-import temples.services.concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
 
 
@@ -181,7 +180,7 @@ def _load_seed_candidates() -> list[dict]:
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", SEED80_EVAL_CASES, ids=[c["id"] for c in SEED80_EVAL_CASES])
 def test_concierge_eval_queries_seed80(case, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+
 
     candidates = _load_seed_candidates()
 

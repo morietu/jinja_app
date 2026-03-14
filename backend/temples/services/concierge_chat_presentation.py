@@ -19,42 +19,6 @@ SOFT_SIGNAL_HIGHLIGHTS: Dict[str, str] = {
 }
 
 
-def _apply_location_backfill(
-    recs: Dict[str, Any],
-    *,
-    bias: Optional[Dict[str, float]],
-    language: str,
-) -> None:
-    """
-    recommendations 内の各候補に location が無い場合、
-    名前から住所を補完して短い location を埋める。
-
-    注意:
-    - recs を破壊的に更新する
-    - 失敗時は何もしない
-    """
-    for r in recs.get("recommendations") or []:
-        if not isinstance(r, dict):
-            continue
-
-        loc = r.get("location")
-        if isinstance(loc, str) and loc.strip():
-            continue
-
-        name = str(r.get("name") or "").strip()
-        if not name:
-            continue
-
-        try:
-            addr = bf._lookup_address_by_name(name, bias=bias, lang=language)
-        except Exception:
-            addr = None
-
-        if isinstance(addr, str) and addr.strip():
-            short = bf._shorten_japanese_address(addr) or addr.strip()
-            r["location"] = short
-
-
 def _apply_soft_signal_highlights(
     rec: Dict[str, Any],
     *,
@@ -159,3 +123,63 @@ def _trim_to_top3_and_fill_message(recs: Dict[str, Any]) -> None:
         recs["message"] = (
             "条件に合いそうな神社が見つかりませんでした。条件を少しゆるめて試してください。"
         )
+
+def _fill_location_from_existing_address(
+    recs: Dict[str, Any],
+) -> None:
+    """
+    recommendations 内の各候補について、
+    既存の formatted_address / address から
+    location を埋める。外部lookupはしない。
+    """
+    for r in recs.get("recommendations") or []:
+        if not isinstance(r, dict):
+            continue
+
+        loc = r.get("location")
+        if isinstance(loc, str) and loc.strip():
+            continue
+
+        addr = str(r.get("formatted_address") or r.get("address") or "").strip()
+        if not addr:
+            continue
+
+        short = bf._shorten_japanese_address(addr) or addr
+        r["location"] = short
+
+
+def _backfill_location_from_name(
+    recs: Dict[str, Any],
+    *,
+    bias: Optional[Dict[str, float]],
+    language: str,
+) -> None:
+    """
+    recommendations 内の各候補について、
+    location も既存住所も無い場合だけ name から住所lookupして
+    short location を埋める。
+    """
+    for r in recs.get("recommendations") or []:
+        if not isinstance(r, dict):
+            continue
+
+        loc = r.get("location")
+        if isinstance(loc, str) and loc.strip():
+            continue
+
+        addr = str(r.get("formatted_address") or r.get("address") or "").strip()
+        if addr:
+            continue
+
+        name = str(r.get("name") or "").strip()
+        if not name:
+            continue
+
+        try:
+            looked_up = bf._lookup_address_by_name(name, bias=bias, lang=language)
+        except Exception:
+            looked_up = None
+
+        if isinstance(looked_up, str) and looked_up.strip():
+            short = bf._shorten_japanese_address(looked_up) or looked_up.strip()
+            r["location"] = short

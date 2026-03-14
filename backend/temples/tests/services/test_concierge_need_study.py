@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-import temples.services.concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CANDIDATES
 
@@ -26,7 +25,7 @@ from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CAND
     ],
 )
 def test_study_queries_should_eventually_rank_study_shrines_high(query, expected_top_names, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+
 
     recs = build_chat_recommendations(
         query=query,
@@ -56,7 +55,7 @@ def test_study_queries_should_eventually_rank_study_shrines_high(query, expected
     ],
 )
 def test_study_like_queries_resolve_to_study_need_tag(query, expected_tag, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+
 
     recs = build_chat_recommendations(
         query=query,

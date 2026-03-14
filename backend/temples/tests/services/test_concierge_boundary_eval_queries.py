@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-import temples.services.concierge_chat as chat_mod
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CANDIDATES
 
@@ -88,7 +87,7 @@ BOUNDARY_EVAL_CASES = [
     ids=[c["id"] for c in BOUNDARY_EVAL_CASES],
 )
 def test_concierge_boundary_eval_queries(case, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    
 
     recs = build_chat_recommendations(
         query=case["query"],

@@ -1,7 +1,6 @@
 # backend/temples/tests/services/test_concierge_eval_queries.py
 
 import pytest
-import temples.services.concierge_chat as chat_mod
 
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.tests.fixtures.concierge_eval_queries import CONCIERGE_EVAL_QUERIES
@@ -11,7 +10,7 @@ from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CAND
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", CONCIERGE_EVAL_QUERIES)
 def test_concierge_eval_queries(case, monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+
 
     recs = build_chat_recommendations(
         query=case["query"],

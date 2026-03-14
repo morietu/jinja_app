@@ -1,5 +1,4 @@
 import pytest
-import temples.services.concierge_chat as chat_mod
 
 from temples.services.concierge_chat import build_chat_recommendations
 
@@ -8,7 +7,7 @@ from temples.services.concierge_chat import build_chat_recommendations
 
 @pytest.mark.django_db
 def test_need_variation_changes_matched_tags_and_score(monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    
 
     candidates = [
         {
@@ -96,7 +95,7 @@ def test_need_variation_changes_matched_tags_and_score(monkeypatch):
 
 @pytest.mark.django_db
 def test_need_match_by_astro_tags_only(monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    
 
     candidates = [
         {
@@ -142,7 +141,7 @@ def test_need_match_by_astro_tags_only(monkeypatch):
 
 @pytest.mark.django_db
 def test_need_match_by_text_only(monkeypatch):
-    monkeypatch.setattr(chat_mod, "_apply_location_backfill", lambda *args, **kwargs: None)
+    
 
     candidates = [
         {
