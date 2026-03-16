@@ -445,8 +445,7 @@ CORS_ALLOWED_ORIGINS = _split_csv(
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+
 
 LANGUAGE_CODE = "ja"
 TIME_ZONE = "Asia/Tokyo"
@@ -461,7 +460,6 @@ RELEASE = os.getenv("RENDER_GIT_COMMIT", "local")
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")  # local / r2
 
 if STORAGE_BACKEND == "r2":
-    # R2(S3互換) は django-storages の S3Boto3Storage を使う
     STORAGES = {
         "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
@@ -470,24 +468,20 @@ if STORAGE_BACKEND == "r2":
     AWS_ACCESS_KEY_ID = os.environ["R2_ACCESS_KEY_ID"]
     AWS_SECRET_ACCESS_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
     AWS_STORAGE_BUCKET_NAME = os.environ["R2_BUCKET"]
-    AWS_S3_ENDPOINT_URL = os.environ["R2_ENDPOINT_URL"]  # https://<accountid>.r2.cloudflarestorage.com
+    AWS_S3_ENDPOINT_URL = os.environ["R2_ENDPOINT_URL"]
 
     AWS_S3_REGION_NAME = "auto"
     AWS_S3_SIGNATURE_VERSION = "s3v4"
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
-
-    # R2 はまず path が無難（virtual でハマりやすい）
     AWS_S3_ADDRESSING_STYLE = "path"
 
-    # 公開URL（必須）例: https://pub-xxxx.r2.dev
     R2_PUBLIC_BASE_URL = os.environ["R2_PUBLIC_BASE_URL"].rstrip("/")
     AWS_S3_CUSTOM_DOMAIN = urlparse(R2_PUBLIC_BASE_URL).netloc
     MEDIA_URL = R2_PUBLIC_BASE_URL + "/"
-
+    MEDIA_ROOT = None
 else:
-    # local
     MEDIA_URL = "/media/"
     MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
 
