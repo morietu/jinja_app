@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import logging
 from typing import Any, Dict, List, Optional
-
+from temples.domain.need_to_goriyaku_tag_ids import need_tags_to_goriyaku_ids
 log = logging.getLogger(__name__)
 
 
@@ -259,6 +259,18 @@ def _attach_breakdown(
             text_score_by_tag[tag] = score
             matched_by_text.append(tag)
 
+    candidate_gid_set = {
+        int(x)
+        for x in (rec.get("goriyaku_tag_ids") or [])
+        if isinstance(x, int) or (isinstance(x, str) and str(x).strip().isdigit())
+    }
+
+    matched_by_gid: List[str] = []
+    for tag in need_tags_clean:
+        expected_gids = need_tags_to_goriyaku_ids([tag])
+        if expected_gids and (candidate_gid_set & expected_gids):
+            matched_by_gid.append(tag)
+
     is_study_need = "study" in need_tags_clean
     study_bonus = 0
     if is_study_need and any(h in material for h in STUDY_SHRINE_HINTS):
@@ -266,7 +278,7 @@ def _attach_breakdown(
 
     matched_all: List[str] = []
     seen: set[str] = set()
-    for t in matched_by_tag + matched_by_text:
+    for t in matched_by_tag + matched_by_text + matched_by_gid:
         if t not in seen:
             matched_all.append(t)
             seen.add(t)
@@ -277,6 +289,7 @@ def _attach_breakdown(
     # 既存契約テストと相性のよい整数 rank
     score_need_rank = (
         len(matched_by_tag) * 2
+        + len(matched_by_gid) * 2
         + sum(text_score_by_tag.values())
         + study_bonus
     )
@@ -284,6 +297,7 @@ def _attach_breakdown(
     # 内部ランキング専用の強化版
     score_need_rank_weighted = (
         len(matched_by_tag) * 2.0
+        + len(matched_by_gid) * 2.0
         + sum(text_score_by_tag.values()) * 1.2
         + study_bonus
     )
@@ -361,6 +375,7 @@ def _attach_breakdown(
                 "matched_tags": matched_all,
                 "matched_by_tag_count": len(matched_by_tag),
                 "matched_by_text_count": len(matched_by_text),
+                "matched_by_gid_count": len(matched_by_gid),
                 "contribution": float(score_need * w2),
                 "rank_contribution": float(score_need_rank * w2),
                 "rank_weighted_contribution": float(score_need_rank_weighted * w2),
@@ -379,7 +394,6 @@ def _attach_breakdown(
             "score_total_ranked": float(score_total_ranked),
         },
     }
-
 
 def _prefilter_candidates_for_need(
     candidates: List[Dict[str, Any]],
@@ -404,17 +418,30 @@ def _prefilter_candidates_for_need(
             if isinstance(t, str) and str(t).strip()
         }
 
+        candidate_gid_set = {
+            int(x)
+            for x in (c.get("goriyaku_tag_ids") or [])
+            if isinstance(x, int) or (isinstance(x, str) and str(x).strip().isdigit())
+        }
+
         material = f"{c.get('goriyaku') or ''} {c.get('description') or ''}".replace("　", " ")
 
         score = 0
         matched: List[str] = []
         matched_text_hints_by_tag: Dict[str, List[str]] = {}
         text_score_by_tag: Dict[str, int] = {}
+        matched_gid_tags: List[str] = []
 
         for tag in need_tags_clean:
             if tag in astro_tag_set:
                 score += 2
                 matched.append(f"{tag}:astro")
+
+            expected_gids = need_tags_to_goriyaku_ids([tag])
+            if expected_gids and (candidate_gid_set & expected_gids):
+                score += 2
+                matched.append(f"{tag}:gid")
+                matched_gid_tags.append(tag)
 
             text_weights = NEED_TEXT_WEIGHTS.get(tag, {})
             tag_matched_hints = [hint for hint in text_weights.keys() if hint in material]
@@ -435,6 +462,7 @@ def _prefilter_candidates_for_need(
             "matched": matched,
             "text_score_by_tag": text_score_by_tag,
             "matched_text_hints_by_tag": matched_text_hints_by_tag,
+            "matched_gid_tags": matched_gid_tags,
         }
 
         scored.append(
@@ -458,6 +486,7 @@ def _prefilter_candidates_for_need(
                     "prefilter": r.get("_prefilter_debug"),
                     "astro_tags": r.get("astro_tags"),
                     "goriyaku": r.get("goriyaku"),
+                    "goriyaku_tag_ids": r.get("goriyaku_tag_ids"),
                 }
                 for r in ordered[:12]
             ],
@@ -466,7 +495,6 @@ def _prefilter_candidates_for_need(
         pass
 
     return ordered
-
 
 def _diversify_by_need(
     recs: List[Dict[str, Any]],

@@ -15,7 +15,7 @@ NEED_TO_GORIYAKU_IDS: Dict[str, Set[int]] = {
     "study": set(),
     "health": set(),
     "mental": set(),
-    "protection": set(),
+    "protection": {2},
     "courage": set(),
     "focus": set(),
     "rest": set(),

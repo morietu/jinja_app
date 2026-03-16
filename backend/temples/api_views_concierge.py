@@ -1,57 +1,53 @@
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
-import uuid
-import requests
-from typing import Any, Dict, Optional, List, Tuple
-
-
 
 import logging
 import os
+import uuid
+from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from django.conf import settings as dj_settings
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiTypes, extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework import serializers
-# これを消す / コメントアウト
-# from temples.llm import extract_intent
-# from temples.llm import orchestrator as orch
-from temples.services.billing_state import is_premium_for_user
+
+from temples.api.serializers.concierge import (
+    ConciergePlanRequestSerializer,
+    ConciergePlanResponseSerializer,
+)
 from temples.geocoding.client import geocode_google_point
-from temples.services.concierge_chat import build_chat_recommendations
+from temples.models import ConciergeThread
+from temples.models import ConciergeUsage
+from temples.services import places as Places
+from temples.services.billing_state import is_premium_for_user
 from temples.services.concierge_candidate_utils import (
     _candidate_key,
     _dedupe_candidates,
     _to_float,
 )
+from temples.services.concierge_chat import build_chat_recommendations
+from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
-from temples.services import places as Places
-from temples.models import ConciergeThread
-from temples.services.concierge_chat_candidates import build_chat_candidates
-
-from temples.models import ConciergeUsage
-from temples.api.serializers.concierge import (
-    ConciergePlanRequestSerializer,
-    ConciergePlanResponseSerializer,
-)
-
-
 
 log = logging.getLogger(__name__)
+
+
 def _use_llm() -> bool:
     return bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
+
 
 # --- compat: tests monkeypatch 用に module attribute を生やす ---
 try:
     if _use_llm():
         from temples.llm import orchestrator as orch
+
         ConciergeOrchestrator = orch.ConciergeOrchestrator
         orchestrate_concierge = orch.orchestrate_concierge
     else:
@@ -70,15 +66,21 @@ except Exception:  # pragma: no cover
 
         query = str(kwargs.get("query") or query or "").strip()
 
-        # ✅ kwargsが存在するならNoneも含めて尊重
+        # kwargs が存在するなら None も含めて尊重
         if "candidates" in kwargs:
             candidates = kwargs.get("candidates")
 
         cands = [x for x in (candidates or []) if isinstance(x, dict)]
         recs = []
         for i, c in enumerate(cands[:3]):
-            nm = (c.get("name") or c.get("place_id") or "unknown")
-            recs.append({"name": nm, "reason": "暫定（候補ベース）", "score": max(0.0, 1.0 - i * 0.1)})
+            nm = c.get("name") or c.get("place_id") or "unknown"
+            recs.append(
+                {
+                    "name": nm,
+                    "reason": "暫定（候補ベース）",
+                    "score": max(0.0, 1.0 - i * 0.1),
+                }
+            )
 
         if not recs:
             recs = [{"name": "近隣の神社", "reason": "暫定"}]
@@ -86,7 +88,7 @@ except Exception:  # pragma: no cover
 
 
 def _safe_extract_intent(text: str):
-    t = (text or "")
+    t = text or ""
 
     def _heuristic():
         if any(k in t for k in ("縁結び", "恋", "結婚")):
@@ -102,6 +104,7 @@ def _safe_extract_intent(text: str):
 
     try:
         from temples.llm import extract_intent
+
         out = extract_intent(text)
         return out or _heuristic()
     except Exception:
@@ -113,11 +116,6 @@ def extract_intent(text: str):
     return _safe_extract_intent(text)
 
 
-
-
-
-
-
 def _force_user_from_bearer(req):
     """
     DRFが認証しなくても、Authorization: Bearer <token> があれば user を復元する。
@@ -127,14 +125,12 @@ def _force_user_from_bearer(req):
     def _get_auth(r):
         if r is None:
             return None
-        # DRF Request
         try:
             h = r.headers.get("Authorization")
             if h:
                 return h
         except Exception:
             pass
-        # Django HttpRequest
         try:
             return r.META.get("HTTP_AUTHORIZATION")
         except Exception:
@@ -147,6 +143,7 @@ def _force_user_from_bearer(req):
     parts = str(auth).strip().split()
     if len(parts) != 2:
         return None, None
+
     typ, token = parts
     if typ.lower() not in {"bearer", "jwt"}:
         return None, None
@@ -168,7 +165,6 @@ def _resolve_user_and_token(request):
     2) JWTAuthentication().authenticate を DRF Request / Django HttpRequest の両方で試す
     3) Authorization: Bearer から強制復元
     """
-    # 1) DRFが既にセットしているなら最優先
     try:
         u = getattr(request, "user", None)
         if u is not None and getattr(u, "is_authenticated", False):
@@ -178,7 +174,6 @@ def _resolve_user_and_token(request):
 
     ja = JWTAuthentication()
 
-    # 2) authenticate を両方で試す（ここが rate_limit 安定化の肝）
     for req in (request, getattr(request, "_request", None)):
         if req is None:
             continue
@@ -189,7 +184,6 @@ def _resolve_user_and_token(request):
         if pair:
             return pair[0], pair[1]
 
-    # 3) Bearer から復元
     return _force_user_from_bearer(request)
 
 
@@ -212,15 +206,16 @@ def _parse_radius(data: Dict[str, Any]) -> int:
             r = None
     else:
         r = 8000
+
     if r is None:
         r = 8000
     return max(1, min(50000, r))
 
 
 def _geocode_area_for_chat(*, area: str) -> tuple[float, float] | None:
-    """area（地名文字列）を geocoding client 経由で解決して (lat, lng) を返す"""
-    return geocode_google_point(area, language="ja", region="jp", timeout=6.0)
-
+    pt = geocode_google_point(area, language="ja", region="jp", timeout=6.0)
+    log.warning("[api/chat] geocode_area area=%r result=%r", area, pt)
+    return pt
 
 def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     """
@@ -234,10 +229,10 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     pt = _geocode_area_for_chat(area=area)
     if not pt:
         return
+
     lb = f"circle:8000@{pt[0]:.3f},{pt[1]:.3f}"
 
     try:
-        # findplacefromtext の想定シグネチャに合わせる（inputtype を渡さない）
         Places.findplacefromtext(
             input=area,
             language="ja",
@@ -247,8 +242,8 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     except Exception:
         pass
 
+
 def _resolve_request_inputs(data: Dict[str, Any]):
-    # v1 compat: filters をトップレベルへ（トップレベル優先で1回だけ畳む）
     filters = data.get("filters") if isinstance(data.get("filters"), dict) else {}
     for k in ("birthdate", "goriyaku_tag_ids", "extra_condition"):
         if data.get(k) in (None, "", []) and filters.get(k) not in (None, "", []):
@@ -261,14 +256,11 @@ def _resolve_request_inputs(data: Dict[str, Any]):
         data.get("extra_condition"),
     )
 
-    # ✅ v1: filters をトップレベルに畳む（互換のためトップレベル優先）
     filters = data.get("filters") or {}
     if isinstance(filters, dict):
-        # birthdate
         if not data.get("birthdate") and filters.get("birthdate"):
             data["birthdate"] = filters.get("birthdate")
 
-    # ついでに将来用（今は未使用でも保持しておく）
     if not data.get("goriyaku_tag_ids") and filters.get("goriyaku_tag_ids"):
         data["goriyaku_tag_ids"] = filters.get("goriyaku_tag_ids")
     if not data.get("extra_condition") and filters.get("extra_condition"):
@@ -336,9 +328,17 @@ def _build_chat_candidates_pipeline(
     data = request.data or {}
     _ = language  # interface stability for future use
 
-    # リクエスト経由の candidates を優先的に渡す（formatted_address などを保持）
     raw_candidates = data.get("candidates") if isinstance(data.get("candidates"), list) else []
     user_candidates = [c for c in raw_candidates if isinstance(c, dict)]
+
+    log.warning(
+        "[api/chat] build_candidates_input trace=%s area=%r lat=%r lng=%r goriyaku=%r",
+        getattr(request, "_concierge_trace_id", ""),
+        area,
+        lat,
+        lng,
+        data.get("goriyaku_tag_ids"),
+    )
 
     raw_built_candidates = build_chat_candidates(
         goriyaku_tag_ids=data.get("goriyaku_tag_ids"),
@@ -351,15 +351,29 @@ def _build_chat_candidates_pipeline(
     merged_candidates = user_candidates + raw_built_candidates
     deduped_candidates = _dedupe_candidates(merged_candidates)
 
-    # 既存順序契約: user candidates 優先 + built candidates の順序を保持
-    ordered_candidates = deduped_candidates
+    log.warning(
+        "[api/chat] build_candidates_output trace=%s user=%d built=%d merged=%d deduped=%d",
+        getattr(request, "_concierge_trace_id", ""),
+        len(user_candidates),
+        len(raw_built_candidates),
+        len(merged_candidates),
+        len(deduped_candidates),
+    )
 
-    return ordered_candidates, len(user_candidates), len(raw_built_candidates), len(merged_candidates)
+    ordered_candidates = deduped_candidates
+    return (
+        ordered_candidates,
+        len(user_candidates),
+        len(raw_built_candidates),
+        len(merged_candidates),
+    )
 
 
 def _resolve_flow(goriyaku_tag_ids: Any, extra_condition: Any) -> str:
     gids = goriyaku_tag_ids
-    has_goriyaku = isinstance(gids, list) and len([x for x in gids if x is not None and str(x).strip() != ""]) > 0
+    has_goriyaku = isinstance(gids, list) and len(
+        [x for x in gids if x is not None and str(x).strip() != ""]
+    ) > 0
     has_extra = bool((extra_condition or "").strip())
     return "B" if (has_goriyaku or has_extra) else "A"
 
@@ -373,24 +387,28 @@ class ConciergeChatView(APIView):
         tags=["concierge"],
         summary="Concierge chat",
         description="message もしくは query を受け付ける互換ラッパ",
-        request=None,  # ここは雑でOK。ちゃんとやるなら serializer 用意
+        request=None,
         responses={200: OpenApiTypes.OBJECT},
     )
-
     def post(self, request, *args, **kwargs):
         rid = uuid.uuid4().hex[:8]
         log.info("[concierge] chat.post rid=%s", rid)
         data = request.data or {}
-        # --- debug: raw payload ---
+
         log.info("[api/chat] raw keys=%s", sorted(list(data.keys()))[:60])
         log.info("[api/chat] raw bias=%r", data.get("bias"))
-        log.info("[api/chat] raw lat/lng/radius_m=%r/%r/%r",
-                 data.get("lat"), data.get("lng"), data.get("radius_m"))
+        log.info(
+            "[api/chat] raw lat/lng/radius_m=%r/%r/%r",
+            data.get("lat"),
+            data.get("lng"),
+            data.get("radius_m"),
+        )
         filters0 = data.get("filters") if isinstance(data.get("filters"), dict) else None
         log.info("[api/chat] raw filters=%r", filters0)
 
         payload_lat = _to_float(data.get("lat"))
         payload_lng = _to_float(data.get("lng"))
+
         (
             query,
             message,
@@ -403,15 +421,13 @@ class ConciergeChatView(APIView):
             extra_condition,
         ) = _resolve_request_inputs(data)
 
-        # --- debug: merge 後 ---
         log.info(
             "[api/chat] after_merge birthdate=%r goriyaku=%r extra=%r",
-            (birthdate_raw or None),
+            birthdate_raw or None,
             goriyaku_tag_ids,
             extra_condition,
         )
 
-        # ★ message が来たら問答無用で message モード（query が一緒に来ても）
         is_message_mode = bool(message)
 
         if not query:
@@ -424,6 +440,18 @@ class ConciergeChatView(APIView):
         log.info("[api/chat] lat/lng=%r/%r src=%s area=%r", lat, lng, lat_src, area)
 
         request._concierge_trace_id = rid
+
+        log.warning(
+            "[api/chat] pipeline_input rid=%s area=%r payload_lat=%r payload_lng=%r resolved_lat=%r resolved_lng=%r raw_candidates=%d",
+            rid,
+            area,
+            payload_lat,
+            payload_lng,
+            lat,
+            lng,
+            len(data.get("candidates") or []) if isinstance(data.get("candidates"), list) else 0,
+        )
+
         candidates, user_n, built_n, merged_n = _build_chat_candidates_pipeline(
             request=request,
             lat=lat,
@@ -441,23 +469,19 @@ class ConciergeChatView(APIView):
             len(candidates),
         )
 
-        # ✅ テストが locationbias=8000 を見るので probe は残す（結果は使わない）
         try:
             _probe_area_locationbias_for_chat(area=area)
         except Exception:
             pass
 
-        # bias は最終的に使う lat/lng から作る（ここがテストの本丸）
         bias = None
         if lat is not None and lng is not None:
             r_m = _parse_radius(data)
             bias = {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
             log.info("[api/chat] computed bias=%r (from lat/lng/radius_m)", bias)
 
-        # intent は常に返す
         intent = extract_intent(query)
 
-        # ---- user 解決（DRFが未認証でもBearerから復元）----
         user, token = _resolve_user_and_token(request)
         if user is not None:
             request.user = user
@@ -468,7 +492,6 @@ class ConciergeChatView(APIView):
         daily_limit = getattr(dj_settings, "CONCIERGE_DAILY_FREE_LIMIT", 5)
         remaining = None
 
-        # ---- rate limit：認証済み & 非premium のみ ----
         if user is not None and not is_premium:
             usage, _ = ConciergeUsage.objects.get_or_create(user=user, date=today)
 
@@ -485,7 +508,6 @@ class ConciergeChatView(APIView):
                 )
                 body["note"] = "limit-reached"
 
-                # message モードなら候補表示形式で返す（テスト要件）
                 if is_message_mode:
                     names = []
                     for r in (recs.get("recommendations") or [])[:3]:
@@ -503,7 +525,6 @@ class ConciergeChatView(APIView):
 
         birthdate = (birthdate_raw or "").strip() or None
 
-        # Bルート判定は「絞り込みが実際に効いている」時だけ
         flow = _resolve_flow(goriyaku_tag_ids, extra_condition)
         log.info(
             "[concierge/reco] input rid=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
@@ -553,7 +574,6 @@ class ConciergeChatView(APIView):
         except Exception:
             pass
 
-        # message がある時は「候補: ...」を必ず返す（テスト要件）
         if is_message_mode:
             names = []
             for r in (recs.get("recommendations") or [])[:3]:
@@ -563,10 +583,8 @@ class ConciergeChatView(APIView):
                         names.append(nm)
             reply = f"候補: {', '.join(names)}" if names else "候補: "
         else:
-            # query モードは契約次第。とりあえず常にキーは返す
             reply = None
 
-        # --- thread 保存（認証ユーザーのみ）---
         thread_obj = None
         if user is not None and getattr(user, "is_authenticated", False):
             thread_id_raw = data.get("thread_id") or data.get("threadId")
@@ -575,9 +593,7 @@ class ConciergeChatView(APIView):
             except Exception:
                 thread_id = None
 
-            reply_text = reply
-            if not isinstance(reply_text, str):
-                reply_text = None
+            reply_text = reply if isinstance(reply, str) else None
 
             try:
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=thread_id)
@@ -586,7 +602,6 @@ class ConciergeChatView(APIView):
                 saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
                 thread_obj = saved.thread
 
-        # ---- observability: レコメンド結果をDBに保存 ----
         from temples.services.concierge_observability import save_concierge_recommendation_log
 
         signals = recs.get("_signals") or {}
@@ -631,7 +646,6 @@ class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None
 
 
-
 class ConciergePlanView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
@@ -642,9 +656,7 @@ class ConciergePlanView(APIView):
         tags=["concierge"],
         summary="Concierge plan",
     )
-
     def post(self, request, *args, **kwargs):
-        # ★ ここを追加（chatと同じ）
         user, token = _resolve_user_and_token(request)
         if user is not None:
             request.user = user
@@ -652,7 +664,6 @@ class ConciergePlanView(APIView):
 
         s = ConciergePlanRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-
 
         body = build_plan_response(
             request_data=request.data or {},
@@ -665,11 +676,12 @@ class ConciergePlanView(APIView):
 class ConciergePlanViewLegacy(ConciergePlanView):
     schema = None
 
-# --- expose function-style views for URLConf / tests ---
+
 chat = ConciergeChatView.as_view()
 plan = ConciergePlanView.as_view()
 chat_legacy = ConciergeChatViewLegacy.as_view()
 plan_legacy = ConciergePlanViewLegacy.as_view()
+
 __all__ = [
     "chat",
     "plan",
