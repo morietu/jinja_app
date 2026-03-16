@@ -213,8 +213,7 @@ if engine.endswith("sqlite3"):
     # どちらか一方でOK
     DATABASES["default"].pop("OPTIONS", None)
 # ---- NoGIS固定（テスト/CIで使う）: DB決定後に一度だけ適用 ----
-if IS_PYTEST and DISABLE_GIS_FOR_TESTS and not USE_SQLITE:
-    USE_GIS = False
+if not USE_GIS and not USE_SQLITE:
     DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
     MIGRATION_MODULES = {**globals().get("MIGRATION_MODULES", {})}
     MIGRATION_MODULES["temples"] = "temples.migrations_nogis"
