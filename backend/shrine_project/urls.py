@@ -40,8 +40,13 @@ def healthz(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_db(request):
-    User = get_user_model()
-    u = User.objects.filter(username="morietsu").first()
+    from temples.models import Shrine, PlaceRef
+    try:
+        from temples.models import ShrineCandidate
+        shrine_candidate_count = ShrineCandidate.objects.count()
+    except Exception as e:
+        shrine_candidate_count = f"ERR: {type(e).__name__}"
+
     return JsonResponse(
         {
             "ENGINE": settings.DATABASES["default"]["ENGINE"],
@@ -50,10 +55,9 @@ def debug_db(request):
             "PORT": settings.DATABASES["default"].get("PORT"),
             "USER": settings.DATABASES["default"].get("USER"),
             "connection_vendor": connection.vendor,
-            "exists": bool(u),
-            "is_active": getattr(u, "is_active", None) if u else None,
-            "is_staff": getattr(u, "is_staff", None) if u else None,
-            "email": getattr(u, "email", None) if u else None,
+            "shrine_count": Shrine.objects.count(),
+            "place_ref_count": PlaceRef.objects.count(),
+            "shrine_candidate_count": shrine_candidate_count,
         }
     )
 
