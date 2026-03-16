@@ -1,18 +1,41 @@
 # backend/temples/migrations_nogis/0001_initial.py
-from django.db import migrations, models
 
+from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.db import migrations, models
 
 class Migration(migrations.Migration):
     initial = True
     dependencies = []
 
     operations = [
+        # --- PlaceRef ---------------------------------------------------------
+        migrations.CreateModel(
+            name="PlaceRef",
+            fields=[
+                ("place_id", models.CharField(max_length=128, primary_key=True, serialize=False)),
+                ("name", models.CharField(max_length=255, blank=True, default="")),
+                ("address", models.CharField(max_length=255, blank=True, default="")),
+                ("latitude", models.FloatField(null=True, blank=True)),
+                ("longitude", models.FloatField(null=True, blank=True)),
+                ("snapshot_json", models.JSONField(null=True, blank=True)),
+                ("synced_at", models.DateTimeField(null=True, blank=True)),
+            ],
+            options={
+                "db_table": "place_ref",
+                "indexes": [
+                    models.Index(fields=["name"]),
+                    models.Index(fields=["synced_at"]),
+                    GinIndex(fields=["snapshot_json"], name="placeref_snapshot_gin"),
+                ],
+            },
+        ),
         # --- Shrine -----------------------------------------------------------
         migrations.CreateModel(
             name="Shrine",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("kind", models.CharField(max_length=20, default="shrine")),
+                ("kind", models.CharField(max_length=10, default="shrine")),
                 ("name_jp", models.CharField(max_length=255)),
                 ("name_romaji", models.CharField(max_length=255, null=True, blank=True)),
                 ("address", models.CharField(max_length=255, null=True, blank=True)),
@@ -32,10 +55,40 @@ class Migration(migrations.Migration):
                 ("last_popular_calc_at", models.DateTimeField(null=True, blank=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
+                ("astro_elements", models.JSONField(default=list, blank=True)),
+                (
+                    "place_ref",
+                    models.OneToOneField(
+                        to="temples.placeref",
+                        on_delete=models.SET_NULL,
+                        null=True,
+                        blank=True,
+                        related_name="shrine",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        to=settings.AUTH_USER_MODEL,
+                        null=True,
+                        blank=True,
+                        on_delete=models.SET_NULL,
+                        related_name="owned_shrines",
+                    ),
+                ),
             ],
             options={
                 "db_table": "temples_shrine",
-                "indexes": [models.Index(fields=["popular_score"], name="shrine_popular_idx")],
+                "indexes": [
+                    models.Index(fields=["popular_score"], name="shrine_popular_idx"),
+                    models.Index(fields=["name_jp"]),
+                    models.Index(fields=["updated_at"]),
+                    models.Index(fields=["latitude"], name="idx_shrine_lat"),
+                    models.Index(fields=["longitude"], name="idx_shrine_lng"),
+                    models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
+                    models.Index(fields=["kyusei"], name="idx_shrine_kyusei"),
+                    models.Index(fields=["kind"], name="idx_shrine_kind"),
+                ],
             },
         ),
         # --- GoriyakuTag ------------------------------------------------------
@@ -90,7 +143,14 @@ class Migration(migrations.Migration):
             name="Visit",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("user_id", models.IntegerField(null=True, blank=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        to=settings.AUTH_USER_MODEL,
+                        on_delete=models.CASCADE,
+                        related_name="visits",
+                    ),
+                ),
                 ("shrine", models.ForeignKey(to="temples.shrine", on_delete=models.CASCADE)),
                 ("visited_at", models.DateTimeField(auto_now_add=True)),
                 ("note", models.TextField(null=True, blank=True)),
