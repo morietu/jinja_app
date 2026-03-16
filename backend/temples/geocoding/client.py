@@ -43,7 +43,6 @@ def _google_maps_api_key() -> str | None:
     except Exception:
         return None
 
-
 def geocode_google_point(
     area: str,
     *,
@@ -87,7 +86,16 @@ def geocode_google_point(
             },
         )
 
-        if status != "OK" or not results:
+        if status in {
+            "ZERO_RESULTS",
+            "OVER_QUERY_LIMIT",
+            "REQUEST_DENIED",
+            "INVALID_REQUEST",
+            "UNKNOWN_ERROR",
+        }:
+            return None
+
+        if not results:
             return None
 
         loc = (results[0].get("geometry") or {}).get("location") or {}
@@ -108,7 +116,6 @@ def geocode_google_point(
             },
         )
         return None
-
 
 class GeocodingClient:
     def __init__(self, session: t.Optional[requests.Session] = None):
