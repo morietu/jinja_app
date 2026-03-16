@@ -24,8 +24,8 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "place_ref",
                 "indexes": [
-                    models.Index(fields=["name"]),
-                    models.Index(fields=["synced_at"]),
+                    models.Index(fields=["name"], name="place_ref_name_idx"),
+                    models.Index(fields=["synced_at"], name="place_ref_synced_idx"),
                     GinIndex(fields=["snapshot_json"], name="placeref_snapshot_gin"),
                 ],
             },
@@ -81,8 +81,8 @@ class Migration(migrations.Migration):
                 "db_table": "temples_shrine",
                 "indexes": [
                     models.Index(fields=["popular_score"], name="shrine_popular_idx"),
-                    models.Index(fields=["name_jp"]),
-                    models.Index(fields=["updated_at"]),
+                    models.Index(fields=["name_jp"], name="idx_shrine_name_jp"),
+                    models.Index(fields=["updated_at"], name="idx_shrine_updated_at"),
                     models.Index(fields=["latitude"], name="idx_shrine_lat"),
                     models.Index(fields=["longitude"], name="idx_shrine_lng"),
                     models.Index(fields=["latitude", "longitude"], name="idx_shrine_lat_lng"),
