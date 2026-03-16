@@ -2,6 +2,7 @@
 from django.core.management.base import BaseCommand
 from temples.models import Shrine
 
+
 class Command(BaseCommand):
     help = "Create initial test shrine if not exists"
 
@@ -9,10 +10,21 @@ class Command(BaseCommand):
         shrine, created = Shrine.objects.get_or_create(
             id=1,
             defaults={
-                "name": "テスト神社",
-                "prefecture": "東京都",  # 必須項目に合わせて埋める
+                "kind": "shrine",
+                "name_jp": "テスト神社",
+                "name_romaji": "Test Shrine",
+                "address": "東京都千代田区1-1-1",
+                "latitude": 35.681236,
+                "longitude": 139.767125,
+                "goriyaku": "開運・厄除け",
+                "sajin": "天照大御神",
+                "description": "本番疎通確認用の初期神社データです。",
+                "element": "火",
+                "kyusei": "九紫火星",
+                "astro_elements": ["火"],
             },
         )
+
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created shrine: {shrine}"))
         else:
