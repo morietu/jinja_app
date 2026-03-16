@@ -1,3 +1,4 @@
+from pathlib import Path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -60,6 +61,22 @@ def debug_db(request):
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
+def debug_media(request):
+    p = Path(settings.MEDIA_ROOT) / "goshuin" / "upload_EZ1Xq7g.jpg"
+    return JsonResponse(
+        {
+            "MEDIA_ROOT": str(settings.MEDIA_ROOT),
+            "target": str(p),
+            "exists": p.exists(),
+            "is_file": p.is_file(),
+            "size": p.stat().st_size if p.exists() and p.is_file() else None,
+        }
+    )
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
 def robots_txt(request):
     return HttpResponse("User-agent: *\nDisallow:", content_type="text/plain")
 
@@ -112,8 +129,11 @@ urlpatterns = [
 
     # ---- Debug / Auth -----------------------------------------------------
     path("api/_debug/db/", debug_db, name="debug_db"),
+    path("api/_debug/media/", debug_media, name="debug_media"),
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
+
+
 
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
