@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db.models import F, Q, Value
 from django.db.models.functions import Coalesce
 
+from rest_framework import filters
 from rest_framework import status, viewsets
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -19,6 +20,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.decorators import action
+
 from temples.services.places import get_or_create_shrine_by_place_id, PlacesError
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema
@@ -246,12 +248,12 @@ class ShrineViewSet(viewsets.ModelViewSet):
     queryset = Shrine.objects.all()
     throttle_scope = "shrines"
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name_jp", "name_romaji", "address", "goriyaku"]
 
     def get_permissions(self):
-        # 誰でも見れる一覧・ランキング系だけ AllowAny
         if self.action in ("list", "nearest", "ingest"):
             return [AllowAny()]
-        # detail は認証必須（owner で絞る）
         if self.action == "retrieve":
             return [IsAuthenticated()]
         return [IsAuthenticated()]
@@ -272,14 +274,11 @@ class ShrineViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
 
-        # TODO: ここに kind/q/name など共通フィルタを足すなら "return" 前に入れる
-
         if getattr(self, "action", None) == "retrieve":
             u = getattr(self.request, "user", None)
             if not u or not u.is_authenticated:
                 return qs.none()
 
-            # staff は全部見える運用にするならここで例外
             if getattr(u, "is_staff", False) or getattr(u, "is_superuser", False):
                 return qs.distinct()
 
