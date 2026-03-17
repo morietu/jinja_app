@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
+from django.contrib.gis.geos import Point
+
 from temples.models import Shrine
 
 
@@ -14,21 +16,21 @@ class Command(BaseCommand):
 
         created = 0
         updated = 0
+        skipped = 0
 
         for row in data:
+            name = row["name_jp"].strip()
+            address = row["address"].strip()
+
             lat = row.get("latitude")
             lng = row.get("longitude")
 
-            raw_location = row.get("location")
             location_value = None
-
-            if isinstance(raw_location, dict):
-                location_value = raw_location
-            elif lat is not None and lng is not None:
-                location_value = {"lat": lat, "lng": lng}
+            if lat is not None and lng is not None:
+                location_value = Point(float(lng), float(lat))
 
             payload = {
-                "address": row["address"],
+                "address": address,
                 "latitude": lat,
                 "longitude": lng,
                 "goriyaku": row.get("goriyaku") or "",
@@ -38,36 +40,46 @@ class Command(BaseCommand):
             }
 
             qs = Shrine.objects.filter(
-                name_jp=row["name_jp"],
-                address=row["address"],
+                name_jp=name,
+                address=address,
             ).order_by("id")
 
             obj = qs.first()
 
             if obj is None:
                 Shrine.objects.create(
-                    name_jp=row["name_jp"],
+                    name_jp=name,
                     **payload,
                 )
                 created += 1
-                self.stdout.write(f"CREATE {row['name_jp']}")
-            else:
-                changed = False
-                for field, value in payload.items():
-                    current = getattr(obj, field)
+                self.stdout.write(f"CREATE {name}")
+                continue
+
+            changed = False
+            for field, value in payload.items():
+                current = getattr(obj, field)
+
+                if field == "location":
+                    current_cmp = str(current) if current is not None else None
+                    value_cmp = str(value) if value is not None else None
+                    if current_cmp != value_cmp:
+                        setattr(obj, field, value)
+                        changed = True
+                else:
                     if current != value:
                         setattr(obj, field, value)
                         changed = True
 
-                if changed:
-                    obj.save()
-                    updated += 1
-                    self.stdout.write(f"UPDATE id={obj.id} {obj.name_jp}")
-                else:
-                    self.stdout.write(f"SKIP id={obj.id} {obj.name_jp}")
+            if changed:
+                obj.save()
+                updated += 1
+                self.stdout.write(f"UPDATE id={obj.id} {obj.name_jp}")
+            else:
+                skipped += 1
+                self.stdout.write(f"SKIP id={obj.id} {obj.name_jp}")
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"done created={created} updated={updated} total_seed={len(data)}"
+                f"done created={created} updated={updated} skipped={skipped} total_seed={len(data)}"
             )
         )
