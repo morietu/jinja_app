@@ -1,9 +1,7 @@
-
 import json
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
-from django.contrib.gis.geos import Point
 from temples.models import Shrine
 
 
@@ -18,19 +16,16 @@ class Command(BaseCommand):
         updated = 0
 
         for row in data:
-            qs = Shrine.objects.filter(
-                name_jp=row["name_jp"],
-                address=row["address"],
-            ).order_by("id")
-
-            obj = qs.first()
-
             lat = row.get("latitude")
             lng = row.get("longitude")
 
+            raw_location = row.get("location")
             location_value = None
-            if lat is not None and lng is not None:
-                location_value = Point(lng, lat)
+
+            if isinstance(raw_location, dict):
+                location_value = raw_location
+            elif lat is not None and lng is not None:
+                location_value = {"lat": lat, "lng": lng}
 
             payload = {
                 "address": row["address"],
@@ -41,6 +36,13 @@ class Command(BaseCommand):
                 "astro_elements": row.get("astro_elements") or [],
                 "location": location_value,
             }
+
+            qs = Shrine.objects.filter(
+                name_jp=row["name_jp"],
+                address=row["address"],
+            ).order_by("id")
+
+            obj = qs.first()
 
             if obj is None:
                 Shrine.objects.create(
@@ -53,18 +55,9 @@ class Command(BaseCommand):
                 changed = False
                 for field, value in payload.items():
                     current = getattr(obj, field)
-
-                    # Point 同士の比較は文字列化で雑に吸収
-                    if field == "location":
-                        current_cmp = str(current) if current is not None else None
-                        value_cmp = str(value) if value is not None else None
-                        if current_cmp != value_cmp:
-                            setattr(obj, field, value)
-                            changed = True
-                    else:
-                        if current != value:
-                            setattr(obj, field, value)
-                            changed = True
+                    if current != value:
+                        setattr(obj, field, value)
+                        changed = True
 
                 if changed:
                     obj.save()
