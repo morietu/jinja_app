@@ -1,7 +1,8 @@
 // apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
 
-import { getShrinePublic, type Shrine } from "@/lib/api/shrines";
+import type { Shrine } from "@/lib/api/shrines";
+import { getShrinePublicServer } from "@/lib/api/shrines.server";
 import { serverLog } from "@/lib/server/logging";
 
 import { gmapsDirUrl } from "@/lib/maps";
@@ -60,7 +61,7 @@ export default async function Page({ params, searchParams }: Props) {
 
   let shrine: Shrine | null;
   try {
-    shrine = await getShrinePublic(numericId);
+    shrine = await getShrinePublicServer(numericId);
   } catch (e) {
     serverLog("error", "GET_SHRINE_FAILED", {
       shrineId: numericId,
