@@ -47,7 +47,8 @@
       "bn.js": "^5.2.3",
       "rollup@^2": "2.80.0",
       "serialize-javascript@^6.0.0": "7.0.4",
-      "terser-webpack-plugin>serialize-javascript": "7.0.4"
+      "terser-webpack-plugin>serialize-javascript": "7.0.4",
+      "flatted": "^3.4.0"
     }
   }
 }
