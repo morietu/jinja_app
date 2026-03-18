@@ -12,6 +12,9 @@ NEED_LABEL = {
     "love": "恋愛",
     "money": "金運",
     "rest": "休息",
+    "courage": "前進・後押し",
+    "protection": "厄除け・守護",
+    "focus": "集中・継続",
 }
 
 

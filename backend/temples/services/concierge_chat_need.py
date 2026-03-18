@@ -57,10 +57,9 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "career_change": "career",
     "work": "career",
     "fortune": "money",
-    "courage": "career",
-    "challenge": "career",
-    "ambition": "career",
-    "success": "career",
+    "challenge": "courage",
+    "ambition": "courage",
+    "success": "courage",
 }
 
 

@@ -12,6 +12,9 @@ NEED_REASON_LABELS: Dict[str, str] = {
     "love": "ご縁や恋愛を願う参拝に",
     "money": "金運や商売繁盛を願う参拝に",
     "rest": "心身を休めたいときの参拝に",
+    "courage": "流れを変えたい時や一歩踏み出したい時の参拝に",
+    "focus": "習慣や集中を整えたい時の参拝に",
+    "protection": "厄除けや身を守りたい願いの参拝に",
 }
 
 SOFT_SIGNAL_HIGHLIGHTS: Dict[str, str] = {

@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 from temples.domain.need_to_goriyaku_tag_ids import need_tags_to_goriyaku_ids
 log = logging.getLogger(__name__)
 
-
 NEED_TAG_ALIASES: Dict[str, str] = {
     "marriage": "love",
     "romance": "love",
@@ -16,11 +15,11 @@ NEED_TAG_ALIASES: Dict[str, str] = {
     "career_change": "career",
     "work": "career",
     "fortune": "money",
-    "courage": "career",
-    "challenge": "career",
-    "ambition": "career",
-    "success": "career",
+    "challenge": "courage",
+    "ambition": "courage",
+    "success": "courage",
 }
+
 
 NEED_TEXT_WEIGHTS: Dict[str, Dict[str, int]] = {
     "study": {
@@ -44,6 +43,16 @@ NEED_TEXT_WEIGHTS: Dict[str, Dict[str, int]] = {
         "出世": 1,
         "昇進": 1,
         "成功": 1,
+    },
+    "courage": {
+        "開運": 3,
+        "開運祈願": 3,
+        "勝運": 3,
+        "運を開く": 3,
+        "背中を押して": 3,
+        "一歩踏み出す": 2,
+        "勇気": 2,
+        "変わりたい": 2,
     },
     "mental": {
         "厄除": 2,

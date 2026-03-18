@@ -183,3 +183,128 @@ def test_need_match_by_text_only(monkeypatch):
     assert "love" in top["breakdown"]["matched_need_tags"]
     assert top["breakdown"]["score_need"] > 0
     assert recs["recommendations"][1]["breakdown"]["score_need"] == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("query", "expected_tag"),
+    [
+        ("開運祈願したい", "courage"),
+        ("開運したい", "courage"),
+        ("運を開きたい", "courage"),
+        ("背中を押してほしい", "courage"),
+    ],
+)
+def test_open_luck_queries_resolve_to_courage(query, expected_tag):
+    candidates = [
+        {
+            "name": "前進神社",
+            "lat": 35.0,
+            "lng": 139.0,
+            "distance_m": 100,
+            "goriyaku": "開運・勝運・心願成就",
+            "description": "一歩踏み出したい時に知られる",
+            "astro_tags": ["courage"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+        {
+            "name": "休息神社",
+            "lat": 35.1,
+            "lng": 139.1,
+            "distance_m": 100,
+            "goriyaku": "癒し・静寂",
+            "description": "静かに休める",
+            "astro_tags": ["rest"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+    ]
+
+    recs = build_chat_recommendations(
+        query=query,
+        language="ja",
+        candidates=candidates,
+        birthdate=None,
+        flow="A",
+    )
+
+    top = recs["recommendations"][0]
+
+    assert expected_tag in recs["_need"]["tags"]
+    assert expected_tag in top["breakdown"]["matched_need_tags"]
+    assert top["reason_source"] == "reason:matched_need_tags"
+    assert top["reason"] == "流れを変えたい時や一歩踏み出したい時の参拝に"
+
+
+@pytest.mark.django_db
+def test_courage_need_explanation_uses_japanese_label():
+    candidates = [
+        {
+            "name": "前進神社",
+            "lat": 35.0,
+            "lng": 139.0,
+            "distance_m": 100,
+            "goriyaku": "開運・勝運・心願成就",
+            "description": "一歩踏み出したい時に知られる",
+            "astro_tags": ["courage"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+    ]
+
+    recs = build_chat_recommendations(
+        query="背中を押してほしい",
+        language="ja",
+        candidates=candidates,
+        birthdate=None,
+        flow="A",
+    )
+
+    top = recs["recommendations"][0]
+    reasons = (top.get("explanation") or {}).get("reasons") or []
+
+    assert any(r.get("code") == "NEED_MATCH" for r in reasons)
+    assert all("courage" not in str(r.get("text") or "") for r in reasons)
+
+@pytest.mark.django_db
+def test_flow_better_query_prefers_courage_over_career():
+    candidates = [
+        {
+            "name": "前進神社",
+            "lat": 35.0,
+            "lng": 139.0,
+            "distance_m": 100,
+            "goriyaku": "開運・勝運",
+            "description": "前向きな変化を後押しする",
+            "astro_tags": ["courage"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+        {
+            "name": "仕事神社",
+            "lat": 35.1,
+            "lng": 139.1,
+            "distance_m": 100,
+            "goriyaku": "仕事運・昇進",
+            "description": "仕事運で知られる",
+            "astro_tags": ["career"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+    ]
+
+    recs = build_chat_recommendations(
+        query="流れを良くしたい",
+        language="ja",
+        candidates=candidates,
+        birthdate=None,
+        flow="A",
+    )
+
+    assert "courage" in recs["_need"]["tags"]
