@@ -46,7 +46,10 @@ export default function NaviPage() {
 
     getShrinePublic(id)
       .then(setShrine)
-      .catch(() => setError("神社情報の取得に失敗しました"));
+      .catch((e) => {
+        console.error("getShrinePublic failed", e);
+        setError("神社情報の取得に失敗しました");
+      });
 
     getLocation();
   }, [id, getLocation]);
