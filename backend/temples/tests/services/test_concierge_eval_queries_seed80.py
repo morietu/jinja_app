@@ -72,7 +72,7 @@ SEED80_EVAL_CASES = [
     {
         "id": "seed80_career_002",
         "query": "新しい挑戦を後押ししてほしい",
-        "expected_need": "career",
+        "expected_need": "courage",
         "expected_top_names": ["猿田彦神社", "鶴岡八幡宮", "大山阿夫利神社"],
         "note": "前進・勝運・挑戦",
     },

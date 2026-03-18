@@ -59,7 +59,7 @@ CONCIERGE_EVAL_QUERIES: list[ConciergeEvalQuery] = [
     {
         "id": "career_003",
         "query": "新しい挑戦を後押ししてほしい",
-        "expected_need": "career",
+        "expected_need": "courage",
         "expected_top_names": ["猿田彦神社", "鶴岡八幡宮", "宇佐神宮"],
         "note": "導き・勝運・前進",
     },
