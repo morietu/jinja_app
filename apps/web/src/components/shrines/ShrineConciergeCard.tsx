@@ -40,12 +40,14 @@ export default function ShrineConciergeCard({
   shrineId,
   title,
   address,
+  description: _description,
   imageUrl,
   explanationSummary,
   explanationPrimaryReason,
 
   hideDescription = false,
 
+  subtitle: _subtitle,
   hideBadges = false,
   hideLeftMark = false,
   hideAddress = false,
@@ -58,7 +60,7 @@ export default function ShrineConciergeCard({
   badgesOverride,
   hideDetailLink = false,
 
-  hideDisclosure = true,
+  hideDisclosure: _hideDisclosure = true,
   variant = "list",
 }: ShrineConciergeCardProps) {
   const isHero = variant === "hero";
