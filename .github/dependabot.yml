@@ -1,11 +1,10 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"   # pnpmでもここは npm 扱いのことが多い（内部でpnpm検出する）
-    directory: "/"             # ← 重要：workspaceルート
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
     schedule:
       interval: "weekly"
     target-branch: "develop"
-
     groups:
       web-deps:
         patterns:
@@ -20,6 +19,14 @@ updates:
           - "lucide-react"
           - "@typescript-eslint/*"
           - "typescript-eslint"
+
+  - package-ecosystem: "npm"
+    directory: "/apps/mobile"
+    schedule:
+      interval: "weekly"
+    target-branch: "develop"
+    ignore:
+      - dependency-name: "@babel/core"
 
   - package-ecosystem: "pip"
     directory: "/backend"
