@@ -27,6 +27,11 @@ updates:
     target-branch: "develop"
     ignore:
       - dependency-name: "@babel/core"
+    groups:
+      mobile-deps:
+        patterns:
+          - "expo*"
+          - "react-native*"
 
   - package-ecosystem: "pip"
     directory: "/backend"
