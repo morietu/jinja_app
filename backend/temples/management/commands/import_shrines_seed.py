@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
@@ -18,16 +19,14 @@ class Command(BaseCommand):
         updated = 0
         skipped = 0
 
+        use_gis = os.getenv("USE_GIS", "1") == "1"
+
         for row in data:
             name = row["name_jp"].strip()
             address = row["address"].strip()
 
             lat = row.get("latitude")
             lng = row.get("longitude")
-
-            location_value = None
-            if lat is not None and lng is not None:
-                location_value = Point(float(lng), float(lat))
 
             payload = {
                 "address": address,
@@ -36,8 +35,10 @@ class Command(BaseCommand):
                 "goriyaku": row.get("goriyaku") or "",
                 "kyusei": row.get("kyusei"),
                 "astro_elements": row.get("astro_elements") or [],
-                "location": location_value,
             }
+
+            if use_gis and lat is not None and lng is not None:
+                payload["location"] = Point(float(lng), float(lat))
 
             qs = Shrine.objects.filter(
                 name_jp=name,
@@ -55,7 +56,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"CREATE {name}")
                 continue
 
-            changed = False
+            changed_fields = {}
             for field, value in payload.items():
                 current = getattr(obj, field)
 
@@ -63,15 +64,13 @@ class Command(BaseCommand):
                     current_cmp = str(current) if current is not None else None
                     value_cmp = str(value) if value is not None else None
                     if current_cmp != value_cmp:
-                        setattr(obj, field, value)
-                        changed = True
+                        changed_fields[field] = value
                 else:
                     if current != value:
-                        setattr(obj, field, value)
-                        changed = True
+                        changed_fields[field] = value
 
-            if changed:
-                obj.save()
+            if changed_fields:
+                Shrine.objects.filter(pk=obj.pk).update(**changed_fields)
                 updated += 1
                 self.stdout.write(f"UPDATE id={obj.id} {obj.name_jp}")
             else:
