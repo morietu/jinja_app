@@ -1,5 +1,4 @@
 # backend/temples/tests/services/test_concierge_acceptance_queries.py
-
 import pytest
 
 from temples.tests.fixtures.concierge_core_candidates import CONCIERGE_CORE_CANDIDATES

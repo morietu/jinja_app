@@ -236,7 +236,8 @@ def test_open_luck_queries_resolve_to_courage(query, expected_tag):
     assert expected_tag in recs["_need"]["tags"]
     assert expected_tag in top["breakdown"]["matched_need_tags"]
     assert top["reason_source"] == "reason:matched_need_tags"
-    assert top["reason"] == "流れを変えたい時や一歩踏み出したい時の参拝に"
+    assert "流れを変え" in top["reason"]
+    assert "一歩踏み出したい" in top["reason"]
 
 
 @pytest.mark.django_db

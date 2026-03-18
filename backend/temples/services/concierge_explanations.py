@@ -96,7 +96,17 @@ def build_explanation_for_chat_rec(
     bullets = payload.get("highlights") or []
     bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
 
-    summary = str(rec.get("reason") or "").strip()
+    original_reason = _first_non_empty(
+        payload.get("original_reason"),
+        rec.get("reason"),
+    )
+
+    summary = _build_chat_summary(
+        matched,
+        original_reason=original_reason,
+        highlights=bullets,
+    )
+
     reasons: List[dict] = []
 
     if matched:
@@ -265,16 +275,66 @@ def _build_need_match_text(matched: List[str]) -> str:
     tag_set = set(tags)
 
     if "mental" in tag_set and "rest" in tag_set:
-        return "今の相談内容と、心を整えたり落ち着いて休息したい気持ちに重なる神社です。"
+        return "疲れをゆるめ、心を整えながら落ち着いて休息したい気持ちに重なる神社です。"
 
     if "career" in tag_set and "mental" in tag_set and "courage" in tag_set:
-        return "今の相談内容と、仕事や転機の不安に向き合いながら一歩踏み出したい気持ちに重なる神社です。"
+        return "転職や仕事の不安に向き合いながら、背中を押されるように前へ進みたい気持ちに重なる神社です。"
+
+    if "money" in tag_set and "courage" in tag_set:
+        return "金運を整えつつ、行動のきっかけや前向きな流れを得たい気持ちに重なる神社です。"
 
     if "career" in tag_set and "courage" in tag_set:
-        return "今の相談内容と、仕事や転機に向き合いながら前に進みたい気持ちに重なる神社です。"
+        return "仕事や転機に向き合いながら、前進や後押しを求める気持ちに重なる神社です。"
 
     if "mental" in tag_set and "courage" in tag_set:
-        return "今の相談内容と、不安を整えながら前向きに進みたい気持ちに重なる神社です。"
+        return "不安を整えながら、前向きに一歩踏み出したい気持ちに重なる神社です。"
+
+    if "love" in tag_set:
+        return "良縁や恋愛を前向きに進めたい気持ちに重なる神社です。"
+
+    if "study" in tag_set:
+        return "資格や試験に向けて、集中して努力を積み上げたい気持ちに重なる神社です。"
 
     label = NEED_LABEL.get(tags[0], tags[0])
     return f"今の相談内容と、{label}に関わる願いごとが重なる神社です。"
+
+
+def _first_non_empty(*values: Any) -> Optional[str]:
+    for v in values:
+        s = str(v or "").strip()
+        if s:
+            return s
+    return None
+
+
+def _build_chat_summary(
+    matched: List[str],
+    *,
+    original_reason: Optional[str],
+    highlights: List[str],
+) -> str:
+    tags = [str(x).strip() for x in matched if str(x).strip()]
+    tag_set = set(tags)
+
+    if "career" in tag_set and "mental" in tag_set and "courage" in tag_set:
+        return "転機への不安を整えながら、一歩踏み出したい時の参拝に"
+
+    if "money" in tag_set and "courage" in tag_set:
+        return "金運を整えつつ、前向きに動き出すきっかけを得たい時の参拝に"
+
+    if "mental" in tag_set and "rest" in tag_set:
+        return "疲れた気持ちを整え、落ち着いて休息したい時の参拝に"
+
+    if "career" in tag_set and "courage" in tag_set:
+        return "仕事や転機に向き合いながら、前へ進みたい時の参拝に"
+
+    if "mental" in tag_set and "courage" in tag_set:
+        return "不安を整えながら、前向きに進みたい時の参拝に"
+
+    if original_reason:
+        return original_reason
+
+    if highlights:
+        return highlights[0]
+
+    return "条件に合わせて候補を整理しました。"
