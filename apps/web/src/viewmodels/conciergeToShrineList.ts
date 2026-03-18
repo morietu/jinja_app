@@ -1,9 +1,5 @@
 import type { ShrineListItem } from "@/components/shrines/ShrineList";
 
-/**
- * Conciergeのレスポンス型は、まずはfixtureに合わせて最低限で定義。
- * 後でopenapiから生成 or zod導入に差し替えればOK。
- */
 export type ConciergeResponse = {
   ok: boolean;
   data?: {
@@ -49,6 +45,9 @@ const NEED_LABELS: Record<string, string> = {
   love: "恋愛",
   money: "金運",
   rest: "休息",
+  courage: "前進・後押し",
+  protection: "厄除け・守護",
+  focus: "集中・継続",
 };
 
 function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommendations"]>[number]) {
@@ -69,22 +68,11 @@ function toDisplayTag(tag: string): string {
   return NEED_LABELS[tag] ?? tag;
 }
 
-/**
- * ここで「コンシェルジュ結果 → UI表示」へ変換する。
- * UIに渡す要素だけ作り、余計な情報は捨てる（後で必要になったら足す）。
- */
 export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListItem[] {
   if (!resp?.ok) return [];
 
   const recs = resp.data?.recommendations ?? [];
   const fallbackTags = normalizeTagList(resp.data?._need?.tags);
-
-  console.log(
-    recs.map((r) => ({
-      name: r.name,
-      reasons: r.explanation?.reasons,
-    }))
-  );
 
   return recs.map((r, idx) => {
     const id = safeId(r);
@@ -93,27 +81,31 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
     const matchedTags = normalizeTagList(r.breakdown?.matched_need_tags);
     const rawTags = matchedTags.length ? matchedTags : fallbackTags;
 
-    const tags = rawTags.map(toDisplayTag).slice(0, 5);
-    const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 2);
+    const tags = rawTags.map(toDisplayTag).slice(0, 3);
+    const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 1);
 
-    const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
-
-    const explanationSummary = r.explanation?.summary ?? null;
+    const explanationSummary = r.explanation?.summary?.trim() || null;
 
     const explanationReasons =
-      r.explanation?.reasons?.map((x) => ({
-        code: x.code ?? null,
-        label: x.label ?? null,
-        text: x.text ?? null,
-        strength: x.strength ?? null,
-      })) ?? null;
+      r.explanation?.reasons
+        ?.map((x) => ({
+          code: x.code ?? null,
+          label: x.label ?? null,
+          text: x.text?.trim() ?? null,
+          strength: x.strength ?? null,
+        }))
+        .filter((x) => x.text) ?? null;
+
+    const recommendReason = explanationSummary || r.reason?.trim() || null;
+
+    const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
 
     return {
       id,
       cardProps: {
         name,
         address: r.location ?? undefined,
-        recommendReason: r.reason ?? undefined,
+        recommendReason,
         subReason,
         compatibilityLabels,
         distanceM: typeof r.distance_m === "number" ? r.distance_m : undefined,

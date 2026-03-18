@@ -48,12 +48,11 @@ export default function ConciergeCard(props: BaseCardProps) {
     detailHref,
     detailLabel = "詳細を見る",
     headerRight,
-    disclosureTitle = "詳細",
+    disclosureTitle,
     disclosureBody,
   } = props;
 
   const [open, setOpen] = React.useState(false);
-  const clampDesc = disclosureBody ? !open : !isPrimary;
 
   const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
@@ -87,15 +86,15 @@ export default function ConciergeCard(props: BaseCardProps) {
 
       <div className={cn("px-4", isPrimary ? "py-4" : "py-3")}>
         {!hideBadges && (badges.length > 0 || headerRight) ? (
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex flex-wrap gap-2">
               {badges.map((badge) => (
                 <span
                   key={badge}
                   className={cn(
                     "inline-flex shrink-0 items-center rounded-full px-2.5 py-1",
-                    "text-[11px] font-semibold",
-                    "bg-neutral-100/80 text-neutral-700 ring-1 ring-inset ring-neutral-200/60",
+                    "text-[11px] font-medium",
+                    "bg-neutral-100/80 text-neutral-500 ring-1 ring-inset ring-neutral-200/60",
                   )}
                 >
                   {badge}
@@ -128,24 +127,15 @@ export default function ConciergeCard(props: BaseCardProps) {
 
           <div className="min-w-0 flex-1">
             <h3 className="text-[15px] font-semibold leading-snug text-neutral-900">{title}</h3>
-            {address ? <p className="mt-1 truncate text-xs text-neutral-600">{address}</p> : null}
+
+            {address ? <p className="mt-1 truncate text-xs text-neutral-500">{address}</p> : null}
 
             {sub ? (
-              <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-800 line-clamp-1">{sub}</p>
+              <p className="mt-2 text-[15px] font-semibold leading-6 text-neutral-900 line-clamp-2">{sub}</p>
             ) : null}
 
-            {desc ? (
-              <p
-                className={cn(
-                  "mt-2 text-sm leading-relaxed text-neutral-800",
-                  clampDesc && "line-clamp-2 text-neutral-700",
-                )}
-              >
-                {desc}
-              </p>
-            ) : null}
+            {desc ? <p className="mt-1 text-[13px] leading-6 text-neutral-600 line-clamp-2">{desc}</p> : null}
 
-            {/* ボタンは残す。押しやすいし視認性もある */}
             {detailHref ? (
               <Link
                 href={detailHref}
@@ -155,7 +145,6 @@ export default function ConciergeCard(props: BaseCardProps) {
                   "text-sm font-semibold bg-neutral-900 text-white",
                   "ring-1 ring-inset ring-black/10 transition active:scale-[0.99] hover:bg-neutral-800",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400",
-                  !isPrimary && "mt-3",
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -166,7 +155,7 @@ export default function ConciergeCard(props: BaseCardProps) {
         </div>
       </div>
 
-      {disclosureBody ? (
+      {disclosureBody && disclosureTitle ? (
         <div
           className="border-t border-neutral-200/70 bg-neutral-50/30"
           onClick={stopLinkNav}
@@ -196,8 +185,6 @@ export default function ConciergeCard(props: BaseCardProps) {
       ) : null}
     </div>
   );
-
-  if (!detailHref) return CardInner;
 
   return CardInner;
 }

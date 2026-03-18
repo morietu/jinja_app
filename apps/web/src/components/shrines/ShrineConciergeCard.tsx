@@ -5,16 +5,17 @@ import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import { buildOneLiner } from "@/lib/concierge/pickAClause";
-import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 export type ShrineConciergeCardProps = {
   shrineId: number;
   title: string;
   address?: string | null;
-  description: string;
+  description?: string | null;
   imageUrl?: string | null;
+
+  explanationSummary?: string | null;
+  explanationPrimaryReason?: string | null;
 
   hideDescription?: boolean;
 
@@ -35,25 +36,16 @@ export type ShrineConciergeCardProps = {
   variant?: "list" | "detail" | "hero";
 };
 
-function DisclosureSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-xs font-semibold text-slate-500">{title}</div>
-      <div className="mt-2 text-sm leading-6 text-slate-700">{children}</div>
-    </div>
-  );
-}
-
 export default function ShrineConciergeCard({
   shrineId,
   title,
   address,
-  description,
   imageUrl,
+  explanationSummary,
+  explanationPrimaryReason,
 
   hideDescription = false,
 
-  subtitle,
   hideBadges = false,
   hideLeftMark = false,
   hideAddress = false,
@@ -62,29 +54,23 @@ export default function ShrineConciergeCard({
   initialFav = false,
   readOnly = false,
   detailHref,
-  breakdown,
+  breakdown: _breakdown,
   badgesOverride,
   hideDetailLink = false,
 
-  hideDisclosure = false,
+  hideDisclosure = true,
   variant = "list",
 }: ShrineConciergeCardProps) {
   const isHero = variant === "hero";
 
-  const effHideDescription = isHero ? true : hideDescription;
   const effHideBadges = isHero ? true : hideBadges;
   const effHideLeftMark = isHero ? true : hideLeftMark;
   const effHideAddress = isHero ? true : hideAddress;
   const effShowFavorite = isHero ? false : showFavorite;
   const effHideDetailLink = isHero ? true : hideDetailLink;
-  const effHideDisclosure = isHero ? true : hideDisclosure;
-
-  const effBreakdown = isHero ? null : breakdown;
-  const effBadgesOverride = isHero ? [] : badgesOverride;
 
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
-  const safeDescription = effHideDescription ? "" : (description ?? "");
   const addr = effHideAddress ? "" : (address ?? "").trim() || "住所情報は準備中です。";
   const safeDetailHref = detailHref ?? (Number.isFinite(shrineId) ? buildShrineHref(shrineId) : undefined);
   const cardDetailHref = effHideDetailLink ? undefined : safeDetailHref;
@@ -102,47 +88,28 @@ export default function ShrineConciergeCard({
     </button>
   );
 
-  const reasonLabel = pickReasonLabel(effBreakdown);
-  const defaultBadges = ["正式登録", reasonLabel ? `おすすめ理由：${reasonLabel}` : null]
-    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
-    .slice(0, 2);
+  const mainSummary = explanationSummary?.trim() || "条件に合う候補から選びました。";
+
+  const supportingReason = hideDescription ? "" : explanationPrimaryReason?.trim() || "";
 
   const badges =
-    effBadgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0) ?? defaultBadges;
-
-  const shouldHideDisclosure = effHideDisclosure || variant === "detail";
-  const disclosureTitle = shouldHideDisclosure ? undefined : "おすすめ理由を見る";
-  const disclosureBody = shouldHideDisclosure ? undefined : (
-    <div className="space-y-3">
-      {effBreakdown ? (
-        <DisclosureSection title="おすすめ理由（内訳）">
-          <ConciergeBreakdownBody breakdown={effBreakdown} />
-        </DisclosureSection>
-      ) : null}
-
-      <DisclosureSection title="要点">
-        <p className="text-sm text-slate-700 line-clamp-2">
-          {effBreakdown ? buildOneLiner(effBreakdown) : "条件に合う候補から選びました。"}
-        </p>
-      </DisclosureSection>
-    </div>
-  );
+    badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3) ?? [];
 
   return (
     <ConciergeCard
       title={title}
       address={addr || undefined}
       imageUrl={imageUrl}
-      description={safeDescription}
-      subtitle={subtitle}
+      subtitle={mainSummary}
+      description={supportingReason}
       hideBadges={effHideBadges}
       hideLeftMark={effHideLeftMark}
-      isPrimary
+      isPrimary={variant !== "detail"}
       badges={badges}
       detailHref={cardDetailHref}
       headerRight={favButton}
-      disclosureTitle={disclosureTitle}
-      disclosureBody={disclosureBody}
+      disclosureTitle={undefined}
+      disclosureBody={undefined}
     />
   );
 }

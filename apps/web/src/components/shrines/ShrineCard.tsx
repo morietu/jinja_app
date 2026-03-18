@@ -54,28 +54,22 @@ export function ShrineCard(props: ShrineCardProps) {
 
   const distText = formatDistance(distanceM);
 
-  const maxReasonCount = isTopPick ? 3 : 2;
+  const heroSummary = explanationSummary?.trim() || recommendReason?.trim() || null;
 
-  const cleanReasons = Array.isArray(explanationReasons)
-    ? explanationReasons.filter((r) => r && (r.label || r.text)).slice(0, maxReasonCount)
-    : [];
+  const primaryReason = Array.isArray(explanationReasons)
+    ? (explanationReasons.find((r) => r?.text?.trim())?.text?.trim() ?? null)
+    : null;
 
-  console.log({
-    name,
-    isTopPick,
-    explanationReasons,
-    cleanReasons,
-  });
-
-  const hasExplanation = Boolean((explanationSummary && explanationSummary.trim()) || cleanReasons.length > 0);
-
-  const cardClass = ["rounded-xl border p-4", isTopPick ? "border-amber-300 bg-amber-50/40" : "bg-white"].join(" ");
+  const cardClass = [
+    "rounded-2xl border p-4 shadow-sm transition-colors",
+    isTopPick ? "border-amber-300 bg-amber-50/40" : "border-slate-200 bg-white",
+  ].join(" ");
 
   const MainContent = (
     <div className="flex gap-4">
-      <div className="w-28 h-20 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+      <div className="h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-100">
         {imageUrl ? (
-          <Image src={imageUrl} alt={name} width={112} height={80} className="w-full h-full object-cover" />
+          <Image src={imageUrl} alt={name} width={112} height={80} className="h-full w-full object-cover" />
         ) : null}
       </div>
 
@@ -83,17 +77,23 @@ export function ShrineCard(props: ShrineCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             {isTopPick ? (
-              <div className="mb-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+              <div className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
                 いちばんおすすめ
               </div>
             ) : null}
 
-            <div className="font-semibold truncate">{name}</div>
+            <div className="truncate text-[15px] font-semibold text-slate-900">{name}</div>
 
-            {recommendReason ? <div className="mt-1 text-sm text-gray-800 line-clamp-2">{recommendReason}</div> : null}
+            {heroSummary ? (
+              <div className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-slate-900">{heroSummary}</div>
+            ) : null}
+
+            {primaryReason ? (
+              <div className="mt-1 line-clamp-2 text-[13px] leading-6 text-slate-600">{primaryReason}</div>
+            ) : null}
 
             {distText || typeof rating === "number" ? (
-              <div className="mt-2 flex gap-3 text-sm text-gray-700">
+              <div className="mt-2 flex gap-3 text-sm text-slate-600">
                 {distText ? <span>{distText}</span> : null}
                 {typeof rating === "number" ? (
                   <span>
@@ -104,13 +104,15 @@ export function ShrineCard(props: ShrineCardProps) {
               </div>
             ) : null}
 
-            {address ? <div className="mt-1 text-xs text-gray-500 truncate">{address}</div> : null}
+            {address ? <div className="mt-1 truncate text-xs text-slate-500">{address}</div> : null}
 
             {compatibilityLabels.length ? (
-              <div className="mt-1 text-[11px] text-gray-500">相性: {compatibilityLabels.join(" / ")}</div>
+              <div className="mt-2 text-[11px] text-slate-400">相性: {compatibilityLabels.join(" / ")}</div>
             ) : null}
 
-            {subReason ? <div className="mt-1 text-[11px] text-gray-500 line-clamp-1">{subReason}</div> : null}
+            {!primaryReason && subReason ? (
+              <div className="mt-1 line-clamp-1 text-[11px] text-slate-500">{subReason}</div>
+            ) : null}
           </div>
 
           {typeof isFavorited === "boolean" && onToggleFavorite ? (
@@ -121,7 +123,7 @@ export function ShrineCard(props: ShrineCardProps) {
                 e.stopPropagation();
                 onToggleFavorite?.();
               }}
-              className="text-sm px-2 py-1 border rounded-md shrink-0"
+              className="shrink-0 rounded-md border px-2 py-1 text-sm"
               aria-label={isFavorited ? "お気に入り解除" : "お気に入り追加"}
             >
               {isFavorited ? "★" : "☆"}
@@ -130,9 +132,9 @@ export function ShrineCard(props: ShrineCardProps) {
         </div>
 
         {tags.length ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {tags.slice(0, 5).map((t) => (
-              <span key={t} className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tags.slice(0, 3).map((t) => (
+              <span key={t} className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-500">
                 {t}
               </span>
             ))}
@@ -141,37 +143,6 @@ export function ShrineCard(props: ShrineCardProps) {
       </div>
     </div>
   );
-
-  const ExplanationContent = hasExplanation ? (
-    <div className="mt-4 border-t border-slate-200 pt-3">
-      <details open={isTopPick} className="group">
-        <summary className="list-none cursor-pointer text-xs font-medium text-slate-600 hover:text-slate-800 flex items-center justify-between">
-          <span>なぜこの神社？</span>
-          <span className="text-slate-400 text-[10px] transition-transform group-open:rotate-180">▲</span>
-        </summary>
-
-        <div className="mt-2 space-y-2">
-          {cleanReasons.length ? (
-            <ul className="space-y-1">
-              {cleanReasons.map((reason, idx) => (
-                <li key={`${reason.code ?? "reason"}_${idx}`} className="text-[11px] leading-5 text-slate-600">
-                  {reason.label ? (
-                    <>
-                      <span className="text-slate-400">{reason.label}</span>
-                      <span className="mx-1 text-slate-300">-</span>
-                    </>
-                  ) : null}
-                  <span>{reason.text}</span>
-                </li>
-              ))}
-            </ul>
-          ) : explanationSummary ? (
-            <div className="text-[11px] leading-5 text-slate-600">{explanationSummary}</div>
-          ) : null}
-        </div>
-      </details>
-    </div>
-  ) : null;
 
   return (
     <div className={cardClass}>
@@ -182,8 +153,6 @@ export function ShrineCard(props: ShrineCardProps) {
       ) : (
         MainContent
       )}
-
-      {ExplanationContent}
     </div>
   );
 }

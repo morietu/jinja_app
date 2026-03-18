@@ -31,12 +31,20 @@ export type RegisteredShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-  breakdown?: any | null;
-  isDummy?: boolean;
-  goriyakuTags: { id: number; name: string }[];
-  initialFav: boolean;
-
   detailHref?: string;
+  breakdown?: ConciergeBreakdown | null;
+  explanation?: {
+    version?: number | null;
+    summary?: string | null;
+    reasons?: Array<{
+      code?: string | null;
+      label?: string | null;
+      text?: string | null;
+      strength?: "low" | "mid" | "high" | null;
+      evidence?: Record<string, unknown> | null;
+    }> | null;
+    disclaimer?: string | null;
+  } | null;
 };
 
 export type PlaceShrineItem = {
