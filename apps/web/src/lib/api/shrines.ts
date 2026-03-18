@@ -1,24 +1,26 @@
 import api from "./client";
 import type { Paginated, Shrine } from "./types";
-import { getShrinePublicClient } from "./shrines.client";
-import { getShrinePublicServer } from "./shrines.server";
-import { getShrinesClient } from "./shrines.list.client";
-import { getShrinesServer } from "./shrines.list.server";
 
 export type { Shrine } from "./types";
 export { fetchPopular as getPopularShrines } from "./popular";
 
 export async function getShrinePublic(id: number): Promise<Shrine> {
   if (typeof window === "undefined") {
+    const { getShrinePublicServer } = await import("./shrines.server");
     return getShrinePublicServer(id);
   }
+
+  const { getShrinePublicClient } = await import("./shrines.client");
   return getShrinePublicClient(id);
 }
 
 export async function getShrines(params?: { q?: string }): Promise<Shrine[]> {
   if (typeof window === "undefined") {
+    const { getShrinesServer } = await import("./shrines.list.server");
     return getShrinesServer(params);
   }
+
+  const { getShrinesClient } = await import("./shrines.list.client");
   return getShrinesClient(params);
 }
 
@@ -37,9 +39,6 @@ export async function getShrinePrivate(id: number): Promise<any> {
   return res.json();
 }
 
-/**
- * 互換
- */
 export const getShrine = getShrinePublic;
 
 // 近くの神社（axios の baseURL が /api 前提）
