@@ -1,6 +1,6 @@
 # backend/temples/domain/need_tags.py
 from __future__ import annotations
-
+from typing import Dict, List
 from dataclasses import dataclass
 import re
 
@@ -44,9 +44,6 @@ NEED_PRIORITY: List[NeedTag] = [
     "rest",
     "travel_safe",
 ]
-
-# tag -> keywords (strings are treated as plain substrings; regex allowed with r"...")
-# backend/temples/domain/need_tags.py
 
 KEYWORDS: Dict[NeedTag, List[str]] = {
     "marriage": ["縁結び", "良縁", "結婚", "婚活", "結縁", "ご縁", "夫婦円満"],
