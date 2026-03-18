@@ -1,4 +1,5 @@
 // apps/web/src/lib/server/resolveServerBaseUrl.ts
+import "server-only";
 import { headers } from "next/headers";
 
 function normalizeBase(url: string) {
