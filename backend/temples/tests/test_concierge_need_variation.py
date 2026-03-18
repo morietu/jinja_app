@@ -308,3 +308,89 @@ def test_flow_better_query_prefers_courage_over_career():
     )
 
     assert "courage" in recs["_need"]["tags"]
+
+@pytest.mark.django_db
+def test_tired_and_calm_query_resolves_to_rest_and_mental():
+    candidates = [
+        {
+            "name": "整心神社",
+            "lat": 35.0,
+            "lng": 139.0,
+            "distance_m": 100,
+            "goriyaku": "厄除け・心願成就",
+            "description": "静かな環境で心身を整えたい人に向く",
+            "astro_tags": ["mental", "rest"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+        {
+            "name": "休息神社",
+            "lat": 35.1,
+            "lng": 139.1,
+            "distance_m": 100,
+            "goriyaku": "癒し・休息",
+            "description": "静かに休める",
+            "astro_tags": ["rest"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+    ]
+
+    recs = build_chat_recommendations(
+        query="最近疲れていて、落ち着ける神社がいい。",
+        language="ja",
+        candidates=candidates,
+        birthdate=None,
+        flow="A",
+    )
+
+    tags = recs.get("_need", {}).get("tags", [])
+    assert "rest" in tags
+    assert "mental" in tags
+
+    top = recs["recommendations"][0]
+    assert "rest" in top["breakdown"]["matched_need_tags"]
+    assert "mental" in top["breakdown"]["matched_need_tags"]
+
+@pytest.mark.django_db
+def test_money_and_action_query_resolves_to_money_and_courage():
+    candidates = [
+        {
+            "name": "金運前進神社",
+            "lat": 35.0,
+            "lng": 139.0,
+            "distance_m": 100,
+            "goriyaku": "商売繁盛・開運・勝運",
+            "description": "前向きな行動のきっかけを後押しする",
+            "astro_tags": ["money", "courage"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+        {
+            "name": "金運神社",
+            "lat": 35.1,
+            "lng": 139.1,
+            "distance_m": 100,
+            "goriyaku": "商売繁盛・金運",
+            "description": "金運で知られる",
+            "astro_tags": ["money"],
+            "astro_elements": [],
+            "astro_priority": 0,
+            "popular_score": 5,
+        },
+    ]
+
+    recs = build_chat_recommendations(
+        query="金運を上げたい。行動のきっかけがほしい。",
+        language="ja",
+        candidates=candidates,
+        birthdate=None,
+        flow="A",
+    )
+
+    tags = recs.get("_need", {}).get("tags", [])
+    assert "money" in tags
+    assert "courage" in tags

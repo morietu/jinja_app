@@ -100,11 +100,10 @@ def build_explanation_for_chat_rec(
     reasons: List[dict] = []
 
     if matched:
-        label = NEED_LABEL.get(matched[0], matched[0])
         reasons.append(_reason(
             "NEED_MATCH",
             "相談との一致",
-            f"今の相談内容と、{label}に関わる願いごとが重なる神社です。",
+            _build_need_match_text(matched),
             strength="high",
             evidence={"matched_need_tags": matched},
         ))
@@ -256,3 +255,26 @@ def attach_explanations_for_plan(
                 wish=wish,
             )
     return filled
+
+def _build_need_match_text(matched: List[str]) -> str:
+    tags = [str(x).strip() for x in matched if str(x).strip()]
+
+    if not tags:
+        return "今の相談内容に関わる願いごとと重なる神社です。"
+
+    tag_set = set(tags)
+
+    if "mental" in tag_set and "rest" in tag_set:
+        return "今の相談内容と、心を整えたり落ち着いて休息したい気持ちに重なる神社です。"
+
+    if "career" in tag_set and "mental" in tag_set and "courage" in tag_set:
+        return "今の相談内容と、仕事や転機の不安に向き合いながら一歩踏み出したい気持ちに重なる神社です。"
+
+    if "career" in tag_set and "courage" in tag_set:
+        return "今の相談内容と、仕事や転機に向き合いながら前に進みたい気持ちに重なる神社です。"
+
+    if "mental" in tag_set and "courage" in tag_set:
+        return "今の相談内容と、不安を整えながら前向きに進みたい気持ちに重なる神社です。"
+
+    label = NEED_LABEL.get(tags[0], tags[0])
+    return f"今の相談内容と、{label}に関わる願いごとが重なる神社です。"
