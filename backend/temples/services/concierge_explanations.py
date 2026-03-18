@@ -293,7 +293,7 @@ def _build_need_match_text(matched: List[str]) -> str:
         return "良縁や恋愛を前向きに進めたい気持ちに重なる神社です。"
 
     if "study" in tag_set:
-        return "資格や試験に向けて、集中して努力を積み上げたい気持ちに重なる神社です。"
+        return "学業・合格に向けて、資格や試験へ集中して努力を積み上げたい気持ちに重なる神社です。"
 
     label = NEED_LABEL.get(tags[0], tags[0])
     return f"今の相談内容と、{label}に関わる願いごとが重なる神社です。"

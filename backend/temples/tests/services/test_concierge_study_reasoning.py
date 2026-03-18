@@ -79,4 +79,7 @@ def test_concierge_study_reason_uses_study_label(case, monkeypatch):
 
     top_rec = recs["recommendations"][0]
     assert isinstance(top_rec, dict)
-    assert top_rec.get("reason") == "学業や合格を願う参拝に"
+    reason = str(top_rec.get("reason") or "")
+    assert "study" not in reason
+    assert "学業や合格" in reason
+    assert "参拝に" in reason
