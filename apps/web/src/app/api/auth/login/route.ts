@@ -5,7 +5,7 @@ import { djFetch } from "@/lib/server/backend";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DEBUG = process.env.AUTH_DEBUG === "1";
+
 
 function isSecureCookie(req: NextRequest) {
   if (process.env.NODE_ENV !== "production") return false;

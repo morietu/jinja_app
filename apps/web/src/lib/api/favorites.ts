@@ -6,9 +6,14 @@ export type Favorite = {
   place_id?: string | null;
   target_type?: "shrine" | "place" | string;
   target_id?: number | string | null;
-  shrine?: { id?: number | null; name_jp?: string | null; address?: string | null } | null;
+  public_goshuin_count?: number | null;
+  created_at?: string | null;
+  shrine?: {
+    id?: number | null;
+    name_jp?: string | null;
+    address?: string | null;
+  } | null;
 };
-
 export async function getFavorites(): Promise<Favorite[]> {
   const r = await api.get("/favorites/");
   return Array.isArray(r.data) ? r.data : (r.data?.results ?? []);
@@ -35,5 +40,3 @@ export async function removeFavoriteByPk(pk: number) {
 export async function removeFavoriteByShrineId(shrineId: number) {
   await api.delete(`/favorites/by-shrine/${shrineId}/`);
 }
-
-

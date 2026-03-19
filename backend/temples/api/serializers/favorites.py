@@ -1,4 +1,3 @@
-# backend/temples/api/serializers/favorites.py
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -12,18 +11,20 @@ from temples.services.places import get_or_sync_place
 from temples.api.serializers.validators import validate_google_place_id_strict
 
 
-
 class ShrineLiteSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    name_jp = serializers.CharField()
+    address = serializers.CharField(allow_null=True, required=False)
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
     shrine = ShrineLiteSerializer(read_only=True)
     place = serializers.SerializerMethodField()
+    public_goshuin_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Favorite
-        fields = ["id", "shrine", "place_id", "place", "created_at"]
+        fields = ["id", "shrine", "place_id", "place", "created_at", "public_goshuin_count"]
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_place(self, obj) -> Optional[dict[str, Any]]:
@@ -48,6 +49,13 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "address": pr.address,
             "location": {"lat": pr.latitude, "lng": pr.longitude},
         }
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_public_goshuin_count(self, obj) -> int:
+        shrine = getattr(obj, "shrine", None)
+        if not shrine:
+            return 0
+        return shrine.goshuins.filter(is_public=True).count()
 
 
 class FavoriteUpsertSerializer(serializers.ModelSerializer):
@@ -86,7 +94,6 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("either shrine_id or place_id is required")
 
         if has_place:
-            # ★ここが重要：確定した place_id を attrs に入れる
             attrs["place_id"] = validate_google_place_id_strict(str(pid))
 
         return attrs
@@ -98,7 +105,7 @@ class FavoriteUpsertSerializer(serializers.ModelSerializer):
             obj, _ = Favorite.objects.get_or_create(user=user, shrine=validated_data["shrine"])
             return obj
 
-        pid = validated_data["place_id"]  # ★rawじゃなくvalidated
+        pid = validated_data["place_id"]
         get_or_sync_place(pid)
         obj, _ = Favorite.objects.get_or_create(user=user, place_id=pid)
         return obj
