@@ -3,7 +3,7 @@ import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import Link from "next/link";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
-import { fetchPublicGoshuinsForShrine } from "@/lib/api/publicGoshuins";
+import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
 import PublicGoshuinSection from "@/components/shrine/detail/PublicGoshuinSection";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
@@ -37,7 +37,7 @@ export default async function Page({ params, searchParams }: Props) {
   if (tid) qs.set("tid", String(tid));
   const q = qs.toString();
 
-  const items = await fetchPublicGoshuinsForShrine(shrineId);
+  const items = await fetchPublicGoshuinsForShrineServer(shrineId);
 
   const query = q ? Object.fromEntries(new URLSearchParams(q).entries()) : undefined;
   const backHref = buildShrineHref(shrineId, { query });

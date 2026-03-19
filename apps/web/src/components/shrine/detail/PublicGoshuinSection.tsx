@@ -38,7 +38,7 @@ export default function PublicGoshuinSection({
       title="この神社の御朱印"
       right={
         !isEmpty ? (
-          <div className="relative z-50 flex items-center gap-2">
+          <div className="relative z-50 flex flex-wrap items-center justify-end gap-2">
             {hasMore && seeAllHref ? (
               <Link href={seeAllHref} className="text-xs font-semibold text-slate-700 hover:underline">
                 {seeAllLabel}
@@ -84,9 +84,10 @@ export default function PublicGoshuinSection({
             return (
               <div
                 key={g.id}
-                className={["overflow-hidden rounded-xl border bg-white", isLead ? "col-span-2 shadow-sm" : ""].join(
-                  " ",
-                )}
+                className={[
+                  "overflow-hidden rounded-xl border bg-white",
+                  isLead ? "col-span-2 border-slate-200 shadow-sm" : "border-slate-200/80",
+                ].join(" ")}
               >
                 <div
                   className={[
@@ -104,7 +105,7 @@ export default function PublicGoshuinSection({
                       unoptimized
                     />
                   ) : (
-                    <span>画像準備中</span>
+                    <span>画像未登録</span>
                   )}
                 </div>
 

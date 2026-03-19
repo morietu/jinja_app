@@ -13,7 +13,7 @@ import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 
 import { getConciergeThread } from "@/lib/api/concierge";
-import { fetchPublicGoshuinsForShrine } from "../../../lib/api/publicGoshuins";
+import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
@@ -107,9 +107,9 @@ export default async function Page({ params, searchParams }: Props) {
 
   const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
 
-  let publicGoshuins: Awaited<ReturnType<typeof fetchPublicGoshuinsForShrine>> = [];
+  let publicGoshuins: Awaited<ReturnType<typeof fetchPublicGoshuinsForShrineServer>> = [];
   try {
-    publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
+    publicGoshuins = await fetchPublicGoshuinsForShrineServer(numericId);
   } catch (e) {
     serverLog("warn", "GET_PUBLIC_GOSHUINS_FAILED", {
       shrineId: numericId,

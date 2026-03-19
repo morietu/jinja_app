@@ -12,10 +12,24 @@ export default function FavoritesSection({ initialFavorites }: Props) {
   const { items, count, unSave, error } = useFavorites({ initialFavorites });
 
   const hasData = count > 0;
-  const visible = items.slice(0, 3);
 
+  const sorted = [...items].sort((a, b) => {
+    const aCount = Number(a.public_goshuin_count ?? 0);
+    const bCount = Number(b.public_goshuin_count ?? 0);
 
-  
+    const aHas = aCount > 0;
+    const bHas = bCount > 0;
+
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (aCount !== bCount) return bCount - aCount;
+
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+    return bTime - aTime;
+  });
+
+  const visible = sorted.slice(0, 3);
 
   return (
     <section className="space-y-3 pt-1 pb-2">
