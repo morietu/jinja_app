@@ -1,4 +1,3 @@
-// apps/web/src/components/ConciergeCard.tsx
 "use client";
 
 import * as React from "react";
@@ -20,7 +19,7 @@ function Chevron({ open }: { open: boolean }) {
     <svg
       viewBox="0 0 20 20"
       aria-hidden="true"
-      className={cn("size-4 text-neutral-500 transition-transform duration-200", open && "rotate-180")}
+      className={cn("size-4 text-neutral-500 transition-transform duration-200", open ? "rotate-180" : "rotate-0")}
     >
       <path
         d="M5.5 7.5 10 12l4.5-4.5"
@@ -50,10 +49,12 @@ export default function ConciergeCard(props: BaseCardProps) {
     headerRight,
     disclosureTitle,
     disclosureBody,
+    variant = "list",
   } = props;
 
   const [open, setOpen] = React.useState(false);
 
+  const isHero = variant === "hero";
   const sub = (subtitle ?? "").trim();
   const desc = (description ?? "").trim();
 
@@ -64,9 +65,10 @@ export default function ConciergeCard(props: BaseCardProps) {
         "shadow-sm transition",
         isPrimary && "shadow-md ring-neutral-200",
         detailHref && "cursor-pointer hover:shadow-md",
+        isHero && "ring-2 ring-emerald-200 shadow-lg",
       )}
     >
-      <div className="relative h-36 w-full">
+      <div className={cn("relative w-full", isHero ? "h-40" : "h-36")}>
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -94,7 +96,9 @@ export default function ConciergeCard(props: BaseCardProps) {
                   className={cn(
                     "inline-flex shrink-0 items-center rounded-full px-2.5 py-1",
                     "text-[11px] font-medium",
-                    "bg-neutral-100/80 text-neutral-500 ring-1 ring-inset ring-neutral-200/60",
+                    isHero
+                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                      : "bg-neutral-100/80 text-neutral-500 ring-1 ring-inset ring-neutral-200/60",
                   )}
                 >
                   {badge}
@@ -126,15 +130,33 @@ export default function ConciergeCard(props: BaseCardProps) {
           ) : null}
 
           <div className="min-w-0 flex-1">
-            <h3 className="text-[15px] font-semibold leading-snug text-neutral-900">{title}</h3>
+            {isHero && sub ? <p className="mb-1 text-[18px] font-bold leading-8 text-neutral-950">{sub}</p> : null}
+
+            <h3
+              className={cn(
+                "font-semibold leading-snug",
+                isHero ? "text-[14px] text-neutral-700" : "text-[15px] text-neutral-900",
+              )}
+            >
+              {title}
+            </h3>
 
             {address ? <p className="mt-1 truncate text-xs text-neutral-500">{address}</p> : null}
 
-            {sub ? (
+            {!isHero && sub ? (
               <p className="mt-2 text-[15px] font-semibold leading-6 text-neutral-900 line-clamp-2">{sub}</p>
             ) : null}
 
-            {desc ? <p className="mt-1 text-[13px] leading-6 text-neutral-600 line-clamp-2">{desc}</p> : null}
+            {desc ? (
+              <p
+                className={cn(
+                  "mt-2 leading-6",
+                  isHero ? "text-[13px] text-neutral-700" : "text-[13px] text-neutral-600 line-clamp-2",
+                )}
+              >
+                {desc}
+              </p>
+            ) : null}
 
             {detailHref ? (
               <Link

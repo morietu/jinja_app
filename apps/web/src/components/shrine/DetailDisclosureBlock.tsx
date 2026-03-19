@@ -73,7 +73,10 @@ export default function DetailDisclosureBlock({
           <div className="mt-1 line-clamp-2 text-xs text-slate-600">{summary}</div>
         </div>
 
-        <span className={cn("shrink-0 text-slate-500 transition-transform", open && "rotate-180")} aria-hidden="true">
+        <span
+          className={cn("size-4 transition-transform duration-200", open ? "rotate-0" : "rotate-180")}
+          aria-hidden="true"
+        >
           ▼
         </span>
       </button>

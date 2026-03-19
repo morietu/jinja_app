@@ -1,4 +1,3 @@
-// apps/web/src/components/shrines/ShrineConciergeCard.tsx
 "use client";
 
 import * as React from "react";
@@ -34,7 +33,74 @@ export type ShrineConciergeCardProps = {
 
   hideDisclosure?: boolean;
   variant?: "list" | "detail" | "hero";
+
+  suppressHeroCopy?: boolean;
 };
+
+function buildHeroClaimFromTags(tags?: string[] | null): string {
+  const set = new Set((tags ?? []).filter(Boolean));
+
+  if (set.has("mental") && set.has("rest")) {
+    return "今の疲れを整えたいなら、この神社が最適です。";
+  }
+
+  if (set.has("career") && set.has("mental") && set.has("courage")) {
+    return "不安を整えながら次の一歩を踏み出すなら、この神社が最適です。";
+  }
+
+  if (set.has("career") && set.has("courage")) {
+    return "仕事や転機で前に進みたいなら、この神社が最適です。";
+  }
+
+  if (set.has("money") && set.has("courage")) {
+    return "金運と行動の流れを変えたいなら、この神社が最適です。";
+  }
+
+  if (set.has("love")) {
+    return "良縁を前向きに育てたいなら、この神社が最適です。";
+  }
+
+  if (set.has("study")) {
+    return "学業や合格に集中したいなら、この神社が最適です。";
+  }
+
+  if (set.has("mental")) {
+    return "心の不安を整えたいなら、この神社が最適です。";
+  }
+
+  if (set.has("rest")) {
+    return "落ち着いて心身を休めたいなら、この神社が最適です。";
+  }
+
+  return "今の相談に最も合う参拝先です。";
+}
+
+function buildHeroReason(reason?: string | null): string {
+  const s = (reason ?? "").trim();
+  if (!s) return "→ 今の状態と強く一致しています。";
+
+  if (s.includes("不安") && s.includes("前")) {
+    return "→ 不安を整えつつ前進したい状態と強く一致しています。";
+  }
+
+  if (s.includes("疲れ") || s.includes("休息") || s.includes("落ち着")) {
+    return "→ 今の不安を静かに整えたいなら、この神社が最適です。";
+  }
+
+  if (s.includes("金運") && (s.includes("行動") || s.includes("前向き"))) {
+    return "→ 金運と行動の両方を求める状態と強く一致しています。";
+  }
+
+  if (s.includes("恋愛") || s.includes("良縁")) {
+    return "→ 良縁を前向きに進めたい状態と強く一致しています。";
+  }
+
+  if (s.includes("学業") || s.includes("資格") || s.includes("試験")) {
+    return "→ 学業や合格に集中したい状態と強く一致しています。";
+  }
+
+  return "→ 今の状態と強く一致しています。";
+}
 
 export default function ShrineConciergeCard({
   shrineId,
@@ -44,32 +110,29 @@ export default function ShrineConciergeCard({
   imageUrl,
   explanationSummary,
   explanationPrimaryReason,
-
   hideDescription = false,
-
   subtitle: _subtitle,
   hideBadges = false,
   hideLeftMark = false,
   hideAddress = false,
-
   showFavorite = true,
   initialFav = false,
   readOnly = false,
   detailHref,
-  breakdown: _breakdown,
+  breakdown,
   badgesOverride,
   hideDetailLink = false,
-
   hideDisclosure: _hideDisclosure = true,
   variant = "list",
+  suppressHeroCopy = false,
 }: ShrineConciergeCardProps) {
   const isHero = variant === "hero";
 
-  const effHideBadges = isHero ? true : hideBadges;
+  const effHideBadges = isHero ? false : hideBadges;
   const effHideLeftMark = isHero ? true : hideLeftMark;
-  const effHideAddress = isHero ? true : hideAddress;
+  const effHideAddress = isHero ? false : hideAddress;
   const effShowFavorite = isHero ? false : showFavorite;
-  const effHideDetailLink = isHero ? true : hideDetailLink;
+  const effHideDetailLink = hideDetailLink;
 
   const { fav, busy, toggle } = useFavorite({ shrineId, initial: initialFav });
 
@@ -91,8 +154,12 @@ export default function ShrineConciergeCard({
   );
 
   const mainSummary = explanationSummary?.trim() || "条件に合う候補から選びました。";
+  const primaryReason = explanationPrimaryReason?.trim() || "";
 
-  const supportingReason = hideDescription ? "" : explanationPrimaryReason?.trim() || "";
+  const matchedTags = breakdown?.matched_need_tags ?? [];
+  const heroClaim = suppressHeroCopy ? "" : buildHeroClaimFromTags(matchedTags);
+  const heroReason = hideDescription || suppressHeroCopy ? "" : buildHeroReason(primaryReason);
+  const supportingReason = hideDescription ? "" : primaryReason;
 
   const badges =
     badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3) ?? [];
@@ -102,16 +169,18 @@ export default function ShrineConciergeCard({
       title={title}
       address={addr || undefined}
       imageUrl={imageUrl}
-      subtitle={mainSummary}
-      description={supportingReason}
+      subtitle={isHero ? heroClaim : mainSummary}
+      description={isHero ? heroReason : supportingReason}
       hideBadges={effHideBadges}
       hideLeftMark={effHideLeftMark}
       isPrimary={variant !== "detail"}
       badges={badges}
       detailHref={cardDetailHref}
+      detailLabel={isHero ? "この神社を詳しく見る" : "詳細を見る"}
       headerRight={favButton}
       disclosureTitle={undefined}
       disclosureBody={undefined}
+      variant={variant}
     />
   );
 }

@@ -1,4 +1,3 @@
-// apps/web/src/components/card/BaseCardProps.ts
 import type React from "react";
 
 export type BaseCardProps = {
@@ -22,4 +21,6 @@ export type BaseCardProps = {
 
   disclosureTitle?: string | null;
   disclosureBody?: React.ReactNode;
+
+  variant?: "list" | "detail" | "hero";
 };

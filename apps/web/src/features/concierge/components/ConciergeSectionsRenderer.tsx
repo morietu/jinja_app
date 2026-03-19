@@ -243,8 +243,11 @@ export default function ConciergeSectionsRenderer({
                 <div className="space-y-3">
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (item.kind === "registered") {
+                      const isTop = idx === 0;
+
                       return (
                         <ShrineCard
+                          key={`rec-${i}-${idx}-registered-${item.shrineId}`}
                           shrineId={item.shrineId}
                           title={item.title}
                           address={item.address}
@@ -254,8 +257,11 @@ export default function ConciergeSectionsRenderer({
                           detailHref={item.detailHref}
                           explanationSummary={item.explanation?.summary ?? item.description}
                           explanationPrimaryReason={item.explanation?.reasons?.[0]?.text ?? null}
-                          badgesOverride={item.breakdown?.matched_need_tags?.slice(0, 3) ?? []}
-                          hideDisclosure
+                          badgesOverride={
+                            isTop ? ["最有力候補"] : (item.breakdown?.matched_need_tags?.slice(0, 3) ?? [])
+                          }
+                          hideDisclosure={!isTop}
+                          variant={isTop ? "hero" : "list"}
                         />
                       );
                     }

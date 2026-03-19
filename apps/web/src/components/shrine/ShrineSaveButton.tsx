@@ -1,4 +1,3 @@
-// apps/web/src/components/shrine/ShrineSaveButton.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,7 +7,7 @@ import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 type Props = {
   shrineId: number;
-  nextPath?: string; // 未ログイン時の戻り先
+  nextPath?: string;
 };
 
 export default function ShrineSaveButton({ shrineId, nextPath }: Props) {
@@ -24,7 +23,6 @@ export default function ShrineSaveButton({ shrineId, nextPath }: Props) {
     try {
       await toggle();
     } catch (e: any) {
-      // 401っぽい時はログインへ誘導（API実装により形は変わるので保険的に）
       const status = e?.response?.status ?? e?.status;
       if (status === 401) {
         const next = nextPath ?? buildShrineHref(shrineId);
@@ -42,14 +40,18 @@ export default function ShrineSaveButton({ shrineId, nextPath }: Props) {
         onClick={onClick}
         disabled={busy}
         className={`inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition
-          ${fav ? "border-amber-300 bg-amber-50" : "bg-white hover:bg-gray-50"}
+          ${
+            fav
+              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+              : "border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
+          }
           disabled:opacity-60`}
         aria-pressed={fav}
       >
-        {busy ? "…" : fav ? "保存済み" : "保存"}
+        {busy ? "保存中…" : fav ? "保存しました" : "保存する"}
       </button>
 
-      {err && <p className="text-xs text-red-600">{err}</p>}
+      {err ? <p className="text-xs text-red-600">{err}</p> : null}
     </div>
   );
 }

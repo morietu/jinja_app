@@ -39,7 +39,7 @@ export default function FavoritesSection({ initialFavorites }: Props) {
       )}
 
       {!hasData ? (
-        <div className="space-y-2 rounded-lg border border-dashed bg-orange-50/50 px-4 py-6 text-center text-sm text-gray-700">
+        <div className="space-y-2 rounded-lg border bg-orange-50/50 px-4 py-6 text-center text-sm text-gray-700">
           <div className="text-2xl">📌</div>
           <p className="font-semibold">保存した神社はまだありません</p>
           <p className="text-xs text-gray-500">神社詳細ページで「保存」をタップすると、ここに一覧で表示されます。</p>

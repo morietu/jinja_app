@@ -1,31 +1,15 @@
-// apps/web/src/components/shrine/detail/ShrineDetailArticle.tsx
+import type React from "react";
+
 import ShrineCard from "@/components/shrines/ShrineConciergeCard";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
+import ShrineProposalSection from "@/components/shrine/detail/ShrineProposalSection";
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
 
 import type { ShrineTag } from "@/lib/shrine/tags/types";
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel, ShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
-
-function pickHeroSubtitle(
-  exp: ShrineExplanation | null | undefined,
-  desc: string | null | undefined,
-): string | undefined {
-  const strong = (exp?.strongHint ?? "").trim();
-  if (strong) return strong.slice(0, 28);
-
-  const summary = (exp?.summary ?? "").trim();
-  if (summary && !summary.includes("判断材料") && !summary.includes("目安") && !summary.includes("情報が少ない")) {
-    return summary.slice(0, 28);
-  }
-
-  const d = (desc ?? "").trim();
-  if (d && !d.includes("準備中")) return d.slice(0, 28);
-
-  return undefined;
-}
 
 export default function ShrineDetailArticle({
   cardProps,
@@ -36,8 +20,11 @@ export default function ShrineDetailArticle({
   judge,
   conciergeBreakdown = null,
   exp,
+  proposal,
+  proposalReason,
   publicGoshuinsPreview = [],
   publicGoshuinsViewAllHref = "",
+  saveActionNode,
 }: {
   cardProps: ShrineCardAdapterProps;
   heroImageUrl?: string | null;
@@ -51,9 +38,11 @@ export default function ShrineDetailArticle({
   judge: { title: string; summary: string; level: SignalLevel; hint?: string | null };
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
+  proposal?: string;
+  proposalReason?: string;
+  saveActionNode?: React.ReactNode;
 }) {
   const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
-  const subtitle = pickHeroSubtitle(exp, cardProps?.description);
 
   const benefitTagObjs = _tags.filter(
     (t) => t.type === "benefit" && (t.confidence === "high" || t.confidence === "mid"),
@@ -72,7 +61,9 @@ export default function ShrineDetailArticle({
 
   return (
     <article className="space-y-4">
-      <ShrineCard {...heroCardProps} variant="hero" subtitle={subtitle} />
+      <ShrineCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
+
+      <ShrineProposalSection proposal={proposal} proposalReason={proposalReason} />
 
       <section id="goshuins">
         <PublicGoshuinSection
@@ -124,6 +115,15 @@ export default function ShrineDetailArticle({
           )}
         </DetailDisclosureBlock>
       </div>
+
+      {saveActionNode ? (
+        <section className="pt-4">
+          <div className="rounded-2xl border bg-emerald-50 p-4">
+            <div className="mb-2 text-sm text-slate-700">気になったら保存して、あとで見返せます</div>
+            {saveActionNode}
+          </div>
+        </section>
+      ) : null}
     </article>
   );
 }
