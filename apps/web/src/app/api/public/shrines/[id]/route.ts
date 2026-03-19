@@ -13,7 +13,10 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!id) return NextResponse.json({ error: "missing_id" }, { status: 400 });
 
   const upstreamPath = `${DJANGO_PUBLIC_BASE}/${encodeURIComponent(id)}/`;
-  const upstream = await djFetch(req, upstreamPath, { method: "GET" });
+  const upstream = await djFetch(req, upstreamPath, {
+    method: "GET",
+    forwardAuth: false,
+  });
 
   const contentType = upstream.headers.get("content-type") ?? "";
   const bodyText = await upstream.text();
