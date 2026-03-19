@@ -2,11 +2,13 @@
 /**
  * Concierge recommendation → detail href (product spec)
  *
- * - 登録済み: shrine_id / shrineId（または互換で id）を持つ → /shrines/:id
+ * - 登録済み: shrine_id / shrineId / shrine.id を持つ → /shrines/:id
  * - 未登録: place_id / placeId（など）だけを持つ → /places/:placeId
  * - IDなし: null（UIは詳細導線を表示しない）
  *
- * 注意: `id` を shrine_id とみなすのが危険になったら、pickShrineId から `id` を外す。
+ * 注意:
+ * recommendation の `id` は shrine_id ではない可能性があるため使わない。
+ * 実在 shrine への導線は shrine_id / shrineId / shrine.id のみを採用する。
  */
 
 type AnyObj = Record<string, any>;
@@ -18,8 +20,7 @@ export function pickPlaceId(item: AnyObj): string | null {
 }
 
 export function pickShrineId(item: AnyObj): number | null {
-  const v = item?.shrine_id ?? item?.shrineId ?? item?.id ?? null;
-  // id を shrine_id とみなすのが危ないなら、ここは shrine_id/shrineId のみに絞る
+  const v = item?.shrine_id ?? item?.shrineId ?? item?.shrine?.id ?? null;
   const n = typeof v === "string" ? Number(v) : v;
   return Number.isFinite(n) ? n : null;
 }

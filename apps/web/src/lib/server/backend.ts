@@ -35,6 +35,13 @@ export async function djFetch(
   const origin = getDjangoOrigin();
   const url = new URL(path, origin).toString();
 
+  console.log("[DJ_FETCH]", {
+    origin,
+    path,
+    url,
+    method: init.method || (req ? req.method : "GET"),
+  });
+
   const headers = new Headers(init.headers ?? {});
 
   if (req) {

@@ -32,7 +32,6 @@ export default async function Page({ params, searchParams }: Props) {
     );
   }
 
-  // ✅ 先にクエリを作る
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
   if (tid) qs.set("tid", String(tid));
@@ -41,12 +40,11 @@ export default async function Page({ params, searchParams }: Props) {
   const items = await fetchPublicGoshuinsForShrine(shrineId);
 
   const query = q ? Object.fromEntries(new URLSearchParams(q).entries()) : undefined;
-
   const backHref = buildShrineHref(shrineId, { query });
 
-  // ✅ 御朱印追加（この一覧に戻す）
   const fromPath = buildShrineHref(shrineId, { subpath: "goshuins", query });
   const addQ = new URLSearchParams();
+  addQ.set("shrine", String(shrineId));
   addQ.set("shrine_id", String(shrineId));
   addQ.set("from", fromPath);
   if (ctx) addQ.set("ctx", ctx);
@@ -64,13 +62,21 @@ export default async function Page({ params, searchParams }: Props) {
       saveAction={null}
       googleDirFallbackText="経路案内を準備できませんでした。"
     >
-      <PublicGoshuinSection items={items} addGoshuinHref={addGoshuinHref} seeAllHref={null} />
+      <div className="space-y-4">
+        <div className="rounded-xl border bg-slate-50 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-800">この神社に残された御朱印を一覧で見られます。</p>
+          <p className="mt-1 text-xs text-slate-500">まだ公開御朱印がない場合は、最初の記録を残せます。</p>
+        </div>
 
-      <div className="pt-4">
-        <Link href={backHref} className="text-xs text-slate-600 hover:underline">
-          ← 神社詳細に戻る
-        </Link>
+        <PublicGoshuinSection items={items} addGoshuinHref={addGoshuinHref} seeAllHref={null} />
+
+        <div className="pt-1">
+          <Link href={backHref} className="text-xs text-slate-600 hover:underline">
+            ← 神社詳細に戻る
+          </Link>
+        </div>
       </div>
     </ShrineDetailShell>
   );
+    
 }

@@ -45,6 +45,15 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req);
   const { usernameRaw, passwordRaw } = await readCredentialsRaw(req);
 
+  console.log("[AUTH_LOGIN_INPUT]", {
+    requestId,
+    usernameRaw,
+    passwordRaw,
+    passwordLen: passwordRaw.length,
+    usernameTrimmed: usernameRaw.trim(),
+    passwordTrimmedEq: passwordRaw === passwordRaw.trim(),
+  });
+
   if (!usernameRaw || !passwordRaw) {
     return NextResponse.json({ detail: "Invalid credentials" }, { status: 400 });
   }
@@ -55,12 +64,18 @@ export async function POST(req: NextRequest) {
   const username = usernameRaw;
   const password = passwordRaw;
 
-  if (DEBUG) serverLog("debug", "AUTH_LOGIN_ATTEMPT", { requestId, usernameLen: username.length });
-
   try {
     const upstreamPath = "/api/auth/jwt/create/";
 
-    // ✅ login は req を渡さない（既存 cookie / Authorization を upstream に混ぜない）
+    console.log("[AUTH_LOGIN_UPSTREAM_REQUEST]", {
+      requestId,
+      upstreamPath,
+      username,
+      password,
+      passwordLen: password.length,
+      djangoOrigin: process.env.DJANGO_ORIGIN || process.env.BACKEND_ORIGIN || "http://127.0.0.1:8000",
+    });
+
     const r = await djFetch(upstreamPath, {
       method: "POST",
       cache: "no-store",
@@ -73,6 +88,13 @@ export async function POST(req: NextRequest) {
 
     const contentType = r.headers.get("content-type") || "";
     const bodyText = await r.text();
+
+    console.log("[AUTH_LOGIN_UPSTREAM_RESPONSE]", {
+      requestId,
+      status: r.status,
+      contentType,
+      bodyText,
+    });
 
     if (!r.ok) {
       serverLog("warn", "AUTH_LOGIN_UPSTREAM_NOT_OK", {
@@ -103,8 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { access, refresh } = data;
-
-    const secure = isSecureCookie(req); // ✅ boolean に評価
+    const secure = isSecureCookie(req);
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
     res.cookies.set("access_token", access, {
@@ -123,6 +144,8 @@ export async function POST(req: NextRequest) {
     });
     return res;
   } catch (e) {
+    console.log("[AUTH_LOGIN_ROUTE_FAILED]", e);
+
     serverLog("error", "AUTH_LOGIN_ROUTE_FAILED", {
       requestId,
       message: e instanceof Error ? e.message : String(e),

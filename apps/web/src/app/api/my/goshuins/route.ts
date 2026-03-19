@@ -2,15 +2,14 @@
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import sharp from "sharp";
+import { getDjangoOrigin } from "@/lib/server/backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function apiBaseUrl() {
-  const v = process.env.API_BASE_URL;
-  if (!v) throw new Error("API_BASE_URL is missing");
-  return v.replace(/\/$/, "");
+  return getDjangoOrigin();
 }
 
 async function getAccessTokenFromCookie() {

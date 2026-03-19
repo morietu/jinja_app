@@ -1,4 +1,3 @@
-// apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
 
 import type { Shrine } from "@/lib/api/shrines";
@@ -19,7 +18,6 @@ import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
-
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
 }
@@ -28,7 +26,6 @@ type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
-
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
@@ -36,7 +33,6 @@ export default async function Page({ params, searchParams }: Props) {
   const tid = sp.tid ?? null;
 
   const hideActions = false;
-
   const close = buildShrineClose({ ctx, tid });
 
   const numericId = Number(id);
@@ -51,12 +47,9 @@ export default async function Page({ params, searchParams }: Props) {
     );
   }
 
-  // from（御朱印登録の戻り先）
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
   if (tid) qs.set("tid", String(tid));
-
-  // ✅ 御朱印登録の唯一入口はここ
   const query = Object.fromEntries(qs.entries());
 
   let shrine: Shrine | null;
@@ -80,7 +73,7 @@ export default async function Page({ params, searchParams }: Props) {
         saveAction={null}
         googleDirHref={null}
         googleDirFallbackText="神社情報が見つからなかったため、経路案内を表示できません。"
-        hideActions={hideActions} // ✅追加（一応渡しておく）
+        hideActions={hideActions}
       >
         <div className="rounded-2xl border bg-white p-4 text-sm text-slate-700">
           神社の詳細情報が見つかりませんでした。
@@ -90,9 +83,7 @@ export default async function Page({ params, searchParams }: Props) {
   }
 
   const s = shrine;
-
   const pageTitle = (s.name_jp ?? "").trim() || `神社 #${numericId}`;
-
 
   const latNum = Number(s.latitude ?? NaN);
   const lngNum = Number(s.longitude ?? NaN);
@@ -105,21 +96,17 @@ export default async function Page({ params, searchParams }: Props) {
     lngNum <= 180;
 
   const googleDirHref = hasLocation ? gmapsDirUrl({ dest: { lat: latNum, lng: lngNum }, mode: "walk" }) : null;
-
   const nextPath = buildShrineHref(numericId, { query: Object.keys(query).length ? query : undefined });
 
-
-  // ✅ 御朱印追加導線（唯一入口）
   const addQ = new URLSearchParams();
   addQ.set("shrine", String(numericId));
-  addQ.set("shrine_id", String(numericId)); // 保険（どっちでも拾えるように）
+  addQ.set("shrine_id", String(numericId));
   addQ.set("from", nextPath);
   if (ctx) addQ.set("ctx", ctx);
   if (tid) addQ.set("tid", String(tid));
 
   const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
 
-  // page.tsx（publicGoshuins の取得直後あたり）
   let publicGoshuins: Awaited<ReturnType<typeof fetchPublicGoshuinsForShrine>> = [];
   try {
     publicGoshuins = await fetchPublicGoshuinsForShrine(numericId);
@@ -161,17 +148,17 @@ export default async function Page({ params, searchParams }: Props) {
         title={pageTitle}
         subtitle={null}
         close={close}
-        addGoshuinHref={addGoshuinHref}
+        addGoshuinHref={null}
         googleDirHref={googleDirHref}
         googleDirLabel="Googleマップで経路案内"
-        saveAction={{
-          shrineId: numericId,
-          nextPath,
-          node: <ShrineSaveButton shrineId={numericId} nextPath={nextPath} />,
-        }}
-        hideActions={hideActions} // ✅追加
+        saveAction={null}
+        hideActions={hideActions}
       >
-        <ShrineDetailArticle {...model} addGoshuinHref={addGoshuinHref} />
+        <ShrineDetailArticle
+          {...model}
+          addGoshuinHref={addGoshuinHref}
+          saveActionNode={<ShrineSaveButton shrineId={numericId} nextPath={nextPath} />}
+        />
       </ShrineDetailShell>
     </>
   );

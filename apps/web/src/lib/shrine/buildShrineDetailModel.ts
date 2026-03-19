@@ -33,6 +33,86 @@ function toBenefitTag(label: string): ShrineTag {
   };
 }
 
+function getMatchedNeedTags(breakdown?: ConciergeBreakdown | null): string[] {
+  return (breakdown?.matched_need_tags ?? []).filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+}
+
+function buildProposalFromBreakdown(breakdown?: ConciergeBreakdown | null): string {
+  const set = new Set(getMatchedNeedTags(breakdown));
+
+  if (set.has("mental") && set.has("rest")) {
+    return "今の疲れを整えたいなら、この神社が合います。";
+  }
+
+  if (set.has("career") && set.has("mental") && set.has("courage")) {
+    return "不安を整えながら次の一歩を踏み出すなら、この神社が合います。";
+  }
+
+  if (set.has("career") && set.has("courage")) {
+    return "仕事や転機で前に進みたいなら、この神社が合います。";
+  }
+
+  if (set.has("money") && set.has("courage")) {
+    return "金運と行動の流れを変えたいなら、この神社が合います。";
+  }
+
+  if (set.has("love")) {
+    return "良縁を前向きに育てたいなら、この神社が合います。";
+  }
+
+  if (set.has("study")) {
+    return "学業や合格に集中したいなら、この神社が合います。";
+  }
+
+  if (set.has("mental")) {
+    return "心の不安を整えたいなら、この神社が合います。";
+  }
+
+  if (set.has("rest")) {
+    return "落ち着いて心身を休めたいなら、この神社が合います。";
+  }
+
+  return "今の状況に合う参拝先として、この神社をおすすめします。";
+}
+
+function buildProposalReasonFromBreakdown(breakdown?: ConciergeBreakdown | null): string {
+  const set = new Set(getMatchedNeedTags(breakdown));
+
+  if (set.has("mental") && set.has("rest")) {
+    return "心を落ち着けることと、しっかり休息したい状態の両方に合っています。";
+  }
+
+  if (set.has("career") && set.has("mental") && set.has("courage")) {
+    return "不安を整えつつ、仕事や転機で前進したい状態に強く合っています。";
+  }
+
+  if (set.has("career") && set.has("courage")) {
+    return "仕事や転機に向き合いながら、前へ進みたい状態に合っています。";
+  }
+
+  if (set.has("money") && set.has("courage")) {
+    return "金運だけでなく、動き出すきっかけを求める状態にも合っています。";
+  }
+
+  if (set.has("love")) {
+    return "良縁や恋愛を前向きに進めたい状態と噛み合っています。";
+  }
+
+  if (set.has("study")) {
+    return "学業や合格に向けて、集中したい状態と噛み合っています。";
+  }
+
+  if (set.has("mental")) {
+    return "不安や気持ちの揺れを整えたい状態に合っています。";
+  }
+
+  if (set.has("rest")) {
+    return "落ち着いて休みたい状態に合っています。";
+  }
+
+  return "今回の相談内容と、この神社の特徴に重なる部分があります。";
+}
+
 export function buildShrineDetailModel({
   shrine,
   publicGoshuins,
@@ -42,8 +122,6 @@ export function buildShrineDetailModel({
   signals,
 }: Args) {
   const { cardProps } = buildShrineCardProps(shrine);
-
-  
 
   const qs = new URLSearchParams();
   if (ctx) qs.set("ctx", ctx);
@@ -55,10 +133,7 @@ export function buildShrineDetailModel({
     query: Object.keys(query).length ? query : undefined,
   });
 
-  
-
   const benefitLabels = getBenefitLabels(shrine);
-
   const tags: ShrineTag[] = benefitLabels.map(toBenefitTag);
 
   const latestGoshuinImage =
@@ -79,26 +154,20 @@ export function buildShrineDetailModel({
 
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
-  // dev only（必要なら）
-  // devLog("ShrineDetailModel", {
-  //   shrineId: shrine.id,
-  //   publicLen: publicGoshuins.length,
-  //   previewLen: publicGoshuinsPreview.length,
-  //   hasMore: publicGoshuinsHasMore,
-  //   ctx,
-  //   tid,
-  // });
+  const proposal = buildProposalFromBreakdown(conciergeBreakdown);
+  const proposalReason = buildProposalReasonFromBreakdown(conciergeBreakdown);
 
   return {
     shrineId: shrine.id,
     cardProps,
     heroImageUrl,
-    benefitLabels, // 既存（互換）
-    tags, // ✅追加（新規）
+    benefitLabels,
+    tags,
     judge,
     conciergeBreakdown,
     exp,
-    // ✅ 全件を渡す（切るのはUI）
+    proposal,
+    proposalReason,
     publicGoshuinsPreview: publicGoshuins,
     publicGoshuinsViewAllHref,
   };
