@@ -24,6 +24,21 @@ export type ConciergeFilterState = {
 /* =========================
  * recommendation items
  * ========================= */
+
+export type ConciergeExplanation = {
+  version?: number | null;
+  summary?: string | null;
+  reasons?: Array<{
+    code?: string | null;
+    label?: string | null;
+    text?: string | null;
+    strength?: "low" | "mid" | "high" | null;
+    evidence?: Record<string, unknown> | null;
+  }> | null;
+  disclaimer?: string | null;
+};
+
+
 export type RegisteredShrineItem = {
   kind: "registered";
   shrineId: number;
@@ -33,18 +48,9 @@ export type RegisteredShrineItem = {
   imageUrl?: string | null;
   detailHref?: string;
   breakdown?: ConciergeBreakdown | null;
-  explanation?: {
-    version?: number | null;
-    summary?: string | null;
-    reasons?: Array<{
-      code?: string | null;
-      label?: string | null;
-      text?: string | null;
-      strength?: "low" | "mid" | "high" | null;
-      evidence?: Record<string, unknown> | null;
-    }> | null;
-    disclaimer?: string | null;
-  } | null;
+  explanation?: ConciergeExplanation | null;
+  compatSummary?: string | null;
+  compatReason?: string | null;
 };
 
 export type PlaceShrineItem = {
@@ -54,10 +60,12 @@ export type PlaceShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-
   detailHref?: string;
   detailLabel?: string;
   breakdown?: ConciergeBreakdown | null;
+  explanation?: ConciergeExplanation | null;
+  compatSummary?: string | null;
+  compatReason?: string | null;
   isDummy?: boolean;
 };
 

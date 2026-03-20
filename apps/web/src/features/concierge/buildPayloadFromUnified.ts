@@ -8,13 +8,29 @@ import type {
 
 import { detailHrefFromRecommendation } from "@/features/concierge/detailHref";
 
+type NormalizedExplanation = {
+  version?: number | null;
+  summary?: string | null;
+  reasons?: Array<{
+    code?: string | null;
+    label?: string | null;
+    text?: string | null;
+    strength?: "low" | "mid" | "high" | null;
+    evidence?: Record<string, unknown> | null;
+  }> | null;
+  disclaimer?: string | null;
+} | null;
+
 type NormalizedItemBase = {
   title: string;
   address: string | null;
-  description: string; // null禁止
+  description: string;
   imageUrl: string | null;
   breakdown: any | null;
-  detailHref?: string; // ない時は undefined（nullは使わない）
+  explanation?: NormalizedExplanation;
+  compatSummary?: string | null;
+  compatReason?: string | null;
+  detailHref?: string;
   isDummy?: boolean;
 };
 
@@ -53,8 +69,44 @@ function pickFirstString(...vals: unknown[]): string | null {
   return null;
 }
 
-// 登録済み=shrine_idあり → /shrines/:id, 未登録=place_idのみ → /places/:placeId, どちらも無い→除外
-function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | null {
+function pickCompatSummary(r: any): string | null {
+  const astro = r?._signals?.astro ?? r?._astro ?? null;
+  if (astro && typeof astro === "object") {
+    if (typeof astro.label_ja === "string" && astro.label_ja.trim()) {
+      return `${astro.label_ja}の性質と重なる相性`;
+    }
+    if (typeof astro.element === "string" && astro.element.trim()) {
+      return `${astro.element}の性質と重なる相性`;
+    }
+  }
+
+  const elementScore = r?.breakdown?.score_element;
+  if (typeof elementScore === "number" && elementScore >= 1) {
+    return "誕生日由来の相性も踏まえた候補";
+  }
+
+  return null;
+}
+
+function pickCompatReason(r: any): string | null {
+  const astro = r?._signals?.astro ?? r?._astro ?? null;
+  if (astro && typeof astro === "object") {
+    return typeof astro.reason === "string" ? astro.reason : null;
+  }
+
+  const elementScore = r?.breakdown?.score_element;
+  if (typeof elementScore === "number" && elementScore >= 1) {
+    return "誕生日由来の相性要素も踏まえて選ばれています。";
+  }
+
+  return null;
+}
+
+function normalizeRecommendation(
+  r: any,
+  tid: string | null,
+  responseMode: "need" | "compat" | null,
+): NormalizedItem | null {
   const shrineId = asPositiveInt(r?.shrine_id ?? r?.shrine?.id ?? null);
 
   const placeId =
@@ -65,34 +117,25 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
 
   const isDummy = r?.is_dummy === true || r?.__dummy === true;
 
-  // href生成（ただしダミーは詳細禁止）
-  const rawHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
+  const rawHref =
+    detailHrefFromRecommendation(r, {
+      ctx: "concierge",
+      tid: tid ?? undefined,
+    }) ?? undefined;
+
   const detailHref = isDummy ? undefined : rawHref;
 
-
-  // DEBUG: これで現実を見る
-  if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-    console.log("[concierge] rec ids", {
-      shrineId,
-      placeId,
-      detailHref,
-      raw_place_id: r?.place_id,
-      raw_placeId: r?.placeId,
-      keys: Object.keys(r ?? {}),
-    });
-  }
+  const compatSummary = responseMode === "compat" ? pickCompatSummary(r) : null;
+  const compatReason = responseMode === "compat" ? pickCompatReason(r) : null;
 
   const title = pickFirstString(r?.display_name, r?.name) ?? "名称不明";
   const address = pickFirstString(r?.display_address, r?.address, r?.location);
   const description = pickFirstString(r?.reason) ?? "";
   const imageUrl = asTrimmedString(r?.photo_url);
   const breakdown = r?.breakdown ?? null;
+  const explanation = r?.explanation && typeof r.explanation === "object" ? r.explanation : null;
 
-  // ✅ registered優先
   if (shrineId) {
-    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized", { shrineId, placeId, detailHref, title });
-    }
     return {
       kind: "registered",
       shrineId,
@@ -102,6 +145,9 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       description,
       imageUrl,
       breakdown,
+      explanation,
+      compatSummary,
+      compatReason,
       detailHref,
       isDummy,
       goriyakuTags: [],
@@ -110,9 +156,6 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   }
 
   if (placeId) {
-    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized(place)", { shrineId, placeId, detailHref, title });
-    }
     return {
       kind: "place",
       placeId,
@@ -121,34 +164,32 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       description,
       imageUrl,
       breakdown,
+      explanation,
+      compatSummary,
+      compatReason,
       detailHref,
       isDummy,
-      // ダミーなら detailLabel は無意味なので空にしてもいい（表示側で使わない）
       detailLabel: "神社の詳細を見る",
     };
   }
 
   return null;
 }
+
 function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
   const out: NormalizedItem[] = [];
   const seenShrine = new Set<number>();
   const seenPlace = new Set<string>();
   const norm = (s: string) => s.trim().toLowerCase();
-
-  // placeId -> out index（registered only）
   const registeredByPlace = new Map<string, number>();
 
-  // 1) registered を先に確保
   for (const item of items) {
     if (item.kind !== "registered") continue;
-
     if (seenShrine.has(item.shrineId)) continue;
-    seenShrine.add(item.shrineId);
 
+    seenShrine.add(item.shrineId);
     out.push(item);
 
-    // ★ push 後の index を保存
     if (item.placeId) {
       const k = norm(item.placeId);
       if (k) {
@@ -158,7 +199,6 @@ function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
     }
   }
 
-  // 2) place は後から
   for (const item of items) {
     if (item.kind !== "place") continue;
 
@@ -166,17 +206,29 @@ function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
     if (!k) continue;
 
     if (seenPlace.has(k)) {
-      // ★ breakdown だけ救出
       const idx = registeredByPlace.get(k);
       if (idx != null) {
         const reg = out[idx];
-        if (
-          reg?.kind === "registered" &&
-          (reg.breakdown == null || typeof reg.breakdown !== "object") &&
-          item.breakdown &&
-          typeof item.breakdown === "object"
-        ) {
-          out[idx] = { ...reg, breakdown: item.breakdown };
+        if (reg?.kind === "registered") {
+          out[idx] = {
+            ...reg,
+            breakdown:
+              reg.breakdown == null || typeof reg.breakdown !== "object"
+                ? (item.breakdown ?? reg.breakdown)
+                : reg.breakdown,
+            explanation:
+              reg.explanation == null || typeof reg.explanation !== "object"
+                ? (item.explanation ?? reg.explanation)
+                : reg.explanation,
+            compatSummary:
+              reg.compatSummary == null || !String(reg.compatSummary).trim()
+                ? (item.compatSummary ?? reg.compatSummary)
+                : reg.compatSummary,
+            compatReason:
+              reg.compatReason == null || !String(reg.compatReason).trim()
+                ? (item.compatReason ?? reg.compatReason)
+                : reg.compatReason,
+          };
         }
       }
       continue;
@@ -194,8 +246,6 @@ export function buildPayloadFromUnified(
   filterState: ConciergeFilterState,
 ): ConciergeSectionsPayload | null {
   const recs = u?.data?.recommendations;
-
-  // ✅ meta の場所が揺れてる前提で吸収する
   const metaObj = (u as any)?.meta ?? null;
 
   const note =
@@ -222,6 +272,8 @@ export function buildPayloadFromUnified(
   const isLimitReached = note === "limit-reached" || remainingFree === 0;
 
   const mode = (u as any)?.data?._signals?.mode ?? null;
+
+  const responseMode = mode?.mode === "compat" ? "compat" : mode?.mode === "need" ? "need" : null;
   const rsRaw = (u as any)?.data?._signals?.result_state ?? (u as any)?.data?._signals?.resultState ?? null;
 
   const resultState =
@@ -236,7 +288,6 @@ export function buildPayloadFromUnified(
         }
       : null;
 
-  // ✅ recommendations が無いが理由はある → payload 返す
   if (!hasRecs && (reply || isLimitReached)) {
     const sections: ConciergeSection[] = [
       {
@@ -263,11 +314,41 @@ export function buildPayloadFromUnified(
 
   if (!hasRecs) return null;
 
-  let items = recs.map((r: any) => normalizeRecommendation(r, tid)).filter((x): x is NormalizedItem => x !== null);
+  let items = recs
+    .map((r: any) => normalizeRecommendation(r, tid, responseMode))
+    .filter((x): x is NormalizedItem => x !== null);
 
   items = dedupeItems(items);
 
   if (items.length === 0) return null;
+
+  const astroRaw = (u as any)?.data?._signals?.astro ?? (u as any)?.data?._astro ?? null;
+  const astro = astroRaw && typeof astroRaw === "object" ? astroRaw : null;
+
+  if (responseMode === "compat" && astro) {
+    items = items.map((item) => {
+      if (item.kind !== "registered") return item;
+
+      const compatSummary =
+        item.compatSummary ??
+        (typeof astro.label_ja === "string" && astro.label_ja.trim()
+          ? `${astro.label_ja}の性質と重なる相性`
+          : typeof astro.element === "string" && astro.element.trim()
+            ? `${astro.element}の性質と重なる相性`
+            : null);
+
+      const compatReason =
+        item.compatReason ?? (typeof astro.reason === "string" && astro.reason.trim() ? astro.reason : null);
+
+      return {
+        ...item,
+        compatSummary,
+        compatReason,
+      };
+    });
+  }
+
+
 
   const sections: ConciergeSection[] = [
     {
@@ -276,7 +357,11 @@ export function buildPayloadFromUnified(
       closedLabel: "条件を追加",
       state: filterState,
     },
-    { type: "recommendations", title: "候補", items: items as any[] },
+    {
+      type: "recommendations",
+      title: "候補",
+      items: items as any[],
+    },
     {
       type: "actions",
       items: [
@@ -285,9 +370,6 @@ export function buildPayloadFromUnified(
       ],
     },
   ];
-
-  const astroRaw = (u as any)?.data?._signals?.astro ?? (u as any)?.data?._astro ?? null;
-  const astro = astroRaw && typeof astroRaw === "object" ? astroRaw : null;
 
   if (astro && (astro.label_ja || astro.element || astro.reason || astro.sun_sign)) {
     const idx = sections.findIndex((s) => s.type === "recommendations");
@@ -303,7 +385,6 @@ export function buildPayloadFromUnified(
     });
   }
 
-  // ✅ hasRecs のときも meta を揃える（UIが metaReply / limit を参照しても死なない）
   return {
     version: 1,
     sections,

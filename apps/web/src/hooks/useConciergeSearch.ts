@@ -40,7 +40,11 @@ export function useConciergeSearch(): Result {
       setError(null);
 
       try {
-        const resp: ConciergeResponse = await searchConcierge({ text: t });
+        const resp: ConciergeResponse = await searchConcierge({
+          text: t,
+          mode: "compat",
+          birthdate: "1984-05-15",
+        });
 
         console.log("raw concierge resp", resp);
         console.log(
@@ -62,6 +66,18 @@ export function useConciergeSearch(): Result {
             name: item.cardProps.name,
             explanationSummary: item.cardProps.explanationSummary,
             explanationReasons: item.cardProps.explanationReasons,
+            compatSummary: (item.cardProps as any).compatSummary,
+            compatReason: (item.cardProps as any).compatReason,
+          })),
+        );
+
+        console.log("USE_CONCIERGE_SEARCH_SIGNALS", resp?.data?._signals);
+        console.log(
+          "USE_CONCIERGE_SEARCH_RECS",
+          (resp?.data?.recommendations ?? []).map((r: any) => ({
+            name: r?.display_name ?? r?.name,
+            scoreElement: r?.breakdown?.score_element ?? null,
+            recAstro: r?._signals?.astro ?? r?._astro ?? null,
           })),
         );
 

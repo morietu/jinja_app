@@ -1,11 +1,10 @@
 import type React from "react";
 
-import ShrineCard from "@/components/shrines/ShrineConciergeCard";
 import PublicGoshuinSection, { type PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
 import ShrineJudgeSection from "@/components/shrine/detail/ShrineJudgeSection";
 import ShrineProposalSection from "@/components/shrine/detail/ShrineProposalSection";
 import DetailDisclosureBlock from "@/components/shrine/DetailDisclosureBlock";
-
+import ShrineConciergeCard from "@/components/shrines/ShrineConciergeCard";
 import type { ShrineTag } from "@/lib/shrine/tags/types";
 import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -22,6 +21,8 @@ export default function ShrineDetailArticle({
   exp,
   proposal,
   proposalReason,
+  compatSummary = null,
+  compatReason = null,
   publicGoshuinsPreview = [],
   publicGoshuinsViewAllHref = "",
   saveActionNode,
@@ -40,6 +41,8 @@ export default function ShrineDetailArticle({
   exp: ShrineExplanation;
   proposal?: string;
   proposalReason?: string;
+  compatSummary?: string | null;
+  compatReason?: string | null;
   saveActionNode?: React.ReactNode;
 }) {
   const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
@@ -59,11 +62,27 @@ export default function ShrineDetailArticle({
         ? benefitLabels.slice(0, 2).join(" / ")
         : "準備中";
 
+  const resolvedProposal = proposal || "この神社の性質に合う形で、気持ちや流れを整えやすい参拝先です。";
+
+  const resolvedProposalReason = proposalReason || "ご利益や神社の性質から見て、今回の参拝目的と接点があります。";
+
+  const hasCompatBlock = Boolean((compatSummary && compatSummary.trim()) || (compatReason && compatReason.trim()));
+
   return (
     <article className="space-y-4">
-      <ShrineCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
+      <ShrineConciergeCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
 
-      <ShrineProposalSection proposal={proposal} proposalReason={proposalReason} />
+      <ShrineProposalSection proposal={resolvedProposal} proposalReason={resolvedProposalReason} />
+
+      {hasCompatBlock ? (
+        <section className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+          <div className="text-xs font-semibold text-sky-700">あなたとの相性</div>
+
+          {compatSummary ? <div className="mt-1 text-sm font-semibold text-slate-900">{compatSummary}</div> : null}
+
+          {compatReason ? <div className="mt-1 text-xs leading-5 text-slate-700">{compatReason}</div> : null}
+        </section>
+      ) : null}
 
       <section id="goshuins">
         <PublicGoshuinSection

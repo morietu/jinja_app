@@ -222,9 +222,16 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       if (typeof compat.birthdate === "string" && compat.birthdate.trim()) {
         (req as any).birthdate = compat.birthdate.trim();
       }
+      if (!req.mode) {
+        const hasBirthdate = !!((req as any).birthdate || (req as any).filters?.birthdate);
+        req.mode = req.query?.trim() ? "need" : hasBirthdate ? "compat" : "need";
+      }
 
       // query は必須（空なら送らない）
-      if (!req.query?.trim()) return;
+      const hasCompatPayload =
+        (req as any).mode === "compat" && !!(req as any).filters && Object.keys((req as any).filters).length > 0;
+
+      if (!req.query?.trim() && !hasCompatPayload) return;
 
       setSending(true);
       setError(null);

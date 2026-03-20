@@ -10,19 +10,20 @@ function formatDistance(m?: number | null) {
 
 export type ShrineCardProps = {
   name: string;
-  address?: string | null;
+  address?: string;
   recommendReason?: string | null;
-  subReason?: string | null;
+  subReason?: string;
   compatibilityLabels?: string[];
-  distanceM?: number | null;
-  rating?: number | null;
-  reviewCount?: number | null;
+  distanceM?: number;
+  rating?: number;
+  reviewCount?: number;
   imageUrl?: string | null;
   tags?: string[];
   href?: string;
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
   isTopPick?: boolean;
+
   explanationSummary?: string | null;
   explanationReasons?: Array<{
     code?: string | null;
@@ -30,6 +31,9 @@ export type ShrineCardProps = {
     text?: string | null;
     strength?: "low" | "mid" | "high" | null;
   }> | null;
+
+  compatSummary?: string | null;
+  compatReason?: string | null;
 };
 
 export function ShrineCard(props: ShrineCardProps) {
@@ -50,15 +54,26 @@ export function ShrineCard(props: ShrineCardProps) {
     isTopPick = false,
     explanationSummary,
     explanationReasons,
+    compatSummary,
+    compatReason,
   } = props;
 
   const distText = formatDistance(distanceM);
 
   const heroSummary = explanationSummary?.trim() || recommendReason?.trim() || null;
 
-  const primaryReason = Array.isArray(explanationReasons)
-    ? (explanationReasons.find((r) => r?.text?.trim())?.text?.trim() ?? null)
-    : null;
+  const primaryReason =
+    Array.isArray(explanationReasons) && explanationReasons.length > 0 ? (explanationReasons[0]?.text ?? null) : null;
+
+  const hasCompatBlock = Boolean((compatSummary && compatSummary.trim()) || (compatReason && compatReason.trim()));
+
+  console.log("REAL_SIMPLE_SHRINE_CARD", {
+    name,
+    compatSummary,
+    compatReason,
+    hasCompatBlock,
+  });
+
 
   const cardClass = [
     "rounded-2xl border p-4 shadow-sm transition-colors",
@@ -113,6 +128,18 @@ export function ShrineCard(props: ShrineCardProps) {
             {!primaryReason && subReason ? (
               <div className="mt-1 line-clamp-1 text-[11px] text-slate-500">{subReason}</div>
             ) : null}
+
+            {hasCompatBlock ? (
+              <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-3">
+                <div className="text-xs font-semibold text-sky-700">あなたとの相性</div>
+
+                {compatSummary ? (
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{compatSummary}</div>
+                ) : null}
+
+                {compatReason ? <div className="mt-1 text-xs leading-5 text-slate-700">{compatReason}</div> : null}
+              </div>
+            ) : null}
           </div>
 
           {typeof isFavorited === "boolean" && onToggleFavorite ? (
@@ -121,7 +148,7 @@ export function ShrineCard(props: ShrineCardProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onToggleFavorite?.();
+                onToggleFavorite();
               }}
               className="shrink-0 rounded-md border px-2 py-1 text-sm"
               aria-label={isFavorited ? "お気に入り解除" : "お気に入り追加"}
@@ -145,15 +172,19 @@ export function ShrineCard(props: ShrineCardProps) {
   );
 
   return (
-    <div className={cardClass}>
-      {href ? (
-        <Link href={href} className="block">
-          {MainContent}
-        </Link>
-      ) : (
-        MainContent
-      )}
-    </div>
+    <>
+      <div className="rounded bg-lime-100 p-2 text-xs text-lime-700">REAL SIMPLE CARD ACTIVE</div>
+
+      <div className={cardClass}>
+        {href ? (
+          <Link href={href} className="block">
+            {MainContent}
+          </Link>
+        ) : (
+          MainContent
+        )}
+      </div>
+    </>
   );
 }
 

@@ -1,6 +1,10 @@
 "use client";
+/**
+ * NOTE:
+ * 現在の /concierge 一覧描画では未使用の可能性あり。
+ * detail 系または旧導線で参照されているため、削除前に参照元を再確認すること。
+ */
 
-import * as React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import { useFavorite } from "@/hooks/useFavorite";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
@@ -35,6 +39,10 @@ export type ShrineConciergeCardProps = {
   variant?: "list" | "detail" | "hero";
 
   suppressHeroCopy?: boolean;
+
+  compatTitle?: string | null;
+  compatSummary?: string | null;
+  compatReason?: string | null;
 };
 
 function buildHeroClaimFromTags(tags?: string[] | null): string {
@@ -43,31 +51,24 @@ function buildHeroClaimFromTags(tags?: string[] | null): string {
   if (set.has("mental") && set.has("rest")) {
     return "今の疲れを整えたいなら、この神社が最適です。";
   }
-
   if (set.has("career") && set.has("mental") && set.has("courage")) {
     return "不安を整えながら次の一歩を踏み出すなら、この神社が最適です。";
   }
-
   if (set.has("career") && set.has("courage")) {
     return "仕事や転機で前に進みたいなら、この神社が最適です。";
   }
-
   if (set.has("money") && set.has("courage")) {
     return "金運と行動の流れを変えたいなら、この神社が最適です。";
   }
-
   if (set.has("love")) {
     return "良縁を前向きに育てたいなら、この神社が最適です。";
   }
-
   if (set.has("study")) {
     return "学業や合格に集中したいなら、この神社が最適です。";
   }
-
   if (set.has("mental")) {
     return "心の不安を整えたいなら、この神社が最適です。";
   }
-
   if (set.has("rest")) {
     return "落ち着いて心身を休めたいなら、この神社が最適です。";
   }
@@ -77,24 +78,21 @@ function buildHeroClaimFromTags(tags?: string[] | null): string {
 
 function buildHeroReason(reason?: string | null): string {
   const s = (reason ?? "").trim();
+
   if (!s) return "→ 今の状態と強く一致しています。";
 
   if (s.includes("不安") && s.includes("前")) {
     return "→ 不安を整えつつ前進したい状態と強く一致しています。";
   }
-
   if (s.includes("疲れ") || s.includes("休息") || s.includes("落ち着")) {
     return "→ 今の不安を静かに整えたいなら、この神社が最適です。";
   }
-
   if (s.includes("金運") && (s.includes("行動") || s.includes("前向き"))) {
     return "→ 金運と行動の両方を求める状態と強く一致しています。";
   }
-
   if (s.includes("恋愛") || s.includes("良縁")) {
     return "→ 良縁を前向きに進めたい状態と強く一致しています。";
   }
-
   if (s.includes("学業") || s.includes("資格") || s.includes("試験")) {
     return "→ 学業や合格に集中したい状態と強く一致しています。";
   }
@@ -125,6 +123,9 @@ export default function ShrineConciergeCard({
   hideDisclosure: _hideDisclosure = true,
   variant = "list",
   suppressHeroCopy = false,
+  compatTitle,
+  compatSummary,
+  compatReason,
 }: ShrineConciergeCardProps) {
   const isHero = variant === "hero";
 
@@ -148,6 +149,7 @@ export default function ShrineConciergeCard({
       aria-pressed={fav}
       aria-label={fav ? "お気に入り解除" : "お気に入りに追加"}
       title={fav ? "お気に入り解除" : "お気に入りに追加"}
+      type="button"
     >
       {fav ? "★" : "☆"}
     </button>
@@ -164,23 +166,52 @@ export default function ShrineConciergeCard({
   const badges =
     badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3) ?? [];
 
+  const hasCompatBlock = Boolean((compatSummary && compatSummary.trim()) || (compatReason && compatReason.trim()));
+
+  console.log("SHRINE_CONCIERGE_CARD", {
+    title,
+    compatSummary,
+    compatReason,
+    hasCompatBlock,
+  });
+
   return (
-    <ConciergeCard
-      title={title}
-      address={addr || undefined}
-      imageUrl={imageUrl}
-      subtitle={isHero ? heroClaim : mainSummary}
-      description={isHero ? heroReason : supportingReason}
-      hideBadges={effHideBadges}
-      hideLeftMark={effHideLeftMark}
-      isPrimary={variant !== "detail"}
-      badges={badges}
-      detailHref={cardDetailHref}
-      detailLabel={isHero ? "この神社を詳しく見る" : "詳細を見る"}
-      headerRight={favButton}
-      disclosureTitle={undefined}
-      disclosureBody={undefined}
-      variant={variant}
-    />
+    <>
+      <div className="rounded bg-fuchsia-100 p-2 text-xs text-fuchsia-700">SHRINE_CONCIERGE_CARD ACTIVE</div>
+
+      <div className="space-y-3">
+        <ConciergeCard
+          title={title}
+          address={addr || undefined}
+          imageUrl={imageUrl}
+          subtitle={isHero ? heroClaim : mainSummary}
+          description={isHero ? heroReason : supportingReason}
+          hideBadges={effHideBadges}
+          hideLeftMark={effHideLeftMark}
+          isPrimary={variant !== "detail"}
+          badges={badges}
+          detailHref={cardDetailHref}
+          detailLabel={isHero ? "この神社を詳しく見る" : "詳細を見る"}
+          headerRight={favButton}
+          disclosureTitle={undefined}
+          disclosureBody={undefined}
+          variant={variant}
+        />
+
+        {hasCompatBlock ? (
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+            <div className="text-xs font-semibold text-sky-700">{compatTitle?.trim() || "あなたとの相性"}</div>
+
+            {compatSummary?.trim() ? (
+              <div className="mt-1 text-sm font-semibold text-slate-900">{compatSummary.trim()}</div>
+            ) : null}
+
+            {compatReason?.trim() ? (
+              <div className="mt-1 text-xs leading-5 text-slate-700">{compatReason.trim()}</div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }

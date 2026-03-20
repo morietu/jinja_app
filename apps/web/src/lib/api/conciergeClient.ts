@@ -5,6 +5,8 @@ import { normalizeRecommendations } from "@/lib/api/concierge/normalize";
 
 export type ConciergeRequest = {
   text: string;
+  birthdate?: string;
+  mode?: "need" | "compat";
 };
 
 type ConciergeDataLike = {
@@ -42,47 +44,83 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
         shrine_id: r?.shrine_id ?? null,
         popular_score: r?.popular_score ?? null,
         breakdown: r?.breakdown ?? null,
+        _signals: r?._signals ?? null,
+        _astro: r?._astro ?? null,
       })),
     },
   };
 }
 
 export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeResponse> {
-  const text = req.text?.trim();
-  if (!text) return { ok: false };
+  const text = req.text?.trim() ?? "";
+  const birthdate = req.birthdate?.trim();
 
-  const raw = await postConciergeChat({ query: text });
+  const requestPayload =
+    req.mode === "compat" && birthdate
+      ? {
+          version: 1,
+          mode: "compat" as const,
+          query: "",
+          filters: { birthdate },
+          birthdate,
+        }
+      : {
+          query: text,
+        };
+
+  const raw = await postConciergeChat(requestPayload);
+
   const rawObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-  const payload = rawObj && "data" in rawObj ? rawObj.data : raw;
+  const responsePayload = rawObj && "data" in rawObj ? rawObj.data : raw;
 
   const payloadData =
-    payload && typeof payload === "object" && !Array.isArray(payload)
-      ? (payload as Record<string, unknown>).data &&
-        typeof (payload as Record<string, unknown>).data === "object" &&
-        !Array.isArray((payload as Record<string, unknown>).data)
-        ? ((payload as Record<string, unknown>).data as Record<string, unknown>)
-        : (payload as Record<string, unknown>)
+    responsePayload && typeof responsePayload === "object" && !Array.isArray(responsePayload)
+      ? (responsePayload as Record<string, unknown>).data &&
+        typeof (responsePayload as Record<string, unknown>).data === "object" &&
+        !Array.isArray((responsePayload as Record<string, unknown>).data)
+        ? ((responsePayload as Record<string, unknown>).data as Record<string, unknown>)
+        : (responsePayload as Record<string, unknown>)
       : {};
 
+  console.log("SEARCH_CONCIERGE_REQUEST_PAYLOAD", requestPayload);
+  console.log("SEARCH_CONCIERGE_RAW", raw);
+  console.log("SEARCH_CONCIERGE_PAYLOAD_DATA", payloadData);
+  
   const recs = normalizeRecommendations(payloadData.recommendations);
 
-  const ok = (payload as any)?.ok !== false;
+  const rawRecommendations = Array.isArray(payloadData.recommendations) ? payloadData.recommendations : [];
+
+  console.log(
+    "SEARCH_CONCIERGE_RAW_RECS",
+    rawRecommendations.map((r: any) => ({
+      name: r?.display_name ?? r?.name,
+      scoreElement: r?.breakdown?.score_element ?? null,
+      recAstro: r?._signals?.astro ?? r?._astro ?? null,
+      keys: Object.keys(r ?? {}),
+    })),
+  );
+
+  const ok = (responsePayload as any)?.ok !== false;
 
   const unified: UnifiedConciergeResponse = {
     ok,
-    stop_reason: (payload as any)?.stop_reason ?? null,
-    note: (payload as any)?.note ?? null,
+    stop_reason: (responsePayload as any)?.stop_reason ?? null,
+    note: (responsePayload as any)?.note ?? null,
     reply:
-      typeof ((payload as any)?.reply ?? payloadData.reply) === "string"
-        ? (((payload as any)?.reply ?? payloadData.reply) as string)
+      typeof ((responsePayload as any)?.reply ?? payloadData.reply) === "string"
+        ? (((responsePayload as any)?.reply ?? payloadData.reply) as string)
         : null,
-    remaining_free: typeof (payload as any)?.remaining_free === "number" ? (payload as any).remaining_free : null,
-    thread: (payload as any)?.thread ?? null,
+    remaining_free:
+      typeof (responsePayload as any)?.remaining_free === "number" ? (responsePayload as any).remaining_free : null,
+    thread: (responsePayload as any)?.thread ?? null,
     data: {
       ...payloadData,
       recommendations: recs,
     },
   };
 
-  return unifiedToConciergeResponse(unified);
+  const response = unifiedToConciergeResponse(unified);
+  console.log("UNIFIED_TO_CONCIERGE_RESPONSE", response);
+
+  return response;
 }

@@ -34,7 +34,10 @@ export type ConciergeResponse = {
       breakdown?: {
         matched_need_tags?: string[] | null;
         score_total?: number | null;
+        score_element?: number | null;
       } | null;
+      _signals?: Record<string, unknown> | null;
+      _astro?: Record<string, unknown> | null;
     }>;
   };
 };
@@ -68,11 +71,59 @@ function toDisplayTag(tag: string): string {
   return NEED_LABELS[tag] ?? tag;
 }
 
+function pickCompatSummary(rec: any, rootAstro?: any): string | null {
+  const astro = rec?._signals?.astro ?? rec?._astro ?? rootAstro ?? null;
+
+  if (astro && typeof astro === "object") {
+    if (typeof astro.label_ja === "string" && astro.label_ja.trim()) {
+      return `${astro.label_ja}の性質と重なる相性`;
+    }
+    if (typeof astro.element === "string" && astro.element.trim()) {
+      return `${astro.element}の性質と重なる相性`;
+    }
+  }
+
+  const scoreElement = rec?.breakdown?.score_element;
+  if (typeof scoreElement === "number" && scoreElement >= 1) {
+    return "誕生日由来の相性も踏まえた候補";
+  }
+
+  return null;
+}
+
+function pickCompatReason(rec: any, rootAstro?: any): string | null {
+  const astro = rec?._signals?.astro ?? rec?._astro ?? rootAstro ?? null;
+
+  if (astro && typeof astro === "object" && typeof astro.reason === "string" && astro.reason.trim()) {
+    return astro.reason;
+  }
+
+  const scoreElement = rec?.breakdown?.score_element;
+  if (typeof scoreElement === "number" && scoreElement >= 1) {
+    return "誕生日由来の相性要素も踏まえて選ばれています。";
+  }
+
+  return null;
+}
+
 export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListItem[] {
   if (!resp?.ok) return [];
 
-  const recs = resp.data?.recommendations ?? [];
+  const recs = Array.isArray(resp.data?.recommendations) ? resp.data.recommendations : [];
   const fallbackTags = normalizeTagList(resp.data?._need?.tags);
+
+  const rootSignals =
+    resp.data?._signals && typeof resp.data._signals === "object"
+      ? (resp.data._signals as Record<string, unknown> & {
+          mode?: { mode?: "need" | "compat" | null } | null;
+          astro?: unknown;
+        })
+      : null;
+
+  const responseMode =
+    rootSignals?.mode?.mode === "compat" ? "compat" : rootSignals?.mode?.mode === "need" ? "need" : null;
+
+  const rootAstro = rootSignals?.astro ?? null;
 
   return recs.map((r, idx) => {
     const id = safeId(r);
@@ -82,7 +133,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
     const rawTags = matchedTags.length ? matchedTags : fallbackTags;
 
     const tags = rawTags.map(toDisplayTag).slice(0, 3);
-    const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 1);
+    const compatibilityLabels = responseMode === "compat" ? matchedTags.map(toDisplayTag).slice(0, 1) : [];
 
     const explanationSummary = r.explanation?.summary?.trim() || null;
 
@@ -97,8 +148,18 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
         .filter((x) => x.text) ?? null;
 
     const recommendReason = explanationSummary || r.reason?.trim() || null;
-
     const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
+
+    const compatSummary = responseMode === "compat" ? pickCompatSummary(r, rootAstro) : null;
+    const compatReason = responseMode === "compat" ? pickCompatReason(r, rootAstro) : null;
+
+    console.log("MAPPER_MODE", {
+      name,
+      responseMode,
+      scoreElement: r.breakdown?.score_element ?? null,
+      compatSummary,
+      compatReason,
+    });
 
     return {
       id,
@@ -118,6 +179,8 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
         isTopPick: idx === 0,
         explanationSummary,
         explanationReasons,
+        compatSummary,
+        compatReason,
       },
     };
   });

@@ -37,7 +37,7 @@ type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeR
 type LocalEvent = ChatEvent | AssistantStateEvent;
 
 type EventsByThread = Record<number, LocalEvent[]>;
-type EntryMode = "feel" | "filter";
+type EntryMode = "need" | "compat";
 
 const STORAGE_KEY = "concierge:eventsByThread";
 const LS_BIRTHDATE_KEY = "concierge:birthdate";
@@ -89,6 +89,11 @@ function normalizeISODate(s: string): string | null {
 
   return isValidISODate(t) ? t : null;
 }
+
+/**
+ * UI補助表示用の簡易4要素判定。
+ * 推薦根拠の正本は backend の astrology.py。
+ */
 
 function birthdateToElement4(birthdateISO: string): Element4 | null {
   if (!isValidISODate(birthdateISO)) return null;
@@ -155,6 +160,16 @@ function getMetaReply(payload: any): { reply: string | null; isLimitReached: boo
   return { reply, isLimitReached };
 }
 
+function entryModeToRequestMode(entryMode: EntryMode, filters: ConciergeChatFilters): "need" | "compat" {
+  const hasBirthdate = !!filters.birthdate;
+  const hasOtherNeedSignals = (filters.goriyaku_tag_ids?.length ?? 0) > 0 || !!filters.extra_condition;
+
+  if (entryMode === "compat" && hasBirthdate && !hasOtherNeedSignals) {
+    return "compat";
+  }
+
+  return "need";
+}
 /* ========================================
  * メインコンポーネント
  * ====================================== */
@@ -273,9 +288,9 @@ export default function ConciergeClientFull() {
    * entryMode（LS）
    * -------------------------------------- */
   const [entryMode, setEntryMode] = useState<EntryMode>(() => {
-    if (typeof window === "undefined") return "filter";
+    if (typeof window === "undefined") return "need";
     const v = localStorage.getItem(LS_ENTRY_MODE);
-    return v === "feel" ? "feel" : "filter";
+    return v === "compat" ? "compat" : "need";
   });
 
   useEffect(() => {
@@ -286,14 +301,16 @@ export default function ConciergeClientFull() {
     }
   }, [entryMode]);
 
-  // ✅ ?mode=feel/filter を直叩き
+  // ✅ ?mode=need/compat と旧 feel/filter の互換を吸収
   useEffect(() => {
     snap("url:mode_effect", { rawMode, isEntryRoute });
 
     if (!isEntryRoute) return;
     if (!rawMode) return;
 
-    setEntryMode(rawMode === "feel" ? "feel" : "filter");
+    const nextMode: EntryMode = rawMode === "compat" || rawMode === "filter" ? "compat" : "need";
+
+    setEntryMode(nextMode);
     snap("nav:replace", { to: "/concierge", reason: "mode_cleanup" });
     router.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
@@ -762,9 +779,9 @@ export default function ConciergeClientFull() {
   }, [shouldShowEntry, entryMode]);
 
   useEffect(() => {
-    if (!shouldShowEntry) return;
-    if (entryMode === "filter") setIsFilterOpen(true);
-  }, [entryMode, shouldShowEntry]);
+  if (!shouldShowEntry) return;
+  if (entryMode === "compat") setIsFilterOpen(true);
+}, [entryMode, shouldShowEntry]);
 
   useEffect(() => {
     if (!isEntryRoute && entrySubmitting) {
@@ -813,8 +830,16 @@ export default function ConciergeClientFull() {
       (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
     if (!has) return null;
-    return { version: 1, query: "条件を追加して絞り込みたいです。" };
-  }, [baseFilters]);
+
+    const mode = entryModeToRequestMode(entryMode, baseFilters);
+
+    return {
+      version: 1,
+      query: mode === "compat" ? "" : "条件を追加して絞り込みたいです。",
+      mode,
+      filters: baseFilters,
+    };
+  }, [baseFilters, entryMode]);
 
   /* ----------------------------------------
    * UIアクション
@@ -964,32 +989,31 @@ export default function ConciergeClientFull() {
                 type="button"
                 className={[
                   "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
-                  entryMode === "feel" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
+                  entryMode === "need" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => {
-                  snap("action:entryMode_feel", {});
-                  setEntryMode("feel");
+                  snap("action:entryMode_need", {});
+                  setEntryMode("need");
                   setIsFilterOpen(false);
                 }}
-                disabled={isBusy}
               >
-                気分から探す
+                今の悩みから探す
               </button>
 
               <button
                 type="button"
                 className={[
                   "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
-                  entryMode === "filter" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
+                  entryMode === "compat" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => {
-                  snap("action:entryMode_filter", {});
-                  setEntryMode("filter");
+                  snap("action:entryMode_compat", {});
+                  setEntryMode("compat");
                   setIsFilterOpen(true);
                 }}
                 disabled={isBusy}
               >
-                条件で絞る
+                生年月日との相性で探す
               </button>
             </div>
 
@@ -1025,7 +1049,7 @@ export default function ConciergeClientFull() {
             ) : null}
 
             {/* コンテンツ */}
-            {entryMode === "feel" ? (
+            {entryMode === "need" ? (
               <div className="mt-3">
                 <p className="text-xs font-semibold text-slate-600">例（タップで送信）</p>
                 <div className="mt-2 grid gap-2">
@@ -1078,10 +1102,10 @@ export default function ConciergeClientFull() {
                     className="w-full rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     onClick={() => {
                       snap("action:error_retry_filter", {});
-                      setEntryMode("filter");
+                      setEntryMode("compat");
                     }}
                   >
-                    条件で絞って再挑戦
+                    相性でもう一度探す
                   </button>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import DetailSection from "@/components/shrine/DetailSection";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
@@ -60,14 +60,10 @@ export default function ConciergeSectionsRenderer({
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
 
-  // ✅ filter state は map の外で1回だけ取る
-  const filterState: ConciergeFilterState | null = useMemo(() => {
-    const sec = payload.sections.find((s) => s.type === "filter") as any;
-    return (sec?.state ?? null) as ConciergeFilterState | null;
-  }, [payload]);
+  
 
-  const appliedTokens = parseExtraTokens(filterState?.extraCondition);
-  const appliedLabel = appliedTokens.length ? `${appliedTokens.join(" / ")} で絞り込みました` : null;
+ 
+  
 
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
@@ -186,83 +182,45 @@ export default function ConciergeSectionsRenderer({
           }
 
           case "recommendations": {
-            const items = (sec as any).items ?? [];
-
-            const rs = payload?.meta?.resultState ?? null;
-            const isFallback = rs?.fallback_mode === "nearby_unfiltered";
-            const hasDummy = items.some((x: any) => x?.isDummy === true);
-
-            // 表示優先：fallback_reason_ja > ui_disclaimer_ja > dummy既定文
-            const bannerText =
-              (typeof rs?.fallback_reason_ja === "string" && rs.fallback_reason_ja) ||
-              (typeof rs?.ui_disclaimer_ja === "string" && rs.ui_disclaimer_ja) ||
-              (hasDummy ? "候補不足のため近隣表示です（条件は反映されていません）。" : null);
 
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
+                
+
                 <div className="mb-2 flex items-center justify-end">
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
-
-                {bannerText && (
-                  <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bannerText}</div>
-                )}
-
-                {(isFallback || hasDummy) && (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className="rounded-xl border px-4 py-3 text-sm font-semibold"
-                      onClick={() => onAction?.({ type: "open_map" })}
-                    >
-                      位置情報を許可して探す
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
-                      onClick={() => onAction?.({ type: "filter_clear" })}
-                    >
-                      条件を外して再検索
-                    </button>
-                  </div>
-                )}
-
-                {appliedLabel && (
-                  <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                    <span>{appliedLabel}</span>
-                    <button
-                      type="button"
-                      className="rounded-md px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100"
-                      onClick={() => onAction?.({ type: "filter_clear" })}
-                    >
-                      クリア
-                    </button>
-                  </div>
-                )}
 
                 <div className="space-y-3">
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (item.kind === "registered") {
                       const isTop = idx === 0;
 
+
                       return (
-                        <ShrineCard
-                          key={`rec-${i}-${idx}-registered-${item.shrineId}`}
-                          shrineId={item.shrineId}
-                          title={item.title}
-                          address={item.address}
-                          description={item.description}
-                          imageUrl={item.imageUrl}
-                          breakdown={item.breakdown ?? null}
-                          detailHref={item.detailHref}
-                          explanationSummary={item.explanation?.summary ?? item.description}
-                          explanationPrimaryReason={item.explanation?.reasons?.[0]?.text ?? null}
-                          badgesOverride={
-                            isTop ? ["最有力候補"] : (item.breakdown?.matched_need_tags?.slice(0, 3) ?? [])
-                          }
-                          hideDisclosure={!isTop}
-                          variant={isTop ? "hero" : "list"}
-                        />
+                        <div key={`wrap-${i}-${idx}-${item.shrineId}`} className="space-y-2">
+
+                          <ShrineCard
+                            key={`rec-${i}-${idx}-registered-${item.shrineId}`}
+                            shrineId={item.shrineId}
+                            title={item.title}
+                            address={item.address}
+                            description={item.description}
+                            imageUrl={item.imageUrl}
+                            breakdown={item.breakdown ?? null}
+                            detailHref={item.detailHref}
+                            explanationSummary={item.explanation?.summary ?? item.description}
+                            explanationPrimaryReason={item.explanation?.reasons?.[0]?.text ?? null}
+                            compatTitle="あなたとの相性"
+                            compatSummary={item.compatSummary ?? null}
+                            compatReason={item.compatReason ?? null}
+                            badgesOverride={
+                              isTop ? ["最有力候補"] : (item.breakdown?.matched_need_tags?.slice(0, 3) ?? [])
+                            }
+                            hideDisclosure={!isTop}
+                            variant={isTop ? "hero" : "list"}
+                          />
+                        </div>
                       );
                     }
 
@@ -272,7 +230,7 @@ export default function ConciergeSectionsRenderer({
                         placeId={item.placeId}
                         title={item.title}
                         address={item.address}
-                        description={item.description}
+                        description={item.explanation?.summary ?? item.description}
                         imageUrl={item.imageUrl}
                         detailHref={item.detailHref}
                         detailLabel={item.detailLabel}

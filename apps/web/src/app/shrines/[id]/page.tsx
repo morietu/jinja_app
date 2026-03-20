@@ -1,3 +1,4 @@
+// apps/web/src/app/shrines/[id]/page.tsx
 import Link from "next/link";
 
 import type { Shrine } from "@/lib/api/shrines";
@@ -12,9 +13,11 @@ import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle"
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 
-import { getConciergeThread } from "@/lib/api/concierge";
+import { getConciergeThreadServer } from "@/lib/api/concierge.server";
 import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
+import { pickRecommendationFromThread } from "@/lib/concierge/pickRecommendationFromThread";
+import type { ConciergeExplanation } from "@/features/concierge/sections/types";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
@@ -22,10 +25,15 @@ function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
 }
 
+function normalizeConciergeMode(v: unknown): "need" | "compat" | null {
+  return v === "need" || v === "compat" ? v : null;
+}
+
 type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
+
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
@@ -123,12 +131,61 @@ export default async function Page({ params, searchParams }: Props) {
   } satisfies NonNullable<Parameters<typeof buildShrineDetailModel>[0]["signals"]>;
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
+  let conciergeExplanation: ConciergeExplanation | null = null;
+  let conciergeMode: "need" | "compat" | null = null;
+
   if (ctx === "concierge" && tid) {
+    serverLog("info", "CONCIERGE_DETAIL_THREAD_FETCH_START", {
+      shrineId: numericId,
+      tid: String(tid),
+    });
+
     try {
-      const thread = await getConciergeThread(String(tid));
+      const thread = await getConciergeThreadServer(String(tid));
       conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
-    } catch {
+
+      const rawMode = (thread as any)?.data?._signals?.mode?.mode;
+      conciergeMode = normalizeConciergeMode(rawMode);
+
+      const rec = pickRecommendationFromThread(thread, numericId);
+      const pickedShrineId = (rec as any)?.shrine_id ?? (rec as any)?.shrine?.id ?? null;
+
+      const messages = Array.isArray((thread as any)?.messages) ? (thread as any).messages : [];
+
+      serverLog("info", "CONCIERGE_DETAIL_REC_CHECK", {
+        shrineId: numericId,
+        tid: String(tid),
+        messageCount: messages.length,
+        pickedShrineId,
+        conciergeMode,
+        hasExplanation: !!(rec?.explanation && typeof rec.explanation === "object"),
+        explanationSummary:
+          rec?.explanation && typeof rec.explanation === "object" ? ((rec.explanation as any)?.summary ?? null) : null,
+        ctx,
+        rawMode: (thread as any)?.data?._signals?.mode?.mode ?? null,
+        hasData: !!(thread as any)?.data,
+        dataKeys:
+          (thread as any)?.data && typeof (thread as any).data === "object" ? Object.keys((thread as any).data) : [],
+      });
+
+      if (conciergeMode == null) {
+        serverLog("warn", "CONCIERGE_DETAIL_MODE_MISSING", {
+          shrineId: numericId,
+          tid: String(tid),
+        });
+      }
+
+      conciergeExplanation =
+        rec?.explanation && typeof rec.explanation === "object" ? (rec.explanation as ConciergeExplanation) : null;
+    } catch (e) {
+      serverLog("warn", "CONCIERGE_DETAIL_THREAD_FETCH_FAILED", {
+        shrineId: numericId,
+        tid: String(tid),
+        message: e instanceof Error ? e.message : String(e),
+      });
       conciergeBreakdown = null;
+      conciergeExplanation = null;
+      conciergeMode = null;
     }
   }
 
@@ -136,6 +193,8 @@ export default async function Page({ params, searchParams }: Props) {
     shrine: s,
     publicGoshuins,
     conciergeBreakdown,
+    conciergeExplanation,
+    conciergeMode,
     ctx,
     tid,
     signals,

@@ -43,7 +43,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items[0].cardProps.recommendReason).toBe("転機・仕事に向き合う参拝に");
     expect(items[0].cardProps.distanceM).toBe(123);
     expect(items[0].cardProps.tags).toEqual(["転機・仕事"]);
-    expect(items[0].cardProps.compatibilityLabels).toEqual(["転機・仕事"]);
+    expect(items[0].cardProps.compatibilityLabels).toEqual([]);
     expect(items[0].cardProps.href).toBe("/shrines/10");
     expect(items[0].cardProps.explanationReasons?.[0].text).toBe(
       "今の相談内容と、転機・仕事に関わる願いごとが重なる神社です。",
@@ -87,7 +87,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items).toEqual([]);
   });
 
-  it("compatibilityLabels / subReason / 日本語タグ化 を cardProps に写す", () => {
+  it("matched_need_tags / subReason / 日本語タグ化 を cardProps に写す", () => {
     const resp = {
       ok: true,
       data: {
@@ -116,7 +116,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items[0].cardProps.recommendReason).toBe("不安・心に向き合う参拝に");
     expect(items[0].cardProps.distanceM).toBe(789);
     expect(items[0].cardProps.tags).toEqual(["不安・心", "休息"]);
-    expect(items[0].cardProps.compatibilityLabels).toEqual(["不安・心"]);
+    expect(items[0].cardProps.compatibilityLabels).toEqual([]);
     expect(items[0].cardProps.subReason).toBe("落ち着いて気持ちを整えやすい雰囲気");
   });
 
