@@ -12,7 +12,8 @@ const EXAMPLES = [
 
 export default function ConciergeClientSimple() {
   const [text, setText] = useState("");
-  const { items, loading, error, headerMessage, notice, search, clear } = useConciergeSearch();
+  const { items, loading, error, headerMessage, notice, remainingFree, limit, reply, search, clear } =
+    useConciergeSearch();
 
   const submit = useCallback(
     async (value: string) => {
@@ -26,8 +27,16 @@ export default function ConciergeClientSimple() {
     clear();
   }, [clear]);
 
-  const hasResult = items.length > 0 || !!headerMessage || !!notice;
+  const isLimitReached = remainingFree === 0;
+  const hasResult = items.length > 0 || !!headerMessage || !!notice || !!reply || isLimitReached;
 
+  console.log("[Simple] render", {
+    remainingFree,
+    limit,
+    reply,
+    itemsLen: items.length,
+    hasResult,
+  });
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="space-y-8">
@@ -43,6 +52,7 @@ export default function ConciergeClientSimple() {
                 <label htmlFor="concierge-text" className="text-sm font-semibold text-slate-800">
                   相談内容
                 </label>
+
                 <textarea
                   id="concierge-text"
                   value={text}
@@ -51,10 +61,22 @@ export default function ConciergeClientSimple() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                   placeholder="今の気分・願い・状況を、そのまま書いてください"
                 />
-                <p className="text-xs text-slate-500">
-                  例: 転職が不安で、背中を押してほしい / 最近疲れていて、落ち着ける神社がいい
-                </p>
               </div>
+
+              {EXAMPLES.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={loading}
+                  onClick={() => {
+                    setText(e);
+                    submit(e);
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
@@ -76,26 +98,6 @@ export default function ConciergeClientSimple() {
                 </button>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">相談例</div>
-                <div className="flex flex-wrap gap-2">
-                  {EXAMPLES.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={loading}
-                      onClick={() => {
-                        setText(e);
-                        submit(e);
-                      }}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {error ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   {error}
@@ -113,11 +115,39 @@ export default function ConciergeClientSimple() {
             </div>
           </div>
 
+          {typeof remainingFree === "number" && typeof limit === "number" && remainingFree > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              あと {remainingFree} 回までは無料で試せます
+            </div>
+          )}
+
+          {isLimitReached && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <p className="font-semibold">無料で利用できる回数を使い切りました。</p>
+              {reply ? <p className="mt-1">{reply}</p> : null}
+              <div className="mt-3 flex gap-2">
+                <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                  有料プランを見る
+                </button>
+
+                <button type="button" className="rounded-xl border px-4 py-2 text-sm font-semibold">
+                  地図で近くの神社を見る
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <ShrineList
               items={items}
               variant="list"
-              emptyText={loading ? "候補を整理しています…" : "まだ結果がありません"}
+              emptyText={
+                loading
+                  ? "候補を整理しています…"
+                  : isLimitReached
+                    ? "無料回数の上限に達しました"
+                    : "まだ結果がありません"
+              }
               headerMessage={headerMessage}
               notice={notice}
               className={hasResult ? "" : "min-h-[120px]"}

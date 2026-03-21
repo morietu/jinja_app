@@ -24,7 +24,7 @@ import { conciergeLog } from "@/lib/log/concierge";
 
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
 
-console.log("DEBUG_FLAG", process.env.NEXT_PUBLIC_DEBUG_LOG);
+
 
 
 /* ========================================
@@ -53,15 +53,7 @@ const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
 /* ========================================
  * snap（ナビ/状態遷移を１箇所に集約してログを強制出力）
  * ====================================== */
-function snap(label: string, extra: Record<string, any> = {}) {
-  const s = {
-    label,
-    path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "",
-    t: Number(performance.now().toFixed(1)),
-    ...extra,
-  };
-  console.log("%c[FLOW]", "color:#7c3aed;font-weight:bold", s);
-}
+function snap(_label: string, _extra: Record<string, any> = {}) {}
 
 /* ========================================
  * 便利な関数群
@@ -162,45 +154,12 @@ export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
-  useEffect(() => {
-    const orig = window.dispatchEvent;
-    window.dispatchEvent = ((ev: Event) => {
-      const t = (ev as any)?.type;
-      if (t === "jinja:close-concierge") {
-        console.log("[DISPATCHED close-concierge]", ev, new Error("dispatch stack").stack);
-      }
-      return orig.call(window, ev);
-    }) as any;
-
-    return () => {
-      window.dispatchEvent = orig;
-    };
-  }, []);
 
   useEffect(() => {
     snap("component_render", {});
   }, []);
 
-  // ✅ デバッグ用：router.push/replace をフック
-  useEffect(() => {
-    const origPush = router.push;
-    const origReplace = router.replace;
-
-    router.push = ((...args: any[]) => {
-      console.log("[NAV] push", ...args);
-      return (origPush as any)(...args);
-    }) as any;
-
-    router.replace = ((...args: any[]) => {
-      console.log("[NAV] replace", ...args);
-      return (origReplace as any)(...args);
-    }) as any;
-
-    return () => {
-      router.push = origPush as any;
-      router.replace = origReplace as any;
-    };
-  }, [router]);
+ 
 
   const lastNavAtRef = useRef(0);
   const isClosingRef = useRef(false);
@@ -550,9 +509,10 @@ export default function ConciergeClientFull() {
       ],
     );
 
-    const payload = useMemo(() => {
-      return buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState);
-    }, [displayUnified, filterState]);
+    const payload = useMemo(
+      () => buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState),
+      [displayUnified, filterState],
+    );
 
     const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
 
@@ -570,35 +530,6 @@ export default function ConciergeClientFull() {
 
     onUnified: (u) => {
       // ✅ 1回だけ unified 全体を出す（ログ洪水を防ぐ）
-      const dumpedRef = (globalThis as any).__jinjaUnifiedDumpedRef ?? { done: false };
-      (globalThis as any).__jinjaUnifiedDumpedRef = dumpedRef;
-
-      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1" && !dumpedRef.done) {
-        dumpedRef.done = true;
-        console.log("[concierge] unified FULL (once)", u);
-
-        // ついでに「どこに何があるか」だけ抜粋
-        console.log("[concierge] unified SHAPE", {
-          thread: (u as any)?.thread,
-          thread_id: (u as any)?.thread_id,
-          data_thread_id: (u as any)?.data?.thread_id,
-          stop_reason: (u as any)?.stop_reason,
-          reply: (u as any)?.reply,
-          meta: (u as any)?.meta,
-          recs_len: Array.isArray((u as any)?.data?.recommendations) ? (u as any).data.recommendations.length : null,
-          recs_type: typeof (u as any)?.data?.recommendations,
-          data_keys: (u as any)?.data ? Object.keys((u as any).data) : null,
-        });
-      }
-
-      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-        const recs = u?.data?.recommendations ?? [];
-        console.log("[concierge] unified recs sample", {
-          count: Array.isArray(recs) ? recs.length : 0,
-          first: Array.isArray(recs) ? recs[0] : null,
-          keysFirst: Array.isArray(recs) && recs[0] ? Object.keys(recs[0] as any) : [],
-        });
-      }
 
       if (isClosingRef.current) return;
 
@@ -661,18 +592,6 @@ export default function ConciergeClientFull() {
     },
   });
 
-  /* ========================================
-   * Refs for Closure safety
-   * ====================================== */
-  const baseFiltersRef = useRef(baseFilters);
-  useEffect(() => {
-    baseFiltersRef.current = baseFilters;
-  }, [baseFilters]);
-
-  const chatThreadIdRef = useRef(chatThreadId);
-  useEffect(() => {
-    chatThreadIdRef.current = chatThreadId;
-  }, [chatThreadId]);
 
   /* ----------------------------------------
    * 🔥 ロック統一：isBusy
@@ -684,11 +603,6 @@ export default function ConciergeClientFull() {
    * -------------------------------------- */
   const safeSend = useCallback(
     async (textOrPayload: any, logMeta?: Record<string, any>) => {
-      if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-        console.log("[concierge] send payload", textOrPayload);
-        console.log("[concierge] send filters", baseFiltersRef.current);
-        console.log("[concierge] chatThreadId", chatThreadIdRef.current);
-      }
 
       snap("safeSend:start", { isEntryRoute, sending, entrySubmitting, canSend });
 
@@ -722,7 +636,6 @@ export default function ConciergeClientFull() {
           });
         }
 
-        console.log("[SEND] start", { isEntryRoute, payload: textOrPayload });
         await (send as any)(textOrPayload);
         snap("safeSend:awaited", {});
       } catch (e) {

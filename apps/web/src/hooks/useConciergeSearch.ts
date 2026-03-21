@@ -10,6 +10,8 @@ type Result = {
   headerMessage: string | null;
   notice: string | null;
   remainingFree: number | null;
+  limit: number | null;
+  reply: string | null;
   search: (text: string) => Promise<void>;
   clear: () => void;
 };
@@ -21,6 +23,8 @@ export function useConciergeSearch(): Result {
   const [headerMessage, setHeaderMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
+  const [limit, setLimit] = useState<number | null>(null);
+  const [reply, setReply] = useState<string | null>(null);
 
   const clear = useCallback(() => {
     setError(null);
@@ -28,6 +32,8 @@ export function useConciergeSearch(): Result {
     setHeaderMessage(null);
     setNotice(null);
     setRemainingFree(null);
+    setLimit(null);
+    setReply(null);
   }, []);
 
   const search = useCallback(
@@ -44,28 +50,7 @@ export function useConciergeSearch(): Result {
       try {
         const resp: ConciergeResponse = await searchConcierge({ text: t });
 
-        console.log("raw concierge resp", resp);
-        console.log(
-          "raw explanations",
-          resp.data?.recommendations?.map((r, idx) => ({
-            idx,
-            name: r.name,
-            explanation: r.explanation,
-            reasons: r.explanation?.reasons,
-          })),
-        );
-
         const items = conciergeToShrineListItems(resp);
-
-        console.log(
-          "mapped items",
-          items.map((item, idx) => ({
-            idx,
-            name: item.cardProps.name,
-            explanationSummary: item.cardProps.explanationSummary,
-            explanationReasons: item.cardProps.explanationReasons,
-          })),
-        );
 
         const resultState =
           resp.data?._signals && typeof resp.data._signals === "object"
@@ -73,20 +58,32 @@ export function useConciergeSearch(): Result {
             : null;
 
         const headerMessage = typeof resp.data?.message === "string" ? resp.data.message : null;
-
         const notice =
           resultState && typeof resultState.ui_disclaimer_ja === "string" ? resultState.ui_disclaimer_ja : null;
+
+        console.log("[useConciergeSearch] parsed", {
+          remaining_free: resp.remaining_free,
+          limit: resp.limit,
+          reply: resp.reply,
+          itemsLen: items.length,
+          headerMessage,
+          notice,
+        });
 
         setItems(items);
         setHeaderMessage(headerMessage);
         setNotice(notice);
         setRemainingFree(typeof resp.remaining_free === "number" ? resp.remaining_free : null);
+        setLimit(typeof resp.limit === "number" ? resp.limit : null);
+        setReply(typeof resp.reply === "string" ? resp.reply : null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "検索に失敗しました");
         setItems([]);
         setHeaderMessage(null);
         setNotice(null);
         setRemainingFree(null);
+        setLimit(null);
+        setReply(null);
       } finally {
         setLoading(false);
       }
@@ -101,6 +98,8 @@ export function useConciergeSearch(): Result {
     headerMessage,
     notice,
     remainingFree,
+    limit,
+    reply,
     search,
     clear,
   };
