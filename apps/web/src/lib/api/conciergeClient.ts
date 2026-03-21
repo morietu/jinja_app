@@ -23,6 +23,7 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
 
   return {
     ok: !!u?.ok,
+    remaining_free: typeof u?.remaining_free === "number" ? u.remaining_free : null,
     data: {
       _need: { tags: needTags },
       _signals: data._signals ?? null,

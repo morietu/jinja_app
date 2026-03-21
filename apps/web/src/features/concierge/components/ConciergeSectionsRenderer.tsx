@@ -85,7 +85,7 @@ export default function ConciergeSectionsRenderer({
   }, [payload]);
 
   const appliedTokens = parseExtraTokens(filterState?.extraCondition);
-  const appliedLabel = appliedTokens.length ? `${appliedTokens.join(" / ")} で絞り込みました` : null;
+  const appliedLabel = appliedTokens.length ? `条件: ${appliedTokens.join(" / ")}` : null;
 
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
@@ -210,17 +210,23 @@ export default function ConciergeSectionsRenderer({
             const isFallback = rs?.fallback_mode === "nearby_unfiltered";
             const hasDummy = items.some((x: any) => x?.isDummy === true);
 
-            // 表示優先：fallback_reason_ja > ui_disclaimer_ja > dummy既定文
             const bannerText =
               (typeof rs?.fallback_reason_ja === "string" && rs.fallback_reason_ja) ||
               (typeof rs?.ui_disclaimer_ja === "string" && rs.ui_disclaimer_ja) ||
-              (hasDummy ? "候補不足のため近隣表示です（条件は反映されていません）。" : null);
+              (hasDummy ? "条件に合う候補が少ないため、まずは選びやすい候補から表示しています。" : null);
+
 
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
+
+                {typeof payload?.meta?.remainingFree === "number" && (
+                  <div className="mb-2 text-xs text-slate-500">
+                    あと {payload.meta.remainingFree}回までは無料で試せます
+                  </div>
+                )}
 
                 {bannerText && (
                   <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bannerText}</div>
@@ -233,14 +239,14 @@ export default function ConciergeSectionsRenderer({
                       className="rounded-xl border px-4 py-3 text-sm font-semibold"
                       onClick={() => onAction?.({ type: "open_map" })}
                     >
-                      位置情報を許可して探す
+                      近くの候補を優先して探す
                     </button>
                     <button
                       type="button"
                       className="rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
                       onClick={() => onAction?.({ type: "filter_clear" })}
                     >
-                      条件を外して再検索
+                      条件を広げて見直す
                     </button>
                   </div>
                 )}

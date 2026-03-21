@@ -2,6 +2,7 @@ import type { ShrineListItem } from "@/components/shrines/ShrineList";
 
 export type ConciergeResponse = {
   ok: boolean;
+  remaining_free?: number | null;
   data?: {
     _need?: { tags?: string[] };
     _signals?: Record<string, unknown> | null;
