@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings as dj_settings
+
 from temples.services.concierge_candidate_utils import _normalize_candidate_fields
 from temples.services.concierge_chat_extra_condition import (
     resolve_extra_condition_tags,
@@ -17,7 +19,6 @@ from temples.services.concierge_chat_pool import (
     _ensure_pool_size,
     _merge_candidate_fields,
 )
-
 from temples.services.concierge_chat_presentation import (
     _fill_location_from_existing_address,
     _backfill_location_from_name,
@@ -25,11 +26,11 @@ from temples.services.concierge_chat_presentation import (
     _attach_reason_source,
     _trim_to_top3_and_fill_message,
 )
-
 from temples.services.concierge_chat_ranking import (
     _attach_breakdown,
     _diversify_by_need,
     _resolve_mode_weights,
+    build_recommendation_reason,
 )
 from temples.services.concierge_chat_response_meta import (
     attach_response_meta,
@@ -40,8 +41,6 @@ from temples.services.concierge_explanation_payload import (
 from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
 )
-
-
 
 log = logging.getLogger(__name__)
 
@@ -58,10 +57,10 @@ def _resolve_astro_profile(
     except Exception:
         return None
 
-
 def _attach_chat_rec_enrichment(
     recs: Dict[str, Any],
     *,
+    public_mode: str,
     birthdate: Optional[str],
     need_tags: List[str],
     weights: Dict[str, float],
@@ -83,7 +82,16 @@ def _attach_chat_rec_enrichment(
             rec,
             soft_signal_tags=soft_signal_tags,
         )
-        _attach_reason_source(rec)
+        rec["reason"] = build_recommendation_reason(
+            rec,
+            public_mode=public_mode,  # type: ignore[arg-type]
+            birthdate=birthdate,
+            need_tags=need_tags,
+        )
+        _attach_reason_source(
+            rec,
+            public_mode=public_mode,
+        )
 
     return recs
 
@@ -156,17 +164,14 @@ def _attach_astro_meta(
 def build_chat_recommendations(
     *,
     query: str,
-    language: str = "ja",
-    candidates: Optional[List[Dict[str, Any]]] = None,
-    bias: Optional[Dict[str, float]] = None,
-    birthdate: Optional[str] = None,
-    goriyaku_tag_ids: Optional[List[int]] = None,
-    extra_condition: Optional[str] = None,
-    flow: str = "A",
-    llm_enabled: bool = True,
-    need_tags: Optional[List[str]] = None,
-    weights: Optional[Dict[str, float]] = None,
-    astro_bonus_enabled: bool = False,
+    language: str,
+    candidates: List[Dict[str, Any]],
+    bias: Optional[Dict[str, Any]],
+    birthdate: Optional[str],
+    goriyaku_tag_ids: Optional[List[int]],
+    extra_condition: Optional[str],
+    public_mode: str,
+    flow: str,
 ) -> Dict[str, Any]:
     """
     候補リストからおすすめ神社を選んで返す関数。
@@ -181,18 +186,19 @@ def build_chat_recommendations(
     ]
 
     need_payload = resolve_need_payload(
-        query=query,
-        need_tags=need_tags,
+        query=query or "",
+        need_tags=[],
         max_tags=3,
     )
     need_tags = need_payload["tags"]
 
     log.info(
-        "[dbg] need_tags query=%r tags=%r language=%r flow=%r extra=%r goriyaku=%r",
+        "[dbg] need_tags query=%r tags=%r language=%r flow=%r mode=%r extra=%r goriyaku=%r",
         (query or "")[:60],
         need_tags,
         language,
         flow,
+        public_mode,
         extra_condition,
         goriyaku_tag_ids,
     )
@@ -204,10 +210,17 @@ def build_chat_recommendations(
     hard_filter_tags = extra_tags["hard_filter_tags"]
     soft_signal_tags = extra_tags["soft_signal_tags"]
 
-    weights = _resolve_mode_weights(flow=flow, weights=weights)
+    weights = _resolve_mode_weights(
+        public_mode=public_mode,  # type: ignore[arg-type]
+        flow=flow,
+        weights=None,
+    )
+
+    astro_bonus_enabled = public_mode == "compat"
+    llm_enabled = bool(getattr(dj_settings, "CONCIERGE_USE_LLM", False))
 
     route = resolve_llm_route(
-        query=query,
+        query=query or "",
         valid_candidates=valid_candidates,
         need_tags=need_tags,
         llm_enabled=llm_enabled,
@@ -253,13 +266,34 @@ def build_chat_recommendations(
 
     recs = _attach_chat_rec_enrichment(
         recs,
+        public_mode=public_mode,
         birthdate=birthdate,
         need_tags=need_tags,
         weights=weights,
         astro_bonus_enabled=astro_bonus_enabled,
         soft_signal_tags=soft_signal_tags,
     )
+
     recs = attach_explanation_payload(recs)
+
+    try:
+        log.info(
+            "[dbg] explanation_payload_after=%r",
+            [
+                {
+                    "shrine_id": r.get("shrine_id"),
+                    "name": r.get("name"),
+                    "breakdown_matched_need_tags": (r.get("breakdown") or {}).get("matched_need_tags"),
+                    "breakdown_score_need": (r.get("breakdown") or {}).get("score_need"),
+                    "explanation_payload": r.get("_explanation_payload"),
+                }
+                for r in (recs.get("recommendations") or [])
+                if isinstance(r, dict)
+            ],
+        )
+    except Exception:
+        pass
+
     recs = _sort_chat_recommendations(
         recs,
         sort_tags=sort_tags,
@@ -281,8 +315,10 @@ def build_chat_recommendations(
                     "name": r.get("name"),
                     "distance_m": r.get("distance_m"),
                     "score_total": r.get("_score_total"),
+                    "score_need": (r.get("breakdown") or {}).get("score_need"),
                     "matched_need_tags": (r.get("breakdown") or {}).get("matched_need_tags"),
                     "goriyaku": r.get("goriyaku"),
+                    "reason": r.get("reason"),
                 }
                 for r in (recs.get("recommendations") or [])
                 if isinstance(r, dict)
@@ -303,6 +339,7 @@ def build_chat_recommendations(
 
     recs = attach_response_meta(
         recs,
+        public_mode=public_mode,
         flow=flow,
         weights=weights,
         astro_bonus_enabled=astro_bonus_enabled,
@@ -317,7 +354,7 @@ def build_chat_recommendations(
 
     recs = attach_explanations_for_chat(
         recs,
-        query=query,
+        query=query or "",
         bias=bias,
         birthdate=birthdate,
         extra_condition=extra_condition,

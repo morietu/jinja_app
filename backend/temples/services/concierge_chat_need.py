@@ -179,6 +179,9 @@ def resolve_need_payload(
             "hits": {},
         }
 
+    if not str(query or "").strip():
+        return {"tags": [], "hits": {}}
+
     try:
         from temples.domain.need_tags import extract_need_tags  # type: ignore
 

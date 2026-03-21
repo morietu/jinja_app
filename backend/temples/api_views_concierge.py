@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import uuid
+
+from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
+
+
 
 import requests
 from django.conf import settings as dj_settings
@@ -32,9 +37,43 @@ from temples.services.concierge_candidate_utils import (
     _to_float,
 )
 from temples.services.concierge_chat import build_chat_recommendations
+from temples.services.concierge_chat_ranking import (
+    _resolve_flow_from_mode,
+    _resolve_public_mode,
+)
 from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
+
+BIRTHDATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+BIRTHDATE_PATTERNS = (
+    re.compile(r"^(\d{4})-(\d{2})-(\d{2})$"),
+    re.compile(r"^(\d{4})/(\d{2})/(\d{2})$"),
+    re.compile(r"^(\d{4})(\d{2})(\d{2})$"),
+)
+
+def normalize_birthdate(value: Any) -> str | None:
+    s = str(value or "").strip()
+    if not s:
+        return None
+
+    for pattern in BIRTHDATE_PATTERNS:
+        m = pattern.match(s)
+        if not m:
+            continue
+
+        yyyy, mm, dd = m.groups()
+
+        try:
+            normalized = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            return None
+
+        return normalized.isoformat()
+
+    return None
+
 
 log = logging.getLogger(__name__)
 
@@ -242,7 +281,6 @@ def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
     except Exception:
         pass
 
-
 def _resolve_request_inputs(data: Dict[str, Any]):
     filters = data.get("filters") if isinstance(data.get("filters"), dict) else {}
     for k in ("birthdate", "goriyaku_tag_ids", "extra_condition"):
@@ -270,6 +308,22 @@ def _resolve_request_inputs(data: Dict[str, Any]):
     query = (data.get("query") or "").strip()
     query = message or query
 
+    # backend救済: query が日付文字列なら birthdate に寄せる
+    birthdate_raw = normalize_birthdate(data.get("birthdate"))
+
+    if not birthdate_raw and isinstance(filters, dict):
+        birthdate_raw = normalize_birthdate(filters.get("birthdate"))
+        if birthdate_raw:
+            data["birthdate"] = birthdate_raw
+
+    if not birthdate_raw:
+        rescued_birthdate = normalize_birthdate(query)
+        if rescued_birthdate:
+            log.info("[api/chat] rescued birthdate from query=%r", query)
+            data["birthdate"] = rescued_birthdate
+            birthdate_raw = rescued_birthdate
+            query = ""
+
     language = (data.get("language") or "ja").strip()
     area = data.get("area") or data.get("where") or data.get("location_text")
 
@@ -295,6 +349,7 @@ def _resolve_request_inputs(data: Dict[str, Any]):
         goriyaku_tag_ids,
         extra_condition,
     )
+
 
 
 def _build_chat_response(
@@ -368,16 +423,6 @@ def _build_chat_candidates_pipeline(
         len(merged_candidates),
     )
 
-
-def _resolve_flow(goriyaku_tag_ids: Any, extra_condition: Any) -> str:
-    gids = goriyaku_tag_ids
-    has_goriyaku = isinstance(gids, list) and len(
-        [x for x in gids if x is not None and str(x).strip() != ""]
-    ) > 0
-    has_extra = bool((extra_condition or "").strip())
-    return "B" if (has_goriyaku or has_extra) else "A"
-
-
 class ConciergeChatView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = [JWTAuthentication]
@@ -429,9 +474,45 @@ class ConciergeChatView(APIView):
         )
 
         is_message_mode = bool(message)
+        birthdate = (birthdate_raw or "").strip() or None
+        request_mode = str(data.get("mode") or "").strip().lower() or None
 
-        if not query:
-            return Response({"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST)
+        public_mode = _resolve_public_mode(
+            mode=request_mode,
+            birthdate=birthdate,
+            query=query,
+        )
+
+        print(
+            {
+                "mode": public_mode,
+                "query": query,
+                "birthdate": birthdate,
+                "filters": data.get("filters") if isinstance(data.get("filters"), dict) else None,
+            }
+        )
+
+        # compat は query 空を許可
+        if not query and public_mode != "compat":
+            return Response(
+                {"detail": "query is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        flow = _resolve_flow_from_mode(
+            public_mode=public_mode,
+            flow=data.get("flow"),
+        )
+
+        log.info(
+            "[concierge/reco] input rid=%s mode=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
+            rid,
+            public_mode,
+            flow,
+            birthdate,
+            goriyaku_tag_ids,
+            extra_condition,
+        )
 
         lat_src = "payload"
         if (payload_lat is None or payload_lng is None) and area and lat is not None and lng is not None:
@@ -480,7 +561,7 @@ class ConciergeChatView(APIView):
             bias = {"lat": lat, "lng": lng, "radius": r_m, "radius_m": r_m}
             log.info("[api/chat] computed bias=%r (from lat/lng/radius_m)", bias)
 
-        intent = extract_intent(query)
+        intent = extract_intent(query or "")
 
         user, token = _resolve_user_and_token(request)
         if user is not None:
@@ -523,17 +604,6 @@ class ConciergeChatView(APIView):
             usage.save(update_fields=["count"])
             remaining = max(daily_limit - usage.count, 0)
 
-        birthdate = (birthdate_raw or "").strip() or None
-
-        flow = _resolve_flow(goriyaku_tag_ids, extra_condition)
-        log.info(
-            "[concierge/reco] input rid=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
-            rid,
-            flow,
-            birthdate,
-            goriyaku_tag_ids,
-            extra_condition,
-        )
         log.warning(
             "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
             birthdate,
@@ -547,25 +617,29 @@ class ConciergeChatView(APIView):
             applied.append("goriyaku_tag_ids")
         if (extra_condition or "").strip():
             applied.append("extra_condition")
+        if public_mode == "compat":
+            applied.append("mode:compat")
 
         recs = build_chat_recommendations(
-            query=query,
+            query=query or "",
             language=language,
             candidates=candidates,
             bias=bias,
             birthdate=birthdate,
             goriyaku_tag_ids=goriyaku_tag_ids,
             extra_condition=extra_condition,
+            public_mode=public_mode,
             flow=flow,
         )
 
         after_n = len(recs.get("recommendations") or [])
         log.info(
-            "[concierge/reco] recs_after rid=%s count=%d applied=%s flow=%s",
+            "[concierge/reco] recs_after rid=%s count=%d applied=%s flow=%s mode=%s",
             rid,
             after_n,
             applied,
             flow,
+            public_mode,
         )
 
         try:
@@ -594,12 +668,23 @@ class ConciergeChatView(APIView):
                 thread_id = None
 
             reply_text = reply if isinstance(reply, str) else None
+            saved_query = query or "生年月日から相性を見てほしい"
 
             try:
-                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=thread_id)
+                saved = append_chat(
+                    user=user,
+                    query=saved_query,
+                    reply_text=reply_text,
+                    thread_id=thread_id,
+                )
                 thread_obj = saved.thread
             except ConciergeThread.DoesNotExist:
-                saved = append_chat(user=user, query=query, reply_text=reply_text, thread_id=None)
+                saved = append_chat(
+                    user=user,
+                    query=saved_query,
+                    reply_text=reply_text,
+                    thread_id=None,
+                )
                 thread_obj = saved.thread
 
         from temples.services.concierge_observability import save_concierge_recommendation_log
@@ -615,7 +700,7 @@ class ConciergeChatView(APIView):
             save_concierge_recommendation_log(
                 user=user if getattr(user, "is_authenticated", False) else None,
                 thread=thread_obj,
-                query=query,
+                query=query or "",
                 need_tags=need_tags_for_log,
                 flow=flow,
                 llm_enabled=bool(llm_meta.get("enabled")),
@@ -636,7 +721,14 @@ class ConciergeChatView(APIView):
             remaining_free=remaining if (user is not None and not is_premium) else None,
             limit=daily_limit if (user is not None and not is_premium) else None,
             thread=thread_obj,
-            debug={"rid": rid, "before": before_n, "after": after_n, "applied": applied, "flow": flow},
+            debug={
+                "rid": rid,
+                "before": before_n,
+                "after": after_n,
+                "applied": applied,
+                "flow": flow,
+                "mode": public_mode,
+            },
         )
 
         return Response(body, status=status.HTTP_200_OK)

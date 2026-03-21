@@ -88,6 +88,7 @@ def build_stats(
 
 def build_signals(
     *,
+    public_mode: str,
     flow: str,
     weights: Dict[str, float],
     astro_bonus_enabled: bool,
@@ -100,6 +101,7 @@ def build_signals(
 ) -> Dict[str, Any]:
     return {
         "mode": _resolve_mode_meta(
+            public_mode=public_mode,
             flow=flow,
             weights=weights,
             astro_bonus_enabled=astro_bonus_enabled,
@@ -125,6 +127,7 @@ def build_signals(
 def attach_response_meta(
     recs: Dict[str, Any],
     *,
+    public_mode: str,
     flow: str,
     weights: Dict[str, float],
     astro_bonus_enabled: bool,
@@ -149,6 +152,7 @@ def attach_response_meta(
     )
 
     recs["_signals"] = build_signals(
+        public_mode=public_mode,
         flow=flow,
         weights=weights,
         astro_bonus_enabled=astro_bonus_enabled,

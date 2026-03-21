@@ -4,6 +4,11 @@ import math
 import logging
 from typing import Any, Dict, List, Optional
 from temples.domain.need_to_goriyaku_tag_ids import need_tags_to_goriyaku_ids
+from typing import Literal
+
+PublicMode = Literal["need", "compat"]
+
+
 log = logging.getLogger(__name__)
 
 NEED_TAG_ALIASES: Dict[str, str] = {
@@ -141,6 +146,7 @@ def _distance_decay(distance_m: Optional[float]) -> float:
 
 def _resolve_mode_weights(
     *,
+    public_mode: PublicMode,
     flow: str,
     weights: Optional[Dict[str, float]],
 ) -> Dict[str, float]:
@@ -152,7 +158,7 @@ def _resolve_mode_weights(
             "distance": float(weights.get("distance", 0.0)),
         }
 
-    if flow == "B":
+    if public_mode == "compat":
         return {
             "element": 0.8,
             "need": 0.2,
@@ -170,6 +176,7 @@ def _resolve_mode_weights(
 
 def _resolve_mode_meta(
     *,
+    public_mode: PublicMode,
     flow: str,
     weights: Dict[str, float],
     astro_bonus_enabled: bool,
@@ -180,20 +187,22 @@ def _resolve_mode_meta(
         "popular": float(weights.get("popular", 0.0)),
     }
 
-    if flow == "B":
+    if public_mode == "compat":
         return {
-            "flow": "B",
+            "mode": "compat",
+            "flow": flow,
             "weights": public_weights,
             "astro_bonus_enabled": bool(astro_bonus_enabled),
-            "ui_label_ja": "占星術強め",
-            "ui_note_ja": "生年月日（星座/四元素）を強く反映して並べ替えています",
+            "ui_label_ja": "相性重視",
+            "ui_note_ja": "生年月日との相性を中心に並べ替えています",
         }
 
     return {
-        "flow": "A",
+        "mode": "need",
+        "flow": flow,
         "weights": public_weights,
         "astro_bonus_enabled": bool(astro_bonus_enabled),
-        "ui_label_ja": "標準",
+        "ui_label_ja": "悩み重視",
         "ui_note_ja": "相談内容と近さをもとに並べ替えています",
     }
 
@@ -292,10 +301,8 @@ def _attach_breakdown(
             matched_all.append(t)
             seen.add(t)
 
-    # 契約用
     score_need = len(matched_all)
 
-    # 既存契約テストと相性のよい整数 rank
     score_need_rank = (
         len(matched_by_tag) * 2
         + len(matched_by_gid) * 2
@@ -303,7 +310,6 @@ def _attach_breakdown(
         + study_bonus
     )
 
-    # 内部ランキング専用の強化版
     score_need_rank_weighted = (
         len(matched_by_tag) * 2.0
         + len(matched_by_gid) * 2.0
@@ -336,7 +342,6 @@ def _attach_breakdown(
         distance_m = None
     score_distance = _distance_decay(distance_m)
 
-    # 契約用 total には distance を入れない
     score_total = (
         score_element * w1
         + score_need * w2
@@ -344,7 +349,6 @@ def _attach_breakdown(
         + astro_bonus
     )
 
-    # 内部ランキング用 total
     score_total_ranked = (
         score_element * w1
         + score_need_rank_weighted * w2
@@ -403,6 +407,34 @@ def _attach_breakdown(
             "score_total_ranked": float(score_total_ranked),
         },
     }
+
+    need_score_reason = "normal_scored"
+    if not need_tags_clean:
+        need_score_reason = "no_need_tags"
+    elif not matched_all:
+        if not candidate_gid_set and not shrine_tag_set and not material.strip():
+            need_score_reason = "no_candidate_material"
+        elif matched_by_tag or matched_by_text or matched_by_gid:
+            need_score_reason = "unexpected_empty_after_match"
+        else:
+            need_score_reason = "no_overlap"
+
+    try:
+        log.info(
+            "[dbg] attach_breakdown shrine_id=%r name=%r need_tags=%r prefilter_matched=%r matched_by_tag=%r matched_by_text=%r matched_by_gid=%r matched_all=%r score_need=%r need_score_reason=%r",
+            rec.get("shrine_id"),
+            rec.get("name"),
+            need_tags_clean,
+            (rec.get("_prefilter_debug") or {}).get("matched"),
+            matched_by_tag,
+            matched_by_text,
+            matched_by_gid,
+            matched_all,
+            score_need,
+            need_score_reason,
+        )
+    except Exception:
+        pass
 
 def _prefilter_candidates_for_need(
     candidates: List[Dict[str, Any]],
@@ -491,11 +523,15 @@ def _prefilter_candidates_for_need(
             "[dbg] prefiltered_top12=%r",
             [
                 {
+                    "shrine_id": r.get("shrine_id"),
                     "name": r.get("name") or r.get("name_jp"),
-                    "prefilter": r.get("_prefilter_debug"),
+                    "prefilter_score": (r.get("_prefilter_debug") or {}).get("score"),
+                    "prefilter_matched": (r.get("_prefilter_debug") or {}).get("matched"),
+                    "text_score_by_tag": (r.get("_prefilter_debug") or {}).get("text_score_by_tag"),
+                    "matched_gid_tags": (r.get("_prefilter_debug") or {}).get("matched_gid_tags"),
                     "astro_tags": r.get("astro_tags"),
-                    "goriyaku": r.get("goriyaku"),
                     "goriyaku_tag_ids": r.get("goriyaku_tag_ids"),
+                    "goriyaku": r.get("goriyaku"),
                 }
                 for r in ordered[:12]
             ],
@@ -557,15 +593,119 @@ def _diversify_by_need(
     picked.extend(pool)
     return picked
 
+def _resolve_public_mode(
+    *,
+    mode: Optional[str],
+    birthdate: Optional[str],
+    query: Optional[str],
+) -> PublicMode:
+    mode_norm = str(mode or "").strip().lower()
+
+    if mode_norm == "compat":
+        return "compat"
+
+    if mode_norm == "need":
+        return "need"
+
+    has_birthdate = bool(str(birthdate or "").strip())
+    has_query = bool(str(query or "").strip())
+
+    if has_birthdate and not has_query:
+        return "compat"
+
+    return "need"
+
+
+def _resolve_flow_from_mode(
+    *,
+    public_mode: PublicMode,
+    flow: Optional[str],
+) -> str:
+    flow_norm = str(flow or "").strip().upper()
+
+    if flow_norm in {"A", "B"}:
+        return flow_norm
+
+    if public_mode == "compat":
+        return "B"
+
+    return "A"
+
+def build_recommendation_reason(
+    rec: Dict[str, Any],
+    *,
+    public_mode: PublicMode,
+    birthdate: Optional[str],
+    need_tags: List[str],
+) -> str:
+    if public_mode == "compat":
+        user_element = None
+        if birthdate:
+            try:
+                from temples.domain.astrology import sun_sign_and_element  # type: ignore
+                prof = sun_sign_and_element(birthdate)
+                if prof:
+                    user_element = getattr(prof, "element", None)
+            except Exception:
+                user_element = None
+
+        shrine_elements = [
+            str(x).strip()
+            for x in (rec.get("astro_elements") or [])
+            if isinstance(x, str) and str(x).strip()
+        ]
+
+        if user_element and shrine_elements:
+            shrine_elements_text = "・".join(shrine_elements)
+            return (
+                f"あなたの生年月日から見た「{user_element}」の要素と、"
+                f"この神社の性質（{shrine_elements_text}）が噛み合っています。"
+            )
+
+        return "あなたの生年月日との相性を中心に、この神社をおすすめしています。"
+
+    matched = (rec.get("breakdown") or {}).get("matched_need_tags") or []
+    matched_text = "・".join(
+        str(tag).strip()
+        for tag in matched[:2]
+        if isinstance(tag, str) and str(tag).strip()
+    )
+
+    fallback_reason = None if matched_text else "matched_need_tags_empty"
+
+    try:
+        log.info(
+            "[dbg] build_reason shrine_id=%r name=%r public_mode=%r matched_need_tags=%r score_need=%r branch=%r fallback_reason=%r",
+            rec.get("shrine_id"),
+            rec.get("name"),
+            public_mode,
+            matched,
+            (rec.get("breakdown") or {}).get("score_need"),
+            "matched_need_tags" if matched_text else "fallback",
+            fallback_reason,
+        )
+    except Exception:
+        pass
+
+    if matched_text:
+        return (
+            f"今の悩みや願いに対して、"
+            f"この神社のご利益や性質が重なっています（{matched_text}）。"
+        )
+
+    return "今の悩みや願いに寄り添いやすい神社としておすすめしています。"
 
 __all__ = [
     "NEED_TEXT_WEIGHTS",
     "STUDY_SHRINE_HINTS",
     "_clamp01",
     "_distance_decay",
+    "_resolve_public_mode",
+    "_resolve_flow_from_mode",
     "_resolve_mode_weights",
     "_resolve_mode_meta",
     "_attach_breakdown",
     "_prefilter_candidates_for_need",
     "_diversify_by_need",
+    "build_recommendation_reason",
 ]
