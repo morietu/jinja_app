@@ -112,6 +112,128 @@ STUDY_SHRINE_HINTS = [
     "学問",
 ]
 
+NEED_LABELS_JA: Dict[str, str] = {
+    "study": "学業・合格",
+    "career": "転機・仕事",
+    "mental": "不安・心",
+    "love": "恋愛",
+    "money": "金運",
+    "rest": "休息",
+    "courage": "前進・後押し",
+    "element": "生年月日との相性",
+    "fallback": "近い候補",
+}
+
+PRIMARY_REASON_PRIORITY: Dict[str, int] = {
+    "need_tag": 0,
+    "goriyaku_tag": 1,
+    "text_hint": 2,
+    "element": 3,
+    "fallback": 9,
+}
+
+
+def _make_reason_fact(
+    *,
+    type_: str,
+    label: str,
+    evidence: List[str],
+    score: float,
+) -> Dict[str, Any]:
+    return {
+        "type": type_,
+        "label": label,
+        "label_ja": NEED_LABELS_JA.get(label, label),
+        "evidence": [
+            str(x).strip()
+            for x in evidence
+            if isinstance(x, str) and str(x).strip()
+        ],
+        "score": float(score),
+        "is_primary": False,
+    }
+
+
+def _build_reason_facts(
+    *,
+    matched_by_tag: List[str],
+    matched_by_gid: List[str],
+    matched_by_text: List[str],
+    text_score_by_tag: Dict[str, int],
+    score_element: int,
+    astro_bonus_enabled: bool,
+) -> List[Dict[str, Any]]:
+    facts: List[Dict[str, Any]] = []
+
+    for tag in matched_by_tag:
+        facts.append(
+            _make_reason_fact(
+                type_="need_tag",
+                label=tag,
+                evidence=[tag],
+                score=2.0,
+            )
+        )
+
+    for tag in matched_by_gid:
+        facts.append(
+            _make_reason_fact(
+                type_="goriyaku_tag",
+                label=tag,
+                evidence=["goriyaku_tag_ids"],
+                score=2.0,
+            )
+        )
+
+    for tag in matched_by_text:
+        facts.append(
+            _make_reason_fact(
+                type_="text_hint",
+                label=tag,
+                evidence=[f"text_score:{text_score_by_tag.get(tag, 0)}"],
+                score=float(text_score_by_tag.get(tag, 0)),
+            )
+        )
+
+    if astro_bonus_enabled and score_element > 0:
+        facts.append(
+            _make_reason_fact(
+                type_="element",
+                label="element",
+                evidence=[f"score_element:{score_element}"],
+                score=float(score_element),
+            )
+        )
+
+    return facts
+
+
+def _resolve_primary_reason(
+    facts: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    if not facts:
+        return {
+            "type": "fallback",
+            "label": "fallback",
+            "label_ja": "近い候補",
+            "evidence": [],
+            "score": 0.0,
+            "is_primary": True,
+        }
+
+    ordered = sorted(
+        facts,
+        key=lambda x: (
+            PRIMARY_REASON_PRIORITY.get(str(x.get("type") or "").strip(), 99),
+            -float(x.get("score") or 0.0),
+            str(x.get("label") or ""),
+        ),
+    )
+
+    primary = dict(ordered[0])
+    primary["is_primary"] = True
+    return primary
+
 
 def _normalize_need_tag(tag: Any) -> str:
     s = str(tag or "").strip().lower()
@@ -408,6 +530,32 @@ def _attach_breakdown(
         },
     }
 
+    reason_facts = _build_reason_facts(
+        matched_by_tag=matched_by_tag,
+        matched_by_gid=matched_by_gid,
+        matched_by_text=matched_by_text,
+        text_score_by_tag=text_score_by_tag,
+        score_element=score_element,
+        astro_bonus_enabled=astro_bonus_enabled,
+    )
+    primary_reason = _resolve_primary_reason(reason_facts)
+
+    if reason_facts:
+        for fact in reason_facts:
+            if (
+                str(fact.get("type") or "") == str(primary_reason.get("type") or "")
+                and str(fact.get("label") or "") == str(primary_reason.get("label") or "")
+                and list(fact.get("evidence") or []) == list(primary_reason.get("evidence") or [])
+            ):
+                fact["is_primary"] = True
+                break
+    else:
+        reason_facts = [primary_reason]
+
+    rec["_reason_facts"] = reason_facts
+    rec["_primary_reason_source"] = str(primary_reason.get("type") or "")
+    rec["_primary_reason_label"] = str(primary_reason.get("label") or "")
+
     need_score_reason = "normal_scored"
     if not need_tags_clean:
         need_score_reason = "no_need_tags"
@@ -421,7 +569,7 @@ def _attach_breakdown(
 
     try:
         log.info(
-            "[dbg] attach_breakdown shrine_id=%r name=%r need_tags=%r prefilter_matched=%r matched_by_tag=%r matched_by_text=%r matched_by_gid=%r matched_all=%r score_need=%r need_score_reason=%r",
+            "[dbg] attach_breakdown shrine_id=%r name=%r need_tags=%r prefilter_matched=%r matched_by_tag=%r matched_by_text=%r matched_by_gid=%r matched_all=%r score_need=%r need_score_reason=%r primary_reason_source=%r primary_reason_label=%r",
             rec.get("shrine_id"),
             rec.get("name"),
             need_tags_clean,
@@ -432,6 +580,8 @@ def _attach_breakdown(
             matched_all,
             score_need,
             need_score_reason,
+            rec.get("_primary_reason_source"),
+            rec.get("_primary_reason_label"),
         )
     except Exception:
         pass

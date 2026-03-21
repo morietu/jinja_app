@@ -10,6 +10,9 @@ NEED_LABELS_JA: Dict[str, str] = {
     "love": "恋愛",
     "money": "金運",
     "rest": "休息",
+    "courage": "前進・後押し",
+    "element": "生年月日との相性",
+    "fallback": "近い候補",
 }
 
 
@@ -26,6 +29,41 @@ def _safe_str_list(value: Any, *, limit: int | None = None) -> List[str]:
             continue
         if s not in out:
             out.append(s)
+
+    if limit is not None:
+        return out[:limit]
+    return out
+
+
+def _normalize_reason_facts(value: Any, *, limit: int | None = None) -> List[Dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    out: List[Dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+
+        type_ = str(item.get("type") or "").strip()
+        label = str(item.get("label") or "").strip()
+        label_ja = str(item.get("label_ja") or "").strip() or NEED_LABELS_JA.get(label, label or None)
+        evidence = _safe_str_list(item.get("evidence"), limit=5)
+        score = float(item.get("score") or 0.0)
+        is_primary = bool(item.get("is_primary"))
+
+        if not type_:
+            continue
+
+        out.append(
+            {
+                "type": type_,
+                "label": label,
+                "label_ja": label_ja,
+                "evidence": evidence,
+                "score": score,
+                "is_primary": is_primary,
+            }
+        )
 
     if limit is not None:
         return out[:limit]
@@ -61,7 +99,6 @@ def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
 
     score_element = int(breakdown.get("score_element") or 0)
     score_need = int(breakdown.get("score_need") or 0)
-
     score_total = float(breakdown.get("score_total") or 0.0)
 
     score_total_ranked = 0.0
@@ -70,13 +107,43 @@ def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
             (breakdown_detail["features"].get("score_total_ranked") or 0.0)
         )
 
+    reason_facts = _normalize_reason_facts(
+        rec.get("_reason_facts"),
+        limit=5,
+    )
+
+    primary_reason = next(
+        (x for x in reason_facts if x.get("is_primary")),
+        None,
+    )
+
+    if primary_reason is None:
+        source = str(rec.get("_primary_reason_source") or "").strip()
+        label = str(rec.get("_primary_reason_label") or "").strip()
+        if source:
+            primary_reason = {
+                "type": source,
+                "label": label,
+                "label_ja": NEED_LABELS_JA.get(label, label or NEED_LABELS_JA.get(source, source)),
+                "evidence": [],
+                "score": 0.0,
+                "is_primary": True,
+            }
+
+    secondary_reasons = [
+        x for x in reason_facts
+        if not x.get("is_primary")
+    ]
+
     return {
-        "version": 1,
+        "version": 2,
         "matched_need_tags": matched_need_tags,
         "primary_need_tag": primary_need_tag,
         "primary_need_label_ja": primary_need_label_ja,
         "highlights": highlights,
         "reason_source": reason_source,
+        "primary_reason": primary_reason,
+        "secondary_reasons": secondary_reasons[:3],
         "original_reason": original_reason,
         "score": {
             "element": score_element,

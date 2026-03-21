@@ -238,3 +238,109 @@ def test_concierge_chat_result_state_and_reason_source_contract(client, monkeypa
         assert it["reason"]
         assert isinstance(it.get("reason_source"), str)
         assert it["reason_source"].startswith("reason:")
+
+
+@pytest.mark.django_db
+def test_concierge_chat_explanation_payload_v2_contract(client, monkeypatch, settings):
+    settings.CONCIERGE_USE_LLM = False
+
+    payload = {
+        "message": "転職が不安",
+        "lat": 35.0,
+        "lng": 139.0,
+        "candidates": [
+            {
+                "name": "A",
+                "goriyaku": "仕事運・勝運",
+                "astro_tags": ["career"],
+                "goriyaku_tag_ids": [1],
+                "popular_score": 8.0,
+            }
+        ],
+    }
+
+    r = client.post(URL, data=json.dumps(payload), content_type="application/json")
+    assert r.status_code == 200
+
+    j = r.json()
+    recs = j["data"]["recommendations"]
+    assert isinstance(recs, list)
+    assert len(recs) >= 1
+
+    rec = recs[0]
+
+    assert "_explanation_payload" in rec
+    payload2 = rec["_explanation_payload"]
+    assert payload2["version"] == 2
+    assert "primary_reason" in payload2
+    assert isinstance(payload2["primary_reason"], dict)
+    assert payload2["primary_reason"]["type"] in {
+        "need_tag",
+        "goriyaku_tag",
+        "text_hint",
+        "element",
+        "fallback",
+    }
+
+    assert "explanation" in rec
+    exp = rec["explanation"]
+    assert exp["version"] == 2
+    assert isinstance(exp["summary"], str)
+    assert exp["summary"]
+    assert isinstance(exp["reasons"], list)
+    assert len(exp["reasons"]) >= 1
+
+@pytest.mark.django_db
+def test_concierge_chat_explanation_payload_v2_contract(client, monkeypatch, settings):
+    settings.CONCIERGE_USE_LLM = False
+
+    payload = {
+        "message": "転職が不安",
+        "lat": 35.0,
+        "lng": 139.0,
+        "candidates": [
+            {
+                "name": "A",
+                "goriyaku": "仕事運・勝運",
+                "astro_tags": ["career"],
+                "goriyaku_tag_ids": [1],
+                "popular_score": 8.0,
+            }
+        ],
+    }
+
+    r = client.post(URL, data=json.dumps(payload), content_type="application/json")
+    assert r.status_code == 200
+
+    j = r.json()
+    assert j.get("ok") is True
+    assert "data" in j and isinstance(j["data"], dict)
+
+    recs = j["data"].get("recommendations")
+    assert isinstance(recs, list)
+    assert len(recs) >= 1
+
+    rec = recs[0]
+
+    assert "_explanation_payload" in rec
+    payload2 = rec["_explanation_payload"]
+    assert isinstance(payload2, dict)
+    assert payload2["version"] == 2
+    assert "primary_reason" in payload2
+    assert isinstance(payload2["primary_reason"], dict)
+    assert payload2["primary_reason"]["type"] in {
+        "need_tag",
+        "goriyaku_tag",
+        "text_hint",
+        "element",
+        "fallback",
+    }
+
+    assert "explanation" in rec
+    exp = rec["explanation"]
+    assert isinstance(exp, dict)
+    assert exp["version"] == 2
+    assert isinstance(exp["summary"], str)
+    assert exp["summary"]
+    assert isinstance(exp["reasons"], list)
+    assert len(exp["reasons"]) >= 1 
