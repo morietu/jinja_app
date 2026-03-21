@@ -1,4 +1,3 @@
-// apps/web/src/hooks/useConciergeSearch.ts
 import { useCallback, useState } from "react";
 import { searchConcierge } from "@/lib/api/conciergeClient";
 import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
@@ -10,6 +9,7 @@ type Result = {
   items: ShrineListItem[];
   headerMessage: string | null;
   notice: string | null;
+  remainingFree: number | null;
   search: (text: string) => Promise<void>;
   clear: () => void;
 };
@@ -20,12 +20,14 @@ export function useConciergeSearch(): Result {
   const [items, setItems] = useState<ShrineListItem[]>([]);
   const [headerMessage, setHeaderMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
   const clear = useCallback(() => {
     setError(null);
     setItems([]);
     setHeaderMessage(null);
     setNotice(null);
+    setRemainingFree(null);
   }, []);
 
   const search = useCallback(
@@ -78,11 +80,13 @@ export function useConciergeSearch(): Result {
         setItems(items);
         setHeaderMessage(headerMessage);
         setNotice(notice);
+        setRemainingFree(typeof resp.remaining_free === "number" ? resp.remaining_free : null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "検索に失敗しました");
         setItems([]);
         setHeaderMessage(null);
         setNotice(null);
+        setRemainingFree(null);
       } finally {
         setLoading(false);
       }
@@ -96,6 +100,7 @@ export function useConciergeSearch(): Result {
     items,
     headerMessage,
     notice,
+    remainingFree,
     search,
     clear,
   };
