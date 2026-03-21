@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useConciergeSearch } from "@/hooks/useConciergeSearch";
 import { ShrineList } from "@/components/shrines/ShrineList";
 
@@ -11,7 +12,9 @@ const EXAMPLES = [
 ];
 
 export default function ConciergeClientSimple() {
+  const router = useRouter();
   const [text, setText] = useState("");
+
   const { items, loading, error, headerMessage, notice, remainingFree, limit, reply, search, clear } =
     useConciergeSearch();
 
@@ -30,13 +33,6 @@ export default function ConciergeClientSimple() {
   const isLimitReached = remainingFree === 0;
   const hasResult = items.length > 0 || !!headerMessage || !!notice || !!reply || isLimitReached;
 
-  console.log("[Simple] render", {
-    remainingFree,
-    limit,
-    reply,
-    itemsLen: items.length,
-    hasResult,
-  });
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="space-y-8">
@@ -63,20 +59,22 @@ export default function ConciergeClientSimple() {
                 />
               </div>
 
-              {EXAMPLES.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={loading}
-                  onClick={() => {
-                    setText(e);
-                    submit(e);
-                  }}
-                >
-                  {e}
-                </button>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLES.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={loading}
+                    onClick={() => {
+                      setText(e);
+                      submit(e);
+                    }}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
@@ -125,13 +123,25 @@ export default function ConciergeClientSimple() {
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               <p className="font-semibold">無料で利用できる回数を使い切りました。</p>
               {reply ? <p className="mt-1">{reply}</p> : null}
-              <div className="mt-3 flex gap-2">
-                <button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                  有料プランを見る
+              <p className="mt-1 text-xs text-rose-700/90">
+                有料プランでは、引き続き相性に合う神社の提案を利用できます。
+              </p>
+
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                  onClick={() => router.push("/map")}
+                >
+                  地図で近くの神社を見る
                 </button>
 
-                <button type="button" className="rounded-xl border px-4 py-2 text-sm font-semibold">
-                  地図で近くの神社を見る
+                <button
+                  type="button"
+                  className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                  onClick={() => router.push("/billing/upgrade")}
+                >
+                  有料プランを見る
                 </button>
               </div>
             </div>
@@ -145,7 +155,7 @@ export default function ConciergeClientSimple() {
                 loading
                   ? "候補を整理しています…"
                   : isLimitReached
-                    ? "無料回数の上限に達しました"
+                    ? "新しい提案は現在表示できません"
                     : "まだ結果がありません"
               }
               headerMessage={headerMessage}
