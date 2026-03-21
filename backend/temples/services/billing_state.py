@@ -76,7 +76,6 @@ def get_billing_status(*, user=None, now: Optional[datetime] = None) -> BillingS
     # ---- anonymous: stub env (stripe運用でも未認証はstubで良いならここ。嫌ならfree固定でもOK) ----
     return _status_from_stub_env(now_=now_, prov=prov)
 
-
 def _status_from_stub_env(*, now_: datetime, prov: str) -> BillingStatus:
     """
     stub 課金状態の解決。
@@ -94,24 +93,17 @@ def _status_from_stub_env(*, now_: datetime, prov: str) -> BillingStatus:
     active = active_env in {"1", "true", "yes", "y", "on"}
     plan = "premium" if plan_env == "premium" else "free"
 
-    # 互換: premium で active 未指定なら active 扱い
     if plan == "premium" and os.getenv("BILLING_STUB_ACTIVE") is None:
         active = True
 
-    # contract: active のときは current_period_end が入る想定
     cpe = (now_ + timedelta(days=30)) if active else None
 
-    # 既存 view と同じノリ: stub/premium のとき provider を stripe 扱いに寄せる
     prov_out = prov
     if plan == "premium" and prov_out == "stub":
         prov_out = "stripe"
 
     cancel_at_period_end = (os.getenv("BILLING_STUB_CANCEL_AT_PERIOD_END", "0") or "0").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "y",
-        "on",
+        "1", "true", "yes", "y", "on",
     }
 
     return BillingStatus(
