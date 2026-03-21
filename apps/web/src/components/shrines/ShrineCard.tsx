@@ -8,11 +8,23 @@ function formatDistance(m?: number | null) {
   return `${(m / 1000).toFixed(1)}km`;
 }
 
+function clean(value?: string | null) {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
 export type ShrineCardProps = {
   name: string;
   address?: string | null;
+
+  // 旧 props
   recommendReason?: string | null;
   subReason?: string | null;
+
+  // 新 props
+  topReasonLabel?: string | null;
+  primaryReason?: string | null;
+  secondaryReason?: string | null;
+
   compatibilityLabels?: string[];
   distanceM?: number | null;
   rating?: number | null;
@@ -23,6 +35,8 @@ export type ShrineCardProps = {
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
   isTopPick?: boolean;
+
+  // 既存 explanation 系
   explanationSummary?: string | null;
   explanationReasons?: Array<{
     code?: string | null;
@@ -38,6 +52,9 @@ export function ShrineCard(props: ShrineCardProps) {
     address,
     recommendReason,
     subReason,
+    topReasonLabel,
+    primaryReason,
+    secondaryReason,
     compatibilityLabels = [],
     distanceM,
     rating,
@@ -54,11 +71,26 @@ export function ShrineCard(props: ShrineCardProps) {
 
   const distText = formatDistance(distanceM);
 
-  const heroSummary = explanationSummary?.trim() || recommendReason?.trim() || null;
+  // 後方互換つきの解決順
+  const resolvedSummary = clean(explanationSummary) || clean(recommendReason) || null;
 
-  const primaryReason = Array.isArray(explanationReasons)
-    ? (explanationReasons.find((r) => r?.text?.trim())?.text?.trim() ?? null)
-    : null;
+  const resolvedPrimaryReason =
+    clean(primaryReason) ||
+    (Array.isArray(explanationReasons) ? clean(explanationReasons.find((r) => clean(r?.text))?.text) : null) ||
+    null;
+
+  const resolvedSecondaryReason = clean(secondaryReason) || clean(subReason) || null;
+
+  // 重複除去
+  const finalPrimaryReason =
+    resolvedPrimaryReason && resolvedPrimaryReason !== resolvedSummary ? resolvedPrimaryReason : null;
+
+  const finalSecondaryReason =
+    resolvedSecondaryReason &&
+    resolvedSecondaryReason !== resolvedSummary &&
+    resolvedSecondaryReason !== finalPrimaryReason
+      ? resolvedSecondaryReason
+      : null;
 
   const cardClass = [
     "rounded-2xl border p-4 shadow-sm transition-colors",
@@ -76,20 +108,34 @@ export function ShrineCard(props: ShrineCardProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {isTopPick ? (
-              <div className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                いちばんおすすめ
+            {isTopPick || topReasonLabel ? (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {isTopPick ? (
+                  <div className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                    いちばんおすすめ
+                  </div>
+                ) : null}
+
+                {topReasonLabel ? (
+                  <div className="inline-flex rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    {topReasonLabel}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
             <div className="truncate text-[15px] font-semibold text-slate-900">{name}</div>
 
-            {heroSummary ? (
-              <div className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-slate-900">{heroSummary}</div>
+            {resolvedSummary ? (
+              <div className="mt-2 line-clamp-1 text-sm font-semibold leading-6 text-slate-900">{resolvedSummary}</div>
             ) : null}
 
-            {primaryReason ? (
-              <div className="mt-1 line-clamp-2 text-[13px] leading-6 text-slate-600">{primaryReason}</div>
+            {finalPrimaryReason ? (
+              <div className="mt-1 line-clamp-2 text-[13px] leading-6 text-slate-600">{finalPrimaryReason}</div>
+            ) : null}
+
+            {finalSecondaryReason ? (
+              <div className="mt-1 line-clamp-1 text-[12px] leading-5 text-slate-500">{finalSecondaryReason}</div>
             ) : null}
 
             {distText || typeof rating === "number" ? (
@@ -108,10 +154,6 @@ export function ShrineCard(props: ShrineCardProps) {
 
             {compatibilityLabels.length ? (
               <div className="mt-2 text-[11px] text-slate-400">相性: {compatibilityLabels.join(" / ")}</div>
-            ) : null}
-
-            {!primaryReason && subReason ? (
-              <div className="mt-1 line-clamp-1 text-[11px] text-slate-500">{subReason}</div>
             ) : null}
           </div>
 
