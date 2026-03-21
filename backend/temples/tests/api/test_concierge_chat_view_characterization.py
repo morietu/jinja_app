@@ -146,13 +146,12 @@ def test_chat_view_prefers_direct_latlng_even_with_area(client, monkeypatch):
     assert captured_recs["bias"]["lng"] == pytest.approx(139.1)
 
 
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "extra,expected_flow",
     [
         ({}, "A"),
-        ({"goriyaku_tag_ids": [1]}, "B"),
-        ({"extra_condition": "静か"}, "B"),
+        ({"goriyaku_tag_ids": [1]}, "A"),
+        ({"extra_condition": "静か"}, "A"),
     ],
 )
 def test_chat_view_flow_detection_contract(client, monkeypatch, extra, expected_flow):

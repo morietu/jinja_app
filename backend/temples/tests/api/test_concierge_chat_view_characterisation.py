@@ -112,23 +112,31 @@ def test_chat_view_characterisation_uses_area_geocode_when_latlng_missing(client
 
 
 @pytest.mark.django_db
-def test_chat_view_characterisation_flow_becomes_b_when_goriyaku_tag_ids_present(client, monkeypatch):
+def test_chat_view_characterisation_flow_remains_a_when_query_exists_with_goriyaku_tag_ids(client, monkeypatch):
+    """
+    query/message がある通常相談では、
+    goriyaku_tag_ids が指定されても flow は A を維持する。
+    """
     captured = _capture_recommendations(monkeypatch)
 
     payload = {"query": "近場で参拝したい", "lat": 35.0, "lng": 139.0, "goriyaku_tag_ids": [1]}
     r = client.post(URL, data=json.dumps(payload), content_type="application/json")
     assert r.status_code == 200
-    assert captured["flow"] == "B"
-
+    assert captured["flow"] == "A"
 
 @pytest.mark.django_db
-def test_chat_view_characterisation_flow_becomes_b_when_extra_condition_non_blank(client, monkeypatch):
+def test_chat_view_characterisation_flow_remains_a_when_query_exists_with_extra_condition(client, monkeypatch):
+    """
+    query/message がある通常相談では、
+    extra_condition が非空でも flow は A を維持する。
+    """
     captured = _capture_recommendations(monkeypatch)
 
     payload = {"query": "近場で参拝したい", "lat": 35.0, "lng": 139.0, "extra_condition": "静か"}
     r = client.post(URL, data=json.dumps(payload), content_type="application/json")
     assert r.status_code == 200
-    assert captured["flow"] == "B"
+    assert captured["flow"] == "A"
+
 
 
 @pytest.mark.django_db
@@ -142,6 +150,33 @@ def test_chat_view_characterisation_flow_remains_a_when_no_effective_filters(cli
         "goriyaku_tag_ids": [],
         "extra_condition": "   ",
     }
+    r = client.post(URL, data=json.dumps(payload), content_type="application/json")
+    assert r.status_code == 200
+    assert captured["flow"] == "A"
+
+@pytest.mark.django_db
+def test_chat_view_characterisation_flow_remains_a_when_query_exists_with_goriyaku_tag_ids(client, monkeypatch):
+    """
+    query/message がある通常相談では、
+    goriyaku_tag_ids が指定されても flow は A を維持する。
+    """
+    captured = _capture_recommendations(monkeypatch)
+
+    payload = {"query": "近場で参拝したい", "lat": 35.0, "lng": 139.0, "goriyaku_tag_ids": [1]}
+    r = client.post(URL, data=json.dumps(payload), content_type="application/json")
+    assert r.status_code == 200
+    assert captured["flow"] == "A"
+
+
+@pytest.mark.django_db
+def test_chat_view_characterisation_flow_remains_a_when_query_exists_with_extra_condition(client, monkeypatch):
+    """
+    query/message がある通常相談では、
+    extra_condition が非空でも flow は A を維持する。
+    """
+    captured = _capture_recommendations(monkeypatch)
+
+    payload = {"query": "近場で参拝したい", "lat": 35.0, "lng": 139.0, "extra_condition": "静か"}
     r = client.post(URL, data=json.dumps(payload), content_type="application/json")
     assert r.status_code == 200
     assert captured["flow"] == "A"

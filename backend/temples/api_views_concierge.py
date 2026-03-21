@@ -38,7 +38,6 @@ from temples.services.concierge_candidate_utils import (
 )
 from temples.services.concierge_chat import build_chat_recommendations
 from temples.services.concierge_chat_ranking import (
-    _resolve_flow_from_mode,
     _resolve_public_mode,
 )
 from temples.services.concierge_chat_candidates import build_chat_candidates
@@ -499,10 +498,16 @@ class ConciergeChatView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        flow = _resolve_flow_from_mode(
-            public_mode=public_mode,
-            flow=data.get("flow"),
-        )
+
+        explicit_flow_raw = str(data.get("flow") or "").strip().upper()
+        explicit_flow = explicit_flow_raw if explicit_flow_raw in {"A", "B"} else None
+
+        if explicit_flow is not None:
+            flow = explicit_flow
+        elif public_mode == "compat":
+            flow = "B"
+        else:
+            flow = "A"
 
         log.info(
             "[concierge/reco] input rid=%s mode=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
