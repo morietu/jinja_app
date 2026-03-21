@@ -502,8 +502,10 @@ class ConciergeChatView(APIView):
         flow = _resolve_flow_from_mode(
             public_mode=public_mode,
             flow=data.get("flow"),
+            is_message_mode=is_message_mode,
+            goriyaku_tag_ids=goriyaku_tag_ids,
+            extra_condition=extra_condition,
         )
-
         log.info(
             "[concierge/reco] input rid=%s mode=%s flow=%s birthdate=%r goriyaku=%r extra=%r",
             rid,

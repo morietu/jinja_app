@@ -620,6 +620,9 @@ def _resolve_flow_from_mode(
     *,
     public_mode: PublicMode,
     flow: Optional[str],
+    is_message_mode: bool = False,
+    goriyaku_tag_ids: Optional[List[int]] = None,
+    extra_condition: Optional[str] = None,
 ) -> str:
     flow_norm = str(flow or "").strip().upper()
 
@@ -627,6 +630,15 @@ def _resolve_flow_from_mode(
         return flow_norm
 
     if public_mode == "compat":
+        return "B"
+
+    if is_message_mode:
+        return "A"
+
+    if goriyaku_tag_ids:
+        return "B"
+
+    if str(extra_condition or "").strip():
         return "B"
 
     return "A"
