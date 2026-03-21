@@ -5,7 +5,8 @@ import DetailSection from "@/components/shrine/DetailSection";
 import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
-import ShrineCard from "@/components/shrines/ShrineConciergeCard";
+import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
+import ShrineCard from "@/components/shrines/ShrineCard";
 
 import type {
   ConciergeSectionsPayload,
@@ -15,6 +16,23 @@ import type {
   PlaceShrineItem,
   RendererAction,
 } from "@/features/concierge/sections/types";
+
+type MetaMode = NonNullable<ConciergeSectionsPayload["meta"]>["mode"];
+
+function normalizeConciergeMode(mode: MetaMode | null | undefined): "need" | "compat" {
+  if (!mode) return "need";
+
+  if (typeof mode === "string") {
+    return mode === "compat" ? "compat" : "need";
+  }
+
+  if (typeof mode === "object") {
+    if ("kind" in mode && mode.kind === "compat") return "compat";
+    if ("mode" in mode && mode.mode === "compat") return "compat";
+  }
+
+  return "need";
+}
 
 function AstroCard(props: { sunSign?: string; element?: string; reason?: string }) {
   const { sunSign, element, reason } = props;
@@ -243,32 +261,50 @@ export default function ConciergeSectionsRenderer({
                 <div className="space-y-3">
                   {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
                     if (item.kind === "registered") {
-                      const isTop = idx === 0;
+                      const normalizedMode = normalizeConciergeMode(payload?.meta?.mode);
+
+                      const reasonVm = buildRecommendationReasonViewModel({
+                        rec: {
+                          display_name: item.title,
+                          name: item.title,
+                          breakdown: item.breakdown ?? null,
+                          reason: item.description ?? null,
+                          fallback_mode: payload?.meta?.resultState?.fallback_mode ?? null,
+                          distance_m: (item as any).distance_m ?? null,
+                          popular_score: (item as any).popular_score ?? null,
+                          astro_elements: (item as any).astro_elements ?? null,
+                          astro_priority: (item as any).astro_priority ?? null,
+                          explanation: (item as any).explanation ?? null,
+                        },
+                        index: idx,
+                        mode: normalizedMode,
+                        birthdate: filterState?.birthdate ?? null,
+                        needTags: item.breakdown?.matched_need_tags ?? [],
+                      });
 
                       return (
                         <ShrineCard
                           key={`rec-${i}-${idx}-registered-${item.shrineId}`}
-                          shrineId={item.shrineId}
-                          title={item.title}
+                          name={item.title}
                           address={item.address}
-                          description={item.description}
+                          href={item.detailHref}
                           imageUrl={item.imageUrl}
-                          breakdown={item.breakdown ?? null}
-                          detailHref={item.detailHref}
-                          explanationSummary={item.explanation?.summary ?? item.description}
-                          explanationPrimaryReason={item.explanation?.reasons?.[0]?.text ?? null}
-                          badgesOverride={
-                            isTop ? ["最有力候補"] : (item.breakdown?.matched_need_tags?.slice(0, 3) ?? [])
-                          }
-                          hideDisclosure={!isTop}
-                          variant={isTop ? "hero" : "list"}
+                          distanceM={(item as any).distance_m ?? null}
+                          rating={(item as any).rating ?? null}
+                          reviewCount={(item as any).reviewCount ?? null}
+                          isTopPick={idx === 0}
+                          topReasonLabel={idx === 0 ? (reasonVm.topReasonLabel ?? null) : null}
+                          explanationSummary={reasonVm.summary}
+                          primaryReason={reasonVm.primaryReason}
+                          secondaryReason={reasonVm.secondaryReason ?? null}
+                          tags={idx === 0 ? [] : (item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
                         />
                       );
                     }
 
                     return (
                       <PlaceShrineCard
-                        key={`rec-${i}-${idx}`}
+                        key={`rec-${i}-${idx}-place-${item.placeId}`}
                         placeId={item.placeId}
                         title={item.title}
                         address={item.address}

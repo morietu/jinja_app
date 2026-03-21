@@ -3,40 +3,48 @@
 
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
-import { buildOneLiner } from "@/lib/concierge/pickAClause";
+import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
 
 type Props = {
   rec: ConciergeRecommendation;
-  primaryIndex: number; // 互換維持
+  primaryIndex: number;
   needTags?: string[];
   tid?: string | null;
+  mode?: "need" | "compat" | string | null;
+  birthdate?: string | null;
 };
 
 export default function PrimaryRecommendationCard({
-  
   rec,
-  primaryIndex: _primaryIndex,
+  primaryIndex,
   needTags = [],
   tid: _tid,
+  mode,
+  birthdate,
 }: Props) {
- 
-  const breakdown = (rec as any)?.breakdown ?? null;
+  const vm = buildRecommendationReasonViewModel({
+    rec,
+    index: primaryIndex,
+    mode,
+    birthdate,
+    needTags,
+  });
 
-  const oneLiner = breakdown && typeof breakdown === "object" ? buildOneLiner(breakdown) : null;
+  const description = [vm.primaryReason, vm.secondaryReason, vm.summary]
+    .filter((x): x is string => typeof x === "string" && !!x.trim())
+    .join(" / ");
 
-  const description =
-    (typeof oneLiner === "string" && oneLiner.trim()) ||
-    (typeof rec.reason === "string" && rec.reason.trim()) ||
-    "まずは代表的な候補から表示しています。";
-
-
+  const badges = [
+    ...(vm.topReasonLabel ? [vm.topReasonLabel] : []),
+    ...(Array.isArray(needTags) ? needTags : []).filter((t) => typeof t === "string" && t.trim()).slice(0, 2),
+  ];
 
   return (
     <ConciergeCard
       title={(rec.display_name || rec.name || "").trim() || "（名称不明）"}
       description={description}
       isPrimary
-      badges={Array.isArray(needTags) ? needTags.filter((t) => typeof t === "string" && t.trim()) : []}
+      badges={badges}
     />
   );
 }
