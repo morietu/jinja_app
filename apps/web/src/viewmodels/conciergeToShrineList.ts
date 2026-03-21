@@ -3,6 +3,8 @@ import type { ShrineListItem } from "@/components/shrines/ShrineList";
 export type ConciergeResponse = {
   ok: boolean;
   remaining_free?: number | null;
+  limit?: number | null;
+  reply?: string | null;
   data?: {
     _need?: { tags?: string[] };
     _signals?: Record<string, unknown> | null;
@@ -12,6 +14,7 @@ export type ConciergeResponse = {
       display_name?: string | null;
       reason?: string | null;
       reason_source?: string | null;
+      address?: string | null;
       location?: string | null;
       lat?: number | null;
       lng?: number | null;
@@ -70,23 +73,25 @@ function toDisplayTag(tag: string): string {
 }
 
 export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListItem[] {
-  if (!resp?.ok) return [];
+  if (!resp?.ok) {
+    console.log("[conciergeToShrineListItems] resp not ok", resp);
+    return [];
+  }
 
   const recs = resp.data?.recommendations ?? [];
-  const fallbackTags = normalizeTagList(resp.data?._need?.tags);
+  console.log("[conciergeToShrineListItems] recs", recs.length, recs);
 
-  return recs.map((r, idx) => {
+  const items = recs.map((r, idx) => {
     const id = safeId(r);
     const name = r.display_name ?? r.name;
 
     const matchedTags = normalizeTagList(r.breakdown?.matched_need_tags);
-    const rawTags = matchedTags.length ? matchedTags : fallbackTags;
+    const rawTags = matchedTags.length ? matchedTags : normalizeTagList(resp.data?._need?.tags);
 
     const tags = rawTags.map(toDisplayTag).slice(0, 3);
     const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 1);
 
     const explanationSummary = r.explanation?.summary?.trim() || null;
-
     const explanationReasons =
       r.explanation?.reasons
         ?.map((x) => ({
@@ -98,14 +103,13 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
         .filter((x) => x.text) ?? null;
 
     const recommendReason = explanationSummary || r.reason?.trim() || null;
-
     const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
 
     return {
       id,
       cardProps: {
         name,
-        address: r.location ?? undefined,
+        address: r.address ?? r.location ?? undefined,
         recommendReason,
         subReason,
         compatibilityLabels,
@@ -122,4 +126,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListI
       },
     };
   });
+
+  console.log("[conciergeToShrineListItems] items", items.length, items);
+  return items;
 }

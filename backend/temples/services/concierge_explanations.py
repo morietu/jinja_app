@@ -328,7 +328,6 @@ def build_explanation_for_plan_rec(
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
     }
 
-
 def attach_explanations_for_chat(
     recs: Dict[str, Any],
     *,
@@ -351,11 +350,13 @@ def attach_explanations_for_chat(
                 extra_condition=extra_condition,
             )
             r["explanation"] = exp
+
+            reason_list = exp.get("reasons") if isinstance(exp.get("reasons"), list) else []
             log.info(
-                "[expl/chat] name=%r summary=%r reasons=%r",
-                r.get("name"),
-                exp.get("summary"),
-                exp.get("reasons"),
+                "[expl/chat] built explanation summary_present=%s reasons_count=%d reason_codes=%s",
+                bool(exp.get("summary")),
+                len(reason_list),
+                [x.get("code") for x in reason_list if isinstance(x, dict)],
             )
 
     return recs

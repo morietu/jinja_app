@@ -64,23 +64,8 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
     (r?.placeId != null ? String(r.placeId).trim() : null);
 
   const isDummy = r?.is_dummy === true || r?.__dummy === true;
-
-  // href生成（ただしダミーは詳細禁止）
   const rawHref = detailHrefFromRecommendation(r, { ctx: "concierge", tid: tid ?? undefined }) ?? undefined;
   const detailHref = isDummy ? undefined : rawHref;
-
-
-  // DEBUG: これで現実を見る
-  if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-    console.log("[concierge] rec ids", {
-      shrineId,
-      placeId,
-      detailHref,
-      raw_place_id: r?.place_id,
-      raw_placeId: r?.placeId,
-      keys: Object.keys(r ?? {}),
-    });
-  }
 
   const title = pickFirstString(r?.display_name, r?.name) ?? "名称不明";
   const address = pickFirstString(r?.display_address, r?.address, r?.location);
@@ -88,11 +73,7 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   const imageUrl = asTrimmedString(r?.photo_url);
   const breakdown = r?.breakdown ?? null;
 
-  // ✅ registered優先
   if (shrineId) {
-    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized", { shrineId, placeId, detailHref, title });
-    }
     return {
       kind: "registered",
       shrineId,
@@ -110,9 +91,6 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
   }
 
   if (placeId) {
-    if (process.env.NEXT_PUBLIC_DEBUG_LOG === "1") {
-      console.log("[concierge] normalized(place)", { shrineId, placeId, detailHref, title });
-    }
     return {
       kind: "place",
       placeId,
@@ -123,13 +101,14 @@ function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | n
       breakdown,
       detailHref,
       isDummy,
-      // ダミーなら detailLabel は無意味なので空にしてもいい（表示側で使わない）
       detailLabel: "神社の詳細を見る",
     };
   }
 
   return null;
 }
+
+
 function dedupeItems(items: NormalizedItem[]): NormalizedItem[] {
   const out: NormalizedItem[] = [];
   const seenShrine = new Set<number>();
@@ -253,6 +232,8 @@ export function buildPayloadFromUnified(
         ],
       },
     ];
+
+    
 
     return {
       version: 1,
