@@ -79,6 +79,113 @@ def _get_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
         return payload
     return {}
 
+def _get_primary_reason(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    primary = payload.get("primary_reason")
+    if isinstance(primary, dict):
+        return primary
+    return None
+
+
+def _get_secondary_reasons(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    value = payload.get("secondary_reasons")
+    if not isinstance(value, list):
+        return []
+    return [x for x in value if isinstance(x, dict)]
+
+
+def _build_summary_from_primary_reason(
+    *,
+    primary_reason: Optional[Dict[str, Any]],
+    original_reason: Optional[str],
+    highlights: List[str],
+) -> str:
+    if isinstance(primary_reason, dict):
+        reason_type = str(primary_reason.get("type") or "").strip()
+        label_ja = str(primary_reason.get("label_ja") or "").strip()
+
+        if reason_type == "need_tag" and label_ja:
+            return f"{label_ja}に関わる願いごとと重なる神社です。"
+
+        if reason_type == "goriyaku_tag" and label_ja:
+            return f"{label_ja}のご利益と重なる候補としておすすめしています。"
+
+        if reason_type == "text_hint" and label_ja:
+            return f"{label_ja}に関わる相談内容との重なりが見られます。"
+
+        if reason_type == "element":
+            return "生年月日から見た相性を中心におすすめしています。"
+
+        if reason_type == "fallback":
+            return "今の条件に近い候補としておすすめしています。"
+
+    if original_reason:
+        return original_reason
+
+    if highlights:
+        return highlights[0]
+
+    return "条件に合わせて候補を整理しました。"
+
+
+def _build_reason_entry_from_primary_reason(
+    *,
+    primary_reason: Optional[Dict[str, Any]],
+    birthdate: Optional[str],
+) -> Optional[dict]:
+    if not isinstance(primary_reason, dict):
+        return None
+
+    reason_type = str(primary_reason.get("type") or "").strip()
+    label_ja = str(primary_reason.get("label_ja") or "").strip()
+    evidence = primary_reason.get("evidence") if isinstance(primary_reason.get("evidence"), list) else []
+
+    if reason_type == "need_tag":
+        return _reason(
+            "NEED_MATCH",
+            "相談との一致",
+            f"{label_ja}に関する願いごととの一致が見られます。",
+            strength="high",
+            evidence={"primary_reason": primary_reason, "evidence": evidence},
+        )
+
+    if reason_type == "goriyaku_tag":
+        return _reason(
+            "WISH_MATCH",
+            "ご利益との一致",
+            f"{label_ja}に関わるご利益との重なりが見られます。",
+            strength="high",
+            evidence={"primary_reason": primary_reason, "evidence": evidence},
+        )
+
+    if reason_type == "text_hint":
+        return _reason(
+            "NEED_MATCH",
+            "相談文との一致",
+            f"{label_ja}に関わる相談内容との重なりが見られます。",
+            strength="high",
+            evidence={"primary_reason": primary_reason, "evidence": evidence},
+        )
+
+    if reason_type == "element":
+        return _reason(
+            "ELEMENT_MATCH",
+            "生年月日との相性",
+            "生年月日から見た傾向との相性を考慮しています。",
+            strength="high",
+            evidence={"primary_reason": primary_reason, "birthdate": bool(birthdate)},
+        )
+
+    if reason_type == "fallback":
+        return _reason(
+            "REASON_SOURCE",
+            "候補の整理",
+            "明確な一致が弱いため、今の条件に近い候補として整理しています。",
+            strength="mid",
+            evidence={"primary_reason": primary_reason},
+        )
+
+    return None
+
 
 def build_explanation_for_chat_rec(
     rec: Dict[str, Any],
@@ -101,22 +208,22 @@ def build_explanation_for_chat_rec(
         rec.get("reason"),
     )
 
-    summary = _build_chat_summary(
-        matched,
+    primary_reason = _get_primary_reason(payload)
+
+    summary = _build_summary_from_primary_reason(
+        primary_reason=primary_reason,
         original_reason=original_reason,
         highlights=bullets,
     )
 
     reasons: List[dict] = []
 
-    if matched:
-        reasons.append(_reason(
-            "NEED_MATCH",
-            "相談との一致",
-            _build_need_match_text(matched),
-            strength="high",
-            evidence={"matched_need_tags": matched},
-        ))
+    primary_entry = _build_reason_entry_from_primary_reason(
+        primary_reason=primary_reason,
+        birthdate=birthdate,
+    )
+    if primary_entry:
+        reasons.append(primary_entry)
 
     if bullets:
         reasons.append(_reason(
@@ -140,12 +247,11 @@ def build_explanation_for_chat_rec(
     reasons = _take3(reasons)
 
     return {
-        "version": 1,
+        "version": 2,
         "summary": summary or "条件に合わせて候補を整理しました。",
         "reasons": reasons,
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
     }
-
 
 def build_explanation_for_plan_rec(
     rec: Dict[str, Any],
@@ -158,24 +264,30 @@ def build_explanation_for_plan_rec(
 ) -> Dict[str, Any]:
     payload = _get_explanation_payload(rec)
 
-    matched = payload.get("matched_need_tags") or []
-    matched = [str(x) for x in matched if str(x).strip()]
-
     bullets = payload.get("highlights") or []
     bullets = [str(x).strip() for x in bullets if isinstance(x, str) and str(x).strip()]
 
-    summary = str(rec.get("reason") or "").strip()
+    original_reason = _first_non_empty(
+        payload.get("original_reason"),
+        rec.get("reason"),
+    )
+
+    primary_reason = _get_primary_reason(payload)
+
+    summary = _build_summary_from_primary_reason(
+        primary_reason=primary_reason,
+        original_reason=original_reason,
+        highlights=bullets,
+    )
+
     reasons: List[dict] = []
 
-    if matched:
-        label = NEED_LABEL.get(matched[0], matched[0])
-        reasons.append(_reason(
-            "NEED_MATCH",
-            "相談との一致",
-            f"{label}に関する相談内容との一致が見られます。",
-            strength="high",
-            evidence={"matched_need_tags": matched},
-        ))
+    primary_entry = _build_reason_entry_from_primary_reason(
+        primary_reason=primary_reason,
+        birthdate=birthdate,
+    )
+    if primary_entry:
+        reasons.append(primary_entry)
 
     if bullets:
         reasons.append(_reason(
@@ -207,7 +319,7 @@ def build_explanation_for_plan_rec(
     reasons = _take3(reasons)
 
     return {
-        "version": 1,
+        "version": 2,
         "summary": summary or "条件に合わせて候補を整理しました。",
         "reasons": reasons,
         "disclaimer": "提案は参考情報です。安全と現地状況を優先してください。",
@@ -236,7 +348,12 @@ def attach_explanations_for_chat(
                 extra_condition=extra_condition,
             )
             r["explanation"] = exp
-            log.info("[expl/chat] name=%r reasons=%r", r.get("name"), exp.get("reasons"))
+            log.info(
+                "[expl/chat] name=%r summary=%r reasons=%r",
+                r.get("name"),
+                exp.get("summary"),
+                exp.get("reasons"),
+            )
 
     return recs
 

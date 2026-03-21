@@ -58,3 +58,134 @@ def test_attach_explanations_keeps_recommendation_contract_fields_and_breakdown(
         for key, value in before[idx].items():
             assert key in rec
             assert rec[key] == value
+
+        assert "explanation" in rec
+        assert rec["explanation"]["version"] == 2
+        assert isinstance(rec["explanation"]["summary"], str)
+        assert isinstance(rec["explanation"]["reasons"], list)
+
+
+def test_attach_explanations_chat_uses_primary_need_tag_for_summary_and_reason():
+    recs = {
+        "recommendations": [
+            {
+                "name": "神社A",
+                "reason": "旧理由",
+                "reason_source": "reason:need",
+                "_explanation_payload": {
+                    "version": 2,
+                    "matched_need_tags": ["career"],
+                    "highlights": [],
+                    "primary_reason": {
+                        "type": "need_tag",
+                        "label": "career",
+                        "label_ja": "転機・仕事",
+                        "evidence": ["career"],
+                        "score": 2.0,
+                        "is_primary": True,
+                    },
+                    "secondary_reasons": [],
+                    "original_reason": "旧理由",
+                },
+            }
+        ]
+    }
+
+    out = attach_explanations_for_chat(
+        recs,
+        query="転職が不安",
+        bias=None,
+        birthdate=None,
+        extra_condition=None,
+    )
+
+    rec = out["recommendations"][0]
+    exp = rec["explanation"]
+
+    assert exp["version"] == 2
+    assert exp["summary"] == "転機・仕事に関わる願いごとと重なる神社です。"
+    assert exp["reasons"][0]["code"] == "NEED_MATCH"
+    assert exp["reasons"][0]["label"] == "相談との一致"
+
+def test_attach_explanations_chat_uses_element_primary_reason():
+    recs = {
+        "recommendations": [
+            {
+                "name": "神社B",
+                "reason": "旧理由",
+                "reason_source": "reason:compat",
+                "_explanation_payload": {
+                    "version": 2,
+                    "matched_need_tags": [],
+                    "highlights": [],
+                    "primary_reason": {
+                        "type": "element",
+                        "label": "element",
+                        "label_ja": "生年月日との相性",
+                        "evidence": ["score_element:2"],
+                        "score": 2.0,
+                        "is_primary": True,
+                    },
+                    "secondary_reasons": [],
+                    "original_reason": "旧理由",
+                },
+            }
+        ]
+    }
+
+    out = attach_explanations_for_chat(
+        recs,
+        query="",
+        bias=None,
+        birthdate="1984-05-15",
+        extra_condition=None,
+    )
+
+    rec = out["recommendations"][0]
+    exp = rec["explanation"]
+
+    assert exp["version"] == 2
+    assert exp["summary"] == "生年月日から見た相性を中心におすすめしています。"
+    assert exp["reasons"][0]["code"] == "ELEMENT_MATCH"
+    assert exp["reasons"][0]["label"] == "生年月日との相性"
+
+def test_attach_explanations_chat_uses_fallback_primary_reason():
+    recs = {
+        "recommendations": [
+            {
+                "name": "神社C",
+                "reason": "",
+                "reason_source": "reason:fallback",
+                "_explanation_payload": {
+                    "version": 2,
+                    "matched_need_tags": [],
+                    "highlights": [],
+                    "primary_reason": {
+                        "type": "fallback",
+                        "label": "fallback",
+                        "label_ja": "近い候補",
+                        "evidence": [],
+                        "score": 0.0,
+                        "is_primary": True,
+                    },
+                    "secondary_reasons": [],
+                    "original_reason": "",
+                },
+            }
+        ]
+    }
+
+    out = attach_explanations_for_chat(
+        recs,
+        query="近場で参拝したい",
+        bias=None,
+        birthdate=None,
+        extra_condition=None,
+    )
+
+    rec = out["recommendations"][0]
+    exp = rec["explanation"]
+
+    assert exp["version"] == 2
+    assert exp["summary"] == "今の条件に近い候補としておすすめしています。"
+    assert exp["reasons"][0]["code"] == "REASON_SOURCE"
