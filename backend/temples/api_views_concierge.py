@@ -360,11 +360,20 @@ def _build_chat_response(
     thread: Optional[Any],
     debug: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    """
+    chat 用レスポンスの組み立て。
+
+    注意:
+    - remaining_free / limit は chat のみで返す
+    - plan 用レスポンス形とは混ぜない
+    - frontend の sections 表示はこの契約を前提にしている
+    """
     body: Dict[str, Any] = {"ok": True, "intent": intent, "data": recs}
     if debug is not None:
         body["_debug"] = debug
-    if remaining_free is not None and limit is not None:
+    if remaining_free is not None:
         body["remaining_free"] = remaining_free
+    if limit is not None:
         body["limit"] = limit
     body["reply"] = reply
     if thread is not None:
@@ -423,6 +432,24 @@ def _build_chat_candidates_pipeline(
     )
 
 class ConciergeChatView(APIView):
+    """
+    concierge の主API。
+
+    この view の責務:
+    - 相談文 / 生年月日 / 条件を受けて候補を返す
+    - reply / thread を含む chat 用レスポンスを返す
+    - 認証済み free user に対して remaining_free / limit を返す
+    - 利用上限到達時は paywall 判定の起点になる
+
+    この view を正本とするもの:
+    - 残回数表示
+    - limit-reached 判定
+    - chat 用のレスポンス契約
+
+    この view が持たない責務:
+    - 経路計画専用レスポンス
+    - plan API の route_hints / main 構築
+    """
     permission_classes = [AllowAny]
     authentication_classes = [JWTAuthentication]
     throttle_scope = "concierge"
@@ -719,6 +746,15 @@ class ConciergeChatView(APIView):
         except Exception:
             log.exception("[concierge/reco] save_concierge_recommendation_log failed rid=%s", rid)
 
+        log.warning(
+            "[concierge/chat] user=%r premium=%r remaining=%r daily_limit=%r thread=%r",
+            getattr(user, "id", None),
+            is_premium,
+            remaining,
+            daily_limit,
+            getattr(thread_obj, "id", None),
+        )
+        
         body = _build_chat_response(
             intent=intent,
             recs=recs,
@@ -744,6 +780,23 @@ class ConciergeChatViewLegacy(ConciergeChatView):
 
 
 class ConciergePlanView(APIView):
+    """
+    経路・候補計画専用API。
+
+    この view の責務:
+    - area / latlng をもとに plan レスポンスを返す
+    - main / route_hints など plan 専用情報を返す
+
+    この view が返さないもの:
+    - remaining_free
+    - limit
+    - reply
+    - thread
+    - chat 用 recommendations 契約
+
+    つまり、課金表示や paywall 判定の正本は chat 側であり、
+    plan 側には持ち込まない。
+    """
     permission_classes = [AllowAny]
     throttle_scope = "concierge"
 
