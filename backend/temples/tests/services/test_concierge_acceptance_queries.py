@@ -42,7 +42,11 @@ def test_concierge_acceptance_queries(case):
         query=case["query"],
         language="ja",
         candidates=CONCIERGE_CORE_CANDIDATES,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 

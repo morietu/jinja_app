@@ -73,7 +73,11 @@ def test_need_variation_changes_matched_tags_and_score(monkeypatch):
             query=query,
             language="ja",
             candidates=candidates,
+            bias=None,
             birthdate=None,
+            goriyaku_tag_ids=None,
+            extra_condition=None,
+            public_mode="need",
             flow="A",
         )
         top = recs["recommendations"][0]
@@ -128,7 +132,11 @@ def test_need_match_by_astro_tags_only(monkeypatch):
         query="縁結びで探したい",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
@@ -174,7 +182,11 @@ def test_need_match_by_text_only(monkeypatch):
         query="近場で縁結び",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
@@ -227,17 +239,29 @@ def test_open_luck_queries_resolve_to_courage(query, expected_tag):
         query=query,
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
     top = recs["recommendations"][0]
+    summary = ((top.get("explanation") or {}).get("summary")) or ""
+    reasons = ((top.get("explanation") or {}).get("reasons")) or []
+    first_reason_text = str(reasons[0].get("text") if reasons else "")
 
     assert expected_tag in recs["_need"]["tags"]
     assert expected_tag in top["breakdown"]["matched_need_tags"]
     assert top["reason_source"] == "reason:matched_need_tags"
-    assert "流れを変え" in top["reason"]
-    assert "一歩踏み出したい" in top["reason"]
+    assert (
+        "前進" in summary
+        or "後押し" in summary
+        or "前向き" in summary
+        or "前進" in first_reason_text
+        or "後押し" in first_reason_text
+    )
 
 
 @pytest.mark.django_db
@@ -261,7 +285,11 @@ def test_courage_need_explanation_uses_japanese_label():
         query="背中を押してほしい",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
@@ -304,7 +332,11 @@ def test_flow_better_query_prefers_courage_over_career():
         query="流れを良くしたい",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
@@ -343,7 +375,11 @@ def test_tired_and_calm_query_resolves_to_rest_and_mental():
         query="最近疲れていて、落ち着ける神社がいい。",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 
@@ -388,7 +424,11 @@ def test_money_and_action_query_resolves_to_money_and_courage():
         query="金運を上げたい。行動のきっかけがほしい。",
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
     )
 

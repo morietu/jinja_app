@@ -92,7 +92,6 @@ def _get_secondary_reasons(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         return []
     return [x for x in value if isinstance(x, dict)]
 
-
 def _build_summary_from_primary_reason(
     *,
     primary_reason: Optional[Dict[str, Any]],
@@ -125,6 +124,7 @@ def _build_summary_from_primary_reason(
         return highlights[0]
 
     return "条件に合わせて候補を整理しました。"
+
 
 
 def _build_reason_entry_from_primary_reason(
@@ -186,7 +186,6 @@ def _build_reason_entry_from_primary_reason(
 
     return None
 
-
 def build_explanation_for_chat_rec(
     rec: Dict[str, Any],
     *,
@@ -215,6 +214,10 @@ def build_explanation_for_chat_rec(
         original_reason=original_reason,
         highlights=bullets,
     )
+
+    reason_source = str(payload.get("reason_source") or "").strip()
+    if reason_source == "reason:matched_need_tags":
+        summary = _first_non_empty(rec.get("reason"), original_reason, summary) or summary
 
     reasons: List[dict] = []
 
