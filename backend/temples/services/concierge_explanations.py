@@ -353,8 +353,7 @@ def attach_explanations_for_chat(
 
             reason_list = exp.get("reasons") if isinstance(exp.get("reasons"), list) else []
             log.info(
-                "[expl/chat] built explanation name=%r summary_present=%s reasons_count=%d reason_codes=%s",
-                r.get("name"),
+                "[expl/chat] built explanation summary_present=%s reasons_count=%d reason_codes=%s",
                 bool(exp.get("summary")),
                 len(reason_list),
                 [x.get("code") for x in reason_list if isinstance(x, dict)],
