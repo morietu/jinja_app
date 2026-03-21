@@ -179,8 +179,8 @@ def _load_seed_candidates() -> list[dict]:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", SEED80_EVAL_CASES, ids=[c["id"] for c in SEED80_EVAL_CASES])
-def test_concierge_eval_queries_seed80(case, monkeypatch):
-
+def test_concierge_eval_queries_seed80(case, monkeypatch, settings):
+    settings.CONCIERGE_USE_LLM = False
 
     candidates = _load_seed_candidates()
 
