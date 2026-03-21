@@ -1,0 +1,42 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildRecommendationReasonViewModel > reason文の代表パターンを snapshot で固定する 1`] = `
+{
+  "birthdate": {
+    "inputType": "birthdate",
+    "primaryReason": "静かに気持ちを整えたい時に馴染みやすい候補です",
+    "reasonKeys": {
+      "primary": "element_match",
+      "secondary": "sign_match",
+      "summary": "element_match",
+    },
+    "secondaryReason": "気質とのなじみも見られる候補です",
+    "summary": "相性を軸に見やすい候補です",
+    "topReasonLabel": "相性が最も高い",
+  },
+  "fallback": {
+    "inputType": "fallback",
+    "primaryReason": "まず選びやすさを優先して見られる候補です",
+    "reasonKeys": {
+      "primary": "popular",
+      "secondary": "distance",
+      "summary": "distance",
+    },
+    "secondaryReason": "無理なく選びやすい候補です",
+    "summary": "まず動きやすさで見やすい候補です",
+    "topReasonLabel": "まず選びやすい",
+  },
+  "query": {
+    "inputType": "query",
+    "primaryReason": "切り替えたい今に合いやすい候補です",
+    "reasonKeys": {
+      "primary": "need_match",
+      "secondary": "text_match",
+      "summary": "need_match",
+    },
+    "secondaryReason": "入力内容に沿って選びやすい候補です",
+    "summary": "今の気持ちに合いやすい候補です",
+    "topReasonLabel": "相談に合う",
+  },
+}
+`;

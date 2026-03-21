@@ -14,9 +14,9 @@ describe("buildRecommendationReasonViewModel", () => {
     });
 
     expect(vm.inputType).toBe("query");
-    expect(vm.primaryReason).toContain("転機");
     expect(vm.reasonKeys.primary).toBe("need_match");
-    expect(vm.topReasonLabel).toBe("最も一致度が高い");
+    expect(vm.primaryReason.length).toBeGreaterThan(0);
+    expect(vm.topReasonLabel).toBe("相談に合う");
   });
 
   it("birthdateのみで primary_reason が相性系になる", () => {
@@ -33,8 +33,9 @@ describe("buildRecommendationReasonViewModel", () => {
     });
 
     expect(vm.inputType).toBe("birthdate");
-    expect(vm.primaryReason).toMatch(/相性|要素/);
-    expect(["element_match", "sign_match"]).toContain(vm.reasonKeys.primary);
+    expect(vm.reasonKeys.primary).toBe("element_match");
+    expect(vm.primaryReason.length).toBeGreaterThan(0);
+    expect(vm.topReasonLabel).toBe("相性が最も高い");
   });
 
   it("fallback時に need文が出ない", () => {
@@ -103,5 +104,31 @@ describe("buildRecommendationReasonViewModel", () => {
 
     expect(a.topReasonLabel).toBeTruthy();
     expect(b.topReasonLabel).toBeUndefined();
+  });
+
+  it("reason文の代表パターンを snapshot で固定する", () => {
+    const samples = {
+      query: buildRecommendationReasonViewModel({
+        rec: { breakdown: { matched_need_tags: ["転機"] }, fallback_mode: "none" },
+        index: 0,
+        mode: "need",
+        needTags: ["転機"],
+      }),
+      birthdate: buildRecommendationReasonViewModel({
+        rec: { astro_elements: ["water"], astro_priority: 2, fallback_mode: "none" },
+        index: 0,
+        mode: "compat",
+        birthdate: "1992-08-10",
+        needTags: [],
+      }),
+      fallback: buildRecommendationReasonViewModel({
+        rec: { fallback_mode: "nearby_unfiltered", popular_score: 0.9 },
+        index: 0,
+        mode: "need",
+        needTags: ["転機"],
+      }),
+    };
+
+    expect(samples).toMatchSnapshot();
   });
 });

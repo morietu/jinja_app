@@ -16,11 +16,9 @@ export type ShrineCardProps = {
   name: string;
   address?: string | null;
 
-  // 旧 props
   recommendReason?: string | null;
   subReason?: string | null;
 
-  // 新 props
   topReasonLabel?: string | null;
   primaryReason?: string | null;
   secondaryReason?: string | null;
@@ -36,7 +34,6 @@ export type ShrineCardProps = {
   onToggleFavorite?: () => void;
   isTopPick?: boolean;
 
-  // 既存 explanation 系
   explanationSummary?: string | null;
   explanationReasons?: Array<{
     code?: string | null;
@@ -71,7 +68,6 @@ export function ShrineCard(props: ShrineCardProps) {
 
   const distText = formatDistance(distanceM);
 
-  // 後方互換つきの解決順
   const resolvedSummary = clean(explanationSummary) || clean(recommendReason) || null;
 
   const resolvedPrimaryReason =
@@ -81,7 +77,6 @@ export function ShrineCard(props: ShrineCardProps) {
 
   const resolvedSecondaryReason = clean(secondaryReason) || clean(subReason) || null;
 
-  // 重複除去
   const finalPrimaryReason =
     resolvedPrimaryReason && resolvedPrimaryReason !== resolvedSummary ? resolvedPrimaryReason : null;
 
@@ -96,6 +91,21 @@ export function ShrineCard(props: ShrineCardProps) {
     "rounded-2xl border p-4 shadow-sm transition-colors",
     isTopPick ? "border-amber-300 bg-amber-50/40" : "border-slate-200 bg-white",
   ].join(" ");
+
+  const summaryClass = [
+    "mt-2 line-clamp-1",
+    isTopPick ? "text-[12px] leading-5 text-slate-500" : "text-[12px] leading-5 text-slate-600",
+  ].join(" ");
+
+  const primaryClass = [
+    "mt-1 line-clamp-2",
+    isTopPick
+      ? "text-[14px] font-semibold leading-6 text-slate-900"
+      : "text-[13px] font-medium leading-6 text-slate-700",
+  ].join(" ");
+
+  const secondaryClass = "mt-1 line-clamp-1 text-[12px] leading-5 text-slate-500";
+
 
   const MainContent = (
     <div className="flex gap-4">
@@ -124,19 +134,17 @@ export function ShrineCard(props: ShrineCardProps) {
               </div>
             ) : null}
 
-            <div className="truncate text-[15px] font-semibold text-slate-900">{name}</div>
+            <div
+              className={["truncate font-semibold text-slate-900", isTopPick ? "text-[16px]" : "text-[15px]"].join(" ")}
+            >
+              {name}
+            </div>
 
-            {resolvedSummary ? (
-              <div className="mt-2 line-clamp-1 text-sm font-semibold leading-6 text-slate-900">{resolvedSummary}</div>
-            ) : null}
+            {finalPrimaryReason ? <div className={primaryClass}>{finalPrimaryReason}</div> : null}
 
-            {finalPrimaryReason ? (
-              <div className="mt-1 line-clamp-2 text-[13px] leading-6 text-slate-600">{finalPrimaryReason}</div>
-            ) : null}
+            {resolvedSummary ? <div className={summaryClass}>{resolvedSummary}</div> : null}
 
-            {finalSecondaryReason ? (
-              <div className="mt-1 line-clamp-1 text-[12px] leading-5 text-slate-500">{finalSecondaryReason}</div>
-            ) : null}
+            {finalSecondaryReason ? <div className={secondaryClass}>{finalSecondaryReason}</div> : null}
 
             {distText || typeof rating === "number" ? (
               <div className="mt-2 flex gap-3 text-sm text-slate-600">

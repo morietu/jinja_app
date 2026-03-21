@@ -1,5 +1,4 @@
 // apps/web/src/lib/concierge/buildRecommendationReasonViewModel.ts
-
 export type ReasonInputType = "query" | "birthdate" | "fallback";
 export type ReasonKey = "need_match" | "text_match" | "element_match" | "sign_match" | "distance" | "popular";
 
@@ -65,6 +64,23 @@ const ELEMENT_LABELS: Record<string, string> = {
   water: "水",
 };
 
+const NEED_PRIMARY_TEXT: Record<string, string> = {
+  転機: "切り替えたい今に合いやすい候補です",
+  仕事: "仕事の流れを整えたい時に向く候補です",
+  厄除け: "気持ちを立て直したい時に合う候補です",
+  恋愛: "ご縁を整えたい気持ちに寄り添いやすい候補です",
+  健康: "心身を整えたい時に向きやすい候補です",
+  金運: "流れを立て直したい時に意識しやすい候補です",
+  学業: "集中して力を伸ばしたい時に向く候補です",
+};
+
+const ELEMENT_PRIMARY_TEXT: Record<string, string> = {
+  火: "前向きに動きたい気質と合いやすい候補です",
+  土: "落ち着いて整えたい時に向きやすい候補です",
+  風: "流れを変えたい時に軽やかに選びやすい候補です",
+  水: "静かに気持ちを整えたい時に馴染みやすい候補です",
+};
+
 function clean(value?: string | null): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
@@ -94,6 +110,13 @@ function getPrimaryElement(rec: RecommendationLike): string | null {
   return ELEMENT_LABELS[String(raw).toLowerCase()] ?? String(raw);
 }
 
+function buildNeedPrimaryText(need: string): string {
+  return NEED_PRIMARY_TEXT[need] ?? `${need}を意識した今に合いやすい候補です`;
+}
+function buildElementPrimaryText(element: string): string {
+  return ELEMENT_PRIMARY_TEXT[element] ?? `${element}の要素と相性が良い候補です`;
+}
+
 function buildQueryCandidates(rec: RecommendationLike, needTags?: string[]): Candidate[] {
   const matched = uniq((rec.breakdown?.matched_need_tags ?? []).map(clean).filter(Boolean));
   const needs = uniq((needTags ?? []).map(clean).filter(Boolean));
@@ -102,22 +125,26 @@ function buildQueryCandidates(rec: RecommendationLike, needTags?: string[]): Can
   const out: Candidate[] = [];
 
   if (mainNeed) {
-    out.push({ key: "need_match", text: `${mainNeed}との一致` });
+    out.push({ key: "need_match", text: buildNeedPrimaryText(mainNeed) });
   }
 
   if (matched.length >= 2) {
-    out.push({ key: "text_match", text: `${matched[1]}の意図も拾えています` });
+    out.push({ key: "text_match", text: `${matched[1]}の観点も含む候補です` });
   } else if (matched.length === 1) {
-    out.push({ key: "text_match", text: "相談文との一致が高い候補です" });
+    out.push({ key: "text_match", text: "入力内容に沿って選びやすい候補です" });
+  }
+
+  if (typeof rec.astro_priority === "number" && rec.astro_priority > 0) {
+    out.push({ key: "sign_match", text: "気質とのなじみも見られる候補です" });
   }
 
   const distance = formatDistance(rec.distance_m);
   if (distance) {
-    out.push({ key: "distance", text: `${distance}圏内で行きやすい候補です` });
+    out.push({ key: "distance", text: `${distance}圏内で無理なく動きやすい候補です` });
   }
 
   if (typeof rec.popular_score === "number") {
-    out.push({ key: "popular", text: "人気も安定しています" });
+    out.push({ key: "popular", text: "定番としての安定感もあります" });
   }
 
   return out;
@@ -128,20 +155,20 @@ function buildBirthdateCandidates(rec: RecommendationLike): Candidate[] {
   const element = getPrimaryElement(rec);
 
   if (element) {
-    out.push({ key: "element_match", text: `${element}の要素との相性が良いです` });
+    out.push({ key: "element_match", text: buildElementPrimaryText(element) });
   }
 
   if (typeof rec.astro_priority === "number" && rec.astro_priority > 0) {
-    out.push({ key: "sign_match", text: "生年月日ベースの相性が強めです" });
+    out.push({ key: "sign_match", text: "気質とのなじみも見られる候補です" });
   }
 
   const distance = formatDistance(rec.distance_m);
   if (distance) {
-    out.push({ key: "distance", text: `${distance}圏内で参拝しやすいです` });
+    out.push({ key: "distance", text: `${distance}圏内で落ち着いて向かいやすい候補です` });
   }
 
   if (typeof rec.popular_score === "number") {
-    out.push({ key: "popular", text: "人気も安定しています" });
+    out.push({ key: "popular", text: "定番としての安定感もあります" });
   }
 
   return out;
@@ -150,14 +177,38 @@ function buildBirthdateCandidates(rec: RecommendationLike): Candidate[] {
 function buildFallbackCandidates(rec: RecommendationLike): Candidate[] {
   const out: Candidate[] = [];
   const distance = formatDistance(rec.distance_m);
+  const hasPopular = typeof rec.popular_score === "number";
 
   if (distance) {
-    out.push({ key: "distance", text: `${distance}圏内で行きやすい候補です` });
+    out.push({
+      key: "distance",
+      text: "まず動きやすさを優先して見られる候補です",
+    });
+    if (hasPopular) {
+      out.push({
+        key: "popular",
+        text: "定番として選びやすい候補です",
+      });
+    }
+    return out;
   }
 
-  if (typeof rec.popular_score === "number") {
-    out.push({ key: "popular", text: "人気の高い候補です" });
+  if (hasPopular) {
+    out.push({
+      key: "popular",
+      text: "まず選びやすさを優先して見られる候補です",
+    });
+    out.push({
+      key: "distance",
+      text: "無理なく選びやすい候補です",
+    });
+    return out;
   }
+
+  out.push({
+    key: "distance",
+    text: "まず動きやすさを優先して見られる候補です",
+  });
 
   return out;
 }
@@ -186,16 +237,16 @@ function buildSummary(
 
   const byType: Record<ReasonInputType, Array<{ key: ReasonKey; text: string }>> = {
     query: [
-      { key: "need_match", text: "今の願いに合う神社です" },
-      { key: "text_match", text: "相談内容との一致が高い候補です" },
+      { key: "need_match", text: "今の気持ちに合いやすい候補です" },
+      { key: "text_match", text: "相談内容に沿って見やすい候補です" },
     ],
     birthdate: [
-      { key: "element_match", text: "生年月日との相性が良い神社です" },
-      { key: "sign_match", text: "気質面の相性を重視した候補です" },
+      { key: "element_match", text: "相性を軸に見やすい候補です" },
+      { key: "sign_match", text: "気質とのなじみを見やすい候補です" },
     ],
     fallback: [
-      { key: "distance", text: "行きやすさを優先した候補です" },
-      { key: "popular", text: "選ばれやすさを優先した候補です" },
+      { key: "distance", text: "まず動きやすさで見やすい候補です" },
+      { key: "popular", text: "まず選びやすさで見やすい候補です" },
     ],
   };
 
@@ -207,14 +258,14 @@ function buildTopReasonLabel(inputType: ReasonInputType, primaryKey: ReasonKey, 
   if (index !== 0) return undefined;
 
   if (inputType === "query") {
-    return primaryKey === "need_match" ? "最も一致度が高い" : "相談内容に合う";
+    return primaryKey === "need_match" ? "相談に合う" : "内容に合う";
   }
   if (inputType === "birthdate") {
     return "相性が最も高い";
   }
   if (inputType === "fallback") {
-    if (primaryKey === "distance") return "行きやすさ優先";
-    if (primaryKey === "popular") return "人気上位";
+    if (primaryKey === "distance") return "まず動きやすい";
+    if (primaryKey === "popular") return "まず選びやすい";
     return "おすすめ";
   }
 
@@ -239,10 +290,10 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
       key: inputType === "birthdate" ? "element_match" : inputType === "fallback" ? "distance" : "need_match",
       text:
         inputType === "birthdate"
-          ? "生年月日との相性を見て選んだ候補です"
+          ? "生年月日との相性を軸に選びやすい候補です"
           : inputType === "fallback"
-            ? "行きやすさを優先した候補です"
-            : "今の願いに近い候補です",
+            ? "まずは動きやすさを優先して見られる候補です"
+            : "今の気持ちに沿って選びやすい候補です",
     } satisfies Candidate);
 
   const secondary = candidates.slice(1).find((x) => x.key !== primary.key && clean(x.text) !== clean(primary.text));
