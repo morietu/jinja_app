@@ -133,6 +133,8 @@ PRIMARY_REASON_PRIORITY: Dict[str, int] = {
 }
 
 
+
+
 def _make_reason_fact(
     *,
     type_: str,
@@ -152,6 +154,19 @@ def _make_reason_fact(
         "score": float(score),
         "is_primary": False,
     }
+
+NEED_TAG_LABELS_JA = {
+    "love": "恋愛",
+    "career": "転機・仕事",
+    "mental": "不安・心",
+    "rest": "休息",
+    "money": "金運",
+    "courage": "前進・後押し",
+    "study": "学業・合格",
+}
+
+def _need_tag_to_ja(tag: str) -> str:
+    return NEED_TAG_LABELS_JA.get(tag, tag)
 
 
 def _build_reason_facts(
@@ -815,35 +830,41 @@ def build_recommendation_reason(
         return "あなたの生年月日との相性を中心に、この神社をおすすめしています。"
 
     matched = (rec.get("breakdown") or {}).get("matched_need_tags") or []
-    matched_text = "・".join(
+    matched_tags = [
         str(tag).strip()
-        for tag in matched[:2]
+        for tag in matched
         if isinstance(tag, str) and str(tag).strip()
-    )
-
-    fallback_reason = None if matched_text else "matched_need_tags_empty"
+    ]
 
     try:
         log.info(
-            "[dbg] build_reason shrine_id=%r name=%r public_mode=%r matched_need_tags=%r score_need=%r branch=%r fallback_reason=%r",
+            "[dbg] build_reason shrine_id=%r name=%r public_mode=%r matched_need_tags=%r score_need=%r",
             rec.get("shrine_id"),
             rec.get("name"),
             public_mode,
-            matched,
+            matched_tags,
             (rec.get("breakdown") or {}).get("score_need"),
-            "matched_need_tags" if matched_text else "fallback",
-            fallback_reason,
         )
     except Exception:
         pass
 
-    if matched_text:
-        return (
-            f"今の悩みや願いに対して、"
-            f"この神社のご利益や性質が重なっています（{matched_text}）。"
-        )
+    if matched_tags:
+        return _build_need_reason_text(matched_tags[0])
 
     return "今の悩みや願いに寄り添いやすい神社としておすすめしています。"
+
+
+def _build_need_reason_text(tag: str) -> str:
+    mapping = {
+        "study": "学業や合格を願う今の気持ちに寄り添いやすく、参拝にも向いています。",
+        "mental": "不安や心を整えたい今の気持ちに寄り添いやすく、参拝にも向いています。",
+        "rest": "気持ちを静かに整えて、ひと息つきたい時の参拝に向いています。",
+        "love": "恋愛やご縁を願う今の気持ちに寄り添いやすく、参拝にも向いています。",
+        "career": "仕事や転機を後押ししたい今の願いに寄り添いやすく、参拝にも向いています。",
+        "money": "金運や仕事の流れを整えたい今の願いに寄り添いやすく、参拝にも向いています。",
+        "courage": "前に進みたい、流れを変えたい今の気持ちを後押しする参拝に向いています。",
+    }
+    return mapping.get(tag, "今の悩みや願いに寄り添いやすい神社としておすすめしています。")
 
 __all__ = [
     "NEED_TEXT_WEIGHTS",

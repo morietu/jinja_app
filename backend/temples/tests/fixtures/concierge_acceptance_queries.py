@@ -25,7 +25,7 @@ CONCIERGE_ACCEPTANCE_QUERIES = [
             "3位は補完候補であること",
         ],
         "expected_summary_context_any": ["休息", "心", "落ち着く", "参拝"],
-        "expected_reason_context_any": ["休息", "落ち着", "心を整え", "静か"],
+        "expected_reason_context_any": ["不安", "心", "願いごと", "一致"]
     },
     {
         "id": "money_action_001",

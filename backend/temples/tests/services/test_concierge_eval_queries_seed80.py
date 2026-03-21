@@ -188,9 +188,12 @@ def test_concierge_eval_queries_seed80(case, monkeypatch):
         query=case["query"],
         language="ja",
         candidates=candidates,
+        bias=None,
         birthdate=None,
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="need",
         flow="A",
-        llm_enabled=False,
     )
 
     assert "recommendations" in recs

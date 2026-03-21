@@ -165,13 +165,15 @@ def build_chat_recommendations(
     *,
     query: str,
     language: str,
-    candidates: List[Dict[str, Any]],
-    bias: Optional[Dict[str, Any]],
-    birthdate: Optional[str],
-    goriyaku_tag_ids: Optional[List[int]],
-    extra_condition: Optional[str],
-    public_mode: str,
-    flow: str,
+    candidates: list[dict],
+    bias=None,
+    birthdate=None,
+    goriyaku_tag_ids=None,
+    extra_condition=None,
+    public_mode="need",
+    flow="A",
+    need_tags: list[str] | None = None,
+    llm_enabled: bool | None = None,
 ) -> Dict[str, Any]:
     """
     候補リストからおすすめ神社を選んで返す関数。

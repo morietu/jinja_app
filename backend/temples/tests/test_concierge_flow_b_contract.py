@@ -27,6 +27,9 @@ def test_flow_b_contract(monkeypatch):
         candidates=candidates,
         bias=None,
         birthdate="2000-03-21",
+        goriyaku_tag_ids=None,
+        extra_condition=None,
+        public_mode="compat",
         flow="B",
     )
 
@@ -36,7 +39,8 @@ def test_flow_b_contract(monkeypatch):
     mode = recs["_signals"]["mode"]
     assert mode["flow"] == "B"
     assert mode["weights"] == {"element": 0.8, "need": 0.2, "popular": 0.0}
-    assert mode["astro_bonus_enabled"] is False
 
-    assert mode["ui_label_ja"] == "占星術強め"
-    assert mode["ui_note_ja"] == "生年月日（星座/四元素）を強く反映して並べ替えています"
+    assert mode["astro_bonus_enabled"] is True
+
+    assert mode["ui_label_ja"] == "相性重視"
+    assert mode["ui_note_ja"] == "生年月日との相性を中心に並べ替えています"
