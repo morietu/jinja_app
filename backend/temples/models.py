@@ -9,6 +9,7 @@ from django.db.models import CheckConstraint, Q, UniqueConstraint
 from django.utils import timezone
 from .models_places_seeds import PlacesSeed, PlacesSeedState  # noqa
 from .models_concierge_analytics import ConciergeRecommendationLog
+from .models_usage import FeatureUsage  # noqa
 
 # GeoDjango switch
 USE_REAL_GIS = bool(getattr(settings, "USE_GIS", False)) and not bool(

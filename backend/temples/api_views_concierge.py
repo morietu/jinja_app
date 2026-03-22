@@ -9,11 +9,9 @@ import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
-
-
 import requests
 from django.conf import settings as dj_settings
-from django.utils import timezone
+
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
@@ -28,8 +26,10 @@ from temples.api.serializers.concierge import (
 )
 from temples.geocoding.client import geocode_google_point
 from temples.models import ConciergeThread
-from temples.models import ConciergeUsage
 from temples.services import places as Places
+from temples.services.anonymous_id import attach_anonymous_cookie
+from temples.services.plan_service import resolve_plan_context
+from temples.services.quota_service import check_quota, consume_quota
 from temples.services.billing_state import is_premium_for_user
 from temples.services.concierge_candidate_utils import (
     _candidate_key,
@@ -524,6 +524,13 @@ class ConciergeChatView(APIView):
                 {"detail": "query is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+            if (
+                plan_context.plan == "anonymous"
+                and plan_context.should_set_anon_cookie
+                and plan_context.anon_id
+            ):
+                attach_anonymous_cookie(response, plan_context.anon_id)
+            return response
 
 
         explicit_flow_raw = str(data.get("flow") or "").strip().upper()
@@ -600,41 +607,47 @@ class ConciergeChatView(APIView):
             request.user = user
             request.auth = token
 
-        is_premium = is_premium_for_user(user)
-        today = timezone.localdate()
-        daily_limit = getattr(dj_settings, "CONCIERGE_DAILY_FREE_LIMIT", 5)
+        plan_context = resolve_plan_context(request)
         remaining = None
+        limit_value = None
 
-        if user is not None and not is_premium:
-            usage, _ = ConciergeUsage.objects.get_or_create(user=user, date=today)
+        quota = check_quota(plan_context, "concierge")
+        if not quota.allowed:
+            recs = {"recommendations": []}
+            body = _build_chat_response(
+                intent=intent,
+                recs=recs,
+                reply=LIMIT_MSG,
+                remaining_free=0,
+                limit=quota.limit,
+                thread=None,
+                debug=None,
+            )
+            body["note"] = "limit-reached"
 
-            if usage.count >= daily_limit:
-                recs = {"recommendations": []}
-                body = _build_chat_response(
-                    intent=intent,
-                    recs=recs,
-                    reply=LIMIT_MSG,
-                    remaining_free=0,
-                    limit=daily_limit,
-                    thread=None,
-                    debug=None,
-                )
-                body["note"] = "limit-reached"
+            if is_message_mode:
+                names = []
+                for r in (recs.get("recommendations") or [])[:3]:
+                    if isinstance(r, dict):
+                        nm = (r.get("display_name") or r.get("name") or "").strip()
+                        if nm:
+                            names.append(nm)
+                body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
 
-                if is_message_mode:
-                    names = []
-                    for r in (recs.get("recommendations") or [])[:3]:
-                        if isinstance(r, dict):
-                            nm = (r.get("display_name") or r.get("name") or "").strip()
-                            if nm:
-                                names.append(nm)
-                    body["reply"] = f"候補: {', '.join(names)}" if names else "候補: "
+            response = Response(body, status=status.HTTP_200_OK)
 
-                return Response(body, status=status.HTTP_200_OK)
+            if (
+                plan_context.plan == "anonymous"
+                and plan_context.should_set_anon_cookie
+                and plan_context.anon_id
+            ):
+                attach_anonymous_cookie(response, plan_context.anon_id)
 
-            usage.count += 1
-            usage.save(update_fields=["count"])
-            remaining = max(daily_limit - usage.count, 0)
+            return response
+
+        if not quota.unlimited:
+            remaining = quota.remaining
+            limit_value = quota.limit
 
         log.warning(
             "[concierge_chat] birthdate=%r (raw=%r, filters=%r)",
@@ -747,20 +760,27 @@ class ConciergeChatView(APIView):
             log.exception("[concierge/reco] save_concierge_recommendation_log failed rid=%s", rid)
 
         log.warning(
-            "[concierge/chat] user=%r premium=%r remaining=%r daily_limit=%r thread=%r",
+            "[concierge/chat] user=%r plan=%r remaining=%r limit=%r thread=%r",
             getattr(user, "id", None),
-            is_premium,
+            plan_context.plan,
             remaining,
-            daily_limit,
+            limit_value,
             getattr(thread_obj, "id", None),
         )
-        
+
+        consume_quota(plan_context, "concierge")
+
+        if not quota.unlimited and remaining is not None:
+            remaining = max(remaining - 1, 0)
+
+        is_authenticated_user = bool(user is not None and getattr(user, "is_authenticated", False))
+
         body = _build_chat_response(
             intent=intent,
             recs=recs,
             reply=reply,
-            remaining_free=remaining if (user is not None and not is_premium) else None,
-            limit=daily_limit if (user is not None and not is_premium) else None,
+            remaining_free=remaining if (is_authenticated_user and not quota.unlimited) else None,
+            limit=limit_value if (is_authenticated_user and not quota.unlimited) else None,
             thread=thread_obj,
             debug={
                 "rid": rid,
@@ -772,8 +792,16 @@ class ConciergeChatView(APIView):
             },
         )
 
-        return Response(body, status=status.HTTP_200_OK)
+        response = Response(body, status=status.HTTP_200_OK)
 
+        if (
+            plan_context.plan == "anonymous"
+            and plan_context.should_set_anon_cookie
+            and plan_context.anon_id
+        ):
+            attach_anonymous_cookie(response, plan_context.anon_id)
+
+        return response
 
 class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None
