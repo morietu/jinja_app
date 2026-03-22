@@ -8,6 +8,7 @@ export type ConciergeRequest = {
 };
 
 type ConciergeDataLike = {
+  thread_id?: string | null;
   _need?: { tags?: string[] };
   _signals?: Record<string, unknown> | null;
   message?: string | null;
@@ -21,12 +22,22 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
   const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
   const needTags = Array.isArray(data._need?.tags) ? data._need.tags : [];
 
+  const rawThreadId =
+    (typeof rawObj?.thread_id === "string" && rawObj.thread_id.trim()) ||
+    (typeof rawData?.thread_id === "string" && rawData.thread_id.trim()) ||
+    (typeof threadObjId === "number" && String(threadObjId)) ||
+    null;
+
+  const threadId = typeof u.thread_id === "string" && u.thread_id.trim() ? u.thread_id.trim() : null;
+
   return {
     ok: !!u?.ok,
     remaining_free: typeof u?.remaining_free === "number" ? u.remaining_free : null,
     limit: typeof (u as any)?.limit === "number" ? (u as any).limit : null,
     reply: typeof u?.reply === "string" ? u.reply : null,
+    thread_id: threadId,
     data: {
+      thread_id: threadId,
       _need: { tags: needTags },
       _signals: data._signals ?? null,
       message: typeof data.message === "string" ? data.message : null,
@@ -63,6 +74,18 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
       ? (rawObj.data as Record<string, unknown>)
       : {};
 
+  const threadObj =
+    rawObj?.thread && typeof rawObj.thread === "object" && !Array.isArray(rawObj.thread)
+      ? (rawObj.thread as Record<string, unknown>)
+      : null;
+
+  const threadObjId = threadObj?.["id"];
+
+  const threadId =
+    (typeof rawObj?.thread_id === "string" && rawObj.thread_id) ||
+    (typeof rawData?.thread_id === "string" && rawData.thread_id) ||
+    (typeof threadObjId === "number" && String(threadObjId)) ||
+    null;
   const recs = normalizeRecommendations(rawData.recommendations);
 
   const unified: UnifiedConciergeResponse = {
@@ -71,6 +94,8 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
     note: typeof rawObj?.note === "string" ? (rawObj.note as string) : null,
     reply: typeof rawObj?.reply === "string" ? (rawObj.reply as string) : null,
     remaining_free: typeof rawObj?.remaining_free === "number" ? (rawObj.remaining_free as number) : null,
+    limit: typeof rawObj?.limit === "number" ? (rawObj.limit as number) : null,
+    thread_id: threadId,
     thread: (rawObj?.thread as any) ?? null,
     data: {
       ...rawData,
@@ -78,7 +103,7 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
     },
   };
 
-  // limit は UnifiedConciergeResponse 型に無ければ any で一時的に載せる
+  (unified as any).thread_id = threadId;
   (unified as any).limit = typeof rawObj?.limit === "number" ? rawObj.limit : null;
 
   return unifiedToConciergeResponse(unified);

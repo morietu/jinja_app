@@ -12,11 +12,20 @@ export default function ConciergeShrineCard(props: Props) {
 
   const { shrineId, tid, detailHref, ...rest } = props;
 
+  
+
   const qs = new URLSearchParams();
   qs.set("ctx", "concierge");
   if (tid) qs.set("tid", tid);
 
   const href = detailHref ?? `/shrines/${shrineId}?${qs.toString()}`;
+
+  console.log("[ConciergeShrineCard] href_build", {
+    shrineId,
+    tid,
+    detailHref,
+    href,
+  });
 
   return (
     <ShrineCard
