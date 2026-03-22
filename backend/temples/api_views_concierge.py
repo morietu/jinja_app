@@ -609,7 +609,15 @@ class ConciergeChatView(APIView):
             request.auth = token
 
         plan_context = resolve_plan_context(request)
-        quota = check_quota(plan_context, "concierge")
+        try:
+            quota = check_quota(plan_context, "concierge")
+        except Exception:
+            log.exception(
+                "[concierge/chat] quota_check failed rid=%s plan=%s",
+                rid,
+                getattr(plan_context, "plan", None),
+            )
+            raise
 
         log.info(
             "[concierge/perf] step=quota_check rid=%s elapsed=%.3f allowed=%s plan=%s remaining=%r limit=%r",
@@ -670,17 +678,29 @@ class ConciergeChatView(APIView):
 
         t0 = time.perf_counter()
 
-        recs = build_chat_recommendations(
-            query=query or "",
-            language=language,
-            candidates=candidates,
-            bias=bias,
-            birthdate=birthdate,
-            goriyaku_tag_ids=goriyaku_tag_ids,
-            extra_condition=extra_condition,
-            public_mode=public_mode,
-            flow=flow,
-        )
+        try:
+            recs = build_chat_recommendations(
+                query=query or "",
+                language=language,
+                candidates=candidates,
+                bias=bias,
+                birthdate=birthdate,
+                goriyaku_tag_ids=goriyaku_tag_ids,
+                extra_condition=extra_condition,
+                public_mode=public_mode,
+                flow=flow,
+            )
+        except Exception:
+            log.exception(
+                "[concierge/chat] recommend failed rid=%s mode=%s flow=%s candidates=%d has_bias=%s has_birthdate=%s",
+                rid,
+                public_mode,
+                flow,
+                len(candidates),
+                bias is not None,
+                birthdate is not None,
+            )
+            raise
 
         after_n = len(recs.get("recommendations") or [])
 
@@ -790,7 +810,15 @@ class ConciergeChatView(APIView):
         # -------------------------
         t0 = time.perf_counter()
 
-        consume_quota(plan_context, "concierge")
+        try:
+            consume_quota(plan_context, "concierge")
+        except Exception:
+            log.exception(
+                "[concierge/chat] consume_quota failed rid=%s plan=%s",
+                rid,
+                getattr(plan_context, "plan", None),
+            )
+            raise
 
         log.info(
             "[concierge/perf] step=consume rid=%s elapsed=%.3f",
