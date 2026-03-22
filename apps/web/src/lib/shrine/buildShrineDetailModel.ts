@@ -23,7 +23,138 @@ type Args = {
   };
 };
 
+type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
 
+type ProposalWhyItem = {
+  label: "相談との一致" | "神社のご利益" | "補助的な一致";
+  text: string;
+};
+
+function needLabelJa(tag: string): string {
+  if (tag === "money") return "金運";
+  if (tag === "courage") return "前に進むきっかけ";
+  if (tag === "career") return "仕事や転機";
+  if (tag === "mental") return "不安や気持ちの揺れ";
+  if (tag === "rest") return "休息";
+  if (tag === "love") return "良縁や恋愛";
+  if (tag === "study") return "学業や合格";
+  return tag;
+}
+
+function buildNeedMatchText(primary: string | null, secondary: string[]): string {
+  if (primary === "courage") {
+    return secondary.includes("money")
+      ? "行動のきっかけや後押しを求める意図が中心にあり、金運面も立て直したい流れが見られます。"
+      : "行動のきっかけや後押しを求める意図が相談の中心にあります。";
+  }
+
+  if (primary === "money") {
+    return secondary.includes("courage")
+      ? "金運や流れを立て直したい意図が中心にあり、動き出すきっかけも求めている状態です。"
+      : "金運や流れを立て直したい意図が相談の中心にあります。";
+  }
+
+  if (primary === "career") {
+    return secondary.includes("courage")
+      ? "仕事や転機への意識が中心にあり、前に進むきっかけも必要としている状態です。"
+      : "仕事や転機に向き合いたい意図が相談の中心にあります。";
+  }
+
+  if (primary === "mental") {
+    return secondary.includes("rest")
+      ? "不安や気持ちの揺れを整えたい意図が中心にあり、落ち着いて休みたい状態も見られます。"
+      : "不安や気持ちの揺れを整えたい意図が相談の中心にあります。";
+  }
+
+  if (primary === "rest") {
+    return secondary.includes("mental")
+      ? "休息したい意図が中心にあり、気持ちの揺れも整えたい状態が見られます。"
+      : "落ち着いて休みたい意図が相談の中心にあります。";
+  }
+
+  if (primary === "love") {
+    return "良縁や恋愛を前向きに進めたい意図が相談の中心にあります。";
+  }
+
+  if (primary === "study") {
+    return "学業や合格に集中したい意図が相談の中心にあります。";
+  }
+
+  return "相談内容の中に、今の状態を整えたい意図が見られます。";
+}
+
+function buildBenefitText(shrineText: string, benefitLabels: string[]): string {
+  const labels = benefitLabels.filter(Boolean).slice(0, 3);
+
+  if (labels.length >= 3) {
+    return `${shrineText}は${labels[0]}・${labels[1]}・${labels[2]}に関わるご利益で知られています。`;
+  }
+
+  if (labels.length === 2) {
+    return `${shrineText}は${labels[0]}と${labels[1]}に関わるご利益で知られています。`;
+  }
+
+  if (labels.length === 1) {
+    return `${shrineText}は${labels[0]}に関わるご利益で知られています。`;
+  }
+
+  return `${shrineText}には今回の相談で重視したい方向と見比べやすい特徴があります。`;
+}
+
+function buildSecondaryText(primary: string | null, secondary: string[]): string {
+  if (secondary.length === 0) {
+    return "主軸に対する一致が特に強く出ています。";
+  }
+
+  const secondaryJa = secondary.map(needLabelJa);
+
+  if (primary === "courage" && secondary.includes("money")) {
+    return "前に進みたい気持ちだけでなく、金運面の流れも整えたい意図があります。";
+  }
+
+  if (primary === "money" && secondary.includes("courage")) {
+    return "金運面だけでなく、動き出すきっかけも必要としている状態です。";
+  }
+
+  if (primary === "mental" && secondary.includes("rest")) {
+    return "気持ちを整えることに加えて、しっかり休みたい意図も見られます。";
+  }
+
+  if (primary === "career" && secondary.includes("courage")) {
+    return "仕事や転機への意識に加えて、前へ進む後押しも必要としている状態です。";
+  }
+
+  if (primary === "rest" && secondary.includes("mental")) {
+    return "休息だけでなく、気持ちの揺れを整えたい意図も見られます。";
+  }
+
+  return `${secondaryJa.join("、")}に関する意図もあり、主軸以外の要素も含まれています。`;
+}
+
+function buildProposalWhyFromBreakdown(
+  breakdown?: ConciergeBreakdown | null,
+  benefitLabels: string[] = [],
+  shrineName?: string | null,
+): ProposalWhyItem[] {
+  const primary = getPrimaryNeedTag(breakdown);
+  const secondary = getSecondaryNeedTags(breakdown);
+  const shrineText = shrineName?.trim() || "この神社";
+
+  return [
+    {
+      label: "相談との一致",
+      text: buildNeedMatchText(primary, secondary),
+    },
+    {
+      label: "神社のご利益",
+      text: buildBenefitText(shrineText, benefitLabels),
+    },
+    {
+      label: "補助的な一致",
+      text: buildSecondaryText(primary, secondary),
+    },
+  ];
+}
 
 function toBenefitTag(label: string): ShrineTag {
   const v = label.trim();
@@ -74,85 +205,8 @@ function buildProposalFromBreakdown(breakdown?: ConciergeBreakdown | null): stri
   return "今回の相談に近い参拝先";
 }
 
-type ProposalWhyItem = {
-  label: "相談との一致" | "神社のご利益" | "補助的な一致";
-  text: string;
-};
 
-function buildProposalWhyFromBreakdown(
-  breakdown?: ConciergeBreakdown | null,
-  benefitLabels: string[] = [],
-  shrineName?: string | null,
-): ProposalWhyItem[] {
-  const primary = getPrimaryNeedTag(breakdown);
-  const secondary = getSecondaryNeedTags(breakdown);
-  const shrineText = shrineName?.trim() || "この神社";
-  const benefitText = benefitLabels.slice(0, 3).join("・");
 
-  const items: ProposalWhyItem[] = [];
-
-  if (primary === "courage") {
-    items.push({
-      label: "相談との一致",
-      text: "行動のきっかけや後押しを求める内容が強く出ています。",
-    });
-  } else if (primary === "money") {
-    items.push({
-      label: "相談との一致",
-      text: "金運や流れを立て直したい意図が相談の中心にあります。",
-    });
-  } else if (primary === "career") {
-    items.push({
-      label: "相談との一致",
-      text: "仕事や転機に向き合いたい意図が相談の中心にあります。",
-    });
-  } else if (primary === "mental") {
-    items.push({
-      label: "相談との一致",
-      text: "不安や気持ちの揺れを整えたい意図が相談の中心にあります。",
-    });
-  } else {
-    items.push({
-      label: "相談との一致",
-      text: "主軸に加えて、周辺の悩みや意図とも接点があります。",
-    });
-  }
-
-  items.push({
-    label: "神社のご利益",
-    text: benefitText
-      ? `${shrineText}は${benefitText}に関わる特徴があります。`
-      : `${shrineText}には今回の相談と接点のある特徴があります。`,
-  });
-
-  if (secondary.length > 0) {
-    const secondaryText = secondary
-      .map((tag) => {
-        if (tag === "money") return "金運面も整えたい意図";
-        if (tag === "courage") return "前に進むきっかけを求める意図";
-        if (tag === "career") return "仕事や転機への意識";
-        if (tag === "mental") return "不安を整えたい意図";
-        if (tag === "rest") return "休息したい意図";
-        if (tag === "love") return "良縁を求める意図";
-        if (tag === "study") return "学業に集中したい意図";
-        return null;
-      })
-      .filter(Boolean)
-      .join("、");
-
-    items.push({
-      label: "補助的な一致",
-      text: `${secondaryText}もあり、主軸以外の相談内容ともつながります。`,
-    });
-  } else {
-    items.push({
-      label: "補助的な一致",
-      text: "主軸に対する一致が特に強く出ています。",
-    });
-  }
-
-  return items;
-}
 
 function getSecondaryNeedTags(breakdown?: ConciergeBreakdown | null): string[] {
   const primary = getPrimaryNeedTag(breakdown);
