@@ -385,7 +385,18 @@ def _build_chat_response(
     - plan 用レスポンス形とは混ぜない
     - frontend の sections 表示はこの契約を前提にしている
     """
-    body: Dict[str, Any] = {"ok": True, "intent": intent, "data": recs}
+    thread_id = str(thread.id) if thread is not None else None
+
+    data = dict(recs or {})
+    data["thread_id"] = thread_id
+
+    body: Dict[str, Any] = {
+        "ok": True,
+        "intent": intent,
+        "thread_id": thread_id,
+        "data": data,
+    }
+
     if debug is not None:
         body["_debug"] = debug
     if remaining_free is not None:

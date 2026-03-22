@@ -12,6 +12,8 @@ export default function ConciergeShrineCard(props: Props) {
 
   const { shrineId, tid, detailHref, ...rest } = props;
 
+  
+
   const qs = new URLSearchParams();
   qs.set("ctx", "concierge");
   if (tid) qs.set("tid", tid);

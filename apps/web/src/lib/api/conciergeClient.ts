@@ -20,12 +20,14 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
 
   const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
   const needTags = Array.isArray(data._need?.tags) ? data._need.tags : [];
+  const threadId = typeof u.thread_id === "string" && u.thread_id.trim() ? u.thread_id.trim() : null;
 
   return {
     ok: !!u?.ok,
     remaining_free: typeof u?.remaining_free === "number" ? u.remaining_free : null,
-    limit: typeof (u as any)?.limit === "number" ? (u as any).limit : null,
+    limit: typeof u?.limit === "number" ? u.limit : null,
     reply: typeof u?.reply === "string" ? u.reply : null,
+    thread_id: threadId,
     data: {
       _need: { tags: needTags },
       _signals: data._signals ?? null,
@@ -63,23 +65,34 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
       ? (rawObj.data as Record<string, unknown>)
       : {};
 
+  const threadObj =
+    rawObj?.thread && typeof rawObj.thread === "object" && !Array.isArray(rawObj.thread)
+      ? (rawObj.thread as Record<string, unknown>)
+      : null;
+
+  const threadObjId = threadObj?.["id"];
+
+  const threadId =
+    (typeof rawObj?.thread_id === "string" && rawObj.thread_id.trim()) ||
+    (typeof threadObjId === "number" && String(threadObjId)) ||
+    null;
+
   const recs = normalizeRecommendations(rawData.recommendations);
 
   const unified: UnifiedConciergeResponse = {
     ok: rawObj?.ok !== false,
     stop_reason: (rawObj?.stop_reason as any) ?? null,
-    note: typeof rawObj?.note === "string" ? (rawObj.note as string) : null,
-    reply: typeof rawObj?.reply === "string" ? (rawObj.reply as string) : null,
-    remaining_free: typeof rawObj?.remaining_free === "number" ? (rawObj.remaining_free as number) : null,
+    note: typeof rawObj?.note === "string" ? rawObj.note : null,
+    reply: typeof rawObj?.reply === "string" ? rawObj.reply : null,
+    remaining_free: typeof rawObj?.remaining_free === "number" ? rawObj.remaining_free : null,
+    limit: typeof rawObj?.limit === "number" ? rawObj.limit : null,
+    thread_id: threadId,
     thread: (rawObj?.thread as any) ?? null,
     data: {
       ...rawData,
       recommendations: recs,
     },
   };
-
-  // limit は UnifiedConciergeResponse 型に無ければ any で一時的に載せる
-  (unified as any).limit = typeof rawObj?.limit === "number" ? rawObj.limit : null;
 
   return unifiedToConciergeResponse(unified);
 }

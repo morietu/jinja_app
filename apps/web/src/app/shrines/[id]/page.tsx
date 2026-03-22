@@ -1,22 +1,25 @@
 import Link from "next/link";
 
 import type { Shrine } from "@/lib/api/shrines";
-import { getShrinePublicServer } from "@/lib/api/shrines.server";
-import { serverLog } from "@/lib/server/logging";
+import type { ConciergeBreakdown } from "@/lib/api/concierge";
 
+import { getShrinePublicServer } from "@/lib/api/shrines.server";
+import { getConciergeThread } from "@/lib/api/concierge";
+import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
+
+import { serverLog } from "@/lib/server/logging";
 import { gmapsDirUrl } from "@/lib/maps";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
+
+import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
+import { pickReasonFromThread } from "@/lib/concierge/pickReasonFromThread";
+
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
-import { buildShrineClose } from "@/lib/navigation/shrineClose";
-import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
-
-import { getConciergeThread } from "@/lib/api/concierge";
-import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
-import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
-import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -26,6 +29,7 @@ type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
+
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
@@ -123,12 +127,16 @@ export default async function Page({ params, searchParams }: Props) {
   } satisfies NonNullable<Parameters<typeof buildShrineDetailModel>[0]["signals"]>;
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
+  let conciergeReason: string | null = null;
+
   if (ctx === "concierge" && tid) {
     try {
       const thread = await getConciergeThread(String(tid));
       conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
+      conciergeReason = pickReasonFromThread(thread, numericId);
     } catch {
       conciergeBreakdown = null;
+      conciergeReason = null;
     }
   }
 
@@ -136,6 +144,7 @@ export default async function Page({ params, searchParams }: Props) {
     shrine: s,
     publicGoshuins,
     conciergeBreakdown,
+    conciergeReason,
     ctx,
     tid,
     signals,

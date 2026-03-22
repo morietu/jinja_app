@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConciergeSearch } from "@/hooks/useConciergeSearch";
-import { ShrineList } from "@/components/shrines/ShrineList";
+import ConciergeShrineCard from "@/components/shrine/ConciergeShrineCard";
 
 const EXAMPLES = [
   "転職が不安。背中を押してほしい。",
@@ -15,8 +15,7 @@ export default function ConciergeClientSimple() {
   const router = useRouter();
   const [text, setText] = useState("");
 
-  const { items, loading, error, headerMessage, notice, remainingFree, limit, reply, search, clear } =
-    useConciergeSearch();
+  const { items, loading, error, remainingFree, limit, reply, search, clear } = useConciergeSearch();
 
   const submit = useCallback(
     async (value: string) => {
@@ -31,7 +30,6 @@ export default function ConciergeClientSimple() {
   }, [clear]);
 
   const isLimitReached = remainingFree === 0;
-  const hasResult = items.length > 0 || !!headerMessage || !!notice || !!reply || isLimitReached;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -148,20 +146,13 @@ export default function ConciergeClientSimple() {
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <ShrineList
-              items={items}
-              variant="list"
-              emptyText={
-                loading
-                  ? "候補を整理しています…"
-                  : isLimitReached
-                    ? "新しい提案は現在表示できません"
-                    : "まだ結果がありません"
-              }
-              headerMessage={headerMessage}
-              notice={notice}
-              className={hasResult ? "" : "min-h-[120px]"}
-            />
+            <div className="flex flex-col gap-3">
+              {items.map(({ id, cardProps, tid }, idx) => {
+
+
+                return <ConciergeShrineCard key={id} {...cardProps} tid={tid ?? null} hideLeftMark={idx !== 0} />;
+              })}
+            </div>
           </div>
         </section>
       </div>

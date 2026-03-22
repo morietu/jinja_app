@@ -1,11 +1,14 @@
-import type { ShrineListItem } from "@/components/shrines/ShrineList";
+import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
+import type { ConciergeBreakdown } from "@/lib/api/concierge";
 
 export type ConciergeResponse = {
   ok: boolean;
   remaining_free?: number | null;
   limit?: number | null;
   reply?: string | null;
+  thread_id?: string | null;
   data?: {
+    thread_id?: string | null;
     _need?: { tags?: string[] };
     _signals?: Record<string, unknown> | null;
     message?: string | null;
@@ -35,10 +38,7 @@ export type ConciergeResponse = {
         }> | null;
         disclaimer?: string | null;
       } | null;
-      breakdown?: {
-        matched_need_tags?: string[] | null;
-        score_total?: number | null;
-      } | null;
+      breakdown?: ConciergeBreakdown | null;
     }>;
   };
 };
@@ -72,60 +72,46 @@ function toDisplayTag(tag: string): string {
   return NEED_LABELS[tag] ?? tag;
 }
 
-export function conciergeToShrineListItems(resp: ConciergeResponse): ShrineListItem[] {
+export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeResultItem[] {
   if (!resp?.ok) {
     console.log("[conciergeToShrineListItems] resp not ok", resp);
     return [];
   }
 
   const recs = resp.data?.recommendations ?? [];
+  const threadId = typeof resp.thread_id === "string" && resp.thread_id.trim() ? resp.thread_id.trim() : null;
+
   console.log("[conciergeToShrineListItems] recs", recs.length, recs);
+  console.log("[conciergeToShrineListItems] threadId", threadId);
 
-  const items = recs.map((r, idx) => {
-    const id = safeId(r);
-    const name = r.display_name ?? r.name;
+  const items = recs
+    .filter((r): r is typeof r & { shrine_id: number } => typeof r.shrine_id === "number")
+    .map((r) => {
+      const id = safeId(r);
+      const name = r.display_name ?? r.name;
 
-    const matchedTags = normalizeTagList(r.breakdown?.matched_need_tags);
-    const rawTags = matchedTags.length ? matchedTags : normalizeTagList(resp.data?._need?.tags);
+      const matchedTags = normalizeTagList(r.breakdown?.matched_need_tags);
+      const rawTags = matchedTags.length ? matchedTags : normalizeTagList(resp.data?._need?.tags);
+      const tags = rawTags.map(toDisplayTag).slice(0, 3);
 
-    const tags = rawTags.map(toDisplayTag).slice(0, 3);
-    const compatibilityLabels = matchedTags.map(toDisplayTag).slice(0, 1);
+      const explanationSummary = r.explanation?.summary?.trim() || null;
+      const recommendReason = explanationSummary || r.reason?.trim() || null;
 
-    const explanationSummary = r.explanation?.summary?.trim() || null;
-    const explanationReasons =
-      r.explanation?.reasons
-        ?.map((x) => ({
-          code: x.code ?? null,
-          label: x.label ?? null,
-          text: x.text?.trim() ?? null,
-          strength: x.strength ?? null,
-        }))
-        .filter((x) => x.text) ?? null;
-
-    const recommendReason = explanationSummary || r.reason?.trim() || null;
-    const subReason = Array.isArray(r.bullets) && typeof r.bullets[0] === "string" ? r.bullets[0] : undefined;
-
-    return {
-      id,
-      cardProps: {
-        name,
-        address: r.address ?? r.location ?? undefined,
-        recommendReason,
-        subReason,
-        compatibilityLabels,
-        distanceM: typeof r.distance_m === "number" ? r.distance_m : undefined,
-        rating: undefined,
-        reviewCount: undefined,
-        imageUrl: null,
-        tags,
-        href: typeof r.shrine_id === "number" ? `/shrines/${r.shrine_id}` : undefined,
-        isFavorited: false,
-        isTopPick: idx === 0,
-        explanationSummary,
-        explanationReasons,
-      },
-    };
-  });
+      return {
+        id,
+        tid: threadId,
+        cardProps: {
+          shrineId: r.shrine_id,
+          title: name,
+          address: r.address ?? r.location ?? undefined,
+          imageUrl: null,
+          explanationSummary,
+          explanationPrimaryReason: recommendReason,
+          breakdown: r.breakdown ?? null,
+          badgesOverride: tags,
+        },
+      };
+    });
 
   console.log("[conciergeToShrineListItems] items", items.length, items);
   return items;

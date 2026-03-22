@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
 import { searchConcierge } from "@/lib/api/conciergeClient";
 import { conciergeToShrineListItems, type ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
-import type { ShrineListItem } from "@/components/shrines/ShrineList";
+
+import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
 
 type Result = {
   loading: boolean;
   error: string | null;
-  items: ShrineListItem[];
+  items: ConciergeResultItem[];
   headerMessage: string | null;
   notice: string | null;
   remainingFree: number | null;
@@ -19,7 +20,7 @@ type Result = {
 export function useConciergeSearch(): Result {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<ShrineListItem[]>([]);
+  const [items, setItems] = useState<ConciergeResultItem[]>([]);
   const [headerMessage, setHeaderMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
@@ -68,6 +69,9 @@ export function useConciergeSearch(): Result {
           itemsLen: items.length,
           headerMessage,
           notice,
+          thread_id: resp.thread_id ?? resp.data?.thread_id ?? null,
+          firstItemTid: items[0]?.tid ?? null,
+          firstItem: items[0] ?? null,
         });
 
         setItems(items);
