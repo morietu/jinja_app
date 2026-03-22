@@ -1,0 +1,1466 @@
+[
+  {
+    "name_jp": "明治神宮",
+    "name_romaji": null,
+    "address": "東京都渋谷区代々木神園町1-1",
+    "latitude": 35.6764,
+    "longitude": 139.6993,
+    "goriyaku": "縁結び・厄除け・交通安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "伏見稲荷大社",
+    "name_romaji": null,
+    "address": "京都府京都市伏見区深草薮之内町68",
+    "latitude": 34.9671,
+    "longitude": 135.7727,
+    "goriyaku": "商売繁盛・五穀豊穣",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "伊勢神宮（内宮）",
+    "name_romaji": null,
+    "address": "三重県伊勢市宇治館町1",
+    "latitude": 34.455,
+    "longitude": 136.7256,
+    "goriyaku": "開運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "出雲大社",
+    "name_romaji": null,
+    "address": "島根県出雲市大社町杵築東195",
+    "latitude": 35.4016,
+    "longitude": 132.6853,
+    "goriyaku": "縁結び・開運・福徳",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "春日大社",
+    "name_romaji": null,
+    "address": "奈良県奈良市春日野町160",
+    "latitude": 34.6814,
+    "longitude": 135.8481,
+    "goriyaku": "家内安全・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "太宰府天満宮",
+    "name_romaji": null,
+    "address": "福岡県太宰府市宰府4-7-1",
+    "latitude": 33.5213,
+    "longitude": 130.5351,
+    "goriyaku": "学業成就・合格祈願・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "熱田神宮",
+    "name_romaji": null,
+    "address": "愛知県名古屋市熱田区神宮1-1-1",
+    "latitude": 35.1279,
+    "longitude": 136.9114,
+    "goriyaku": "開運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "宇佐神宮",
+    "name_romaji": null,
+    "address": "大分県宇佐市南宇佐2859",
+    "latitude": 33.531,
+    "longitude": 131.379,
+    "goriyaku": "勝運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "日光東照宮",
+    "name_romaji": null,
+    "address": "栃木県日光市山内2301",
+    "latitude": 36.7579,
+    "longitude": 139.5986,
+    "goriyaku": "開運・家内安全・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "鶴岡八幡宮",
+    "name_romaji": null,
+    "address": "神奈川県鎌倉市雪ノ下2-1-31",
+    "latitude": 35.3256,
+    "longitude": 139.5566,
+    "goriyaku": "勝運・仕事運・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "住吉大社",
+    "name_romaji": null,
+    "address": "大阪府大阪市住吉区住吉2-9-89",
+    "latitude": 34.6149,
+    "longitude": 135.4928,
+    "goriyaku": "交通安全・航海安全・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "石清水八幡宮",
+    "name_romaji": null,
+    "address": "京都府八幡市八幡高坊30",
+    "latitude": 34.8841,
+    "longitude": 135.6944,
+    "goriyaku": "勝運・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "金刀比羅宮",
+    "name_romaji": null,
+    "address": "香川県仲多度郡琴平町892-1",
+    "latitude": 34.1811,
+    "longitude": 133.8216,
+    "goriyaku": "交通安全・海上安全・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "鹿島神宮",
+    "name_romaji": null,
+    "address": "茨城県鹿嶋市宮中2306-1",
+    "latitude": 35.9658,
+    "longitude": 140.6285,
+    "goriyaku": "勝運・武運長久・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "香取神宮",
+    "name_romaji": null,
+    "address": "千葉県香取市香取1697-1",
+    "latitude": 35.9067,
+    "longitude": 140.535,
+    "goriyaku": "勝運・開運・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "氷川神社（大宮）",
+    "name_romaji": null,
+    "address": "埼玉県さいたま市大宮区高鼻町1-407",
+    "latitude": 35.9201,
+    "longitude": 139.6263,
+    "goriyaku": "縁結び・家内安全・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "三峯神社",
+    "name_romaji": null,
+    "address": "埼玉県秩父市三峰298-1",
+    "latitude": 35.9221,
+    "longitude": 138.9336,
+    "goriyaku": "厄除け・開運・仕事運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "箱根神社",
+    "name_romaji": null,
+    "address": "神奈川県足柄下郡箱根町元箱根80-1",
+    "latitude": 35.2067,
+    "longitude": 139.0237,
+    "goriyaku": "開運・厄除け・交通安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "富士山本宮浅間大社",
+    "name_romaji": null,
+    "address": "静岡県富士宮市宮町1-1",
+    "latitude": 35.2229,
+    "longitude": 138.6216,
+    "goriyaku": "安産・家内安全・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "諏訪大社（上社本宮）",
+    "name_romaji": null,
+    "address": "長野県諏訪市中洲宮山1",
+    "latitude": 36.0404,
+    "longitude": 138.1184,
+    "goriyaku": "開運・厄除け・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "長太稲荷神社",
+    "name_romaji": null,
+    "address": "日本、〒157-0065 東京都世田谷区上祖師谷１丁目３−１０",
+    "latitude": 35.660614,
+    "longitude": 139.6017688,
+    "goriyaku": "",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "給田六所神社",
+    "name_romaji": null,
+    "address": "日本、〒157-0064 東京都世田谷区給田１丁目３−７",
+    "latitude": 35.662443,
+    "longitude": 139.5920237,
+    "goriyaku": "",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "神田神社（神田明神）",
+    "name_romaji": null,
+    "address": "東京都千代田区外神田2-16-2",
+    "latitude": 35.7019,
+    "longitude": 139.7674,
+    "goriyaku": "商売繁盛・仕事運・縁結び",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "浅草神社",
+    "name_romaji": "Asakusa Shrine",
+    "address": "東京都台東区浅草2-3-1",
+    "latitude": 35.7152,
+    "longitude": 139.7974,
+    "goriyaku": "家内安全・商売繁盛・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "大國魂神社",
+    "name_romaji": null,
+    "address": "東京都府中市宮町3-1",
+    "latitude": 35.6681,
+    "longitude": 139.4776,
+    "goriyaku": "厄除け・縁結び・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "寒川神社",
+    "name_romaji": null,
+    "address": "神奈川県高座郡寒川町宮山3916",
+    "latitude": 35.3869,
+    "longitude": 139.3856,
+    "goriyaku": "八方除・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "榛名神社",
+    "name_romaji": null,
+    "address": "群馬県高崎市榛名山町849",
+    "latitude": 36.4764,
+    "longitude": 138.8756,
+    "goriyaku": "開運・五穀豊穣・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "筑波山神社",
+    "name_romaji": null,
+    "address": "茨城県つくば市筑波1",
+    "latitude": 36.2246,
+    "longitude": 140.1069,
+    "goriyaku": "縁結び・夫婦円満・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "阿佐ヶ谷神明宮",
+    "name_romaji": null,
+    "address": "東京都杉並区阿佐谷北1-25-5",
+    "latitude": 35.705,
+    "longitude": 139.6353,
+    "goriyaku": "厄除け・八難除・縁結び",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "彌彦神社",
+    "name_romaji": null,
+    "address": "新潟県西蒲原郡弥彦村弥彦2887-2",
+    "latitude": 37.7047,
+    "longitude": 138.8287,
+    "goriyaku": "開運・勝運・縁結び",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "氣多大社",
+    "name_romaji": null,
+    "address": "石川県羽咋市寺家町ク1-1",
+    "latitude": 36.8939,
+    "longitude": 136.7784,
+    "goriyaku": "縁結び・恋愛成就・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "越中一宮 高瀬神社",
+    "name_romaji": null,
+    "address": "富山県南砺市高瀬291",
+    "latitude": 36.5578,
+    "longitude": 136.8619,
+    "goriyaku": "厄除け・家内安全・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "椿大神社",
+    "name_romaji": null,
+    "address": "三重県鈴鹿市山本町1871",
+    "latitude": 34.8893,
+    "longitude": 136.4204,
+    "goriyaku": "導き・仕事運・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "賀茂御祖神社（下鴨神社）",
+    "name_romaji": null,
+    "address": "京都府京都市左京区下鴨泉川町59",
+    "latitude": 35.039,
+    "longitude": 135.7721,
+    "goriyaku": "縁結び・美容・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "賀茂別雷神社（上賀茂神社）",
+    "name_romaji": null,
+    "address": "京都府京都市北区上賀茂本山339",
+    "latitude": 35.0605,
+    "longitude": 135.7522,
+    "goriyaku": "厄除け・勝運・方除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "生田神社",
+    "name_romaji": null,
+    "address": "兵庫県神戸市中央区下山手通1-2-1",
+    "latitude": 34.694,
+    "longitude": 135.1923,
+    "goriyaku": "縁結び・恋愛成就・健康長寿",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "吉備津神社",
+    "name_romaji": null,
+    "address": "岡山県岡山市北区吉備津931",
+    "latitude": 34.6863,
+    "longitude": 133.8483,
+    "goriyaku": "厄除け・開運・学業成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "厳島神社",
+    "name_romaji": null,
+    "address": "広島県廿日市市宮島町1-1",
+    "latitude": 34.2959,
+    "longitude": 132.3199,
+    "goriyaku": "海上安全・開運・芸能",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "宮地嶽神社",
+    "name_romaji": null,
+    "address": "福岡県福津市宮司元町7-1",
+    "latitude": 33.7669,
+    "longitude": 130.4917,
+    "goriyaku": "開運・商売繁盛・交通安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "川越氷川神社",
+    "name_romaji": null,
+    "address": "埼玉県川越市宮下町2-11-3",
+    "latitude": 35.9258,
+    "longitude": 139.4912,
+    "goriyaku": "縁結び・家庭円満・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "白山比咩神社",
+    "name_romaji": null,
+    "address": "石川県白山市三宮町ニ105-1",
+    "latitude": 36.4346,
+    "longitude": 136.6368,
+    "goriyaku": "開運・縁結び・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "高千穂神社",
+    "name_romaji": null,
+    "address": "宮崎県西臼杵郡高千穂町三田井1037",
+    "latitude": 32.7118,
+    "longitude": 131.3078,
+    "goriyaku": "厄除け・縁結び・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": []
+  },
+  {
+    "name_jp": "日枝神社",
+    "name_romaji": null,
+    "address": "東京都千代田区永田町2-10-5",
+    "latitude": 35.6745,
+    "longitude": 139.7414,
+    "goriyaku": "仕事運・出世運・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "東京大神宮",
+    "name_romaji": null,
+    "address": "東京都千代田区富士見2-4-1",
+    "latitude": 35.7006,
+    "longitude": 139.7454,
+    "goriyaku": "縁結び・恋愛成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "芝大神宮",
+    "name_romaji": null,
+    "address": "東京都港区芝大門1-12-7",
+    "latitude": 35.6581,
+    "longitude": 139.7506,
+    "goriyaku": "縁結び・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "愛宕神社",
+    "name_romaji": null,
+    "address": "東京都港区愛宕1-5-3",
+    "latitude": 35.6627,
+    "longitude": 139.7487,
+    "goriyaku": "出世運・仕事運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "亀戸天神社",
+    "name_romaji": null,
+    "address": "東京都江東区亀戸3-6-1",
+    "latitude": 35.7034,
+    "longitude": 139.8248,
+    "goriyaku": "学業成就・合格祈願",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "根津神社",
+    "name_romaji": null,
+    "address": "東京都文京区根津1-28-9",
+    "latitude": 35.7174,
+    "longitude": 139.7603,
+    "goriyaku": "縁結び・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "富岡八幡宮",
+    "name_romaji": null,
+    "address": "東京都江東区富岡1-20-3",
+    "latitude": 35.6733,
+    "longitude": 139.7967,
+    "goriyaku": "勝運・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "品川神社",
+    "name_romaji": null,
+    "address": "東京都品川区北品川3-7-15",
+    "latitude": 35.6229,
+    "longitude": 139.7426,
+    "goriyaku": "開運・金運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "大宮八幡宮",
+    "name_romaji": null,
+    "address": "東京都杉並区大宮2-3-1",
+    "latitude": 35.6835,
+    "longitude": 139.6295,
+    "goriyaku": "安産・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "江島神社",
+    "name_romaji": null,
+    "address": "神奈川県藤沢市江の島2-3-8",
+    "latitude": 35.3013,
+    "longitude": 139.4805,
+    "goriyaku": "縁結び・芸能運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "水戸東照宮",
+    "name_romaji": null,
+    "address": "茨城県水戸市宮町2-5-13",
+    "latitude": 36.3708,
+    "longitude": 140.4767,
+    "goriyaku": "開運・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "二荒山神社",
+    "name_romaji": null,
+    "address": "栃木県日光市山内2307",
+    "latitude": 36.758,
+    "longitude": 139.5966,
+    "goriyaku": "縁結び・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "貴船神社",
+    "name_romaji": null,
+    "address": "京都府京都市左京区鞍馬貴船町180",
+    "latitude": 35.1217,
+    "longitude": 135.762,
+    "goriyaku": "縁結び・恋愛成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "八坂神社",
+    "name_romaji": null,
+    "address": "京都府京都市東山区祇園町北側625",
+    "latitude": 35.0037,
+    "longitude": 135.7788,
+    "goriyaku": "厄除け・美容・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "住吉神社（博多）",
+    "name_romaji": null,
+    "address": "福岡県福岡市博多区住吉3-1-51",
+    "latitude": 33.587,
+    "longitude": 130.4086,
+    "goriyaku": "航海安全・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "靖國神社",
+    "name_romaji": null,
+    "address": "東京都千代田区九段北3-1-1",
+    "latitude": 35.6944,
+    "longitude": 139.743,
+    "goriyaku": "厄除け・家内安全・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "乃木神社",
+    "name_romaji": null,
+    "address": "東京都港区赤坂8-11-27",
+    "latitude": 35.6698,
+    "longitude": 139.7268,
+    "goriyaku": "仕事運・勝運・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "赤坂氷川神社",
+    "name_romaji": null,
+    "address": "東京都港区赤坂6-10-12",
+    "latitude": 35.671,
+    "longitude": 139.7361,
+    "goriyaku": "縁結び・厄除け・仕事運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "花園神社",
+    "name_romaji": null,
+    "address": "東京都新宿区新宿5-17-3",
+    "latitude": 35.6941,
+    "longitude": 139.7046,
+    "goriyaku": "商売繁盛・芸能運・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "小網神社",
+    "name_romaji": null,
+    "address": "東京都中央区日本橋小網町16-23",
+    "latitude": 35.6843,
+    "longitude": 139.7832,
+    "goriyaku": "強運厄除け・金運・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "鳥越神社",
+    "name_romaji": null,
+    "address": "東京都台東区鳥越2-4-1",
+    "latitude": 35.7037,
+    "longitude": 139.7852,
+    "goriyaku": "開運・厄除け・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "湯島天満宮",
+    "name_romaji": null,
+    "address": "東京都文京区湯島3-30-1",
+    "latitude": 35.7088,
+    "longitude": 139.7695,
+    "goriyaku": "学業成就・合格祈願・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "白山神社",
+    "name_romaji": null,
+    "address": "東京都文京区白山5-31-26",
+    "latitude": 35.7214,
+    "longitude": 139.7469,
+    "goriyaku": "厄除け・縁結び・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "王子神社",
+    "name_romaji": null,
+    "address": "東京都北区王子本町1-1-12",
+    "latitude": 35.754,
+    "longitude": 139.738,
+    "goriyaku": "開運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "千住神社",
+    "name_romaji": null,
+    "address": "東京都足立区千住宮元町24-1",
+    "latitude": 35.7489,
+    "longitude": 139.7952,
+    "goriyaku": "開運・厄除け・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "葛西神社",
+    "name_romaji": null,
+    "address": "東京都葛飾区東金町6-10-5",
+    "latitude": 35.7692,
+    "longitude": 139.8698,
+    "goriyaku": "厄除け・勝運・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "穴守稲荷神社",
+    "name_romaji": null,
+    "address": "東京都大田区羽田5-2-7",
+    "latitude": 35.5516,
+    "longitude": 139.7462,
+    "goriyaku": "商売繁盛・開運・交通安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "多摩川浅間神社",
+    "name_romaji": null,
+    "address": "東京都大田区田園調布1-55-12",
+    "latitude": 35.5898,
+    "longitude": 139.6688,
+    "goriyaku": "開運・縁結び・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "武蔵御嶽神社",
+    "name_romaji": null,
+    "address": "東京都青梅市御岳山176",
+    "latitude": 35.8019,
+    "longitude": 139.1825,
+    "goriyaku": "厄除け・開運・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "武蔵一宮 氷川女體神社",
+    "name_romaji": null,
+    "address": "埼玉県さいたま市緑区宮本2-17-1",
+    "latitude": 35.8614,
+    "longitude": 139.6828,
+    "goriyaku": "縁結び・安産・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "調神社",
+    "name_romaji": null,
+    "address": "埼玉県さいたま市浦和区岸町3-17-25",
+    "latitude": 35.8538,
+    "longitude": 139.6497,
+    "goriyaku": "開運・勝運・厄除け",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "秩父神社",
+    "name_romaji": null,
+    "address": "埼玉県秩父市番場町1-3",
+    "latitude": 35.9917,
+    "longitude": 139.0848,
+    "goriyaku": "開運・学業成就・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "鷲宮神社",
+    "name_romaji": null,
+    "address": "埼玉県久喜市鷲宮1-6-1",
+    "latitude": 36.0958,
+    "longitude": 139.669,
+    "goriyaku": "開運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "箭弓稲荷神社",
+    "name_romaji": null,
+    "address": "埼玉県東松山市箭弓町2-5-14",
+    "latitude": 36.0412,
+    "longitude": 139.4014,
+    "goriyaku": "商売繁盛・開運・芸能運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "安房神社",
+    "name_romaji": null,
+    "address": "千葉県館山市大神宮589",
+    "latitude": 34.9724,
+    "longitude": 139.8297,
+    "goriyaku": "仕事運・開運・技芸上達",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "千葉神社",
+    "name_romaji": null,
+    "address": "千葉県千葉市中央区院内1-16-1",
+    "latitude": 35.6114,
+    "longitude": 140.1246,
+    "goriyaku": "厄除け・八方除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "玉前神社",
+    "name_romaji": null,
+    "address": "千葉県長生郡一宮町一宮3048",
+    "latitude": 35.3722,
+    "longitude": 140.365,
+    "goriyaku": "縁結び・安産・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "櫻木神社",
+    "name_romaji": null,
+    "address": "千葉県野田市桜台210",
+    "latitude": 35.9559,
+    "longitude": 139.8678,
+    "goriyaku": "縁結び・開運・学業成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "大洗磯前神社",
+    "name_romaji": null,
+    "address": "茨城県東茨城郡大洗町磯浜町6890",
+    "latitude": 36.314,
+    "longitude": 140.5749,
+    "goriyaku": "海上安全・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "笠間稲荷神社",
+    "name_romaji": null,
+    "address": "茨城県笠間市笠間1",
+    "latitude": 36.3846,
+    "longitude": 140.2669,
+    "goriyaku": "商売繁盛・五穀豊穣・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "酒列磯前神社",
+    "name_romaji": null,
+    "address": "茨城県ひたちなか市磯崎町4607-2",
+    "latitude": 36.3941,
+    "longitude": 140.6165,
+    "goriyaku": "病気平癒・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "宇都宮二荒山神社",
+    "name_romaji": null,
+    "address": "栃木県宇都宮市馬場通り1-1-1",
+    "latitude": 36.5607,
+    "longitude": 139.8827,
+    "goriyaku": "開運・縁結び・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "足利織姫神社",
+    "name_romaji": null,
+    "address": "栃木県足利市西宮町3889",
+    "latitude": 36.3418,
+    "longitude": 139.4568,
+    "goriyaku": "縁結び・仕事運・学業成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "古峯神社",
+    "name_romaji": null,
+    "address": "栃木県鹿沼市草久3027",
+    "latitude": 36.7427,
+    "longitude": 139.5208,
+    "goriyaku": "火防・厄除け・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "冠稲荷神社",
+    "name_romaji": null,
+    "address": "群馬県太田市細谷町1",
+    "latitude": 36.2717,
+    "longitude": 139.3565,
+    "goriyaku": "縁結び・子宝・安産",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "妙義神社",
+    "name_romaji": null,
+    "address": "群馬県富岡市妙義町妙義6",
+    "latitude": 36.294,
+    "longitude": 138.7547,
+    "goriyaku": "開運・厄除け・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "赤城神社",
+    "name_romaji": null,
+    "address": "群馬県前橋市富士見町赤城山4-2",
+    "latitude": 36.5601,
+    "longitude": 139.1936,
+    "goriyaku": "縁結び・開運・心願成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "鶴嶺八幡宮",
+    "name_romaji": null,
+    "address": "神奈川県茅ヶ崎市浜之郷462",
+    "latitude": 35.3375,
+    "longitude": 139.4047,
+    "goriyaku": "勝運・厄除け・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "森戸大明神",
+    "name_romaji": null,
+    "address": "神奈川県三浦郡葉山町堀内1025",
+    "latitude": 35.2747,
+    "longitude": 139.578,
+    "goriyaku": "開運・縁結び・海上安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "報徳二宮神社",
+    "name_romaji": null,
+    "address": "神奈川県小田原市城内8-10",
+    "latitude": 35.2508,
+    "longitude": 139.1548,
+    "goriyaku": "仕事運・学業成就・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "九頭龍神社 新宮",
+    "name_romaji": null,
+    "address": "神奈川県足柄下郡箱根町元箱根80-1",
+    "latitude": 35.2049,
+    "longitude": 139.0227,
+    "goriyaku": "縁結び・開運・心願成就",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "平塚八幡宮",
+    "name_romaji": null,
+    "address": "神奈川県平塚市浅間町1-6",
+    "latitude": 35.3291,
+    "longitude": 139.352,
+    "goriyaku": "厄除け・勝運・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "忌宮神社",
+    "name_romaji": null,
+    "address": "山口県下関市長府宮の内町1-18",
+    "latitude": 34.0415,
+    "longitude": 130.9876,
+    "goriyaku": "厄除け・開運・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "土"
+    ]
+  },
+  {
+    "name_jp": "高良大社",
+    "name_romaji": null,
+    "address": "福岡県久留米市御井町1",
+    "latitude": 33.3058,
+    "longitude": 130.5603,
+    "goriyaku": "厄除け・延命長寿・開運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "寳登山神社",
+    "name_romaji": null,
+    "address": "埼玉県秩父郡長瀞町長瀞1828",
+    "latitude": 36.0924821,
+    "longitude": 139.1039652,
+    "goriyaku": "開運・火防・家内安全",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  },
+  {
+    "name_jp": "枚岡神社",
+    "name_romaji": null,
+    "address": "大阪府東大阪市出雲井町7-16",
+    "latitude": 34.6716,
+    "longitude": 135.6516,
+    "goriyaku": "開運・厄除け・商売繁盛",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "火"
+    ]
+  },
+  {
+    "name_jp": "護王神社",
+    "name_romaji": null,
+    "address": "京都府京都市上京区烏丸通下長者町下ル桜鶴円町385",
+    "latitude": 35.0186,
+    "longitude": 135.7583,
+    "goriyaku": "足腰健康・厄除け・勝運",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "水"
+    ]
+  },
+  {
+    "name_jp": "阿蘇神社",
+    "name_romaji": null,
+    "address": "熊本県阿蘇市一の宮町宮地3083-1",
+    "latitude": 32.9519,
+    "longitude": 131.1211,
+    "goriyaku": "開運・家内安全・農業守護",
+    "sajin": "",
+    "description": null,
+    "element": null,
+    "kyusei": null,
+    "astro_elements": [
+      "風"
+    ]
+  }
+]
