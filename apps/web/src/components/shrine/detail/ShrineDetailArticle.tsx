@@ -21,7 +21,8 @@ export default function ShrineDetailArticle({
   conciergeBreakdown = null,
   exp,
   proposal,
-  proposalReason,
+  proposalLead,
+  proposalWhy = [],
   publicGoshuinsPreview = [],
   publicGoshuinsViewAllHref = "",
   saveActionNode,
@@ -39,7 +40,11 @@ export default function ShrineDetailArticle({
   conciergeBreakdown?: ConciergeBreakdown | null;
   exp: ShrineExplanation;
   proposal?: string;
-  proposalReason?: string;
+  proposalLead?: string;
+  proposalWhy?: Array<{
+    label: "相談との一致" | "神社のご利益" | "補助的な一致";
+    text: string;
+  }>;
   saveActionNode?: React.ReactNode;
 }) {
   const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
@@ -63,7 +68,7 @@ export default function ShrineDetailArticle({
     <article className="space-y-4">
       <ShrineCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
 
-      <ShrineProposalSection proposal={proposal} proposalReason={proposalReason} />
+      <ShrineProposalSection proposal={proposal} proposalLead={proposalLead} proposalWhy={proposalWhy} />
 
       <section id="goshuins">
         <PublicGoshuinSection
