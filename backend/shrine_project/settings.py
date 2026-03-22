@@ -123,31 +123,34 @@ if sys.platform == "darwin":
     GDAL_LIBRARY_PATH = "/opt/homebrew/opt/gdal/lib/libgdal.dylib"  # noqa: F841
     GEOS_LIBRARY_PATH = "/opt/homebrew/opt/geos/lib/libgeos_c.dylib"  # noqa: F841
 
+
 # --- DB envs ---
 DB_HOST = os.getenv("DB_HOST", "db")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "jinja_db")
 DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "admin")
 DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
-
-# --- DATABASES（SQLite を選ぶ時だけ SQLite。デフォルトは Postgres / USE_GIS で切替） ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if USE_SQLITE:
-    # SQLite を使う場合、GIS=1 なら spatialite、GIS=0 なら通常 sqlite3
-    sqlite_engine = (
-        "django.contrib.gis.db.backends.spatialite" if USE_GIS else "django.db.backends.sqlite3"
-    )
-    DATABASES = {
-        "default": {
+
+def build_database_config() -> dict:
+    conn_max_age = 0 if DEBUG else 600
+
+    if USE_SQLITE:
+        sqlite_engine = (
+            "django.contrib.gis.db.backends.spatialite"
+            if USE_GIS
+            else "django.db.backends.sqlite3"
+        )
+        return {
             "ENGINE": sqlite_engine,
             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
             "TEST": {"NAME": f"test_{DB_NAME}"},
         }
-    }
-else:
+
     if DATABASE_URL:
-        db = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+        db = dj_database_url.parse(DATABASE_URL, conn_max_age=conn_max_age)
+
         scheme = DATABASE_URL.split(":", 1)[0].lower()
         if scheme == "postgis":
             db["ENGINE"] = "django.contrib.gis.db.backends.postgis"
@@ -157,91 +160,38 @@ else:
                 if USE_GIS
                 else "django.db.backends.postgresql"
             )
-        DATABASES = {"default": db}
-    else:
-        # DATABASE_URL が無い時の既定：PostgreSQL（GISはフラグで切替）
-        DATABASES = {
-            "default": {
-                "ENGINE": (
-                    "django.contrib.gis.db.backends.postgis"
-                    if USE_GIS
-                    else "django.db.backends.postgresql"
-                ),
-                "NAME": DB_NAME,
-                "USER": DB_USER,
-                "PASSWORD": DB_PASSWORD,
-                "HOST": DB_HOST,
-                "PORT": DB_PORT,
-                "CONN_MAX_AGE": 60,
-                "OPTIONS": {"connect_timeout": 5},
-                "TEST": {"NAME": f"test_{DB_NAME}"},
-            }
-        }
-engine = DATABASES["default"]["ENGINE"]
+
+        db.setdefault("OPTIONS", {})
+        db["OPTIONS"].setdefault("connect_timeout", 5)
+        db.setdefault("TEST", {"NAME": f"test_{DB_NAME}"})
+        return db
+
+    return {
+        "ENGINE": (
+            "django.contrib.gis.db.backends.postgis"
+            if USE_GIS
+            else "django.db.backends.postgresql"
+        ),
+        "NAME": DB_NAME,
+        "USER": DB_USER,
+        "PASSWORD": DB_PASSWORD,
+        "HOST": DB_HOST,
+        "PORT": DB_PORT,
+        "CONN_MAX_AGE": conn_max_age,
+        "OPTIONS": {"connect_timeout": 5},
+        "TEST": {"NAME": f"test_{DB_NAME}"},
+    }
 
 
-# sqlite/spatialite を判定
-def _is_sqlite_engine(e: str) -> bool:
-    e = (e or "").lower()
-    return ("sqlite3" in e) or ("spatialite" in e)
+DATABASES = {
+    "default": build_database_config()
+}
 
-
-# (A) 早期の不要OPTIONS除去
-if _is_sqlite_engine(engine):
-    DATABASES["default"].pop("OPTIONS", None)
-
-# ---- NoGIS固定 …(略)…
-
-# (B) エンジン別の最終調整（再度 engine 取得）
-engine = DATABASES["default"]["ENGINE"]
-
-if _is_sqlite_engine(engine):
-    # SQLite/Spatialite のときは PG 系のキーは全部外す
-    for k in ("USER", "PASSWORD", "HOST", "PORT", "OPTIONS", "CONN_MAX_AGE"):
-        DATABASES["default"].pop(k, None)
-else:
-    # PostgreSQL/POSTGIS のときだけ connect_timeout 等を設定
-    DATABASES["default"].setdefault("OPTIONS", {})
-    DATABASES["default"]["OPTIONS"].setdefault("connect_timeout", 5)
-    DATABASES["default"].setdefault("HOST", DB_HOST)
-    DATABASES["default"].setdefault("PORT", DB_PORT)
-    DATABASES["default"].setdefault("USER", DB_USER)
-    DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
-
-# SQLite の場合はOPTIONSごと落とす or 該当キーだけ除去
-if engine.endswith("sqlite3"):
-    # どちらか一方でOK
-    DATABASES["default"].pop("OPTIONS", None)
-# ---- NoGIS固定（テスト/CIで使う）: DB決定後に一度だけ適用 ----
+# ---- NoGIS固定（テスト/CIで使う）: DB構成は変えず migration だけ切り替える ----
 if not USE_GIS and not USE_SQLITE:
-    DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
     MIGRATION_MODULES = {**globals().get("MIGRATION_MODULES", {})}
     MIGRATION_MODULES["temples"] = "temples.migrations_nogis"
 
-# CI は接続プーリング無効
-if os.getenv("CI") == "true":
-    DATABASES["default"]["CONN_MAX_AGE"] = 0
-
-# エンジン別の最終調整
-engine = (DATABASES["default"]["ENGINE"] or "").lower()
-
-
-def _is_sqlite_like(e: str) -> bool:
-    return ("sqlite" in e) or ("spatialite" in e)
-
-
-if _is_sqlite_like(engine):
-    # SQLite / Spatialite は PG系キーを全撤去し、OPTIONS も消す
-    for k in ("USER", "PASSWORD", "HOST", "PORT", "CONN_MAX_AGE", "OPTIONS"):
-        DATABASES["default"].pop(k, None)
-else:
-    # PostgreSQL / PostGIS のみ OPTIONS.connect_timeout を設定
-    DATABASES["default"].setdefault("OPTIONS", {})
-    DATABASES["default"]["OPTIONS"].setdefault("connect_timeout", 5)
-    DATABASES["default"].setdefault("HOST", DB_HOST)
-    DATABASES["default"].setdefault("PORT", DB_PORT)
-    DATABASES["default"].setdefault("USER", DB_USER)
-    DATABASES["default"].setdefault("PASSWORD", DB_PASSWORD)
 # --- 起動時サマリ（DEBUG または CI） ---
 if DEBUG or os.getenv("CI") == "true":
     try:
