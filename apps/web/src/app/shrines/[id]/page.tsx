@@ -132,13 +132,9 @@ export default async function Page({ params, searchParams }: Props) {
   if (ctx === "concierge" && tid) {
     try {
       const thread = await getConciergeThread(String(tid));
-      console.log("DETAIL_THREAD", thread);
       conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
       conciergeReason = pickReasonFromThread(thread, numericId);
-      console.log("DETAIL_BREAKDOWN", conciergeBreakdown);
-      console.log("DETAIL_REASON", conciergeReason);
-    } catch (e) {
-      console.error("DETAIL_THREAD_ERROR", e);
+    } catch {
       conciergeBreakdown = null;
       conciergeReason = null;
     }

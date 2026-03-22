@@ -20,13 +20,6 @@ export default function ConciergeShrineCard(props: Props) {
 
   const href = detailHref ?? `/shrines/${shrineId}?${qs.toString()}`;
 
-  console.log("[ConciergeShrineCard] href_build", {
-    shrineId,
-    tid,
-    detailHref,
-    href,
-  });
-
   return (
     <ShrineCard
       shrineId={shrineId}

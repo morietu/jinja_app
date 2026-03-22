@@ -148,12 +148,7 @@ export default function ConciergeClientSimple() {
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3">
               {items.map(({ id, cardProps, tid }, idx) => {
-                console.log("[ConciergeClientSimple] card", {
-                  id,
-                  tid,
-                  shrineId: cardProps.shrineId,
-                  title: cardProps.title,
-                });
+
 
                 return <ConciergeShrineCard key={id} {...cardProps} tid={tid ?? null} hideLeftMark={idx !== 0} />;
               })}
