@@ -34,19 +34,6 @@ export const NearestResponse = z.object({
 });
 export type NearestResponse = z.infer<typeof NearestResponse>;
 
-// /concierges/histories/
-export const ConciergeHistory = z.object({
-  id: z.number().int(),
-  created_at: z.string(), // ISO
-  query: z.string(),
-  recommendations: z.array(ShrineLite).min(1).max(3),
-});
-export const ConciergeHistoriesResponse = z.object({
-  items: z.array(ConciergeHistory),
-});
-export type ConciergeHistoriesResponse = z.infer<
-  typeof ConciergeHistoriesResponse
->;
 
 // /directions/
 export const DirectionsResponse = z.object({
