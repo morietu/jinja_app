@@ -13,6 +13,7 @@ type Args = {
   shrine: Shrine;
   publicGoshuins: PublicGoshuinItem[];
   conciergeBreakdown?: ConciergeBreakdown | null;
+  conciergeReason?: string | null;
   ctx?: "map" | "concierge" | null;
   tid?: string | null;
   signals?: {
@@ -117,6 +118,7 @@ export function buildShrineDetailModel({
   shrine,
   publicGoshuins,
   conciergeBreakdown = null,
+  conciergeReason = null,
   ctx = null,
   tid = null,
   signals,
@@ -154,8 +156,15 @@ export function buildShrineDetailModel({
 
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
-  const proposal = buildProposalFromBreakdown(conciergeBreakdown);
-  const proposalReason = buildProposalReasonFromBreakdown(conciergeBreakdown);
+  const fallbackProposal = buildProposalFromBreakdown(conciergeBreakdown);
+  const fallbackProposalReason = buildProposalReasonFromBreakdown(conciergeBreakdown);
+
+  const hasConciergeReason =
+    ctx === "concierge" && typeof conciergeReason === "string" && conciergeReason.trim().length > 0;
+
+  const proposal = hasConciergeReason ? "今回の相談に対するおすすめ理由" : fallbackProposal;
+
+  const proposalReason = hasConciergeReason ? conciergeReason.trim() : fallbackProposalReason;
 
   return {
     shrineId: shrine.id,

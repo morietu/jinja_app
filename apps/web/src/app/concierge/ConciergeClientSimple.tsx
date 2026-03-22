@@ -15,8 +15,7 @@ export default function ConciergeClientSimple() {
   const router = useRouter();
   const [text, setText] = useState("");
 
-  const { items, loading, error, headerMessage, notice, remainingFree, limit, reply, search, clear } =
-    useConciergeSearch();
+  const { items, loading, error, remainingFree, limit, reply, search, clear } = useConciergeSearch();
 
   const submit = useCallback(
     async (value: string) => {
@@ -31,7 +30,6 @@ export default function ConciergeClientSimple() {
   }, [clear]);
 
   const isLimitReached = remainingFree === 0;
-  const hasResult = items.length > 0 || !!headerMessage || !!notice || !!reply || isLimitReached;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

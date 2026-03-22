@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/types/unified.ts
 import type { ConciergeThread, ConciergeRecommendation, ConciergeNeed } from "@/lib/api/concierge";
 
 export type StopReason = "design" | "paywall" | null;

@@ -79,17 +79,14 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
   }
 
   const recs = resp.data?.recommendations ?? [];
-  const threadId =
-    (typeof resp.thread_id === "string" && resp.thread_id.trim()) ||
-    (typeof resp.data?.thread_id === "string" && resp.data.thread_id.trim()) ||
-    null;
+  const threadId = typeof resp.thread_id === "string" && resp.thread_id.trim() ? resp.thread_id.trim() : null;
 
   console.log("[conciergeToShrineListItems] recs", recs.length, recs);
   console.log("[conciergeToShrineListItems] threadId", threadId);
 
   const items = recs
     .filter((r): r is typeof r & { shrine_id: number } => typeof r.shrine_id === "number")
-    .map((r, idx) => {
+    .map((r) => {
       const id = safeId(r);
       const name = r.display_name ?? r.name;
 
