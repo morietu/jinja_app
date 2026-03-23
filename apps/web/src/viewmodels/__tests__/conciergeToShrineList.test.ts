@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { conciergeToShrineListItems } from "../conciergeToShrineList";
 
 it("money × strong では三峯神社の短句を返す", () => {
