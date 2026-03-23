@@ -52,7 +52,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items[0].cardProps.title).toBe("神社A");
     expect(items[0].cardProps.address).toBe("東京都千代田区");
     expect(items[0].cardProps.explanationSummary).toBe("転機・仕事に向き合う参拝に");
-    expect(items[0].cardProps.explanationPrimaryReason).toBe("転機・仕事に向き合う参拝に");
+    expect(items[0].cardProps.explanationPrimaryReason).toBe("仕事や転機を整える");
     expect(items[0].cardProps.badgesOverride).toEqual(["転機・仕事"]);
     expect(items[0].cardProps.breakdown?.matched_need_tags).toEqual(["career"]);
   });
@@ -95,7 +95,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items[0].cardProps.title).toBe("神社B");
     expect(items[0].cardProps.address).toBe("東京都港区");
     expect(items[0].cardProps.explanationSummary).toBeNull();
-    expect(items[0].cardProps.explanationPrimaryReason).toBe("心を整えたいときの参拝に");
+    expect(items[0].cardProps.explanationPrimaryReason).toBe("不安や気持ちを整える");
     expect(items[0].cardProps.badgesOverride).toEqual(["不安・心", "休息"]);
   });
 
@@ -139,7 +139,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items).toHaveLength(1);
     expect(items[0].cardProps.shrineId).toBe(30);
     expect(items[0].cardProps.title).toBe("神社C");
-    expect(items[0].cardProps.explanationPrimaryReason).toBe("不安・心に向き合う参拝に");
+    expect(items[0].cardProps.explanationPrimaryReason).toBe("不安や気持ちを整える");
     expect(items[0].cardProps.badgesOverride).toEqual(["不安・心", "休息"]);
     expect(items[0].cardProps.breakdown?.matched_need_tags).toEqual(["mental", "rest"]);
   });
@@ -176,7 +176,7 @@ describe("conciergeToShrineListItems", () => {
     expect(items[0].cardProps.shrineId).toBe(40);
     expect(items[0].cardProps.title).toBe("神社D");
     expect(items[0].cardProps.explanationSummary).toBeNull();
-    expect(items[0].cardProps.explanationPrimaryReason).toBe("前進・後押しを願う参拝に");
+    expect(items[0].cardProps.explanationPrimaryReason).toBe("次の一歩を後押しする");
     expect(items[0].cardProps.badgesOverride).toEqual(["前進・後押し"]);
   });
 

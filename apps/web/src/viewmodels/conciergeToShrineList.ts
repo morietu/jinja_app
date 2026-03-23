@@ -54,6 +54,9 @@ const NEED_LABELS: Record<string, string> = {
   focus: "集中・継続",
 };
 
+type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
+type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
+
 function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommendations"]>[number]) {
   if (typeof r.shrine_id === "number") return `shrine_${r.shrine_id}`;
   if (r.place_id) return `place_${r.place_id}`;
@@ -70,6 +73,101 @@ function normalizeTagList(tags: string[] | null | undefined): string[] {
 
 function toDisplayTag(tag: string): string {
   return NEED_LABELS[tag] ?? tag;
+}
+
+function normalizeShrineName(name?: string | null): string {
+  return (name ?? "").replace(/\s+/g, "").trim();
+}
+
+function getShrineTone(shrineName?: string | null): ShrineTone {
+  const name = normalizeShrineName(shrineName);
+
+  if (name.includes("三峯")) return "strong";
+  if (name.includes("伊勢神宮") || name.includes("内宮")) return "quiet";
+  if (name.includes("乃木")) return "tight";
+
+  return "neutral";
+}
+
+function isPrimaryNeedTag(tag: string): tag is NeedTag {
+  return ["money", "courage", "career", "mental", "rest", "love", "study"].includes(tag);
+}
+
+function getPrimaryNeedTagForCard(
+  breakdown?: ConciergeBreakdown | null,
+  fallbackTags?: string[] | null,
+): NeedTag | null {
+  const tags = [
+    ...(Array.isArray(breakdown?.matched_need_tags) ? breakdown.matched_need_tags : []),
+    ...(Array.isArray(fallbackTags) ? fallbackTags : []),
+  ]
+    .filter((t): t is string => typeof t === "string")
+    .map((t) => t.trim())
+    .filter(isPrimaryNeedTag);
+
+  if (tags.includes("courage")) return "courage";
+  if (tags.includes("money")) return "money";
+  if (tags.includes("career")) return "career";
+  if (tags.includes("mental")) return "mental";
+  if (tags.includes("rest")) return "rest";
+  if (tags.includes("love")) return "love";
+  if (tags.includes("study")) return "study";
+
+  return tags[0] ?? null;
+}
+
+function buildCardPrimaryReason(
+  shrineName?: string | null,
+  breakdown?: ConciergeBreakdown | null,
+  fallbackTags?: string[] | null,
+  fallbackText?: string | null,
+): string | null {
+  const primary = getPrimaryNeedTagForCard(breakdown, fallbackTags);
+  if (!primary) return fallbackText ?? null;
+
+  const tone = getShrineTone(shrineName);
+
+  if (primary === "courage") {
+    if (tone === "strong") return "止まった流れを動かす";
+    if (tone === "tight") return "次の一歩を定める";
+    if (tone === "quiet") return "気持ちを整えて一歩を決める";
+    return "次の一歩を後押しする";
+  }
+
+  if (primary === "mental") {
+    if (tone === "strong") return "気持ちを切り替える";
+    if (tone === "tight") return "気持ちを引き締めて整える";
+    return "不安や気持ちを整える";
+  }
+
+  if (primary === "career") {
+    if (tone === "strong") return "仕事の停滞を動かす";
+    if (tone === "tight") return "仕事や転機の判断を定める";
+    return "仕事や転機を整える";
+  }
+
+  if (primary === "money") {
+    if (tone === "strong") return "金運や流れを動かす";
+    if (tone === "quiet") return "金運や巡りを整える";
+    return "金運や流れを立て直す";
+  }
+
+  if (primary === "rest") {
+    if (tone === "quiet") return "心身を休める";
+    return "心身を整える";
+  }
+
+  if (primary === "love") {
+    if (tone === "quiet") return "関係性を見直す";
+    return "良縁や関係性を進める";
+  }
+
+  if (primary === "study") {
+    if (tone === "tight") return "集中や目標を定める";
+    return "集中や学業の流れを整える";
+  }
+
+  return fallbackText ?? null;
 }
 
 export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeResultItem[] {
@@ -95,7 +193,9 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
       const tags = rawTags.map(toDisplayTag).slice(0, 3);
 
       const explanationSummary = r.explanation?.summary?.trim() || null;
-      const recommendReason = explanationSummary || r.reason?.trim() || null;
+      const rawReason = explanationSummary || r.reason?.trim() || null;
+
+      const recommendReason = buildCardPrimaryReason(name, r.breakdown ?? null, rawTags, rawReason) ?? rawReason;
 
       return {
         id,
