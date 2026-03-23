@@ -64,8 +64,6 @@ def test_concierge_study_explanation_uses_ja_label_not_raw_tag(case, monkeypatch
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", STUDY_REASON_CASES, ids=[c["id"] for c in STUDY_REASON_CASES])
 def test_concierge_study_reason_uses_study_label(case, monkeypatch):
-
-
     recs = build_chat_recommendations(
         query=case["query"],
         language="ja",
@@ -79,7 +77,9 @@ def test_concierge_study_reason_uses_study_label(case, monkeypatch):
 
     top_rec = recs["recommendations"][0]
     assert isinstance(top_rec, dict)
+
     reason = str(top_rec.get("reason") or "")
     assert "study" not in reason
     assert "学業や合格" in reason
-    assert "参拝に" in reason
+    assert "参拝先" in reason
+    assert "適しています" in reason
