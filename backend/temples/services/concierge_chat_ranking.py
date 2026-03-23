@@ -835,6 +835,48 @@ def build_recommendation_reason(
         for tag in matched
         if isinstance(tag, str) and str(tag).strip()
     ]
+    primary_label = str(rec.get("_primary_reason_label") or "").strip()
+
+    try:
+        log.info(
+            "[dbg] build_reason shrine_id=%r name=%r public_mode=%r matched_need_tags=%r primary_reason_label=%r score_need=%r",
+            rec.get("shrine_id"),
+            rec.get("name"),
+            public_mode,
+            matched_tags,
+            primary_label,
+            (rec.get("breakdown") or {}).get("score_need"),
+        )
+    except Exception:
+        pass
+
+    name = str(rec.get("name") or "").strip()
+    goriyaku = str(rec.get("goriyaku") or "").strip()
+
+    if primary_label:
+        return _build_need_reason_text(
+            primary_label,
+            name=name,
+            goriyaku=goriyaku,
+        )
+
+    if matched_tags:
+        return _build_need_reason_text(
+            matched_tags[0],
+            name=name,
+            goriyaku=goriyaku,
+        )
+
+    if name:
+        return f"{name}は、今の悩みや願いに合わせて参拝先の候補に入れています。"
+    return "今の悩みや願いに合わせた参拝先の候補としておすすめしています。"
+
+    primary_label = str(rec.get("_primary_reason_label") or "").strip()
+    matched_tags = [
+        str(tag).strip()
+        for tag in matched
+        if isinstance(tag, str) and str(tag).strip()
+    ]
 
     try:
         log.info(
@@ -848,13 +890,72 @@ def build_recommendation_reason(
     except Exception:
         pass
 
+    name = str(rec.get("name") or "").strip()
+    goriyaku = str(rec.get("goriyaku") or "").strip()
+
+    if primary_label:
+        return _build_need_reason_text(
+            primary_label,
+            name=name,
+            goriyaku=goriyaku,
+        )
+
     if matched_tags:
-        return _build_need_reason_text(matched_tags[0])
+        return _build_need_reason_text(
+            matched_tags[0],
+            name=name,
+            goriyaku=goriyaku,
+        )
 
-    return "今の悩みや願いに寄り添いやすい神社としておすすめしています。"
+    if name:
+        return f"{name}は、今の悩みや願いに合わせて参拝先の候補に入れています。"
+    return "今の悩みや願いに合わせた参拝先の候補としておすすめしています。"
+
+def _build_need_lead(tag: str, goriyaku: str) -> str:
+    if goriyaku:
+        normalized = (
+            goriyaku.replace("、", "・")
+            .replace("，", "・")
+            .replace("/", "・")
+        )
+        parts = [p.strip() for p in normalized.split("・") if p.strip()]
+        if parts:
+            return parts[0]
+
+    fallback = {
+        "study": "学業成就",
+        "mental": "心願成就",
+        "rest": "心身浄化",
+        "love": "良縁成就",
+        "career": "仕事運",
+        "money": "金運",
+        "courage": "開運",
+    }
+    return fallback.get(tag, "ご利益")
 
 
-def _build_need_reason_text(tag: str) -> str:
+def _build_need_reason_text(
+    tag: str,
+    *,
+    name: str = "",
+    goriyaku: str = "",
+) -> str:
+    intent_map = {
+        "study": "学業や合格",
+        "mental": "不安や心の安定",
+        "rest": "休息や気持ちの切り替え",
+        "love": "恋愛や良縁",
+        "career": "仕事や転機",
+        "money": "金運向上",
+        "courage": "前進や後押し",
+    }
+
+    user_intent = intent_map.get(tag, "今の願い")
+
+    if name:
+        lead = _build_need_lead(tag, goriyaku)
+        return f"{lead}のご利益で知られる{name}は、{user_intent}を願う参拝先として適しています。"
+
     mapping = {
         "study": "学業や合格を願う今の気持ちに寄り添いやすく、参拝にも向いています。",
         "mental": "不安や心を整えたい今の気持ちに寄り添いやすく、参拝にも向いています。",

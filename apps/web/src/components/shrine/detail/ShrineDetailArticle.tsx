@@ -11,6 +11,12 @@ import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCard
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel, ShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
+type JudgeSectionItem = {
+  key: string;
+  title: string;
+  body: string;
+};
+
 export default function ShrineDetailArticle({
   cardProps,
   heroImageUrl,
@@ -23,6 +29,7 @@ export default function ShrineDetailArticle({
   proposal,
   proposalLead,
   proposalWhy = [],
+  judgeSection = null,
   publicGoshuinsPreview = [],
   publicGoshuinsViewAllHref = "",
   saveActionNode,
@@ -45,6 +52,12 @@ export default function ShrineDetailArticle({
     label: "相談との一致" | "神社のご利益" | "補助的な一致";
     text: string;
   }>;
+  judgeSection?: {
+    disclosureTitle?: string;
+    title: string;
+    lead: string;
+    items: JudgeSectionItem[];
+  } | null;
   saveActionNode?: React.ReactNode;
 }) {
   const heroCardProps = { ...cardProps, imageUrl: heroImageUrl ?? cardProps.imageUrl ?? null };
@@ -83,13 +96,13 @@ export default function ShrineDetailArticle({
 
       <div className="space-y-2">
         <DetailDisclosureBlock
-          title="相性の根拠"
+          title={judgeSection?.disclosureTitle ?? "おすすめの根拠"}
           summary={judge.summary || "おすすめの根拠を確認できます"}
           defaultOpen={false}
           level={judge.level}
           hint={judge.hint}
         >
-          <ShrineJudgeSection concierge={conciergeBreakdown} exp={exp} />
+          <ShrineJudgeSection concierge={conciergeBreakdown} exp={exp} judgeSection={judgeSection} />
         </DetailDisclosureBlock>
 
         <DetailDisclosureBlock title="ご利益" summary={benefitSummary} defaultOpen={false}>

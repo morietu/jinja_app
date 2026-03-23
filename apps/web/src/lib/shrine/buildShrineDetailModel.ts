@@ -14,6 +14,8 @@ type Args = {
   publicGoshuins: PublicGoshuinItem[];
   conciergeBreakdown?: ConciergeBreakdown | null;
   conciergeReason?: string | null;
+  conciergeExplanationPayload?: ExplanationPayload | null;
+  conciergeMode?: ConciergeMode | null;
   ctx?: "map" | "concierge" | null;
   tid?: string | null;
   signals?: {
@@ -23,7 +25,112 @@ type Args = {
   };
 };
 
+type ExplanationPrimaryReason = {
+  type?: string | null;
+  label?: string | null;
+  label_ja?: string | null;
+  evidence?: string[] | null;
+  score?: number | null;
+  is_primary?: boolean | null;
+};
 
+type ExplanationPayload = {
+  primary_need_tag?: string | null;
+  primary_need_label_ja?: string | null;
+  primary_reason?: ExplanationPrimaryReason | null;
+  secondary_reasons?: ExplanationPrimaryReason[] | null;
+  original_reason?: string | null;
+  score?: {
+    element?: number | null;
+    need?: number | null;
+    total?: number | null;
+    total_ranked?: number | null;
+  } | null;
+};
+
+type ConciergeMode = "need" | "compat";
+
+function resolveConciergeMode(value: unknown): ConciergeMode {
+  return value === "compat" ? "compat" : "need";
+}
+
+function buildJudgeSectionOrder(args: {
+  mode: ConciergeMode;
+  explanationPayload?: ExplanationPayload | null;
+  breakdown?: ConciergeBreakdown | null;
+  goriyakuText?: string | null;
+}): Array<{
+  key: string;
+  title: string;
+  body: string;
+}> {
+  const mode = args.mode;
+  const payload = args.explanationPayload ?? null;
+  const primaryNeedLabel = payload?.primary_need_label_ja ?? null;
+  const primaryReasonLabel = payload?.primary_reason?.label_ja ?? null;
+  const secondaryReasons = Array.isArray(payload?.secondary_reasons) ? payload!.secondary_reasons! : [];
+
+  const sectionsForNeed = [
+    {
+      key: "lead",
+      title: "主軸",
+      body: primaryNeedLabel
+        ? `今回の相談では、${primaryNeedLabel}に関わる悩みが主軸にあります。`
+        : "今回の相談では、今の状態を整えたい意図が主軸にあります。",
+    },
+    {
+      key: "reason",
+      title: "相談との一致",
+      body: primaryReasonLabel
+        ? `${primaryReasonLabel}に関わる相談内容との重なりが見られます。`
+        : "相談内容に近い要素が見られます。",
+    },
+    {
+      key: "goriyaku",
+      title: "この神社のご利益",
+      body: args.goriyakuText ?? "この神社のご利益が、今回の相談内容に近い方向です。",
+    },
+    {
+      key: "secondary",
+      title: "補助的な方向性",
+      body:
+        secondaryReasons.length > 0
+          ? secondaryReasons
+              .map((r) => r.label_ja)
+              .filter(Boolean)
+              .slice(0, 2)
+              .join("・")
+          : "主軸を補う方向性があります。",
+    },
+  ];
+
+  const sectionsForCompat = [
+    {
+      key: "compat",
+      title: "生年月日との相性",
+      body: "今回の提案では、生年月日との相性を主軸に候補を整理しています。",
+    },
+    {
+      key: "element",
+      title: "神社の要素",
+      body: "神社が持つ要素との噛み合いを見ています。",
+    },
+    {
+      key: "reason",
+      title: "相談との一致",
+      body: primaryReasonLabel
+        ? `${primaryReasonLabel}に関わる相談内容との補助的な重なりもあります。`
+        : "相談内容との補助的な一致も見られます。",
+    },
+    {
+      key: "goriyaku",
+      title: "この神社のご利益",
+      body: args.goriyakuText ?? "ご利益面でも補助的な一致があります。",
+    },
+  ];
+
+  return mode === "compat" ? sectionsForCompat : sectionsForNeed;
+}
 
 type ProposalWhyItem = {
   label: "相談との一致" | "神社のご利益" | "補助的な一致";
@@ -158,38 +265,16 @@ function buildProposalFromBreakdown(breakdown?: ConciergeBreakdown | null): stri
   return "今回の相談に応じた参拝先";
 }
 
-function buildProposalLeadFromBreakdown(breakdown?: ConciergeBreakdown | null): string {
-  const primary = getPrimaryNeedTag(breakdown);
+function buildProposalLead(args: { mode: ConciergeMode; explanationPayload?: ExplanationPayload | null }): string {
+  const payload = args.explanationPayload ?? null;
 
-  if (primary === "courage") {
-    return "まず前に進むきっかけを持ちたい意図が主軸にあります。";
+  if (args.mode === "compat") {
+    return "今回の提案では、生年月日との相性を主軸に見ています。";
   }
 
-  if (primary === "money") {
-    return "まず金運や流れを立て直したい意図が主軸にあります。";
-  }
-
-  if (primary === "career") {
-    return "まず仕事や転機に向き合いたい意図が主軸にあります。";
-  }
-
-  if (primary === "mental") {
-    return "まず不安や気持ちの揺れを整えたい意図が主軸にあります。";
-  }
-
-  if (primary === "rest") {
-    return "まず落ち着いて休みたい意図が主軸にあります。";
-  }
-
-  if (primary === "love") {
-    return "まず良縁や恋愛を前向きに進めたい意図が主軸にあります。";
-  }
-
-  if (primary === "study") {
-    return "まず学業や合格に集中したい意図が主軸にあります。";
-  }
-
-  return "今回の相談では、今の状態を整えたい意図が主軸にあります。";
+  return payload?.primary_need_label_ja
+    ? `今回の相談では、${payload.primary_need_label_ja}が中心テーマです。`
+    : "今回の相談では、今の状態に近い悩みを主軸に見ています。";
 }
 
 type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
@@ -459,6 +544,8 @@ export function buildShrineDetailModel({
   publicGoshuins,
   conciergeBreakdown = null,
   conciergeReason = null,
+  conciergeExplanationPayload = null,
+  conciergeMode = null,
   ctx = null,
   tid = null,
   signals,
@@ -497,15 +584,40 @@ export function buildShrineDetailModel({
   const judge = buildShrineJudge(exp, conciergeBreakdown);
 
   const fallbackProposal = buildProposalFromBreakdown(conciergeBreakdown);
-  const fallbackProposalLead = buildProposalLeadFromBreakdown(conciergeBreakdown);
   const fallbackProposalWhy = buildProposalWhyFromBreakdown(conciergeBreakdown, benefitLabels, cardProps.title ?? null);
 
   const hasConciergeReason =
     ctx === "concierge" && typeof conciergeReason === "string" && conciergeReason.trim().length > 0;
 
   const proposal = hasConciergeReason ? "今回の相談の整理" : fallbackProposal;
-  const proposalLead = hasConciergeReason ? conciergeReason.trim() : fallbackProposalLead;
+  const proposalLead = hasConciergeReason
+    ? conciergeReason.trim()
+    : buildProposalLead({
+        mode: resolveConciergeMode(conciergeMode),
+        explanationPayload: conciergeExplanationPayload ?? null,
+      });
+
   const proposalWhy = fallbackProposalWhy;
+
+  const mode = resolveConciergeMode(conciergeMode);
+  const explanationPayload = conciergeExplanationPayload ?? null;
+
+  const judgeLead = buildProposalLead({
+    mode,
+    explanationPayload,
+  });
+
+  const goriyakuText =
+    benefitLabels.length > 0
+      ? `${benefitLabels.slice(0, 3).join("・")}のご利益が、今回の相談内容に近い方向です。`
+      : "この神社のご利益が、今回の相談内容に近い方向です。";
+
+  const judgeItems = buildJudgeSectionOrder({
+    mode,
+    explanationPayload,
+    breakdown: conciergeBreakdown,
+    goriyakuText,
+  });
 
   return {
     shrineId: shrine.id,
@@ -521,5 +633,11 @@ export function buildShrineDetailModel({
     proposalWhy,
     publicGoshuinsPreview: publicGoshuins,
     publicGoshuinsViewAllHref,
+    judgeSection: {
+      disclosureTitle: mode === "compat" ? "相性の根拠" : "おすすめの根拠",
+      title: mode === "compat" ? "今回の相性に応じた参拝先" : "今回の相談に応じた参拝先",
+      lead: judgeLead,
+      items: judgeItems,
+    },
   };
 }

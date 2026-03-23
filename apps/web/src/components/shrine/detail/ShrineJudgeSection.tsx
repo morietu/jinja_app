@@ -4,14 +4,43 @@ import ConciergeBreakdownBody from "@/components/concierge/ConciergeBreakdownBod
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { ShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 
+type JudgeSectionItem = {
+  key: string;
+  title: string;
+  body: string;
+};
+
 type Props = {
   concierge: ConciergeBreakdown | null;
   exp: ShrineExplanation;
+  judgeSection?: {
+    title: string;
+    lead: string;
+    items: JudgeSectionItem[];
+  } | null;
 };
 
-export default function ShrineJudgeSection({ concierge, exp }: Props) {
+export default function ShrineJudgeSection({ concierge, exp, judgeSection }: Props) {
   return (
     <div className="space-y-3">
+      {judgeSection ? (
+        <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+          <div>
+            <div className="text-xs font-semibold text-slate-500">{judgeSection.title}</div>
+            <p className="mt-1 text-sm text-slate-800">{judgeSection.lead}</p>
+          </div>
+
+          <div className="space-y-2">
+            {judgeSection.items.map((item) => (
+              <div key={item.key}>
+                <div className="text-xs font-semibold text-slate-500">{item.title}</div>
+                <p className="mt-1 text-sm text-slate-800">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {concierge ? (
         <div className="space-y-2 text-sm text-slate-800">
           <div className="text-xs font-semibold text-slate-500">おすすめ理由（内訳）</div>

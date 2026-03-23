@@ -1,3 +1,4 @@
+// apps/web/src/lib/api/conciergeClient.ts
 import { postConciergeChat } from "@/lib/api/concierge";
 import type { ConciergeResponse } from "@/viewmodels/conciergeToShrineList";
 import type { UnifiedConciergeResponse } from "@/features/concierge/types/unified";
@@ -39,6 +40,7 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
         reason_source: r?.reason_source ?? null,
         bullets: Array.isArray(r?.bullets) ? r.bullets : null,
         explanation: r?.explanation ?? null,
+        _explanation_payload: r?._explanation_payload ?? null,
         address: r?.address ?? null,
         location: r?.location ?? r?.address ?? null,
         lat: r?.lat ?? null,

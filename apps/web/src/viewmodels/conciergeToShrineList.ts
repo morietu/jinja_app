@@ -1,6 +1,15 @@
 import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 
+type ExplanationPayloadReason = {
+  type?: string | null;
+  label?: string | null;
+  label_ja?: string | null;
+  evidence?: string[] | null;
+  score?: number | null;
+  is_primary?: boolean | null;
+};
+
 export type ConciergeResponse = {
   ok: boolean;
   remaining_free?: number | null;
@@ -37,6 +46,23 @@ export type ConciergeResponse = {
           evidence?: Record<string, unknown> | null;
         }> | null;
         disclaimer?: string | null;
+      } | null;
+      _explanation_payload?: {
+        version?: number | null;
+        matched_need_tags?: string[] | null;
+        primary_need_tag?: string | null;
+        primary_need_label_ja?: string | null;
+        primary_reason?: ExplanationPayloadReason | null;
+        secondary_reasons?: ExplanationPayloadReason[] | null;
+        highlights?: string[] | null;
+        reason_source?: string | null;
+        original_reason?: string | null;
+        score?: {
+          element?: number | null;
+          need?: number | null;
+          total?: number | null;
+          total_ranked?: number | null;
+        } | null;
       } | null;
       breakdown?: ConciergeBreakdown | null;
     }>;
@@ -93,14 +119,18 @@ function isPrimaryNeedTag(tag: string): tag is NeedTag {
   return ["money", "courage", "career", "mental", "rest", "love", "study"].includes(tag);
 }
 
-function getPrimaryNeedTagForCard(
-  breakdown?: ConciergeBreakdown | null,
-  fallbackTags?: string[] | null,
-): NeedTag | null {
-  const tags = [
-    ...(Array.isArray(breakdown?.matched_need_tags) ? breakdown.matched_need_tags : []),
-    ...(Array.isArray(fallbackTags) ? fallbackTags : []),
-  ]
+function resolveCardPrimaryTag(args: {
+  primaryReasonLabel?: string | null;
+  fallbackTags?: string[] | null;
+}): NeedTag | null {
+  const primaryReasonLabel = (args.primaryReasonLabel ?? "").trim();
+
+  if (isPrimaryNeedTag(primaryReasonLabel)) {
+    return primaryReasonLabel;
+  }
+
+  const fallbackTags = Array.isArray(args.fallbackTags) ? args.fallbackTags : [];
+  const tags = fallbackTags
     .filter((t): t is string => typeof t === "string")
     .map((t) => t.trim())
     .filter(isPrimaryNeedTag);
@@ -118,51 +148,49 @@ function getPrimaryNeedTagForCard(
 
 function buildCardPrimaryReason(
   shrineName?: string | null,
-  breakdown?: ConciergeBreakdown | null,
-  fallbackTags?: string[] | null,
+  primaryTag?: NeedTag | null,
   fallbackText?: string | null,
 ): string | null {
-  const primary = getPrimaryNeedTagForCard(breakdown, fallbackTags);
-  if (!primary) return fallbackText ?? null;
+  if (!primaryTag) return fallbackText ?? null;
 
   const tone = getShrineTone(shrineName);
 
-  if (primary === "courage") {
+  if (primaryTag === "courage") {
     if (tone === "strong") return "止まった流れを動かす";
     if (tone === "tight") return "次の一歩を定める";
     if (tone === "quiet") return "気持ちを整えて一歩を決める";
     return "次の一歩を後押しする";
   }
 
-  if (primary === "mental") {
+  if (primaryTag === "mental") {
     if (tone === "strong") return "気持ちを切り替える";
     if (tone === "tight") return "気持ちを引き締めて整える";
     return "不安や気持ちを整える";
   }
 
-  if (primary === "career") {
+  if (primaryTag === "career") {
     if (tone === "strong") return "仕事の停滞を動かす";
     if (tone === "tight") return "仕事や転機の判断を定める";
     return "仕事や転機を整える";
   }
 
-  if (primary === "money") {
+  if (primaryTag === "money") {
     if (tone === "strong") return "金運や流れを動かす";
     if (tone === "quiet") return "金運や巡りを整える";
     return "金運や流れを立て直す";
   }
 
-  if (primary === "rest") {
+  if (primaryTag === "rest") {
     if (tone === "quiet") return "心身を休める";
     return "心身を整える";
   }
 
-  if (primary === "love") {
+  if (primaryTag === "love") {
     if (tone === "quiet") return "関係性を見直す";
     return "良縁や関係性を進める";
   }
 
-  if (primary === "study") {
+  if (primaryTag === "study") {
     if (tone === "tight") return "集中や目標を定める";
     return "集中や学業の流れを整える";
   }
@@ -193,9 +221,22 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
       const tags = rawTags.map(toDisplayTag).slice(0, 3);
 
       const explanationSummary = r.explanation?.summary?.trim() || null;
-      const rawReason = explanationSummary || r.reason?.trim() || null;
+      const rawReason =
+        r._explanation_payload?.original_reason?.trim() || explanationSummary || r.reason?.trim() || null;
 
-      const recommendReason = buildCardPrimaryReason(name, r.breakdown ?? null, rawTags, rawReason) ?? rawReason;
+      console.log("primaryReasonLabel", r._explanation_payload?.primary_reason?.label);
+      const primaryReasonLabel = r._explanation_payload?.primary_reason?.label?.trim() || null;
+
+      const primaryTag = resolveCardPrimaryTag({
+        primaryReasonLabel,
+        fallbackTags: rawTags,
+      });
+
+      const recommendReason = buildCardPrimaryReason(name, primaryTag, rawReason) ?? rawReason;
+
+      console.log("rec keys", Object.keys(r));
+      console.log("_explanation_payload", r._explanation_payload);
+      console.log("primary_reason", r._explanation_payload?.primary_reason);
 
       return {
         id,
