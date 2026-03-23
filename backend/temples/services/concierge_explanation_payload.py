@@ -72,12 +72,20 @@ def _normalize_reason_facts(value: Any, *, limit: int | None = None) -> List[Dic
 
 def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
     """
-    ranking / presentation / explanations 間で共有する
     explanation 用の正規化 payload を作る。
 
-    この payload は自然文を持たず、
-    あくまで説明材料だけをまとめる。
+    用語定義:
+    - primary_need_tag:
+      相談全体の中心テーマ。ユーザー意図の主語。
+      detail で「相談の中心」を説明するために使う。
+    - primary_reason:
+      この神社が上位に入った直接理由。順位根拠の主語。
+      card や explanation で「なぜこの候補か」を説明するために使う。
+
+    この payload 自体は自然文を生成せず、
+    explanation 表示用の構造化データだけを持つ。
     """
+
     breakdown = rec.get("breakdown") if isinstance(rec.get("breakdown"), dict) else {}
     breakdown_detail = (
         rec.get("breakdown_detail")
@@ -85,18 +93,21 @@ def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
         else {}
     )
 
+    # 相談文脈
     matched_need_tags = _safe_str_list(
         breakdown.get("matched_need_tags"),
         limit=3,
     )
-    highlights = _safe_str_list(rec.get("highlights"), limit=3)
-
     primary_need_tag = matched_need_tags[0] if matched_need_tags else None
     primary_need_label_ja = NEED_LABELS_JA.get(primary_need_tag or "", None)
 
+    # 表示補助
+    highlights = _safe_str_list(rec.get("highlights"), limit=3)
+    # reason_source は表示文の生成経路を表す。primary_reason そのものではない。
     reason_source = str(rec.get("reason_source") or "").strip() or None
     original_reason = str(rec.get("reason") or "").strip() or None
 
+    # スコア
     score_element = int(breakdown.get("score_element") or 0)
     score_need = int(breakdown.get("score_need") or 0)
     score_total = float(breakdown.get("score_total") or 0.0)
@@ -107,6 +118,7 @@ def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
             (breakdown_detail["features"].get("score_total_ranked") or 0.0)
         )
 
+    # 候補採用理由
     reason_facts = _normalize_reason_facts(
         rec.get("_reason_facts"),
         limit=5,
@@ -130,20 +142,17 @@ def build_explanation_payload(rec: Dict[str, Any]) -> Dict[str, Any]:
                 "is_primary": True,
             }
 
-    secondary_reasons = [
-        x for x in reason_facts
-        if not x.get("is_primary")
-    ]
+    secondary_reasons = [x for x in reason_facts if not x.get("is_primary")]
 
     return {
         "version": 2,
         "matched_need_tags": matched_need_tags,
         "primary_need_tag": primary_need_tag,
         "primary_need_label_ja": primary_need_label_ja,
-        "highlights": highlights,
-        "reason_source": reason_source,
         "primary_reason": primary_reason,
         "secondary_reasons": secondary_reasons[:3],
+        "highlights": highlights,
+        "reason_source": reason_source,
         "original_reason": original_reason,
         "score": {
             "element": score_element,

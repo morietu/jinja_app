@@ -12,9 +12,14 @@ import { gmapsDirUrl } from "@/lib/maps";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
-
+import {
+  pickExplanationPayloadFromThread,
+  type PickedExplanationPayload,
+} from "@/lib/concierge/pickExplanationPayloadFromThread";
 import { pickBreakdownFromThread } from "@/lib/concierge/pickBreakdownFromThread";
 import { pickReasonFromThread } from "@/lib/concierge/pickReasonFromThread";
+
+import { pickModeFromThread } from "@/lib/concierge/pickModeFromThread";
 
 import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
@@ -128,16 +133,52 @@ export default async function Page({ params, searchParams }: Props) {
 
   let conciergeBreakdown: ConciergeBreakdown | null = null;
   let conciergeReason: string | null = null;
+  let conciergeExplanationPayload: PickedExplanationPayload | null = null;
+  let conciergeMode: "need" | "compat" | null = null;
+  
 
   if (ctx === "concierge" && tid) {
     try {
       const thread = await getConciergeThread(String(tid));
       conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
       conciergeReason = pickReasonFromThread(thread, numericId);
-    } catch {
+      conciergeExplanationPayload = pickExplanationPayloadFromThread(thread, numericId);
+      conciergeMode = pickModeFromThread(thread);
+    } catch (e) {
+      serverLog("warn", "GET_CONCIERGE_THREAD_FAILED", {
+        shrineId: numericId,
+        tid,
+        message: e instanceof Error ? e.message : String(e),
+      });
       conciergeBreakdown = null;
       conciergeReason = null;
+      conciergeExplanationPayload = null;
+      conciergeMode = null;
     }
+  }
+
+  if (ctx === "concierge" && !tid) {
+    conciergeMode = "compat";
+    conciergeExplanationPayload = {
+      primary_need_tag: null,
+      primary_need_label_ja: null,
+      primary_reason: {
+        type: "element",
+        label: "element",
+        label_ja: "生年月日との相性",
+        evidence: [],
+        score: 1,
+        is_primary: true,
+      },
+      secondary_reasons: [],
+      original_reason: "生年月日との相性を主軸に候補を整理しています。",
+      score: {
+        element: 3,
+        need: 1,
+        total: 0.9,
+        total_ranked: 2.4,
+      },
+    };
   }
 
   const model = buildShrineDetailModel({
@@ -145,11 +186,12 @@ export default async function Page({ params, searchParams }: Props) {
     publicGoshuins,
     conciergeBreakdown,
     conciergeReason,
+    conciergeExplanationPayload,
+    conciergeMode,
     ctx,
     tid,
     signals,
   });
-
   return (
     <>
       <ShrineDetailToast shrineId={numericId} />
