@@ -832,7 +832,8 @@ def test_concierge_explanation_contract(monkeypatch, settings):
     reason = str(item.get("reason") or "")
     assert "mental" not in reason
     assert any(word in reason for word in ["不安", "心", "整え", "気持ち"])
-    assert "参拝に" in reason
+    assert "参拝先" in reason
+    assert "適しています" in reason
     assert isinstance(item["bullets"], list)
     assert item["bullets"][0] == "落ち着いて気持ちを整えやすい雰囲気"
     assert item["reason_source"] == "reason:matched_need_tags"
