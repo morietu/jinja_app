@@ -245,10 +245,6 @@ function isRecommendationsPayload(
 
 type ViewerTier = "anonymous" | "free" | "premium";
 
-type BillingStatus = {
-  plan: "free" | "premium" | null;
-  is_active: boolean;
-} | null;
 
 type ConciergeCtaKind = "none" | "auth" | "premium";
 type ConciergeInfoBannerState =
@@ -353,7 +349,7 @@ export default function ConciergeClientFull() {
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
 
   const [threadDetail, setThreadDetail] = useState<ConciergeThreadDetail | null>(null);
-  const [threadLoading, setThreadLoading] = useState(false);
+  const [, setThreadLoading] = useState(false);
 
   const setActiveTid = (tid: number) => {
     snap("setActiveTid", { from: activeThreadIdRef.current, to: tid });
