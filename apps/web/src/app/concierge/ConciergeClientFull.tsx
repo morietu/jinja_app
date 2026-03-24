@@ -46,7 +46,6 @@ type EventsByThread = Record<number, LocalEvent[]>;
 type EntryMode = "feel" | "filter";
 
 const STORAGE_KEY = "concierge:eventsByThread";
-const LS_BIRTHDATE_KEY = "concierge:birthdate";
 const LS_ENTRY_MODE = "concierge:entryMode";
 
 type AnonymousConciergeSnapshot = {
@@ -55,7 +54,6 @@ type AnonymousConciergeSnapshot = {
   entryMode: EntryMode;
   unified: UnifiedConciergeResponse;
   filters: {
-    birthdate: string;
     selectedTagIds: number[];
     extraCondition: string;
   };
@@ -472,30 +470,6 @@ export default function ConciergeClientFull() {
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  /* ----------------------------------------
-   * LS: birthdate
-   * -------------------------------------- */
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(LS_BIRTHDATE_KEY);
-      if (v && isValidISODate(v)) setBirthdate(v);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (birthdate && isValidISODate(birthdate)) {
-        localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
-      } else {
-        localStorage.removeItem(LS_BIRTHDATE_KEY);
-      }
-    } catch {
-      // ignore
-    }
-  }, [birthdate]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -559,7 +533,6 @@ export default function ConciergeClientFull() {
     if (!snapshot) return;
 
     setEntryMode(snapshot.entryMode ?? "filter");
-    setBirthdate(snapshot.filters.birthdate ?? "");
     setSelectedTagIds(Array.isArray(snapshot.filters.selectedTagIds) ? snapshot.filters.selectedTagIds : []);
     setExtraCondition(snapshot.filters.extraCondition ?? "");
     setLiveUnified(snapshot.unified);
@@ -819,7 +792,6 @@ export default function ConciergeClientFull() {
           entryMode,
           unified: u,
           filters: {
-            birthdate,
             selectedTagIds,
             extraCondition,
           },
@@ -1075,11 +1047,6 @@ export default function ConciergeClientFull() {
         setSelectedTagIds([]);
         setBirthdate("");
         clearAnonymousSnapshot();
-        try {
-          localStorage.removeItem(LS_BIRTHDATE_KEY);
-        } catch {
-          // ignore
-        }
         return;
     }
   };

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 import uuid
 import time
@@ -10,11 +9,11 @@ import time
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+
 from django.conf import settings as dj_settings
 
 from drf_spectacular.utils import OpenApiTypes, extend_schema
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,7 +31,6 @@ from temples.services.anonymous_id import attach_anonymous_cookie
 from temples.services.plan_service import resolve_plan_context
 from temples.services.quota_service import check_quota, consume_quota
 from temples.services.concierge_candidate_utils import (
-    _candidate_key,
     _dedupe_candidates,
     _to_float,
 )
@@ -43,11 +41,8 @@ from temples.services.concierge_chat_ranking import (
 from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
-from temples.services.billing_state import is_premium_for_user
-from temples.services.billing_state import get_billing_status
 
 
-BIRTHDATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 BIRTHDATE_PATTERNS = (
     re.compile(r"^(\d{4})-(\d{2})-(\d{2})$"),
@@ -492,7 +487,6 @@ class ConciergeChatView(APIView):
 
         data = request.data or {}
 
-        log.info("[api/chat] raw keys=%s", sorted(list(data.keys()))[:60])
 
         log.info(
             "[api/chat] has_lat=%s has_lng=%s has_radius_m=%s",
@@ -500,9 +494,6 @@ class ConciergeChatView(APIView):
             data.get("lng") is not None,
             data.get("radius_m") is not None,
         )
-
-        payload_lat = _to_float(data.get("lat"))
-        payload_lng = _to_float(data.get("lng"))
 
         # -------------------------
         # ① 入力解決
@@ -556,12 +547,6 @@ class ConciergeChatView(APIView):
                 time.perf_counter() - t0_total,
             )
             return response
-
-
-        lat_src = "payload"
-        if (payload_lat is None or payload_lng is None) and area and lat is not None and lng is not None:
-            lat_src = "geocode(area)"
-
 
         # -------------------------
         # ② candidate build
@@ -626,22 +611,6 @@ class ConciergeChatView(APIView):
         plan_context = resolve_plan_context(request)
         try:
             quota = check_quota(plan_context, "concierge")
-
-            st = get_billing_status(user=user)
-
-            log.warning(
-                "[concierge/debug] user_id=%r is_auth=%s plan=%s quota_unlimited=%s remaining=%r limit=%r provider_raw=%rstub_plan=%r stub_active=%r billing_status=%r",
-                getattr(user, "id", None),
-                bool(user is not None and getattr(user, "is_authenticated", False)),
-                plan_context.plan,
-                quota.unlimited,
-                quota.remaining,
-                quota.limit,
-                os.getenv("BILLING_PROVIDER"),
-                os.getenv("BILLING_STUB_PLAN"),
-                os.getenv("BILLING_STUB_ACTIVE"),
-                st,
-            )
         except Exception:
             log.exception(
                 "[concierge/chat] quota_check failed rid=%s plan=%s",
@@ -649,21 +618,8 @@ class ConciergeChatView(APIView):
                 getattr(plan_context, "plan", None),
             )
             raise
-        st = get_billing_status(user=user)
 
-        log.warning(
-            "[concierge/debug] user_id=%r is_auth=%s plan=%s quota_unlimited=%s remaining=%r limit=%r provider_raw=%r stub_plan=%r stub_active=%r billing_status=%r",
-            getattr(user, "id", None),
-            bool(user is not None and getattr(user, "is_authenticated", False)),
-            plan_context.plan,
-            quota.unlimited,
-            quota.remaining,
-            quota.limit,
-            os.getenv("BILLING_PROVIDER"),
-            os.getenv("BILLING_STUB_PLAN"),
-            os.getenv("BILLING_STUB_ACTIVE"),
-            st,
-        )
+        
 
         log.info(
             "[concierge/perf] step=quota_check rid=%s elapsed=%.3f allowed=%s plan=%s remaining=%r limit=%r",
@@ -882,7 +838,6 @@ class ConciergeChatView(APIView):
         if not quota.unlimited and remaining is not None:
             remaining = max(remaining - 1, 0)
 
-        is_authenticated_user = bool(user is not None and getattr(user, "is_authenticated", False))
 
         body = _build_chat_response(
             intent=intent,
