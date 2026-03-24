@@ -2,9 +2,8 @@ import Link from "next/link";
 
 import type { Shrine } from "@/lib/api/shrines";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-
+import { getConciergeThreadServer } from "@/lib/api/concierge.server";
 import { getShrinePublicServer } from "@/lib/api/shrines.server";
-import { getConciergeThread } from "@/lib/api/concierge";
 import { fetchPublicGoshuinsForShrineServer } from "@/lib/api/publicGoshuins.server";
 
 import { serverLog } from "@/lib/server/logging";
@@ -139,11 +138,13 @@ export default async function Page({ params, searchParams }: Props) {
 
   if (ctx === "concierge" && tid) {
     try {
-      const thread = await getConciergeThread(String(tid));
-      conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
-      conciergeReason = pickReasonFromThread(thread, numericId);
-      conciergeExplanationPayload = pickExplanationPayloadFromThread(thread, numericId);
-      conciergeMode = pickModeFromThread(thread);
+      const thread = await getConciergeThreadServer(String(tid));
+      if (thread) {
+        conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
+        conciergeReason = pickReasonFromThread(thread, numericId);
+        conciergeExplanationPayload = pickExplanationPayloadFromThread(thread, numericId);
+        conciergeMode = pickModeFromThread(thread);
+      }
     } catch (e) {
       serverLog("warn", "GET_CONCIERGE_THREAD_FAILED", {
         shrineId: numericId,

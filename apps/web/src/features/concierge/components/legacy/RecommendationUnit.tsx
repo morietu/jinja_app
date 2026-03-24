@@ -6,7 +6,8 @@ import type React from "react";
 import ConciergeCard from "@/components/ConciergeCard";
 import type { ConciergeRecommendation } from "@/lib/api/concierge";
 import NeedChips from "@/features/concierge/components/NeedChips";
-import ConciergeBreakdownBody, { pickReasonLabel } from "@/components/concierge/ConciergeBreakdownBody";
+import ConciergeBreakdownBody from "@/components/concierge/ConciergeBreakdownBody";
+import { pickReasonLabel } from "@/lib/concierge/breakdownText";
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
@@ -52,24 +53,26 @@ export default function RecommendationUnit({
   const rawPlaceId = (safe as any).place_id ?? (safe as any).placeId ?? null;
   const placeId = rawPlaceId != null ? String(rawPlaceId).trim() : null;
 
-  // ✅ tid を string に正規化（tscエラー潰す）
   const tidStr = tid != null ? String(tid).trim() : "";
   const tidQ: string | null = tidStr.length ? tidStr : null;
 
-  // ✅ shrine_id 優先、無ければ place_id → resolve
   const href = hasShrineId
     ? buildShrineHref(shrineId as number, { ctx: "concierge", tid: tidQ })
     : placeId
       ? buildShrineResolveHref(placeId, { ctx: "concierge", tid: tidQ })
       : undefined;
 
-  const badges = [...(Array.isArray((safe as any).tags) ? (safe as any).tags : []), ...(Array.isArray(needTags) ? needTags : [])]
-    .filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+  const badges = [
+    ...(Array.isArray((safe as any).tags) ? (safe as any).tags : []),
+    ...(Array.isArray(needTags) ? needTags : []),
+  ].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
 
   const breakdown = (safe as any).breakdown ?? null;
   const reasonLabel = pickReasonLabel(breakdown);
 
-  const finalBadges = ([reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]).slice(0, 3);
+  const finalBadges = (
+    [reasonLabel ? `おすすめ理由：${reasonLabel}` : null, ...badges].filter(Boolean) as string[]
+  ).slice(0, 3);
 
   return (
     <div className="space-y-2">
@@ -103,5 +106,3 @@ export default function RecommendationUnit({
     </div>
   );
 }
-
-

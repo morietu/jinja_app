@@ -63,7 +63,6 @@ function parseExtraTokens(extra: string | undefined | null): string[] {
     .filter(Boolean);
 }
 
-
 export default function ConciergeSectionsRenderer({
   payload,
   onAction,
@@ -289,36 +288,40 @@ export default function ConciergeSectionsRenderer({
                       });
 
                       return (
-                        <ShrineCard
-                          key={`rec-${i}-${idx}-registered-${item.shrineId}`}
-                          name={item.title}
-                          address={item.address}
-                          href={item.detailHref}
-                          imageUrl={item.imageUrl}
-                          distanceM={(item as any).distance_m ?? null}
-                          rating={(item as any).rating ?? null}
-                          reviewCount={(item as any).reviewCount ?? null}
-                          isTopPick={idx === 0}
-                          topReasonLabel={idx === 0 ? (reasonVm.topReasonLabel ?? null) : null}
-                          explanationSummary={reasonVm.summary}
-                          primaryReason={reasonVm.primaryReason}
-                          secondaryReason={reasonVm.secondaryReason ?? null}
-                          tags={idx === 0 ? [] : (item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
-                        />
+                        <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
+                          
+                          <ShrineCard
+                            name={item.title}
+                            address={item.address}
+                            href={item.detailHref}
+                            imageUrl={item.imageUrl}
+                            distanceM={(item as any).distance_m ?? null}
+                            rating={(item as any).rating ?? null}
+                            reviewCount={(item as any).reviewCount ?? null}
+                            isTopPick={idx === 0}
+                            topReasonLabel={idx === 0 ? (reasonVm.topReasonLabel ?? null) : null}
+                            explanationSummary={reasonVm.summary}
+                            primaryReason={reasonVm.primaryReason}
+                            secondaryReason={reasonVm.secondaryReason ?? null}
+                            tags={idx === 0 ? [] : (item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                          />
+                        </div>
                       );
                     }
 
                     return (
-                      <PlaceShrineCard
-                        key={`rec-${i}-${idx}-place-${item.placeId}`}
-                        placeId={item.placeId}
-                        title={item.title}
-                        address={item.address}
-                        description={item.description}
-                        imageUrl={item.imageUrl}
-                        detailHref={item.detailHref}
-                        detailLabel={item.detailLabel}
-                      />
+                      <div key={`rec-${i}-${idx}-place-${item.placeId}`} className="space-y-2">
+                        
+                        <PlaceShrineCard
+                          placeId={item.placeId}
+                          title={item.title}
+                          address={item.address}
+                          description={item.description}
+                          imageUrl={item.imageUrl}
+                          detailHref={item.detailHref}
+                          detailLabel={item.detailLabel}
+                        />
+                      </div>
                     );
                   })}
                 </div>

@@ -70,3 +70,34 @@ export async function GET(req: NextRequest) {
 
   return safeJsonPassthrough(upstream);
 }
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const placeId = typeof body?.place_id === "string" ? body.place_id.trim() : "";
+
+  if (!placeId) {
+    return NextResponse.json({ error: "missing_place_id" }, { status: 400 });
+  }
+
+  const upstream = await djFetch("/api/places/resolve/", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ place_id: placeId }),
+  });
+
+  const contentType = upstream.headers.get("content-type") ?? "";
+  const text = await upstream.text().catch(() => "");
+
+  if (!contentType.includes("application/json")) {
+    return NextResponse.json({ error: "upstream_non_json" }, { status: 502 });
+  }
+
+  return new NextResponse(text, {
+    status: upstream.ok ? 200 : upstream.status,
+    headers: { "content-type": "application/json" },
+  });
+}

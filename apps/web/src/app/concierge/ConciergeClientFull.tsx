@@ -6,7 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConciergeLayout from "@/features/concierge/components/ConciergeLayout";
 import { useConciergeChat } from "@/features/concierge/hooks";
 
-import type { ConciergeMessage, ConciergeThread, ConciergeRecommendation } from "@/lib/api/concierge";
+import {
+  getConciergeThread,
+  type ConciergeMessage,
+  type ConciergeThread,
+  type ConciergeRecommendation,
+  type ConciergeThreadDetail,
+} from "@/lib/api/concierge";
+
 import type { StopReason, UnifiedConciergeResponse } from "@/features/concierge/types/unified";
 import type { ChatEvent } from "@/features/concierge/types/chat";
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
@@ -16,16 +23,15 @@ import ConciergeSectionsRenderer from "@/features/concierge/components/Concierge
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { SHOW_NEW_RENDERER } from "@/features/concierge/rendererMode";
 
-import type { RendererAction } from "@/features/concierge/sections/types";
+import type {
+  RendererAction,
+  ConciergeSectionsPayload,
+} from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
 import Link from "next/link";
 
 import { conciergeLog } from "@/lib/log/concierge";
-
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
-
-
-
 
 /* ========================================
  * 型定義とデータ設定
@@ -40,8 +46,20 @@ type EventsByThread = Record<number, LocalEvent[]>;
 type EntryMode = "feel" | "filter";
 
 const STORAGE_KEY = "concierge:eventsByThread";
-const LS_BIRTHDATE_KEY = "concierge:birthdate";
 const LS_ENTRY_MODE = "concierge:entryMode";
+
+type AnonymousConciergeSnapshot = {
+  version: 1;
+  savedAt: string;
+  entryMode: EntryMode;
+  unified: UnifiedConciergeResponse;
+  filters: {
+    selectedTagIds: number[];
+    extraCondition: string;
+  };
+};
+
+const SS_ANON_SNAPSHOT_KEY = "concierge:anonymousSnapshot:v1";
 
 const ELEMENT_TO_GORIYAKU: Record<Element4, string[]> = {
   火: ["仕事運・出世", "勝運・必勝祈願", "開運招福", "厄除け・方除け"],
@@ -147,6 +165,132 @@ function getMetaReply(payload: any): { reply: string | null; isLimitReached: boo
   return { reply, isLimitReached };
 }
 
+function threadDetailToUnified(thread: ConciergeThreadDetail | null): UnifiedConciergeResponse | null {
+  if (!thread) return null;
+
+  const root = thread as any;
+  const dataLike =
+    (root?.data && typeof root.data === "object" && !Array.isArray(root.data) ? root.data : null) ?? root;
+
+  const recommendations =
+    (Array.isArray(dataLike?.recommendations) ? dataLike.recommendations : null) ??
+    (Array.isArray(root?.recommendations) ? root.recommendations : null) ??
+    [];
+
+  const signals =
+    (dataLike?._signals && typeof dataLike._signals === "object" ? dataLike._signals : null) ??
+    (root?._signals && typeof root._signals === "object" ? root._signals : null) ??
+    null;
+
+  const reply =
+    typeof root?.reply === "string" ? root.reply : typeof dataLike?.reply === "string" ? dataLike.reply : null;
+
+  return {
+    ok: true,
+    thread: typeof root?.id === "number" ? ({ id: root.id } as any) : undefined,
+    data: {
+      ...(dataLike ?? {}),
+      recommendations,
+      _signals: signals,
+    },
+    reply,
+    stop_reason: null,
+  } as UnifiedConciergeResponse;
+}
+
+function isAnonymousLikeUnified(u: UnifiedConciergeResponse | null | undefined): boolean {
+  if (!u) return false;
+  const tid = (u as any)?.thread?.id ?? (u as any)?.thread_id ?? (u as any)?.data?.thread_id ?? null;
+  return tid == null || tid === "" || Number(tid) === 0;
+}
+
+function saveAnonymousSnapshot(snapshot: AnonymousConciergeSnapshot) {
+  try {
+    sessionStorage.setItem(SS_ANON_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    // ignore
+  }
+}
+
+function loadAnonymousSnapshot(): AnonymousConciergeSnapshot | null {
+  try {
+    const raw = sessionStorage.getItem(SS_ANON_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AnonymousConciergeSnapshot;
+    if (parsed?.version !== 1) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearAnonymousSnapshot() {
+  try {
+    sessionStorage.removeItem(SS_ANON_SNAPSHOT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function isRecommendationsPayload(
+  payload: ConciergeSectionsPayload | null | undefined,
+): payload is ConciergeSectionsPayload {
+  if (!payload || !Array.isArray(payload.sections)) return false;
+  return payload.sections.some(
+    (s) => s.type === "recommendations" && Array.isArray((s as any).items) && (s as any).items.length > 0,
+  );
+}
+
+type ViewerTier = "anonymous" | "free" | "premium";
+
+
+type ConciergeCtaKind = "none" | "auth" | "premium";
+type ConciergeInfoBannerState =
+  | "anonymous_default"
+  | "anonymous_limited"
+  | "free_default"
+  | "free_limited"
+  | "premium_hidden";
+
+type ConciergeInfoBannerConfig = {
+  state: ConciergeInfoBannerState;
+  visible: boolean;
+  showLimitNote: boolean;
+  ctaKind: ConciergeCtaKind;
+};
+
+function resolveConciergeInfoBanner(args: {
+  viewerTier: ViewerTier;
+  isLimitReached: boolean;
+}): ConciergeInfoBannerConfig {
+  const { viewerTier, isLimitReached } = args;
+
+  if (viewerTier === "premium") {
+    return {
+      state: "premium_hidden",
+      visible: false,
+      showLimitNote: false,
+      ctaKind: "none",
+    };
+  }
+
+  if (viewerTier === "anonymous") {
+    return {
+      state: isLimitReached ? "anonymous_limited" : "anonymous_default",
+      visible: true,
+      showLimitNote: isLimitReached,
+      ctaKind: "auth",
+    };
+  }
+
+  return {
+    state: isLimitReached ? "free_limited" : "free_default",
+    visible: true,
+    showLimitNote: isLimitReached,
+    ctaKind: "premium",
+  };
+}
+
 /* ========================================
  * メインコンポーネント
  * ====================================== */
@@ -154,12 +298,9 @@ export default function ConciergeClientFull() {
   const router = useRouter();
   const sp = useSearchParams();
 
-
   useEffect(() => {
     snap("component_render", {});
   }, []);
-
- 
 
   const lastNavAtRef = useRef(0);
   const isClosingRef = useRef(false);
@@ -182,6 +323,8 @@ export default function ConciergeClientFull() {
     [router],
   );
 
+  const [me, setMe] = useState<any | null>(null);
+
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
 
@@ -202,6 +345,9 @@ export default function ConciergeClientFull() {
 
   const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
+
+  const [threadDetail, setThreadDetail] = useState<ConciergeThreadDetail | null>(null);
+  const [, setThreadLoading] = useState(false);
 
   const setActiveTid = (tid: number) => {
     snap("setActiveTid", { from: activeThreadIdRef.current, to: tid });
@@ -245,19 +391,17 @@ export default function ConciergeClientFull() {
     }
   }, [entryMode]);
 
-  // ✅ ?mode=feel/filter を直叩き
+  // ?mode=feel/filter を直叩き
   useEffect(() => {
     snap("url:mode_effect", { rawMode, isEntryRoute });
-
     if (!isEntryRoute) return;
     if (!rawMode) return;
-
     setEntryMode(rawMode === "feel" ? "feel" : "filter");
     snap("nav:replace", { to: "/concierge", reason: "mode_cleanup" });
     router.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
 
-  // ✅ 入口でtidパラメータがある場合は削除
+  // 入口でtidパラメータがある場合は削除
   useEffect(() => {
     if (!isEntryRoute) return;
     if (!rawTid) return;
@@ -326,33 +470,38 @@ export default function ConciergeClientFull() {
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  /* ----------------------------------------
-   * LS: birthdate
-   * -------------------------------------- */
   useEffect(() => {
-    try {
-      const v = localStorage.getItem(LS_BIRTHDATE_KEY);
-      if (v && isValidISODate(v)) setBirthdate(v);
-    } catch {
-      // ignore
-    }
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    try {
-      if (birthdate && isValidISODate(birthdate)) localStorage.setItem(LS_BIRTHDATE_KEY, birthdate);
-      else localStorage.removeItem(LS_BIRTHDATE_KEY);
-    } catch {
-      // ignore
-    }
-  }, [birthdate]);
+    (async () => {
+      try {
+        const res = await fetch("/api/users/me/", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          if (!cancelled) setMe(null);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled) setMe(data);
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* ----------------------------------------
    * スレッド切り替え（URLパラメータ反応）
    * -------------------------------------- */
   useEffect(() => {
     snap("url:tid_effect", { rawTid, tidNum, tidFromQuery, hydrated });
-
     if (!hydrated) return;
     if (tidFromQuery === activeThreadIdRef.current) return;
     setActiveTid(tidFromQuery);
@@ -362,11 +511,68 @@ export default function ConciergeClientFull() {
     if (!hydrated) return;
     if (!isEntryRoute) return;
 
-    snap("entry:reset_state", {});
+    const snapshot = loadAnonymousSnapshot();
+
+    snap("entry:reset_state", { hasSnapshot: !!snapshot });
     setActiveTid(0);
-    setLiveUnified(null);
-    setLiveRecs([]);
+    setThreadDetail(null);
+    setThreadLoading(false);
+
+    if (!snapshot) {
+      setLiveUnified(null);
+      setLiveRecs([]);
+    }
   }, [hydrated, isEntryRoute]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!isEntryRoute) return;
+    if (liveUnified) return;
+
+    const snapshot = loadAnonymousSnapshot();
+    if (!snapshot) return;
+
+    setEntryMode(snapshot.entryMode ?? "filter");
+    setSelectedTagIds(Array.isArray(snapshot.filters.selectedTagIds) ? snapshot.filters.selectedTagIds : []);
+    setExtraCondition(snapshot.filters.extraCondition ?? "");
+    setLiveUnified(snapshot.unified);
+    setLiveRecs(
+      Array.isArray(snapshot.unified?.data?.recommendations)
+        ? (snapshot.unified.data.recommendations as ConciergeRecommendation[])
+        : [],
+    );
+  }, [hydrated, isEntryRoute, liveUnified]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    if (!tidNum) {
+      setThreadDetail(null);
+      setThreadLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setThreadLoading(true);
+        const data = await getConciergeThread(String(tidNum));
+        if (cancelled) return;
+        setThreadDetail(data);
+      } catch (e) {
+        if (cancelled) return;
+        console.warn("getConciergeThread failed", e);
+        setThreadDetail(null);
+      } finally {
+        if (!cancelled) setThreadLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, tidNum]);
 
   /* ----------------------------------------
    * タグ取得（フィルター開いたら）
@@ -419,17 +625,17 @@ export default function ConciergeClientFull() {
     return null;
   }, [events]);
 
+  const backendUnified = useMemo(() => threadDetailToUnified(threadDetail), [threadDetail]);
+
   const displayUnified = useMemo(() => {
-    if (isEntryRoute) return null;
-    return liveUnified ?? (isEntryRoute ? null : lastUnified);
-  }, [isEntryRoute, lastUnified, liveUnified]);
+    return liveUnified ?? backendUnified ?? lastUnified;
+  }, [liveUnified, backendUnified, lastUnified]);
 
   const displayRecommendations = useMemo(() => {
-    if (isEntryRoute) return [];
     if (liveRecs.length > 0) return liveRecs;
     const recs = displayUnified?.data?.recommendations;
     return Array.isArray(recs) ? (recs as ConciergeRecommendation[]) : [];
-  }, [isEntryRoute, liveRecs, displayUnified]);
+  }, [liveRecs, displayUnified]);
 
   const hasCandidates = displayRecommendations.length > 0;
 
@@ -475,51 +681,72 @@ export default function ConciergeClientFull() {
     };
   }, [birthdate, selectedTagIds, extraCondition]);
 
-    const hasFilter =
-      (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
+  const hasFilter =
+    (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
 
-    const selectedTagNames = useMemo(() => {
-      if (!goriyakuTags.length || !selectedTagIds.length) return [];
-      const set = new Set(selectedTagIds);
-      return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
-    }, [goriyakuTags, selectedTagIds]);
+  const selectedTagNames = useMemo(() => {
+    if (!goriyakuTags.length || !selectedTagIds.length) return [];
+    const set = new Set(selectedTagIds);
+    return goriyakuTags.filter((t) => set.has(t.id)).map((t) => t.name);
+  }, [goriyakuTags, selectedTagIds]);
 
-    const filterState = useMemo(
-      () => ({
-        isOpen: isFilterOpen,
-        birthdate,
-        element4,
-        goriyakuTags,
-        suggestedTags,
-        selectedTagIds,
-        tagsLoading,
-        tagsError,
-        extraCondition,
+  const filterState = useMemo(
+    () => ({
+      isOpen: isFilterOpen,
+      birthdate,
+      element4,
+      goriyakuTags,
+      suggestedTags,
+      selectedTagIds,
+      tagsLoading,
+      tagsError,
+      extraCondition,
+    }),
+    [
+      isFilterOpen,
+      birthdate,
+      element4,
+      goriyakuTags,
+      suggestedTags,
+      selectedTagIds,
+      tagsLoading,
+      tagsError,
+      extraCondition,
+    ],
+  );
+
+  const payload = useMemo(
+    () => buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState),
+    [displayUnified, filterState],
+  );
+
+  const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
+
+  const rawViewer = sp.get("viewer");
+
+  const debugViewer: ViewerTier | null =
+    rawViewer === "anonymous" || rawViewer === "free" || rawViewer === "premium" ? rawViewer : null;
+
+  const resolvedViewerTierFromAuth: ViewerTier = me ? "free" : "anonymous";
+  const effectiveViewerTier: ViewerTier = debugViewer ?? resolvedViewerTierFromAuth;
+
+  const debugLimitReached = sp.get("limit") === "1";
+  const resolvedIsLimitReached = debugLimitReached || isLimitReached;
+
+  const infoBanner = useMemo(
+    () =>
+      resolveConciergeInfoBanner({
+        viewerTier: effectiveViewerTier,
+        isLimitReached: resolvedIsLimitReached,
       }),
-      [
-        isFilterOpen,
-        birthdate,
-        element4,
-        goriyakuTags,
-        suggestedTags,
-        selectedTagIds,
-        tagsLoading,
-        tagsError,
-        extraCondition,
-      ],
-    );
+    [effectiveViewerTier, resolvedIsLimitReached],
+  );
 
-    const payload = useMemo(
-      () => buildPayloadFromUnified(displayUnified, filterState) ?? buildDummySections(filterState),
-      [displayUnified, filterState],
-    );
 
-    const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
-
-    const messages = useMemo(
-      () => deriveMessages(events, thread?.id ?? activeThreadId),
-      [events, thread, activeThreadId],
-    );
+  const messages = useMemo(
+    () => deriveMessages(events, thread?.id ?? activeThreadId),
+    [events, thread, activeThreadId],
+  );
 
   /* ----------------------------------------
    * チャット
@@ -529,8 +756,6 @@ export default function ConciergeClientFull() {
     filters: baseFilters,
 
     onUnified: (u) => {
-      // ✅ 1回だけ unified 全体を出す（ログ洪水を防ぐ）
-
       if (isClosingRef.current) return;
 
       const now = new Date().toISOString();
@@ -559,6 +784,19 @@ export default function ConciergeClientFull() {
 
       setLiveUnified(u);
       setLiveRecs(Array.isArray(u.data?.recommendations) ? (u.data.recommendations as any) : []);
+
+      if (isAnonymousLikeUnified(u)) {
+        saveAnonymousSnapshot({
+          version: 1,
+          savedAt: new Date().toISOString(),
+          entryMode,
+          unified: u,
+          filters: {
+            selectedTagIds,
+            extraCondition,
+          },
+        });
+      }
 
       if (currentTid === 0) {
         snap("onUnified:setEntrySubmitting_false", {});
@@ -592,9 +830,8 @@ export default function ConciergeClientFull() {
     },
   });
 
-
   /* ----------------------------------------
-   * 🔥 ロック統一：isBusy
+   * ロック統一：isBusy
    * -------------------------------------- */
   const isBusy = sending || (isEntryRoute && entrySubmitting);
 
@@ -603,7 +840,6 @@ export default function ConciergeClientFull() {
    * -------------------------------------- */
   const safeSend = useCallback(
     async (textOrPayload: any, logMeta?: Record<string, any>) => {
-
       snap("safeSend:start", { isEntryRoute, sending, entrySubmitting, canSend });
 
       if (!canSend) {
@@ -652,12 +888,18 @@ export default function ConciergeClientFull() {
     [canSend, sending, entrySubmitting, send, isEntryRoute, entryMode],
   );
 
-
   /* ----------------------------------------
    * UI表示の判定
    * -------------------------------------- */
-  const shouldShowEntry = hydrated && isEntryRoute;
-  const hideChatPanel = !hydrated || isEntryRoute;
+  const hasRestoredCandidates =
+    hydrated &&
+    isEntryRoute &&
+    Array.isArray(displayRecommendations) &&
+    displayRecommendations.length > 0 &&
+    isRecommendationsPayload(payload);
+
+  const shouldShowEntry = hydrated && isEntryRoute && !hasRestoredCandidates;
+  const hideChatPanel = !hydrated || (isEntryRoute && !hasRestoredCandidates);
 
   const entryViewedRef = useRef(false);
 
@@ -665,9 +907,7 @@ export default function ConciergeClientFull() {
     if (!shouldShowEntry) return;
     if (entryViewedRef.current) return;
     entryViewedRef.current = true;
-
     snap("entry_view", { entryMode });
-
     conciergeLog("entry_view", {
       tid: 0,
       meta: { entryMode },
@@ -741,39 +981,26 @@ export default function ConciergeClientFull() {
         return;
 
       case "back_to_entry":
-        snap("action:back_to_entry", {
-          fromTid: activeThreadIdRef.current,
-          entryMode,
-        });
-
+        snap("action:back_to_entry", { fromTid: activeThreadIdRef.current, entryMode });
         conciergeLog("back_to_entry", {
           tid: activeThreadIdRef.current,
-          meta: {
-            fromTid: activeThreadIdRef.current,
-            entryMode,
-          },
+          meta: { fromTid: activeThreadIdRef.current, entryMode },
         });
-
         setLiveUnified(null);
         setLiveRecs([]);
         setEntrySubmitting(false);
         setActiveTid(0);
-
+        clearAnonymousSnapshot();
         snap("nav:push", { to: "/concierge", reason: "back_to_entry" });
         router.push("/concierge");
         return;
 
       case "filter_close":
         snap("action:filter_close", { isEntryRoute, entryMode });
-
         conciergeLog("filter_close", {
           tid: activeThreadIdRef.current,
-          meta: {
-            isEntryRoute,
-            entryMode,
-          },
+          meta: { isEntryRoute, entryMode },
         });
-
         if (isEntryRoute) setIsFilterOpen(true);
         else setIsFilterOpen(false);
         return;
@@ -786,14 +1013,11 @@ export default function ConciergeClientFull() {
       case "filter_apply": {
         const p = buildFilterPayload();
         if (!p) return;
-
         snap("action:filter_apply", { baseFilters });
-
         conciergeLog("filter_apply", {
           tid: activeThreadIdRef.current,
           meta: { baseFilters },
         });
-
         setIsFilterOpen(true);
         void safeSend(p, { kind: "filter_apply" });
         return;
@@ -818,21 +1042,18 @@ export default function ConciergeClientFull() {
 
       case "filter_clear":
         snap("action:filter_clear", {});
-
         conciergeLog("filter_clear", { tid: activeThreadIdRef.current });
-
         setExtraCondition("");
         setSelectedTagIds([]);
         setBirthdate("");
-        try {
-          localStorage.removeItem(LS_BIRTHDATE_KEY);
-        } catch {
-          // ignore
-        }
+        clearAnonymousSnapshot();
         return;
     }
   };
 
+  /* ========================================
+   * JSX
+   * ====================================== */
   return (
     <ConciergeLayout
       messages={messages}
@@ -847,12 +1068,11 @@ export default function ConciergeClientFull() {
       }}
       onNewThread={() => {
         snap("action:onNewThread", {});
-
         setLiveUnified(null);
         setLiveRecs([]);
         setEntrySubmitting(false);
         setActiveTid(0);
-
+        clearAnonymousSnapshot();
         snap("nav:replace", { to: "/concierge", reason: "onNewThread" });
         router.replace("/concierge");
       }}
@@ -864,7 +1084,7 @@ export default function ConciergeClientFull() {
       {shouldShowEntry ? (
         <div className="px-4 pt-4">
           <div className="relative rounded-2xl border bg-white p-3">
-            {/* ✅ ロック統一 */}
+            {/* ロック中のオーバーレイ */}
             {isBusy ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
                 <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">選定中です…</div>
@@ -976,6 +1196,7 @@ export default function ConciergeClientFull() {
               </div>
             )}
 
+            {/* エラー表示 */}
             {!isBusy && error ? (
               <div className="mt-3 rounded-xl border bg-white p-3">
                 <p className="text-sm font-semibold text-rose-600">うまく取得できませんでした</p>
@@ -1007,15 +1228,18 @@ export default function ConciergeClientFull() {
       {!shouldShowEntry ? (
         SHOW_NEW_RENDERER ? (
           <div className="p-4 space-y-3">
-            {metaReply ? (
+            {/* メタリプライ＋情報バナー */}
+            {infoBanner.visible ? (
               <div className="rounded-2xl border bg-white p-4">
-                <p className="text-sm font-semibold text-slate-900">{metaReply}</p>
-                {isLimitReached ? (
+                {metaReply ? <p className="text-sm font-semibold text-slate-900">{metaReply}</p> : null}
+
+                {infoBanner.showLimitNote ? (
                   <p className="mt-1 text-xs text-slate-500">
                     近くの神社は地図から探せます。条件を変えるか、別の探索を試してください。
                   </p>
                 ) : null}
-                <div className="mt-3 flex gap-2">
+
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="flex-1 rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -1024,6 +1248,7 @@ export default function ConciergeClientFull() {
                   >
                     条件を追加
                   </button>
+
                   <button
                     type="button"
                     className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
@@ -1032,6 +1257,32 @@ export default function ConciergeClientFull() {
                   >
                     地図で探す
                   </button>
+
+                  {infoBanner.ctaKind === "auth" ? (
+                    <>
+                      <Link
+                        href="/auth/register"
+                        className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
+                      >
+                        新規登録
+                      </Link>
+                      <Link
+                        href="/auth/login"
+                        className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        ログイン
+                      </Link>
+                    </>
+                  ) : null}
+
+                  {infoBanner.ctaKind === "premium" ? (
+                    <Link
+                      href="/billing/upgrade"
+                      className="flex-1 rounded-xl bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white"
+                    >
+                      プレミアムを見る
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             ) : null}

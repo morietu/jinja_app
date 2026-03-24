@@ -1,5 +1,5 @@
 import { buildOneLiner } from "@/lib/concierge/pickAClause";
-import { buildConciergeHint } from "@/components/concierge/ConciergeBreakdownBody";
+import { buildConciergeHint } from "@/lib/concierge/breakdownText";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
 

@@ -53,7 +53,7 @@ function pickFirstString(...vals: unknown[]): string | null {
   return null;
 }
 
-// 登録済み=shrine_idあり → /shrines/:id, 未登録=place_idのみ → /places/:placeId, どちらも無い→除外
+// 登録済み=shrine_idあり → /shrines/:id, 未登録=place_idのみ → /shrines/resolve, どちらも無い→除外
 function normalizeRecommendation(r: any, tid: string | null): NormalizedItem | null {
   const shrineId = asPositiveInt(r?.shrine_id ?? r?.shrine?.id ?? null);
 
