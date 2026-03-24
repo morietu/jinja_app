@@ -1,6 +1,6 @@
 # backend/temples/api_views_concierge.py
 from __future__ import annotations
-
+import requests  # test monkeypatch compatibility
 import logging
 import re
 import uuid
@@ -41,6 +41,7 @@ from temples.services.concierge_chat_ranking import (
 from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
+from temples.services.billing_state import is_premium_for_user  # test monkeypatch compatibility
 
 
 
@@ -408,6 +409,12 @@ def _build_chat_response(
     return body
 
 
+def _chat_quota_fields(*, plan: Optional[str], quota: Any) -> tuple[Optional[int], Optional[int]]:
+    if plan == "anonymous" or getattr(quota, "unlimited", False):
+        return None, None
+    return quota.remaining, quota.limit
+
+
 def _build_chat_candidates_pipeline(
     request: Any,
     lat: Optional[float],
@@ -633,12 +640,13 @@ class ConciergeChatView(APIView):
 
         if not quota.allowed:
             recs = {"recommendations": []}
+            remaining_free, limit_value = _chat_quota_fields(plan=plan_context.plan, quota=quota)
             body = _build_chat_response(
                 intent=intent,
                 recs=recs,
                 reply=LIMIT_MSG,
-                remaining_free=0 if not quota.unlimited else None,
-                limit=quota.limit if not quota.unlimited else None,
+                remaining_free=0 if remaining_free is not None else None,
+                limit=limit_value,
                 thread=None,
                 debug=None,
             )
@@ -663,8 +671,7 @@ class ConciergeChatView(APIView):
             )
             return response
 
-        remaining = quota.remaining if not quota.unlimited else None
-        limit_value = quota.limit if not quota.unlimited else None
+        remaining, limit_value = _chat_quota_fields(plan=plan_context.plan, quota=quota)
 
         # -------------------------
         # ⑤ recommendation
@@ -843,8 +850,8 @@ class ConciergeChatView(APIView):
             intent=intent,
             recs=recs,
             reply=reply,
-            remaining_free=remaining if not quota.unlimited else None,
-            limit=limit_value if not quota.unlimited else None,
+            remaining_free=remaining,
+            limit=limit_value,
             thread=thread_obj,
             debug={
                 "rid": rid,
