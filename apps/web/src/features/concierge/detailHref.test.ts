@@ -9,7 +9,7 @@ describe("detailHrefFromRecommendation", () => {
   });
 
   it("falls back to place_id", () => {
-    expect(detailHrefFromRecommendation({ place_id: "abc" })).toBe("/places/abc");
+    expect(detailHrefFromRecommendation({ place_id: "abc" })).toBe("/shrines/resolve?place_id=abc&ctx=concierge");
   });
 
   it("returns null when no ids", () => {

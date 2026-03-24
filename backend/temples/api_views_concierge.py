@@ -44,6 +44,8 @@ from temples.services.concierge_chat_candidates import build_chat_candidates
 from temples.services.concierge_history import append_chat
 from temples.services.concierge_plan import build_plan_response
 from temples.services.billing_state import is_premium_for_user
+from temples.services.billing_state import get_billing_status
+
 
 BIRTHDATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -52,6 +54,8 @@ BIRTHDATE_PATTERNS = (
     re.compile(r"^(\d{4})/(\d{2})/(\d{2})$"),
     re.compile(r"^(\d{4})(\d{2})(\d{2})$"),
 )
+
+
 
 def normalize_birthdate(value: Any) -> str | None:
     s = str(value or "").strip()
@@ -622,6 +626,22 @@ class ConciergeChatView(APIView):
         plan_context = resolve_plan_context(request)
         try:
             quota = check_quota(plan_context, "concierge")
+
+            st = get_billing_status(user=user)
+
+            log.warning(
+                "[concierge/debug] user_id=%r is_auth=%s plan=%s quota_unlimited=%s remaining=%r limit=%r provider_raw=%rstub_plan=%r stub_active=%r billing_status=%r",
+                getattr(user, "id", None),
+                bool(user is not None and getattr(user, "is_authenticated", False)),
+                plan_context.plan,
+                quota.unlimited,
+                quota.remaining,
+                quota.limit,
+                os.getenv("BILLING_PROVIDER"),
+                os.getenv("BILLING_STUB_PLAN"),
+                os.getenv("BILLING_STUB_ACTIVE"),
+                st,
+            )
         except Exception:
             log.exception(
                 "[concierge/chat] quota_check failed rid=%s plan=%s",
@@ -629,6 +649,21 @@ class ConciergeChatView(APIView):
                 getattr(plan_context, "plan", None),
             )
             raise
+        st = get_billing_status(user=user)
+
+        log.warning(
+            "[concierge/debug] user_id=%r is_auth=%s plan=%s quota_unlimited=%s remaining=%r limit=%r provider_raw=%r stub_plan=%r stub_active=%r billing_status=%r",
+            getattr(user, "id", None),
+            bool(user is not None and getattr(user, "is_authenticated", False)),
+            plan_context.plan,
+            quota.unlimited,
+            quota.remaining,
+            quota.limit,
+            os.getenv("BILLING_PROVIDER"),
+            os.getenv("BILLING_STUB_PLAN"),
+            os.getenv("BILLING_STUB_ACTIVE"),
+            st,
+        )
 
         log.info(
             "[concierge/perf] step=quota_check rid=%s elapsed=%.3f allowed=%s plan=%s remaining=%r limit=%r",
@@ -646,8 +681,8 @@ class ConciergeChatView(APIView):
                 intent=intent,
                 recs=recs,
                 reply=LIMIT_MSG,
-                remaining_free=0 if user is not None and getattr(user, "is_authenticated", False) else None,
-                limit=quota.limit if user is not None and getattr(user, "is_authenticated", False) else None,
+                remaining_free=0 if not quota.unlimited else None,
+                limit=quota.limit if not quota.unlimited else None,
                 thread=None,
                 debug=None,
             )
@@ -754,12 +789,17 @@ class ConciergeChatView(APIView):
             reply_text = reply if isinstance(reply, str) else None
             saved_query = query or "生年月日から相性を見てほしい"
 
+            thread_recommendations = recs.get("recommendations") or []
+            thread_recommendations_v2 = recs.get("recommendations_v2") or thread_recommendations
+
             try:
                 saved = append_chat(
                     user=user,
                     query=saved_query,
                     reply_text=reply_text,
                     thread_id=thread_id,
+                    recommendations=thread_recommendations,
+                    recommendations_v2=thread_recommendations_v2,
                 )
                 thread_obj = saved.thread
             except ConciergeThread.DoesNotExist:
@@ -768,6 +808,8 @@ class ConciergeChatView(APIView):
                     query=saved_query,
                     reply_text=reply_text,
                     thread_id=None,
+                    recommendations=thread_recommendations,
+                    recommendations_v2=thread_recommendations_v2,
                 )
                 thread_obj = saved.thread
 
@@ -846,8 +888,8 @@ class ConciergeChatView(APIView):
             intent=intent,
             recs=recs,
             reply=reply,
-            remaining_free=remaining if (is_authenticated_user and not quota.unlimited) else None,
-            limit=limit_value if (is_authenticated_user and not quota.unlimited) else None,
+            remaining_free=remaining if not quota.unlimited else None,
+            limit=limit_value if not quota.unlimited else None,
             thread=thread_obj,
             debug={
                 "rid": rid,

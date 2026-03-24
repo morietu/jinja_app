@@ -1,9 +1,12 @@
 // apps/web/src/features/concierge/detailHref.ts
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildShrineResolveHref } from "@/lib/nav/buildShrineResolveHref";
+
 /**
  * Concierge recommendation → detail href (product spec)
  *
  * - 登録済み: shrine_id / shrineId / shrine.id を持つ → /shrines/:id
- * - 未登録: place_id / placeId（など）だけを持つ → /places/:placeId
+ * - 未登録: place_id / placeId（など）だけを持つ → /shrines/resolve?place_id=...
  * - IDなし: null（UIは詳細導線を表示しない）
  *
  * 注意:
@@ -29,17 +32,21 @@ export function detailHrefFromRecommendation(
   item: AnyObj,
   ctx?: { ctx?: string; tid?: string | number },
 ): string | null {
-  const q = new URLSearchParams();
-  if (ctx?.ctx) q.set("ctx", ctx.ctx);
-  if (ctx?.tid != null) q.set("tid", String(ctx.tid));
-  const qs = q.toString();
-  const suffix = qs ? `?${qs}` : "";
-
   const shrineId = pickShrineId(item);
-  if (shrineId != null) return `/shrines/${shrineId}${suffix}`;
+  if (shrineId != null) {
+    return buildShrineHref(shrineId, {
+      ctx: ctx?.ctx,
+      tid: ctx?.tid ?? undefined,
+    });
+  }
 
   const placeId = pickPlaceId(item);
-  if (placeId) return `/places/${encodeURIComponent(placeId)}${suffix}`;
+  if (placeId) {
+    return buildShrineResolveHref(placeId, {
+      ctx: ctx?.ctx === "map" || ctx?.ctx === "concierge" ? ctx.ctx : "concierge",
+      tid: ctx?.tid != null ? String(ctx.tid) : null,
+    });
+  }
 
   return null;
 }
