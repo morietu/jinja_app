@@ -136,17 +136,28 @@ def test_chat_response_includes_thread_id_when_append_chat_succeeds(user, monkey
 
 
 @pytest.mark.django_db
-def test_chat_response_has_no_thread_when_append_chat_not_executed_for_anonymous(client, monkeypatch):
+def test_chat_response_anonymous_includes_thread_when_append_chat_succeeds(client, monkeypatch):
     _stub_candidates(monkeypatch)
-    _stub_recommendations(monkeypatch, [{"name": "神社A", "reason": "ok", "reason_source": "reason:test"}])
+    _stub_recommendations(
+        monkeypatch,
+        [{"name": "神社A", "reason": "ok", "reason_source": "reason:test"}],
+    )
 
-    called = {"append_chat": 0}
+    called = {"append_chat": 0, "observability": 0}
 
-    def _append_chat_should_not_run(**kwargs):
+    def _append_chat_stub(**kwargs):
         called["append_chat"] += 1
         return SimpleNamespace(thread=SimpleNamespace(id=1))
 
-    monkeypatch.setattr("temples.api_views_concierge.append_chat", _append_chat_should_not_run)
+    def _save_log_stub(**kwargs):
+        called["observability"] += 1
+        return None
+
+    monkeypatch.setattr("temples.api_views_concierge.append_chat", _append_chat_stub)
+    monkeypatch.setattr(
+        "temples.services.concierge_observability.save_concierge_recommendation_log",
+        _save_log_stub,
+    )
 
     r = client.post(
         URL,
@@ -156,5 +167,9 @@ def test_chat_response_has_no_thread_when_append_chat_not_executed_for_anonymous
     assert r.status_code == 200
 
     body = r.json()
-    assert "thread" not in body
-    assert called["append_chat"] == 0
+    assert called["append_chat"] == 1
+    assert called["observability"] == 1
+    assert "thread" in body
+    assert body["thread"]["id"] == 1
+    assert body["thread_id"] == "1"
+    assert body["data"]["thread_id"] == "1"
