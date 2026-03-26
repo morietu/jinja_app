@@ -1,8 +1,9 @@
+# backend/shrine_project/urls.py
 from pathlib import Path
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.contrib.auth import get_user_model
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
@@ -11,7 +12,11 @@ from django.views.static import serve as media_serve
 
 from drf_spectacular.renderers import OpenApiJsonRenderer
 from drf_spectacular.utils import OpenApiTypes, extend_schema
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
@@ -40,10 +45,11 @@ def healthz(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_db(request):
-    from temples.models import Shrine, PlaceRef
+    from temples.models import PlaceRef, Shrine
 
     try:
         from temples.models import ShrineCandidate
+
         shrine_candidate_count = ShrineCandidate.objects.count()
     except Exception as e:
         shrine_candidate_count = f"ERR: {type(e).__name__}"
@@ -68,9 +74,14 @@ def debug_db(request):
     disk_latest_temples_migration_files = []
     migrations_dir = None
 
+    loader_has_0078 = None
+    loader_leaf_nodes = []
+    loader_disk_migrations_tail = []
+
     migration_check_error = None
     schema_check_error = None
     migration_files_error = None
+    migration_loader_error = None
 
     try:
         with connection.cursor() as cursor:
@@ -215,6 +226,30 @@ def debug_db(request):
     except Exception as e:
         migration_files_error = f"{type(e).__name__}: {e}"
 
+    try:
+        from django.db.migrations.loader import MigrationLoader
+
+        loader = MigrationLoader(connection, ignore_no_migrations=True)
+
+        loader_has_0078 = ("temples", "0078_conciergethread_anonymous_id_and_more") in loader.disk_migrations
+
+        loader_leaf_nodes = [
+            [app_label, migration_name]
+            for app_label, migration_name in loader.graph.leaf_nodes()
+            if app_label == "temples"
+        ]
+
+        loader_disk_migrations_tail = sorted(
+            [
+                migration_name
+                for app_label, migration_name in loader.disk_migrations.keys()
+                if app_label == "temples"
+            ]
+        )[-10:]
+
+    except Exception as e:
+        migration_loader_error = f"{type(e).__name__}: {e}"
+
     return JsonResponse(
         {
             "ENGINE": settings.DATABASES["default"]["ENGINE"],
@@ -242,6 +277,12 @@ def debug_db(request):
                 "disk_has_0078_file": disk_has_0078_file,
                 "disk_latest_temples_migration_files": disk_latest_temples_migration_files,
                 "error": migration_files_error,
+            },
+            "migration_loader": {
+                "loader_has_0078": loader_has_0078,
+                "loader_leaf_nodes": loader_leaf_nodes,
+                "loader_disk_migrations_tail": loader_disk_migrations_tail,
+                "error": migration_loader_error,
             },
             "schema": {
                 "has_temples_goshuin": has_temples_goshuin,
@@ -318,21 +359,17 @@ urlpatterns = [
     path("favicon.ico", favicon),
     path("admin/create-superuser/", create_superuser),
     path("admin/", admin.site.urls),
-
     path("api/users/me/", ApiMeView.as_view(), name="users-me"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
-
     path("api/_debug/db/", debug_db, name="debug_db"),
     path("api/_debug/media/", debug_media, name="debug_media"),
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
-
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
-
     path(
         "api/schemas/swagger/",
         SpectacularSwaggerView.as_view(url_name="api-schemas"),
@@ -358,7 +395,6 @@ urlpatterns = [
         r"^api/schema/redoc/?$",
         RedirectView.as_view(url="/api/schemas/redoc/", permanent=False),
     ),
-
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
 ]
