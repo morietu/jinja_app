@@ -64,8 +64,13 @@ def debug_db(request):
     has_temples_conciergethread = None
     has_conciergethread_anonymous_id = None
 
+    disk_has_0078_file = None
+    disk_latest_temples_migration_files = []
+    migrations_dir = None
+
     migration_check_error = None
     schema_check_error = None
+    migration_files_error = None
 
     try:
         with connection.cursor() as cursor:
@@ -192,6 +197,24 @@ def debug_db(request):
     except Exception as e:
         schema_check_error = f"{type(e).__name__}: {e}"
 
+    try:
+        migrations_dir = Path(__file__).resolve().parents[1] / "temples" / "migrations"
+
+        disk_has_0078_file = (
+            migrations_dir / "0078_conciergethread_anonymous_id_and_more.py"
+        ).exists()
+
+        disk_latest_temples_migration_files = sorted(
+            [
+                p.name
+                for p in migrations_dir.glob("[0-9][0-9][0-9][0-9]_*.py")
+                if p.name != "__init__.py"
+            ]
+        )[-10:]
+
+    except Exception as e:
+        migration_files_error = f"{type(e).__name__}: {e}"
+
     return JsonResponse(
         {
             "ENGINE": settings.DATABASES["default"]["ENGINE"],
@@ -214,6 +237,12 @@ def debug_db(request):
                 "has_0078": has_0078,
                 "error": migration_check_error,
             },
+            "migration_files": {
+                "migrations_dir": str(migrations_dir) if migrations_dir else None,
+                "disk_has_0078_file": disk_has_0078_file,
+                "disk_latest_temples_migration_files": disk_latest_temples_migration_files,
+                "error": migration_files_error,
+            },
             "schema": {
                 "has_temples_goshuin": has_temples_goshuin,
                 "has_temples_goshuinimage": has_temples_goshuinimage,
@@ -225,6 +254,7 @@ def debug_db(request):
             },
         }
     )
+
 
 @extend_schema(exclude=True)
 @api_view(["GET"])
@@ -289,25 +319,20 @@ urlpatterns = [
     path("admin/create-superuser/", create_superuser),
     path("admin/", admin.site.urls),
 
-    # ---- API root ---------------------------------------------------------
-    path("api/users/me/", ApiMeView.as_view(), name="users-me"),  # legacy compat
+    path("api/users/me/", ApiMeView.as_view(), name="users-me"),
     path("api/", include(("users.api.urls", "users"), namespace="users_api")),
     path("api/", include(("temples.api.urls", "temples"), namespace="temples")),
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
 
-    # ---- Debug / Auth -----------------------------------------------------
     path("api/_debug/db/", debug_db, name="debug_db"),
     path("api/_debug/media/", debug_media, name="debug_media"),
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
 
-
-
     path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
 
-    # ---- Schema / Docs ----------------------------------------------------
     path(
         "api/schemas/swagger/",
         SpectacularSwaggerView.as_view(url_name="api-schemas"),
@@ -334,7 +359,6 @@ urlpatterns = [
         RedirectView.as_view(url="/api/schemas/redoc/", permanent=False),
     ),
 
-    # ---- Misc -------------------------------------------------------------
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
 ]
