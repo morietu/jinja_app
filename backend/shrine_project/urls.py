@@ -35,6 +35,7 @@ from .views import favicon, index
 def healthz(request):
     return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
+
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -48,8 +49,18 @@ def debug_db(request):
         shrine_candidate_count = f"ERR: {type(e).__name__}"
 
     migration_0078_applied = None
+    migration_count = None
+    latest_temples_migrations = []
+    has_0048 = None
+    has_0049 = None
+    has_0050 = None
+    has_0077 = None
+    has_0078 = None
+
     has_temples_goshuin = None
+    has_temples_conciergethread = None
     has_conciergethread_anonymous_id = None
+
     migration_check_error = None
     schema_check_error = None
 
@@ -57,15 +68,46 @@ def debug_db(request):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM django_migrations
-                  WHERE app = %s AND name = %s
-                )
+                SELECT COUNT(*)
+                FROM django_migrations
+                WHERE app = %s
                 """,
-                ["temples", "0078_conciergethread_anonymous_id_and_more"],
+                ["temples"],
             )
-            migration_0078_applied = cursor.fetchone()[0]
+            migration_count = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                SELECT name
+                FROM django_migrations
+                WHERE app = %s
+                ORDER BY id DESC
+                LIMIT 10
+                """,
+                ["temples"],
+            )
+            latest_temples_migrations = [row[0] for row in cursor.fetchall()]
+
+            def _exists_migration(name: str) -> bool:
+                cursor.execute(
+                    """
+                    SELECT EXISTS (
+                      SELECT 1
+                      FROM django_migrations
+                      WHERE app = %s AND name = %s
+                    )
+                    """,
+                    ["temples", name],
+                )
+                return bool(cursor.fetchone()[0])
+
+            has_0048 = _exists_migration("0048_conciergethread_conciergemessage_and_more")
+            has_0049 = _exists_migration("0049_goshuin_shrine")
+            has_0050 = _exists_migration("0050_alter_goshuin_options_goshuin_updated_at_and_more")
+            has_0077 = _exists_migration("0077_featureusage")
+            has_0078 = _exists_migration("0078_conciergethread_anonymous_id_and_more")
+            migration_0078_applied = has_0078
+
     except Exception as e:
         migration_check_error = f"{type(e).__name__}: {e}"
 
@@ -81,7 +123,19 @@ def debug_db(request):
                 )
                 """
             )
-            has_temples_goshuin = cursor.fetchone()[0]
+            has_temples_goshuin = bool(cursor.fetchone()[0])
+
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name = 'temples_conciergethread'
+                )
+                """
+            )
+            has_temples_conciergethread = bool(cursor.fetchone()[0])
 
             cursor.execute(
                 """
@@ -94,7 +148,8 @@ def debug_db(request):
                 )
                 """
             )
-            has_conciergethread_anonymous_id = cursor.fetchone()[0]
+            has_conciergethread_anonymous_id = bool(cursor.fetchone()[0])
+
     except Exception as e:
         schema_check_error = f"{type(e).__name__}: {e}"
 
@@ -110,17 +165,24 @@ def debug_db(request):
             "place_ref_count": PlaceRef.objects.count(),
             "shrine_candidate_count": shrine_candidate_count,
             "migration": {
+                "temples_migration_count": migration_count,
+                "latest_temples_migrations": latest_temples_migrations,
                 "temples_0078_applied": migration_0078_applied,
+                "has_0048": has_0048,
+                "has_0049": has_0049,
+                "has_0050": has_0050,
+                "has_0077": has_0077,
+                "has_0078": has_0078,
                 "error": migration_check_error,
             },
             "schema": {
                 "has_temples_goshuin": has_temples_goshuin,
+                "has_temples_conciergethread": has_temples_conciergethread,
                 "has_conciergethread_anonymous_id": has_conciergethread_anonymous_id,
                 "error": schema_check_error,
             },
         }
     )
-
 
 @extend_schema(exclude=True)
 @api_view(["GET"])
