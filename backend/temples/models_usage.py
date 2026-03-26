@@ -49,7 +49,7 @@ class FeatureUsage(models.Model):
                 name="uq_feature_usage_anon_feature",
             ),
             models.CheckConstraint(
-                check=(
+                condition=(
                     (Q(scope="user") & Q(user__isnull=False) & Q(anon_id=""))
                     | (Q(scope="anonymous") & Q(user__isnull=True) & Q(anon_id__gt=""))
                 ),
