@@ -58,6 +58,9 @@ def debug_db(request):
     has_0078 = None
 
     has_temples_goshuin = None
+    has_temples_goshuinimage = None
+    has_temples_like = None
+    has_temples_rankinglog = None
     has_temples_conciergethread = None
     has_conciergethread_anonymous_id = None
 
@@ -131,6 +134,42 @@ def debug_db(request):
                   SELECT 1
                   FROM information_schema.tables
                   WHERE table_schema = 'public'
+                    AND table_name = 'temples_goshuinimage'
+                )
+                """
+            )
+            has_temples_goshuinimage = bool(cursor.fetchone()[0])
+
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name = 'temples_like'
+                )
+                """
+            )
+            has_temples_like = bool(cursor.fetchone()[0])
+
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name = 'temples_rankinglog'
+                )
+                """
+            )
+            has_temples_rankinglog = bool(cursor.fetchone()[0])
+
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
                     AND table_name = 'temples_conciergethread'
                 )
                 """
@@ -177,6 +216,9 @@ def debug_db(request):
             },
             "schema": {
                 "has_temples_goshuin": has_temples_goshuin,
+                "has_temples_goshuinimage": has_temples_goshuinimage,
+                "has_temples_like": has_temples_like,
+                "has_temples_rankinglog": has_temples_rankinglog,
                 "has_temples_conciergethread": has_temples_conciergethread,
                 "has_conciergethread_anonymous_id": has_conciergethread_anonymous_id,
                 "error": schema_check_error,
