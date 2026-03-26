@@ -26,7 +26,8 @@ def _short_title(text: str, max_len: int = 40) -> str:
 @transaction.atomic
 def append_chat(
     *,
-    user,
+    user=None,
+    anonymous_id: Optional[str] = None,
     query: str,
     reply_text: Optional[str] = None,
     thread_id: Optional[int] = None,
@@ -35,17 +36,29 @@ def append_chat(
 ) -> ChatSaveResult:
     now = timezone.now()
 
+    if user is None and not anonymous_id:
+        raise ValueError("user または anonymous_id のどちらかが必要です")
+
     if thread_id is not None:
-        thread = ConciergeThread.objects.select_for_update().get(id=thread_id, user=user)
+        if user is not None:
+            thread = ConciergeThread.objects.select_for_update().get(
+                id=thread_id,
+                user=user,
+            )
+        else:
+            thread = ConciergeThread.objects.select_for_update().get(
+                id=thread_id,
+                anonymous_id=anonymous_id,
+            )
     else:
         thread = ConciergeThread.objects.create(
             user=user,
+            anonymous_id=anonymous_id,
             title=_short_title(query),
             last_message_at=now,
             recommendations=recommendations,
             recommendations_v2=recommendations_v2,
         )
-
     user_msg = ConciergeMessage.objects.create(
         thread=thread,
         role="user",
@@ -63,14 +76,11 @@ def append_chat(
 
     last_at = assistant_msg.created_at if assistant_msg else user_msg.created_at
 
-    update_fields: dict[str, Any] = {
-        "last_message_at": last_at,
-        "recommendations": recommendations,
-        "recommendations_v2": recommendations_v2,
-    }
-
-    ConciergeThread.objects.filter(pk=thread.pk).update(**update_fields)
+    ConciergeThread.objects.filter(pk=thread.pk).update(
+        last_message_at=last_at,
+        recommendations=recommendations,
+        recommendations_v2=recommendations_v2,
+    )
 
     thread.refresh_from_db()
-
     return ChatSaveResult(thread=thread, user_message=user_msg, assistant_message=assistant_msg)

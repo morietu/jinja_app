@@ -383,9 +383,12 @@ class ConciergeThread(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="concierge_threads",
+        null=True,
+        blank=True,
     )
+    anonymous_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+
     title = models.CharField(max_length=255, blank=True, default="")
-    # メインで紐づける神社（あれば）
     main_shrine = models.ForeignKey(
         "Shrine",
         on_delete=models.SET_NULL,
@@ -397,8 +400,6 @@ class ConciergeThread(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # 最後のメッセージ時間（ソート用）
     last_message_at = models.DateTimeField(null=True, blank=True)
 
     recommendations = models.JSONField(null=True, blank=True)
@@ -408,6 +409,13 @@ class ConciergeThread(models.Model):
         ordering = ["-last_message_at", "-id"]
         indexes = [
             models.Index(fields=["user", "last_message_at"]),
+            models.Index(fields=["anonymous_id", "last_message_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(user__isnull=False) | Q(anonymous_id__isnull=False),
+                name="concierge_thread_user_or_anonymous_required",
+            ),
         ]
 
     def __str__(self) -> str:
