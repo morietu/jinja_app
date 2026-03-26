@@ -40,20 +40,20 @@ from .views import favicon, index
 def healthz(request):
     return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
-
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_db(request):
     from temples.models import PlaceRef, Shrine
+    from django.apps import apps
 
     try:
         from temples.models import ShrineCandidate
-
         shrine_candidate_count = ShrineCandidate.objects.count()
     except Exception as e:
         shrine_candidate_count = f"ERR: {type(e).__name__}"
 
+    # --- migration 状態 ---
     migration_0078_applied = None
     migration_count = None
     latest_temples_migrations = []
@@ -63,6 +63,7 @@ def debug_db(request):
     has_0077 = None
     has_0078 = None
 
+    # --- schema ---
     has_temples_goshuin = None
     has_temples_goshuinimage = None
     has_temples_like = None
@@ -70,19 +71,32 @@ def debug_db(request):
     has_temples_conciergethread = None
     has_conciergethread_anonymous_id = None
 
+    # --- disk ---
     disk_has_0078_file = None
     disk_latest_temples_migration_files = []
     migrations_dir = None
 
+    # --- loader ---
     loader_has_0078 = None
     loader_leaf_nodes = []
     loader_disk_migrations_tail = []
+
+    # --- app resolution ---
+    migration_modules_temples = None
+    app_config_name = None
+    app_module_file = None
+    temples_package_file = None
+    temples_migrations_file = None
 
     migration_check_error = None
     schema_check_error = None
     migration_files_error = None
     migration_loader_error = None
+    app_resolution_error = None
 
+    # ======================
+    # migration DB
+    # ======================
     try:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -130,76 +144,37 @@ def debug_db(request):
     except Exception as e:
         migration_check_error = f"{type(e).__name__}: {e}"
 
+    # ======================
+    # schema
+    # ======================
     try:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_goshuin'
+            def _table_exists(name):
+                cursor.execute(
+                    """
+                    SELECT EXISTS (
+                      SELECT 1 FROM information_schema.tables
+                      WHERE table_schema = 'public'
+                      AND table_name = %s
+                    )
+                    """,
+                    [name],
                 )
-                """
-            )
-            has_temples_goshuin = bool(cursor.fetchone()[0])
+                return bool(cursor.fetchone()[0])
 
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_goshuinimage'
-                )
-                """
-            )
-            has_temples_goshuinimage = bool(cursor.fetchone()[0])
-
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_like'
-                )
-                """
-            )
-            has_temples_like = bool(cursor.fetchone()[0])
-
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_rankinglog'
-                )
-                """
-            )
-            has_temples_rankinglog = bool(cursor.fetchone()[0])
-
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                  SELECT 1
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_conciergethread'
-                )
-                """
-            )
-            has_temples_conciergethread = bool(cursor.fetchone()[0])
+            has_temples_goshuin = _table_exists("temples_goshuin")
+            has_temples_goshuinimage = _table_exists("temples_goshuinimage")
+            has_temples_like = _table_exists("temples_like")
+            has_temples_rankinglog = _table_exists("temples_rankinglog")
+            has_temples_conciergethread = _table_exists("temples_conciergethread")
 
             cursor.execute(
                 """
                 SELECT EXISTS (
                   SELECT 1
                   FROM information_schema.columns
-                  WHERE table_schema = 'public'
-                    AND table_name = 'temples_conciergethread'
-                    AND column_name = 'anonymous_id'
+                  WHERE table_name='temples_conciergethread'
+                  AND column_name='anonymous_id'
                 )
                 """
             )
@@ -208,6 +183,9 @@ def debug_db(request):
     except Exception as e:
         schema_check_error = f"{type(e).__name__}: {e}"
 
+    # ======================
+    # disk
+    # ======================
     try:
         migrations_dir = Path(__file__).resolve().parents[1] / "temples" / "migrations"
 
@@ -226,6 +204,9 @@ def debug_db(request):
     except Exception as e:
         migration_files_error = f"{type(e).__name__}: {e}"
 
+    # ======================
+    # loader
+    # ======================
     try:
         from django.db.migrations.loader import MigrationLoader
 
@@ -241,8 +222,8 @@ def debug_db(request):
 
         loader_disk_migrations_tail = sorted(
             [
-                migration_name
-                for app_label, migration_name in loader.disk_migrations.keys()
+                name
+                for app_label, name in loader.disk_migrations.keys()
                 if app_label == "temples"
             ]
         )[-10:]
@@ -250,6 +231,31 @@ def debug_db(request):
     except Exception as e:
         migration_loader_error = f"{type(e).__name__}: {e}"
 
+    # ======================
+    # ⭐️ app resolution（今回の本命）
+    # ======================
+    try:
+        import temples
+        import importlib
+
+        migration_modules_temples = getattr(settings, "MIGRATION_MODULES", {}).get("temples")
+
+        app_config = apps.get_app_config("temples")
+        app_config_name = app_config.name
+        app_module_file = getattr(app_config.module, "__file__", None)
+
+        temples_package_file = getattr(temples, "__file__", None)
+
+        try:
+            temples_migrations = importlib.import_module("temples.migrations")
+            temples_migrations_file = getattr(temples_migrations, "__file__", None)
+        except Exception as e:
+            temples_migrations_file = f"ERR: {type(e).__name__}"
+
+    except Exception as e:
+        app_resolution_error = f"{type(e).__name__}: {e}"
+
+    # ======================
     return JsonResponse(
         {
             "ENGINE": settings.DATABASES["default"]["ENGINE"],
@@ -284,6 +290,14 @@ def debug_db(request):
                 "loader_disk_migrations_tail": loader_disk_migrations_tail,
                 "error": migration_loader_error,
             },
+            "app_resolution": {
+                "migration_modules_temples": migration_modules_temples,
+                "app_config_name": app_config_name,
+                "app_module_file": app_module_file,
+                "temples_package_file": temples_package_file,
+                "temples_migrations_file": temples_migrations_file,
+                "error": app_resolution_error,
+            },
             "schema": {
                 "has_temples_goshuin": has_temples_goshuin,
                 "has_temples_goshuinimage": has_temples_goshuinimage,
@@ -295,7 +309,6 @@ def debug_db(request):
             },
         }
     )
-
 
 @extend_schema(exclude=True)
 @api_view(["GET"])
