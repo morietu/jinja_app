@@ -130,6 +130,17 @@ export async function bffFetchWithAuthFromReq(
   }
 
   const text = upstream.status === 204 ? "" : await upstream.text().catch(() => "");
+  const contentType = upstream.headers.get("content-type");
+
+  console.log("[BFF_UPSTREAM]", {
+    upstreamPath,
+    status: upstream.status,
+    contentType,
+    isJson: contentType?.includes("application/json") ?? false,
+    bodyPreview: text.slice(0, 1000),
+  });
+
+
   const res =
     upstream.status === 204
       ? new NextResponse(null, { status: 204 })
