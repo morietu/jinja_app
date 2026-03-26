@@ -35,17 +35,68 @@ from .views import favicon, index
 def healthz(request):
     return JsonResponse({"ok": True, "release": getattr(settings, "RELEASE", None)})
 
-
 @extend_schema(exclude=True)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_db(request):
     from temples.models import Shrine, PlaceRef
+
     try:
         from temples.models import ShrineCandidate
         shrine_candidate_count = ShrineCandidate.objects.count()
     except Exception as e:
         shrine_candidate_count = f"ERR: {type(e).__name__}"
+
+    migration_0078_applied = None
+    has_temples_goshuin = None
+    has_conciergethread_anonymous_id = None
+    migration_check_error = None
+    schema_check_error = None
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM django_migrations
+                  WHERE app = %s AND name = %s
+                )
+                """,
+                ["temples", "0078_conciergethread_anonymous_id_and_more"],
+            )
+            migration_0078_applied = cursor.fetchone()[0]
+    except Exception as e:
+        migration_check_error = f"{type(e).__name__}: {e}"
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name = 'temples_goshuin'
+                )
+                """
+            )
+            has_temples_goshuin = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                  SELECT 1
+                  FROM information_schema.columns
+                  WHERE table_schema = 'public'
+                    AND table_name = 'temples_conciergethread'
+                    AND column_name = 'anonymous_id'
+                )
+                """
+            )
+            has_conciergethread_anonymous_id = cursor.fetchone()[0]
+    except Exception as e:
+        schema_check_error = f"{type(e).__name__}: {e}"
 
     return JsonResponse(
         {
@@ -58,6 +109,15 @@ def debug_db(request):
             "shrine_count": Shrine.objects.count(),
             "place_ref_count": PlaceRef.objects.count(),
             "shrine_candidate_count": shrine_candidate_count,
+            "migration": {
+                "temples_0078_applied": migration_0078_applied,
+                "error": migration_check_error,
+            },
+            "schema": {
+                "has_temples_goshuin": has_temples_goshuin,
+                "has_conciergethread_anonymous_id": has_conciergethread_anonymous_id,
+                "error": schema_check_error,
+            },
         }
     )
 
