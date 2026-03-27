@@ -1,4 +1,4 @@
-// apps/web/src/app/api/concierge/chat/route.ts
+// apps/web/src/app/api/concierge/chat/route.ts;
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
@@ -8,10 +8,24 @@ export const revalidate = 0;
 
 type RefreshResponse = { access?: string; refresh?: string };
 
+function buildProxyResponse(upstream: Response, body: string) {
+  const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
+  const res = new NextResponse(body, {
+    status: upstream.status,
+    headers: { "content-type": ct },
+  });
+
+  const setCookie = upstream.headers.get("set-cookie");
+  if (setCookie) {
+    res.headers.append("set-cookie", setCookie);
+  }
+
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   const payload = await req.text();
   const contentType = req.headers.get("content-type") ?? "application/json";
-
   const refreshToken = req.cookies.get("refresh_token")?.value ?? null;
 
   const doChat = (accessToken: string | null) =>
@@ -24,11 +38,9 @@ export async function POST(req: NextRequest) {
       body: payload,
     });
 
-  // 1st try
   let accessToken = req.cookies.get("access_token")?.value ?? null;
   let upstream = await doChat(accessToken);
 
-  // 401 -> refresh -> retry
   if (upstream.status === 401 && refreshToken) {
     const refreshUpstream = await djFetch(req, "/api/auth/jwt/refresh/", {
       method: "POST",
@@ -45,19 +57,15 @@ export async function POST(req: NextRequest) {
         upstream = await doChat(accessToken);
 
         const body = await upstream.text();
-        const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
-        const res = new NextResponse(body, { status: upstream.status, headers: { "content-type": ct } });
+        const res = buildProxyResponse(upstream, body);
 
-        // ✅ 新 access を cookie に保存（あなたの運用に合わせて属性は調整）
         res.cookies.set("access_token", nextAccess, {
           httpOnly: true,
           sameSite: "lax",
           path: "/",
-          // maxAge は access の exp に合わせるのが理想。雑に 3600 でもOK
           maxAge: 60 * 60,
         });
 
-        // refresh をローテーションしてるなら、ここで refresh_token も更新
         if (json.refresh) {
           res.cookies.set("refresh_token", json.refresh, {
             httpOnly: true,
@@ -71,16 +79,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // refresh 失敗: access cookie を消して、素直に 401 を返す（ループ防止）
     const body = await upstream.text();
-    const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
-    const res = new NextResponse(body, { status: upstream.status, headers: { "content-type": ct } });
+    const res = buildProxyResponse(upstream, body);
     res.cookies.delete("access_token");
     return res;
   }
 
-  // normal return
   const body = await upstream.text();
-  const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
-  return new NextResponse(body, { status: upstream.status, headers: { "content-type": ct } });
+  return buildProxyResponse(upstream, body);
 }
