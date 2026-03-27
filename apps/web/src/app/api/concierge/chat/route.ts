@@ -5,6 +5,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+console.log("🔥 ROUTE_TS HIT 🔥");
+
 type RefreshResponse = { access?: string; refresh?: string };
 
 function getUpstreamSetCookies(upstream: Response): string[] {
@@ -44,6 +46,8 @@ function buildProxyResponse(upstream: Response, body: string) {
 }
 
 export async function POST(req: NextRequest) {
+  console.log("🔥 POST /api/concierge/chat HIT 🔥");
+
   const payload = await req.text();
   const contentType = req.headers.get("content-type") ?? "application/json";
   const refreshToken = req.cookies.get("refresh_token")?.value ?? null;
