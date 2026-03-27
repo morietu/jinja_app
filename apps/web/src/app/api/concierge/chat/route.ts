@@ -23,23 +23,25 @@ function getUpstreamSetCookies(upstream: Response): string[] {
 }
 
 function buildProxyResponse(upstream: Response, body: string) {
-  const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
-  const upstreamSetCookies = getUpstreamSetCookies(upstream);
+  const ct = upstream.headers.get("content-type") || "application/json";
+  const setCookie = upstream.headers.get("set-cookie");
 
   console.log("[BFF_CHAT_PROXY]", {
     status: upstream.status,
     contentType: ct,
-    setCookieCount: upstreamSetCookies.length,
-    setCookies: upstreamSetCookies,
+    hasSetCookie: Boolean(setCookie),
+    setCookie,
   });
 
   const res = new NextResponse(body, {
     status: upstream.status,
-    headers: { "content-type": ct },
+    headers: {
+      "content-type": ct,
+    },
   });
 
-  for (const value of upstreamSetCookies) {
-    res.headers.append("set-cookie", value);
+  if (setCookie) {
+    res.headers.set("set-cookie", setCookie);
   }
 
   return res;
