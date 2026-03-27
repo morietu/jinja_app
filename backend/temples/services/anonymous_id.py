@@ -53,11 +53,14 @@ def build_anonymous_cookie_value(anon_id: str) -> str:
 
 
 def attach_anonymous_cookie(response: HttpResponse, anon_id: str) -> None:
+    is_prod_like = not settings.DEBUG
+
     response.set_cookie(
         key=ANONYMOUS_ID_COOKIE_NAME,
         value=build_anonymous_cookie_value(anon_id),
         max_age=ANONYMOUS_ID_MAX_AGE,
         httponly=True,
-        samesite="Lax",
-        secure=not settings.DEBUG,
+        samesite="None" if is_prod_like else "Lax",
+        secure=True if is_prod_like else False,
+        path="/",
     )
