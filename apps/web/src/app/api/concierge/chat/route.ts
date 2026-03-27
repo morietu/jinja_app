@@ -66,9 +66,7 @@ export async function POST(req: NextRequest) {
   let upstream = await doChat(accessToken);
 
   console.log("[BFF_CHAT_ENTRY]", {
-    initialStatus: upstream.status,
-    hasRefreshToken: Boolean(refreshToken),
-    hasAccessToken: Boolean(accessToken),
+    hit: true,
   });
 
   if (upstream.status === 401 && refreshToken) {

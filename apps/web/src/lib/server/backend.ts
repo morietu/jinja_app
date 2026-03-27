@@ -111,5 +111,32 @@ export async function djFetch(
     (finalInit as any).duplex = "half";
   }
 
-  return fetch(url, finalInit);
+  function readResponseSetCookies(res: Response): string[] {
+    const headersAny = res.headers as Headers & {
+      getSetCookie?: () => string[];
+    };
+
+    if (typeof headersAny.getSetCookie === "function") {
+      return headersAny.getSetCookie().filter(Boolean);
+    }
+
+    const single = res.headers.get("set-cookie");
+    return single ? [single] : [];
+  }
+
+  const response = await fetch(url, finalInit);
+
+  const responseSetCookies = readResponseSetCookies(response);
+
+  console.log("[DJ_FETCH_RESPONSE]", {
+    url,
+    method,
+    status: response.status,
+    contentType: response.headers.get("content-type"),
+    setCookieCount: responseSetCookies.length,
+    setCookies: responseSetCookies,
+    hasLocation: Boolean(response.headers.get("location")),
+  });
+
+  return response;
 }
