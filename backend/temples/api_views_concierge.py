@@ -586,11 +586,6 @@ class ConciergeChatView(APIView):
             try:
                 quota = check_quota(plan_context, "concierge")
             except Exception:
-                log.exception(
-                    "[concierge/chat] quota_check failed rid=%s plan=%s",
-                    rid,
-                    getattr(plan_context, "plan", None),
-                )
                 raise
 
             log.info(
@@ -627,11 +622,12 @@ class ConciergeChatView(APIView):
                 if plan_context.plan == "anonymous" and plan_context.anon_id:
                     attach_anonymous_cookie(response, plan_context.anon_id)
                     log.info(
-                        "[concierge/chat] after_attach_limit rid=%s headers=%r",
+                        "[concierge/chat] after_attach_limit rid=%s cookies=%r",
                         rid,
-                        dict(response.items()),
+                        response.cookies.output(),
                     )
 
+                log.info("[concierge/chat] before_return rid=%s", rid)
                 return response
 
             remaining, limit_value = _chat_quota_fields(plan=plan_context.plan, quota=quota)
@@ -900,18 +896,17 @@ class ConciergeChatView(APIView):
             if plan_context.plan == "anonymous" and plan_context.anon_id:
                 attach_anonymous_cookie(response, plan_context.anon_id)
                 log.info(
-                    "[concierge/chat] after_attach_success rid=%s headers=%r",
+                    "[concierge/chat] after_attach_success rid=%s cookies=%r",
                     rid,
-                    dict(response.items()),
+                    response.cookies.output(),
                 )
 
             log.info(
-                "[concierge/chat] set_cookie rid=%s has_set_cookie=%s set_cookie=%r",
+                "[concierge/chat] cookie_state rid=%s cookies=%r",
                 rid,
-                bool(response.headers.get("Set-Cookie")),
-                response.headers.get("Set-Cookie"),
+                response.cookies.output(),
             )
-
+            log.info("[concierge/chat] before_return rid=%s", rid)
             return response
         finally:
             total_ms = round((time.perf_counter() - t0_total) * 1000, 1)
