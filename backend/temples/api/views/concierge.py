@@ -102,8 +102,8 @@ class ConciergeThreadDetailView(APIView):
                 raw_req = getattr(request, "_request", None)
                 anonymous_id = get_anonymous_id(request) or (get_anonymous_id(raw_req) if raw_req else None)
 
-                print(
-                    "THREAD_DETAIL_DEBUG",
+                logger.warning(
+                    "THREAD_DETAIL_DEBUG %s",
                     {
                         "pk": pk,
                         "is_authenticated": bool(getattr(user, "is_authenticated", False)),
@@ -113,17 +113,17 @@ class ConciergeThreadDetailView(APIView):
                     },
                 )
 
-                print(
-                    "THREAD_DETAIL_QUERYSET",
-                    {
-                        "pk": pk,
-                        "is_authenticated": bool(getattr(user, "is_authenticated", False)),
-                        "queryset_filter": (
-                            {"user_id": getattr(user, "id", None)}
-                            if user is not None and getattr(user, "is_authenticated", False)
-                            else {"user__isnull": True, "anonymous_id": anonymous_id}
-                        ),
-                    },
+                logger.warning(
+                        "THREAD_DETAIL_QUERYSET %s",
+                        {
+                            "pk": pk,
+                            "is_authenticated": bool(getattr(user, "is_authenticated", False)),
+                            "queryset_filter": (
+                                {"user_id": getattr(user, "id", None)}
+                                if user is not None and getattr(user, "is_authenticated", False)
+                                else {"user__isnull": True, "anonymous_id": anonymous_id}
+                            ),
+                        },
                 )
 
                 if not anonymous_id:
