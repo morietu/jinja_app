@@ -108,7 +108,30 @@ export async function bffFetchWithAuthFromReq(
 
   const doFetch = (overrideAccess?: string | null) => {
     const auth = buildAuth(overrideAccess);
-    const cookieHeader = req.headers.get("cookie");
+    const cookieHeader = req.headers.get("cookie") ?? "";
+
+    const hasAnonCookie = /(?:^|;\s*)concierge_anon_id=/.test(cookieHeader);
+    const hasAccessCookie = /(?:^|;\s*)access_token=/.test(cookieHeader);
+    const hasRefreshCookie = /(?:^|;\s*)refresh_token=/.test(cookieHeader);
+
+    console.log("[BFF_THREAD_UPSTREAM_REQUEST]", {
+      upstreamPath,
+      method: init.method ?? "GET",
+      hasAuthorization: Boolean(auth),
+      authSource: headerAuth
+        ? "incoming_header"
+        : overrideAccess
+          ? "override_access"
+          : preRefreshedAccess
+            ? "pre_refreshed_access"
+            : access
+              ? "access_cookie"
+              : null,
+      hasCookieHeader: Boolean(cookieHeader),
+      hasAnonCookie,
+      hasAccessCookie,
+      hasRefreshCookie,
+    });
 
     return fetch(`${apiBase()}${upstreamPath}`, {
       ...init,
@@ -136,6 +159,7 @@ export async function bffFetchWithAuthFromReq(
     upstreamPath,
     status: upstream.status,
     contentType,
+    hasSetCookie: Boolean(upstream.headers.get("set-cookie")),
     isJson: contentType?.includes("application/json") ?? false,
     bodyPreview: text.slice(0, 1000),
   });

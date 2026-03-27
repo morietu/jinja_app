@@ -113,6 +113,19 @@ class ConciergeThreadDetailView(APIView):
                     },
                 )
 
+                print(
+                    "THREAD_DETAIL_QUERYSET",
+                    {
+                        "pk": pk,
+                        "is_authenticated": bool(getattr(user, "is_authenticated", False)),
+                        "queryset_filter": (
+                            {"user_id": getattr(user, "id", None)}
+                            if user is not None and getattr(user, "is_authenticated", False)
+                            else {"user__isnull": True, "anonymous_id": anonymous_id}
+                        ),
+                    },
+                )
+
                 if not anonymous_id:
                     return Response({"detail": "not found"}, status=status.HTTP_404_NOT_FOUND)
 
