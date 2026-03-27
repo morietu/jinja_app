@@ -95,6 +95,17 @@ class ConciergeThreadDetailView(APIView):
         try:
             qs = ConciergeThread.objects.filter(pk=pk)
 
+            logger.warning(
+                "THREAD_DETAIL_LOOKUP %s",
+                {
+                    "thread_id": pk,
+                    "user_id": getattr(getattr(request, "user", None), "id", None),
+                    "is_authenticated": bool(getattr(getattr(request, "user", None), "is_authenticated", False)),
+                    "anon_id_cookie": request.COOKIES.get("concierge_anon_id"),
+                    "cookies": dict(getattr(request, "COOKIES", {}) or {}),
+                },
+            )
+
             user = getattr(request, "user", None)
             if user is not None and getattr(user, "is_authenticated", False):
                 qs = qs.filter(user=user)
@@ -114,23 +125,22 @@ class ConciergeThreadDetailView(APIView):
                 )
 
                 logger.warning(
-                        "THREAD_DETAIL_QUERYSET %s",
-                        {
-                            "pk": pk,
-                            "is_authenticated": bool(getattr(user, "is_authenticated", False)),
-                            "queryset_filter": (
-                                {"user_id": getattr(user, "id", None)}
-                                if user is not None and getattr(user, "is_authenticated", False)
-                                else {"user__isnull": True, "anonymous_id": anonymous_id}
-                            ),
-                        },
+                    "THREAD_DETAIL_QUERYSET %s",
+                    {
+                        "pk": pk,
+                        "is_authenticated": bool(getattr(user, "is_authenticated", False)),
+                        "queryset_filter": (
+                            {"user_id": getattr(user, "id", None)}
+                            if user is not None and getattr(user, "is_authenticated", False)
+                            else {"user__isnull": True, "anonymous_id": anonymous_id}
+                        ),
+                    },
                 )
 
                 if not anonymous_id:
                     return Response({"detail": "not found"}, status=status.HTTP_404_NOT_FOUND)
 
                 qs = qs.filter(user__isnull=True, anonymous_id=anonymous_id)
-
             thread = get_object_or_404(qs)
             msgs = ConciergeMessage.objects.filter(thread=thread).order_by("created_at", "id")
 
