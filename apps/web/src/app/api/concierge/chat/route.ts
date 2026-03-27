@@ -31,8 +31,6 @@ function buildProxyResponse(upstream: Response, body: string) {
     setCookies: upstreamSetCookies,
   });
 
-  console.log("🔥🔥🔥 BFF_CHAT_PROXY HIT 🔥🔥🔥");
-
   const res = new NextResponse(body, {
     status: upstream.status,
     headers: { "content-type": ct },
@@ -63,16 +61,34 @@ export async function POST(req: NextRequest) {
   let accessToken = req.cookies.get("access_token")?.value ?? null;
   let upstream = await doChat(accessToken);
 
+  console.log("[BFF_CHAT_ENTRY]", {
+    initialStatus: upstream.status,
+    hasRefreshToken: Boolean(refreshToken),
+    hasAccessToken: Boolean(accessToken),
+  });
+
   if (upstream.status === 401 && refreshToken) {
+    console.log("RETURN PATH: entered refresh flow");
+
     const refreshUpstream = await djFetch(req, "/api/auth/jwt/refresh/", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ refresh: refreshToken }),
     });
 
+    console.log("[BFF_CHAT_REFRESH]", {
+      refreshStatus: refreshUpstream.status,
+      refreshOk: refreshUpstream.ok,
+    });
+
     if (refreshUpstream.ok) {
       const json = (await refreshUpstream.json()) as RefreshResponse;
       const nextAccess = json.access ?? null;
+
+      console.log("[BFF_CHAT_REFRESH_JSON]", {
+        hasNextAccess: Boolean(nextAccess),
+        hasNextRefresh: Boolean(json.refresh),
+      });
 
       if (nextAccess) {
         accessToken = nextAccess;
@@ -97,16 +113,22 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        console.log("RETURN: refresh success");
         return res;
       }
+
+      console.log("RETURN: refresh ok but no access token");
     }
 
     const body = await upstream.text();
     const res = buildProxyResponse(upstream, body);
     res.cookies.delete("access_token");
+
+    console.log("RETURN: refresh fallback/delete-access");
     return res;
   }
 
   const body = await upstream.text();
+  console.log("RETURN: normal");
   return buildProxyResponse(upstream, body);
 }
