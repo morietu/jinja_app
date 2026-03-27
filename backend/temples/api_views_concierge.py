@@ -626,6 +626,11 @@ class ConciergeChatView(APIView):
 
                 if plan_context.plan == "anonymous" and plan_context.anon_id:
                     attach_anonymous_cookie(response, plan_context.anon_id)
+                    log.info(
+                        "[concierge/chat] after_attach_limit rid=%s headers=%r",
+                        rid,
+                        dict(response.items()),
+                    )
 
                 return response
 
@@ -894,6 +899,11 @@ class ConciergeChatView(APIView):
 
             if plan_context.plan == "anonymous" and plan_context.anon_id:
                 attach_anonymous_cookie(response, plan_context.anon_id)
+                log.info(
+                    "[concierge/chat] after_attach_success rid=%s headers=%r",
+                    rid,
+                    dict(response.items()),
+                )
 
             log.info(
                 "[concierge/chat] set_cookie rid=%s has_set_cookie=%s set_cookie=%r",
