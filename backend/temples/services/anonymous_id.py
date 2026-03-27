@@ -54,19 +54,13 @@ def build_anonymous_cookie_value(anon_id: str) -> str:
 
 def attach_anonymous_cookie(response: HttpResponse, anon_id: str) -> None:
     is_prod_like = not settings.DEBUG
-    cookie_value = build_anonymous_cookie_value(anon_id)
 
-    parts = [
-        f"{ANONYMOUS_ID_COOKIE_NAME}={cookie_value}",
-        "Path=/",
-        f"Max-Age={ANONYMOUS_ID_MAX_AGE}",
-        "HttpOnly",
-    ]
-
-    if is_prod_like:
-        parts.append("SameSite=None")
-        parts.append("Secure")
-    else:
-        parts.append("SameSite=Lax")
-
-    response.headers.append("Set-Cookie", "; ".join(parts))
+    response.set_cookie(
+        key=ANONYMOUS_ID_COOKIE_NAME,
+        value=build_anonymous_cookie_value(anon_id),
+        max_age=ANONYMOUS_ID_MAX_AGE,
+        httponly=True,
+        samesite="None" if is_prod_like else "Lax",
+        secure=True if is_prod_like else False,
+        path="/",
+    )
