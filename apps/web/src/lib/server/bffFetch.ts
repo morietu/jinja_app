@@ -18,6 +18,19 @@ function apiBase() {
   return getDjangoOrigin().replace(/\/$/, "");
 }
 
+function getUpstreamSetCookies(upstream: Response): string[] {
+  const headersAny = upstream.headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+
+  if (typeof headersAny.getSetCookie === "function") {
+    return headersAny.getSetCookie().filter(Boolean);
+  }
+
+  const single = upstream.headers.get("set-cookie");
+  return single ? [single] : [];
+}
+
 let refreshInFlight: Promise<string | null> | null = null;
 
 async function refreshAccessViaBackendMutex(refresh: string): Promise<string | null> {
@@ -172,8 +185,15 @@ export async function bffFetchWithAuthFromReq(
       ? new NextResponse(null, { status: 204 })
       : new NextResponse(text, {
           status: upstream.status,
-          headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
+          headers: {
+            "Content-Type": contentType ?? "application/json",
+          },
         });
+
+  const upstreamSetCookies = getUpstreamSetCookies(upstream);
+  for (const value of upstreamSetCookies) {
+    res.headers.append("set-cookie", value);
+  }
 
   const tokenToSet = newAccess ?? preRefreshedAccess;
   if (tokenToSet && setAccessCookie) {

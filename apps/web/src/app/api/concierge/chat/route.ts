@@ -8,6 +8,19 @@ export const revalidate = 0;
 
 type RefreshResponse = { access?: string; refresh?: string };
 
+function getUpstreamSetCookies(upstream: Response): string[] {
+  const headersAny = upstream.headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+
+  if (typeof headersAny.getSetCookie === "function") {
+    return headersAny.getSetCookie().filter(Boolean);
+  }
+
+  const single = upstream.headers.get("set-cookie");
+  return single ? [single] : [];
+}
+
 function buildProxyResponse(upstream: Response, body: string) {
   const ct = upstream.headers.get("content-type") ?? "text/plain; charset=utf-8";
   const res = new NextResponse(body, {
@@ -15,9 +28,8 @@ function buildProxyResponse(upstream: Response, body: string) {
     headers: { "content-type": ct },
   });
 
-  const setCookie = upstream.headers.get("set-cookie");
-  if (setCookie) {
-    res.headers.append("set-cookie", setCookie);
+  for (const value of getUpstreamSetCookies(upstream)) {
+    res.headers.append("set-cookie", value);
   }
 
   return res;
