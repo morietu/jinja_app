@@ -624,11 +624,7 @@ class ConciergeChatView(APIView):
                 response = Response(body, status=status.HTTP_200_OK)
                 total_status = 200
 
-                if (
-                    plan_context.plan == "anonymous"
-                    and plan_context.should_set_anon_cookie
-                    and plan_context.anon_id
-                ):
+                if plan_context.plan == "anonymous" and plan_context.anon_id:
                     attach_anonymous_cookie(response, plan_context.anon_id)
 
                 return response
@@ -896,17 +892,14 @@ class ConciergeChatView(APIView):
             response = Response(body, status=status.HTTP_200_OK)
             total_status = 200
 
-            if (
-                plan_context.plan == "anonymous"
-                and plan_context.should_set_anon_cookie
-                and plan_context.anon_id
-            ):
+            if plan_context.plan == "anonymous" and plan_context.anon_id:
                 attach_anonymous_cookie(response, plan_context.anon_id)
 
             log.info(
-                "[concierge/chat] set_cookie rid=%s has_set_cookie=%s",
+                "[concierge/chat] set_cookie rid=%s has_set_cookie=%s set_cookie=%r",
                 rid,
                 bool(response.headers.get("Set-Cookie")),
+                response.headers.get("Set-Cookie"),
             )
 
             return response

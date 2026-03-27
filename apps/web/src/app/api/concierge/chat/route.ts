@@ -1,4 +1,3 @@
-// apps/web/src/app/api/concierge/chat/route.ts;
 import { NextRequest, NextResponse } from "next/server";
 import { djFetch } from "@/lib/server/backend";
 
