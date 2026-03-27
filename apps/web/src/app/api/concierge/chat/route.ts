@@ -9,18 +9,6 @@ console.log("🔥 ROUTE_TS HIT 🔥");
 
 type RefreshResponse = { access?: string; refresh?: string };
 
-function getUpstreamSetCookies(upstream: Response): string[] {
-  const headersAny = upstream.headers as Headers & {
-    getSetCookie?: () => string[];
-  };
-
-  if (typeof headersAny.getSetCookie === "function") {
-    return headersAny.getSetCookie().filter(Boolean);
-  }
-
-  const single = upstream.headers.get("set-cookie");
-  return single ? [single] : [];
-}
 
 function buildProxyResponse(upstream: Response, body: string) {
   const ct = upstream.headers.get("content-type") || "application/json";
