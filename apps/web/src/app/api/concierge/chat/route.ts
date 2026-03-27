@@ -31,6 +31,8 @@ function buildProxyResponse(upstream: Response, body: string) {
     setCookies: upstreamSetCookies,
   });
 
+  console.log("🔥🔥🔥 BFF_CHAT_PROXY HIT 🔥🔥🔥");
+
   const res = new NextResponse(body, {
     status: upstream.status,
     headers: { "content-type": ct },
