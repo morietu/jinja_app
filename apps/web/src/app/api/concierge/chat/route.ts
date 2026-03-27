@@ -12,13 +12,14 @@ type RefreshResponse = { access?: string; refresh?: string };
 
 function buildProxyResponse(upstream: Response, body: string) {
   const ct = upstream.headers.get("content-type") || "application/json";
-  const setCookie = upstream.headers.get("set-cookie");
+  const raw = (upstream.headers as any).raw?.()["set-cookie"] as string[] | undefined;
 
   console.log("[BFF_CHAT_PROXY]", {
     status: upstream.status,
     contentType: ct,
-    hasSetCookie: Boolean(setCookie),
-    setCookie,
+    hasSetCookie: Boolean(raw?.length),
+    setCookieCount: raw?.length ?? 0,
+    setCookies: raw ?? [],
   });
 
   const res = new NextResponse(body, {
@@ -28,8 +29,10 @@ function buildProxyResponse(upstream: Response, body: string) {
     },
   });
 
-  if (setCookie) {
-    res.headers.set("set-cookie", setCookie);
+  if (raw) {
+    for (const cookie of raw) {
+      res.headers.append("set-cookie", cookie);
+    }
   }
 
   return res;
