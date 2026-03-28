@@ -114,10 +114,16 @@ export async function djFetch(
   function readResponseSetCookies(res: Response): string[] {
     const headersAny = res.headers as Headers & {
       getSetCookie?: () => string[];
+      raw?: () => Record<string, string[]>;
     };
 
     if (typeof headersAny.getSetCookie === "function") {
       return headersAny.getSetCookie().filter(Boolean);
+    }
+
+    const raw = typeof headersAny.raw === "function" ? headersAny.raw()?.["set-cookie"] ?? [] : [];
+    if (raw.length > 0) {
+      return raw.filter(Boolean);
     }
 
     const single = res.headers.get("set-cookie");
@@ -126,6 +132,9 @@ export async function djFetch(
 
   const response = await fetch(url, finalInit);
 
+  const responseHeadersAny = response.headers as Headers & {
+    raw?: () => Record<string, string[]>;
+  };
   const responseSetCookies = readResponseSetCookies(response);
 
   console.log("[DJ_FETCH_RESPONSE]", {
@@ -136,6 +145,12 @@ export async function djFetch(
     setCookieCount: responseSetCookies.length,
     setCookies: responseSetCookies,
     hasLocation: Boolean(response.headers.get("location")),
+  });
+
+  console.log("[DJ_FETCH_RESPONSE_HEADERS]", {
+    keys: Array.from(response.headers.keys()),
+    setCookie: response.headers.get("set-cookie"),
+    rawSetCookie: typeof responseHeadersAny.raw === "function" ? responseHeadersAny.raw()?.["set-cookie"] ?? null : null,
   });
 
   return response;
