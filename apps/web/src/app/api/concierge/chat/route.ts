@@ -105,7 +105,9 @@ export async function POST(req: NextRequest) {
               maxAge: 60 * 60 * 24 * 90,
             });
           }
-        } catch {}
+        } catch (error) {
+          console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in refresh success", error);
+        }
 
         res.cookies.set("access_token", nextAccess, {
           httpOnly: true,
@@ -146,7 +148,9 @@ export async function POST(req: NextRequest) {
           maxAge: 60 * 60 * 24 * 90,
         });
       }
-    } catch {}
+    } catch (error) {
+      console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in refresh fallback", error);
+    }
 
     res.cookies.delete("access_token");
 
@@ -170,7 +174,9 @@ export async function POST(req: NextRequest) {
         maxAge: 60 * 60 * 24 * 90,
       });
     }
-  } catch {}
+  } catch (error) {
+    console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in normal flow", error);
+  }
 
   console.log("RETURN: normal");
   return res;
