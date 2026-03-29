@@ -45,8 +45,13 @@ export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? "application/json";
   const refreshToken = req.cookies.get("refresh_token")?.value ?? null;
 
-  const doChat = (accessToken: string | null) =>
-    djFetch(req, "/api/concierge/chat/", {
+  const doChat = (accessToken: string | null) => {
+    const upstreamUrl = "/api/concierge/chat/";
+
+    console.log("🔥 BFF → backend 投げる直前 🔥");
+    console.log("🔥 BFF → backend URL", upstreamUrl);
+
+    return djFetch(req, upstreamUrl, {
       method: "POST",
       headers: {
         "content-type": contentType,
@@ -54,6 +59,7 @@ export async function POST(req: NextRequest) {
       },
       body: payload,
     });
+  };
 
   let accessToken = req.cookies.get("access_token")?.value ?? null;
   let upstream = await doChat(accessToken);
