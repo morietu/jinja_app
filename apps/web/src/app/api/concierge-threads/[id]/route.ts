@@ -6,6 +6,7 @@ export const revalidate = 0;
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const upstreamPath = `/api/concierge-threads/${id}/`;
 
   const cookieHeader = req.headers.get("cookie") ?? "";
   const hasAuthHeader = Boolean(req.headers.get("authorization"));
@@ -23,7 +24,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     hasRefreshCookie,
   });
 
-  return bffFetchWithAuthFromReq(req, `/api/concierge-threads/${id}/`, {
+  console.log("[BFF_THREAD_DETAIL_REQUEST]", {
+    path: upstreamPath,
+    hasCookieHeader: Boolean(req.headers.get("cookie")),
+    cookieHeader: req.headers.get("cookie"),
+  });
+
+  console.log("[BFF_THREAD_DETAIL_UPSTREAM]", {
+    upstreamPath,
+  });
+
+  return bffFetchWithAuthFromReq(req, upstreamPath, {
     method: "GET",
     headers: { Accept: "application/json" },
   });
