@@ -39,7 +39,7 @@ def _unsign_anon_id(signed_value: str) -> Optional[str]:
 
 def get_anonymous_id(request: HttpRequest) -> Optional[str]:
     signed_value = request.COOKIES.get(ANONYMOUS_ID_COOKIE_NAME)
-    log.info("[anon_id] get cookie raw=%r", signed_value)
+    log.info("[anon_id] get cookie raw=%r len=%s", signed_value, len(signed_value) if signed_value else None)
     if not signed_value:
         return None
     value = _unsign_anon_id(signed_value)
@@ -59,7 +59,9 @@ def get_or_create_anonymous_id(request: HttpRequest) -> str:
 
 
 def build_anonymous_cookie_value(anon_id: str) -> str:
-    return _sign_anon_id(anon_id)
+    value = _sign_anon_id(anon_id)
+    log.info("[anon_id] build cookie value=%r len=%s", value, len(value))
+    return value
 
 
 def attach_anonymous_cookie(response: HttpResponse, anon_id: str) -> None:
