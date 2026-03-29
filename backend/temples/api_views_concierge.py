@@ -416,7 +416,7 @@ def _build_chat_response(
 
 
 def _chat_quota_fields(*, plan: Optional[str], quota: Any) -> tuple[Optional[int], Optional[int]]:
-    if plan == "anonymous" or getattr(quota, "unlimited", False):
+    if getattr(quota, "unlimited", False):
         return None, None
     return quota.remaining, quota.limit
 
