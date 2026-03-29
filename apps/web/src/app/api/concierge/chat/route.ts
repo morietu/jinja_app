@@ -96,6 +96,8 @@ export async function POST(req: NextRequest) {
           const json = JSON.parse(body);
           const anonCookieValue = json?._anon_cookie_value;
 
+          console.log("[BFF_ANON_COOKIE_FROM_BODY]", anonCookieValue);
+
           if (anonCookieValue) {
             res.cookies.set("concierge_anon_id", anonCookieValue, {
               httpOnly: true,
@@ -104,6 +106,9 @@ export async function POST(req: NextRequest) {
               path: "/",
               maxAge: 60 * 60 * 24 * 90,
             });
+
+            const serialized = res.cookies.get("concierge_anon_id");
+            console.log("[BFF_ANON_COOKIE_SET_RESULT]", serialized);
           }
         } catch (error) {
           console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in refresh success", error);
@@ -139,6 +144,8 @@ export async function POST(req: NextRequest) {
       const json = JSON.parse(body);
       const anonCookieValue = json?._anon_cookie_value;
 
+      console.log("[BFF_ANON_COOKIE_FROM_BODY]", anonCookieValue);
+
       if (anonCookieValue) {
         res.cookies.set("concierge_anon_id", anonCookieValue, {
           httpOnly: true,
@@ -147,6 +154,9 @@ export async function POST(req: NextRequest) {
           path: "/",
           maxAge: 60 * 60 * 24 * 90,
         });
+
+        const serialized = res.cookies.get("concierge_anon_id");
+        console.log("[BFF_ANON_COOKIE_SET_RESULT]", serialized);
       }
     } catch (error) {
       console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in refresh fallback", error);
@@ -165,6 +175,8 @@ export async function POST(req: NextRequest) {
     const json = JSON.parse(body);
     const anonCookieValue = json?._anon_cookie_value;
 
+    console.log("[BFF_ANON_COOKIE_FROM_BODY]", anonCookieValue);
+
     if (anonCookieValue) {
       res.cookies.set("concierge_anon_id", anonCookieValue, {
         httpOnly: true,
@@ -173,6 +185,9 @@ export async function POST(req: NextRequest) {
         path: "/",
         maxAge: 60 * 60 * 24 * 90,
       });
+
+      const serialized = res.cookies.get("concierge_anon_id");
+      console.log("[BFF_ANON_COOKIE_SET_RESULT]", serialized);
     }
   } catch (error) {
     console.warn("[BFF_CHAT_PROXY] failed to parse anon cookie payload in normal flow", error);
