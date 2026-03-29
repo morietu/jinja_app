@@ -130,17 +130,21 @@ def test_guest_user_is_not_rate_limited():
     client = APIClient()
 
     replies = []
-    keys_list = []
+    bodies = []
 
     for _ in range(7):
         res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
         assert res.status_code == 200
         replies.append(res.data.get("reply"))
-        keys_list.append(set(res.data.keys()))
+        bodies.append(res.data)
 
-    for keys in keys_list:
-        assert "remaining_free" not in keys
-        assert "limit" not in keys
+    for body in bodies:
+        assert "remaining_free" in body
+        assert "limit" in body
+        assert isinstance(body["remaining_free"], int)
+        assert isinstance(body["limit"], int)
+        assert body["limit"] == 3
+        assert 0 <= body["remaining_free"] <= body["limit"]
 
     assert all(r != "無料で利用できる回数を使い切りました。" for r in replies)
 

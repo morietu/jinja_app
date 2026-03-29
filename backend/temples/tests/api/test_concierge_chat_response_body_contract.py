@@ -97,9 +97,12 @@ def test_chat_response_authenticated_non_premium_includes_remaining_and_limit(us
 
 
 @pytest.mark.django_db
-def test_chat_response_anonymous_does_not_include_remaining_or_limit(client, monkeypatch):
+def test_chat_response_anonymous_includes_remaining_and_limit(client, monkeypatch):
     _stub_candidates(monkeypatch)
-    _stub_recommendations(monkeypatch, [{"name": "神社A", "reason": "ok", "reason_source": "reason:test"}])
+    _stub_recommendations(
+        monkeypatch,
+        [{"name": "神社A", "reason": "ok", "reason_source": "reason:test"}],
+    )
 
     r = client.post(
         URL,
@@ -109,8 +112,12 @@ def test_chat_response_anonymous_does_not_include_remaining_or_limit(client, mon
     assert r.status_code == 200
 
     body = r.json()
-    assert "remaining_free" not in body
-    assert "limit" not in body
+    assert "remaining_free" in body
+    assert "limit" in body
+    assert isinstance(body["remaining_free"], int)
+    assert isinstance(body["limit"], int)
+    assert body["limit"] >= 1
+    assert 0 <= body["remaining_free"] <= body["limit"]
 
 
 @pytest.mark.django_db
