@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Optional
 
@@ -7,6 +8,8 @@ from django.conf import settings
 from django.core import signing
 from django.http import HttpRequest, HttpResponse
 
+
+log = logging.getLogger(__name__)
 
 ANONYMOUS_ID_COOKIE_NAME = "concierge_anon_id"
 ANONYMOUS_ID_SALT = "temples.concierge.anonymous_id"
@@ -20,21 +23,28 @@ def _sign_anon_id(raw_id: str) -> str:
 def _unsign_anon_id(signed_value: str) -> Optional[str]:
     try:
         value = signing.loads(signed_value, salt=ANONYMOUS_ID_SALT, max_age=None)
+        log.info("[anon_id] signing.loads ok value=%r", value)
     except signing.BadSignature:
+        log.warning("[anon_id] BadSignature signed_value=%r", signed_value)
         return None
     except signing.SignatureExpired:
+        log.warning("[anon_id] SignatureExpired signed_value=%r", signed_value)
         return None
 
     if not isinstance(value, str) or not value:
+        log.warning("[anon_id] invalid unsigned value=%r", value)
         return None
     return value
 
 
 def get_anonymous_id(request: HttpRequest) -> Optional[str]:
     signed_value = request.COOKIES.get(ANONYMOUS_ID_COOKIE_NAME)
+    log.info("[anon_id] get cookie raw=%r", signed_value)
     if not signed_value:
         return None
-    return _unsign_anon_id(signed_value)
+    value = _unsign_anon_id(signed_value)
+    log.info("[anon_id] unsign result=%r", value)
+    return value
 
 
 def issue_anonymous_id() -> str:
