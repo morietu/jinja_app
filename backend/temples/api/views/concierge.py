@@ -111,7 +111,31 @@ class ConciergeThreadDetailView(APIView):
                 qs = qs.filter(user=user)
             else:
                 raw_req = getattr(request, "_request", None)
-                anonymous_id = get_anonymous_id(request) or (get_anonymous_id(raw_req) if raw_req else None)
+                anon_from_request = get_anonymous_id(request)
+                anon_from_raw_request = get_anonymous_id(raw_req) if raw_req else None
+                anonymous_id = anon_from_request or anon_from_raw_request
+
+                logger.warning(
+                    "THREAD_DETAIL_ANON_RESOLVE %s",
+                    {
+                        "pk": pk,
+                        "anon_from_request": anon_from_request,
+                        "anon_from_raw_request": anon_from_raw_request,
+                        "anonymous_id_final": anonymous_id,
+                    },
+                )
+
+                thread_row = ConciergeThread.objects.filter(pk=pk).values(
+                    "id", "user_id", "anonymous_id"
+                ).first()
+
+                logger.warning(
+                    "THREAD_DETAIL_DB_ROW %s",
+                    {
+                        "pk": pk,
+                        "thread_row": thread_row,
+                    },
+                )
 
                 logger.warning(
                     "THREAD_DETAIL_DEBUG %s",
