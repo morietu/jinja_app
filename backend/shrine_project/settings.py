@@ -83,7 +83,7 @@ for p in candidates:
 
 
 # --- security / DEBUG ---
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     if os.getenv("CI") or IS_PYTEST:
         SECRET_KEY = "django-insecure-ci-only-secret-key-please-override"
