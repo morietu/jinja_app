@@ -28,9 +28,10 @@ from temples.api.serializers.concierge import (
 from temples.geocoding.client import geocode_google_point
 from temples.models import ConciergeThread
 from temples.services import places as Places
-from temples.services.anonymous_id import attach_anonymous_cookie
+
 from temples.services.plan_service import resolve_plan_context
 from temples.services.quota_service import check_quota, consume_quota
+from temples.services.anonymous_id import attach_anonymous_cookie, build_anonymous_cookie_value
 from temples.services.concierge_candidate_utils import (
     _dedupe_candidates,
     _to_float,
@@ -370,8 +371,6 @@ def _resolve_request_location_inputs(
             lat, lng = pt
     return lat, lng
 
-
-
 def _build_chat_response(
     intent: Dict[str, Any],
     recs: Dict[str, Any],
@@ -380,6 +379,7 @@ def _build_chat_response(
     limit: Optional[int],
     thread: Optional[Any],
     debug: Optional[Dict[str, Any]],
+    anon_cookie_value: Optional[str],
 ) -> Dict[str, Any]:
     """
     chat 用レスポンスの組み立て。
@@ -410,6 +410,8 @@ def _build_chat_response(
     body["reply"] = reply
     if thread is not None:
         body["thread"] = {"id": thread.id}
+    if anon_cookie_value is not None:
+        body["_anon_cookie_value"] = anon_cookie_value
     return body
 
 
@@ -610,6 +612,11 @@ class ConciergeChatView(APIView):
                     limit=limit_value,
                     thread=None,
                     debug=None,
+                    anon_cookie_value=(
+                        build_anonymous_cookie_value(plan_context.anon_id)
+                        if plan_context.plan == "anonymous" and plan_context.anon_id
+                        else None
+                    ),
                 )
                 body["note"] = "limit-reached"
 
@@ -887,6 +894,11 @@ class ConciergeChatView(APIView):
                     "flow": flow,
                     "mode": public_mode,
                 },
+                anon_cookie_value=(
+                    build_anonymous_cookie_value(plan_context.anon_id)
+                    if plan_context.plan == "anonymous" and plan_context.anon_id
+                    else None
+                ),
             )
 
             phase = "response"

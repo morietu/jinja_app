@@ -92,6 +92,21 @@ export async function POST(req: NextRequest) {
         const body = await upstream.text();
         const res = buildProxyResponse(upstream, body);
 
+        try {
+          const json = JSON.parse(body);
+          const anonCookieValue = json?._anon_cookie_value;
+
+          if (anonCookieValue) {
+            res.cookies.set("concierge_anon_id", anonCookieValue, {
+              httpOnly: true,
+              sameSite: "none",
+              secure: true,
+              path: "/",
+              maxAge: 60 * 60 * 24 * 90,
+            });
+          }
+        } catch {}
+
         res.cookies.set("access_token", nextAccess, {
           httpOnly: true,
           sameSite: "lax",
@@ -117,6 +132,22 @@ export async function POST(req: NextRequest) {
 
     const body = await upstream.text();
     const res = buildProxyResponse(upstream, body);
+
+    try {
+      const json = JSON.parse(body);
+      const anonCookieValue = json?._anon_cookie_value;
+
+      if (anonCookieValue) {
+        res.cookies.set("concierge_anon_id", anonCookieValue, {
+          httpOnly: true,
+          sameSite: "none",
+          secure: true,
+          path: "/",
+          maxAge: 60 * 60 * 24 * 90,
+        });
+      }
+    } catch {}
+
     res.cookies.delete("access_token");
 
     console.log("RETURN: refresh fallback/delete-access");
@@ -124,6 +155,23 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await upstream.text();
+  const res = buildProxyResponse(upstream, body);
+
+  try {
+    const json = JSON.parse(body);
+    const anonCookieValue = json?._anon_cookie_value;
+
+    if (anonCookieValue) {
+      res.cookies.set("concierge_anon_id", anonCookieValue, {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+        path: "/",
+        maxAge: 60 * 60 * 24 * 90,
+      });
+    }
+  } catch {}
+
   console.log("RETURN: normal");
-  return buildProxyResponse(upstream, body);
+  return res;
 }
