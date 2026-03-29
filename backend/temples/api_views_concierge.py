@@ -498,6 +498,7 @@ class ConciergeChatView(APIView):
         t0_total = time.perf_counter()
         rid = uuid.uuid4().hex[:8]
         log.info("[concierge] chat.post rid=%s", rid)
+        log.info("🔥 CHAT ENTRY HIT 🔥")
 
         response = None
         total_status = 500
