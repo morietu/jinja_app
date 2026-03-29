@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from typing import Optional
+from urllib.parse import unquote
 
 from django.conf import settings
 from django.core import signing
@@ -42,7 +43,17 @@ def get_anonymous_id(request: HttpRequest) -> Optional[str]:
     log.info("[anon_id] get cookie raw=%r len=%s", signed_value, len(signed_value) if signed_value else None)
     if not signed_value:
         return None
-    value = _unsign_anon_id(signed_value)
+
+    normalized_value = unquote(signed_value)
+    log.info(
+        "[anon_id] normalized cookie=%r len=%s has_pct3A=%s colon_count=%s",
+        normalized_value,
+        len(normalized_value),
+        "%3A" in signed_value,
+        normalized_value.count(":"),
+    )
+
+    value = _unsign_anon_id(normalized_value)
     log.info("[anon_id] unsign result=%r", value)
     return value
 
