@@ -2,15 +2,13 @@
 
 import { useState, useRef } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { sanitizeNext } from "@/lib/nav/login";
 
 type Props = { next?: string | null };
 
-const DEFAULT_AFTER_LOGIN = "/";
+const AFTER_LOGIN = "/";
 
-export default function LoginForm({ next }: Props) {
+export default function LoginForm({ next: _next }: Props) {
   const { login } = useAuth();
-  const safeNext = sanitizeNext(next) ?? DEFAULT_AFTER_LOGIN;
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +35,7 @@ export default function LoginForm({ next }: Props) {
       }
 
       await login(username, password);
-      window.location.assign(safeNext);
+      window.location.assign(AFTER_LOGIN);
       return;
     } catch {
       setError("ログインに失敗しました。");
