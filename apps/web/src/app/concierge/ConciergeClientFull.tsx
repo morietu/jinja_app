@@ -1334,20 +1334,12 @@ export default function ConciergeClientFull() {
                   </button>
 
                   {infoBanner.ctaKind === "auth" ? (
-                    <>
-                      <Link
-                        href="/auth/register"
-                        className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
-                      >
-                        新規登録
-                      </Link>
-                      <Link
-                        href="/auth/login"
-                        className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        ログイン
-                      </Link>
-                    </>
+                    <Link
+                      href="/auth/login"
+                      className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
+                    >
+                      ログインして続ける
+                    </Link>
                   ) : null}
 
                   {infoBanner.ctaKind === "premium" ? (
