@@ -1,14 +1,4 @@
 import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
-import type { ConciergeBreakdown } from "@/lib/api/concierge";
-
-type ExplanationPayloadReason = {
-  type?: string | null;
-  label?: string | null;
-  label_ja?: string | null;
-  evidence?: string[] | null;
-  score?: number | null;
-  is_primary?: boolean | null;
-};
 
 export type ConciergeResponse = {
   ok: boolean;
