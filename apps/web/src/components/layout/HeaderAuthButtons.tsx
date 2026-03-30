@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function HeaderAuthButtons() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading } = useAuth();
 
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -24,7 +24,7 @@ export function HeaderAuthButtons() {
         御朱印帳
       </Link>
 
-      {!isLoggedIn && (
+      {!loading && !isLoggedIn && (
         <Link href={loginHref} className="rounded-md bg-orange-500 px-3 py-2 text-xs font-medium text-white">
           ログイン
         </Link>

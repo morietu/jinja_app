@@ -60,7 +60,7 @@ async function fetchMe(): Promise<User> {
   });
 
   if (r.status === 401) {
-    markLoggedOut(); // ✅ フラグ腐敗を掃除
+    markLoggedOut();
     return null;
   }
 
@@ -68,7 +68,17 @@ async function fetchMe(): Promise<User> {
     throw new Error("failed to fetch user");
   }
 
-  return await r.json();
+  const data = await r.json();
+
+  // raw user でも { user } でも吸収
+  const normalized = data?.user ?? data ?? null;
+
+  // id がない変なオブジェクトは未ログイン扱い
+  if (!normalized || typeof normalized !== "object" || typeof normalized.id !== "number") {
+    return null;
+  }
+
+  return normalized;
 }
 
 function shouldAutoFetchMe(pathname: string | null): boolean {
@@ -93,8 +103,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshMe = async () => {
-    const me = await fetchMe();
-    setUser(me);
+    try {
+      const me = await fetchMe();
+      setUser(me);
+    } catch {
+      setUser(null);
+    }
   };
 
   useEffect(() => {
