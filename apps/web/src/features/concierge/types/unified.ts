@@ -18,13 +18,16 @@ export type ConciergeSignals = {
   user_filters?: unknown;
 };
 
+export type ViewerPlan = "anonymous" | "free" | "premium";
+
 export type UnifiedConciergeResponse = {
   ok: boolean;
   stop_reason: StopReason;
-  note?: string | null;
   reply?: string | null;
-  remaining_free?: number | null;
+  plan?: ViewerPlan | null;
+  remaining?: number | null;
   limit?: number | null;
+  limitReached?: boolean;
   thread_id?: string | null;
 
   thread?: ConciergeThread | null;

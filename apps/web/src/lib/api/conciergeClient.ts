@@ -25,8 +25,10 @@ function unifiedToConciergeResponse(u: UnifiedConciergeResponse): ConciergeRespo
 
   return {
     ok: !!u?.ok,
-    remaining_free: typeof u?.remaining_free === "number" ? u.remaining_free : null,
+    plan: typeof u?.plan === "string" ? u.plan : null,
+    remaining: typeof u?.remaining === "number" ? u.remaining : null,
     limit: typeof u?.limit === "number" ? u.limit : null,
+    limitReached: !!u?.limitReached,
     reply: typeof u?.reply === "string" ? u.reply : null,
     thread_id: threadId,
     data: {
@@ -84,10 +86,11 @@ export async function searchConcierge(req: ConciergeRequest): Promise<ConciergeR
   const unified: UnifiedConciergeResponse = {
     ok: rawObj?.ok !== false,
     stop_reason: (rawObj?.stop_reason as any) ?? null,
-    note: typeof rawObj?.note === "string" ? rawObj.note : null,
     reply: typeof rawObj?.reply === "string" ? rawObj.reply : null,
-    remaining_free: typeof rawObj?.remaining_free === "number" ? rawObj.remaining_free : null,
+    plan: rawObj?.plan === "anonymous" || rawObj?.plan === "free" || rawObj?.plan === "premium" ? rawObj.plan : null,
+    remaining: typeof rawObj?.remaining === "number" ? rawObj.remaining : null,
     limit: typeof rawObj?.limit === "number" ? rawObj.limit : null,
+    limitReached: rawObj?.limitReached === true,
     thread_id: threadId,
     thread: (rawObj?.thread as any) ?? null,
     data: {

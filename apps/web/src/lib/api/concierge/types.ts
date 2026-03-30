@@ -82,12 +82,12 @@ export type ConciergeChatResponse = {
   ok: boolean;
   data?: ConciergeChatData;
   reply?: string;
-  note?: string;
   thread?: ConciergeThread;
 
-  // ★ backendが返してきたら表示できるように「任意」で受ける
-  remaining_free?: number;
-  limit?: number;
+  plan?: "anonymous" | "free" | "premium" | null;
+  remaining?: number | null;
+  limit?: number | null;
+  limitReached?: boolean;
 };
 
 export type ConciergeThreadDetail = {

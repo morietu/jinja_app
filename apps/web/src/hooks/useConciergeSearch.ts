@@ -10,7 +10,8 @@ type Result = {
   items: ConciergeResultItem[];
   headerMessage: string | null;
   notice: string | null;
-  remainingFree: number | null;
+  remaining: number | null;
+  limitReached: boolean;
   limit: number | null;
   reply: string | null;
   search: (text: string) => Promise<void>;
@@ -23,7 +24,8 @@ export function useConciergeSearch(): Result {
   const [items, setItems] = useState<ConciergeResultItem[]>([]);
   const [headerMessage, setHeaderMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [remainingFree, setRemainingFree] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [limit, setLimit] = useState<number | null>(null);
   const [reply, setReply] = useState<string | null>(null);
 
@@ -32,7 +34,8 @@ export function useConciergeSearch(): Result {
     setItems([]);
     setHeaderMessage(null);
     setNotice(null);
-    setRemainingFree(null);
+    setRemaining(null);
+    setLimitReached(false);
     setLimit(null);
     setReply(null);
   }, []);
@@ -63,7 +66,8 @@ export function useConciergeSearch(): Result {
           resultState && typeof resultState.ui_disclaimer_ja === "string" ? resultState.ui_disclaimer_ja : null;
 
         console.log("[useConciergeSearch] parsed", {
-          remaining_free: resp.remaining_free,
+          remaining: resp.remaining,
+          limitReached: resp.limitReached,
           limit: resp.limit,
           reply: resp.reply,
           itemsLen: items.length,
@@ -77,16 +81,18 @@ export function useConciergeSearch(): Result {
         setItems(items);
         setHeaderMessage(headerMessage);
         setNotice(notice);
-        setRemainingFree(typeof resp.remaining_free === "number" ? resp.remaining_free : null);
+        setRemaining(typeof resp.remaining === "number" ? resp.remaining : null);
         setLimit(typeof resp.limit === "number" ? resp.limit : null);
+        setLimitReached(resp.limitReached === true);
         setReply(typeof resp.reply === "string" ? resp.reply : null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "検索に失敗しました");
         setItems([]);
         setHeaderMessage(null);
         setNotice(null);
-        setRemainingFree(null);
+        setRemaining(null);
         setLimit(null);
+        setLimitReached(false);
         setReply(null);
       } finally {
         setLoading(false);
@@ -101,8 +107,9 @@ export function useConciergeSearch(): Result {
     items,
     headerMessage,
     notice,
-    remainingFree,
+    remaining,
     limit,
+    limitReached,
     reply,
     search,
     clear,

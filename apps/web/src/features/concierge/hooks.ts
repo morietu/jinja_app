@@ -102,41 +102,42 @@ export type UseConciergeChatOptions = {
     thread: ConciergeThread;
     messages?: ConciergeMessage[];
     recommendations?: ConciergeRecommendation[] | null;
+    plan?: "anonymous" | "free" | "premium" | null;
+    remaining?: number | null;
+    limit?: number | null;
+    limitReached?: boolean;
+  }) => void;
 
-    // paywallなど将来拡張用
-    remaining_free?: number;
-    limit?: number;
-    note?: string;
+  onPaywall?: (payload: {
+    plan?: "anonymous" | "free" | "premium" | null;
+    remaining?: number | null;
+    limit?: number | null;
+    limitReached?: boolean;
   }) => void;
 
   onReply?: (reply: string) => void;
   onRecommendations?: (recs: ConciergeRecommendation[]) => void;
-
-  // thread が無いケースでも paywall だけ出したいなら使う
-  onPaywall?: (payload: { remaining_free?: number; limit?: number; note?: string }) => void;
 };
 
 type SendInput = string | Omit<ConciergeChatRequestV1, "thread_id">;
 
 function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): UnifiedConciergeResponse {
-  const stop: StopReason =
-    raw?.stop_reason === "design" || raw?.stop_reason === "paywall"
-      ? raw.stop_reason
-      : typeof raw?.remaining_free === "number" && raw.remaining_free <= 0
-        ? "paywall"
-        : null;
+  const limitReached = raw?.limitReached === true;
 
-  const note = typeof raw?.note === "string" ? raw.note : null;
+  const stop: StopReason =
+    raw?.stop_reason === "design" || raw?.stop_reason === "paywall" ? raw.stop_reason : limitReached ? "paywall" : null;
+
   const replyCandidate = raw?.reply ?? raw?.data?.reply ?? raw?.data?.raw ?? null;
   const reply = typeof replyCandidate === "string" ? replyCandidate : null;
 
   const ok = raw?.ok === false ? false : true;
-  const remaining_free = typeof raw?.remaining_free === "number" ? raw.remaining_free : null;
+  const plan = raw?.plan === "anonymous" || raw?.plan === "free" || raw?.plan === "premium" ? raw.plan : null;
+  const remaining = typeof raw?.remaining === "number" ? raw.remaining : null;
+  const limit = typeof raw?.limit === "number" ? raw.limit : null;
 
   const tid = Number(raw?.thread?.id);
   const thread = raw?.thread && Number.isFinite(tid) ? ({ ...raw.thread, id: tid } as ConciergeThread) : null;
 
-  // ✅ raw.data を保持（objectのみ）。arrayは捨てる
   const rawData = raw?.data && typeof raw.data === "object" && !Array.isArray(raw.data) ? raw.data : {};
 
   const sig = (rawData as any)?._signals;
@@ -147,9 +148,11 @@ function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendation[]): 
   return {
     ok,
     stop_reason: stop,
-    note,
     reply,
-    remaining_free,
+    plan,
+    remaining,
+    limit,
+    limitReached,
     thread,
     data: { ...rawData, recommendations: recs },
   };
@@ -283,18 +286,20 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         options?.onRecommendations?.(recs);
 
         options?.onPaywall?.({
-          remaining_free: payload?.remaining_free,
-          limit: payload?.limit,
-          note: payload?.note,
+          plan: payload?.plan ?? null,
+          remaining: typeof payload?.remaining === "number" ? payload.remaining : null,
+          limit: typeof payload?.limit === "number" ? payload.limit : null,
+          limitReached: payload?.limitReached === true,
         });
 
         if (payload?.thread) {
           options?.onUpdated?.({
             thread: payload?.thread ?? null,
             recommendations: recs,
-            remaining_free: payload?.remaining_free,
-            limit: payload?.limit,
-            note: payload?.note,
+            plan: payload?.plan ?? null,
+            remaining: typeof payload?.remaining === "number" ? payload.remaining : null,
+            limit: typeof payload?.limit === "number" ? payload.limit : null,
+            limitReached: payload?.limitReached === true,
           });
         }
 
@@ -305,11 +310,13 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         const unified: UnifiedConciergeResponse = {
           ok: false,
           stop_reason: null,
-          note: "チャット送信に失敗しました",
           reply: null,
+          plan: null,
+          remaining: null,
+          limit: null,
+          limitReached: false,
           data: { recommendations: [] },
           thread: null,
-          remaining_free: null,
         };
         options?.onUnified?.(unified);
 

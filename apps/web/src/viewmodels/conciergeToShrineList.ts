@@ -12,8 +12,10 @@ type ExplanationPayloadReason = {
 
 export type ConciergeResponse = {
   ok: boolean;
-  remaining_free?: number | null;
+  plan?: "anonymous" | "free" | "premium" | null;
+  remaining?: number | null;
   limit?: number | null;
+  limitReached?: boolean;
   reply?: string | null;
   thread_id?: string | null;
   data?: {
@@ -21,51 +23,7 @@ export type ConciergeResponse = {
     _need?: { tags?: string[] };
     _signals?: Record<string, unknown> | null;
     message?: string | null;
-    recommendations?: Array<{
-      name: string;
-      display_name?: string | null;
-      reason?: string | null;
-      reason_source?: string | null;
-      address?: string | null;
-      location?: string | null;
-      lat?: number | null;
-      lng?: number | null;
-      distance_m?: number | null;
-      place_id?: string | null;
-      shrine_id?: number | null;
-      popular_score?: number | null;
-      bullets?: string[] | null;
-      explanation?: {
-        version?: number | null;
-        summary?: string | null;
-        reasons?: Array<{
-          code?: string | null;
-          label?: string | null;
-          text?: string | null;
-          strength?: "low" | "mid" | "high" | null;
-          evidence?: Record<string, unknown> | null;
-        }> | null;
-        disclaimer?: string | null;
-      } | null;
-      _explanation_payload?: {
-        version?: number | null;
-        matched_need_tags?: string[] | null;
-        primary_need_tag?: string | null;
-        primary_need_label_ja?: string | null;
-        primary_reason?: ExplanationPayloadReason | null;
-        secondary_reasons?: ExplanationPayloadReason[] | null;
-        highlights?: string[] | null;
-        reason_source?: string | null;
-        original_reason?: string | null;
-        score?: {
-          element?: number | null;
-          need?: number | null;
-          total?: number | null;
-          total_ranked?: number | null;
-        } | null;
-      } | null;
-      breakdown?: ConciergeBreakdown | null;
-    }>;
+    recommendations?: any[];
   };
 };
 

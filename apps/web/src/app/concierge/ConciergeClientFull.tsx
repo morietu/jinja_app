@@ -158,11 +158,14 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
   return next;
 }
 
-function getMetaReply(payload: any): { reply: string | null; isLimitReached: boolean } {
-  const meta = payload?.meta;
-  const reply = typeof meta?.reply === "string" ? meta.reply : null;
-  const isLimitReached = meta?.note === "limit-reached" || meta?.remainingFree === 0;
-  return { reply, isLimitReached };
+function resolveAccessState(u: UnifiedConciergeResponse | null | undefined) {
+  return {
+    reply: typeof u?.reply === "string" ? u.reply : null,
+    plan: u?.plan ?? null,
+    remaining: typeof u?.remaining === "number" ? u.remaining : null,
+    limit: typeof u?.limit === "number" ? u.limit : null,
+    limitReached: u?.limitReached === true,
+  };
 }
 
 function threadDetailToUnified(thread: ConciergeThreadDetail | null): UnifiedConciergeResponse | null {
@@ -185,6 +188,25 @@ function threadDetailToUnified(thread: ConciergeThreadDetail | null): UnifiedCon
   const reply =
     typeof root?.reply === "string" ? root.reply : typeof dataLike?.reply === "string" ? dataLike.reply : null;
 
+  const plan =
+    root?.plan === "anonymous" || root?.plan === "free" || root?.plan === "premium"
+      ? root.plan
+      : dataLike?.plan === "anonymous" || dataLike?.plan === "free" || dataLike?.plan === "premium"
+        ? dataLike.plan
+        : null;
+
+  const remaining =
+    typeof root?.remaining === "number"
+      ? root.remaining
+      : typeof dataLike?.remaining === "number"
+        ? dataLike.remaining
+        : null;
+
+  const limit =
+    typeof root?.limit === "number" ? root.limit : typeof dataLike?.limit === "number" ? dataLike.limit : null;
+
+  const limitReached = root?.limitReached === true || dataLike?.limitReached === true;
+
   return {
     ok: true,
     thread: typeof root?.id === "number" ? ({ id: root.id } as any) : undefined,
@@ -194,6 +216,10 @@ function threadDetailToUnified(thread: ConciergeThreadDetail | null): UnifiedCon
       _signals: signals,
     },
     reply,
+    plan,
+    remaining,
+    limit,
+    limitReached,
     stop_reason: null,
   } as UnifiedConciergeResponse;
 }
@@ -324,6 +350,8 @@ export default function ConciergeClientFull() {
   );
 
   const [me, setMe] = useState<any | null>(null);
+  const [billingPlan, setBillingPlan] = useState<ViewerTier | null>(null);
+  const [billingStatusChecked, setBillingStatusChecked] = useState(false);
 
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
@@ -354,6 +382,7 @@ export default function ConciergeClientFull() {
     activeThreadIdRef.current = tid;
     setActiveThreadId(tid);
   };
+
 
   /* ----------------------------------------
    * URLパラメータ
@@ -496,6 +525,50 @@ export default function ConciergeClientFull() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/billings/status/", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setBillingPlan(me ? "free" : "anonymous");
+            setBillingStatusChecked(true);
+          }
+          return;
+        }
+
+        const data = await res.json();
+
+        const nextPlan: ViewerTier =
+          data?.plan === "premium"
+            ? "premium"
+            : me
+              ? "free"
+              : "anonymous";
+
+        if (!cancelled) {
+          setBillingPlan(nextPlan);
+          setBillingStatusChecked(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setBillingPlan(me ? "free" : "anonymous");
+          setBillingStatusChecked(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [me]);
 
   /* ----------------------------------------
    * スレッド切り替え（URLパラメータ反応）
@@ -720,15 +793,17 @@ export default function ConciergeClientFull() {
     [displayUnified, filterState],
   );
 
-  const { reply: metaReply, isLimitReached } = useMemo(() => getMetaReply(payload as any), [payload]);
+  const accessState = useMemo(() => resolveAccessState(displayUnified), [displayUnified]);
+  const metaReply = accessState.reply;
+  const isLimitReached = accessState.limitReached;
 
   const rawViewer = sp.get("viewer");
 
   const debugViewer: ViewerTier | null =
     rawViewer === "anonymous" || rawViewer === "free" || rawViewer === "premium" ? rawViewer : null;
 
-  const resolvedViewerTierFromAuth: ViewerTier = me ? "free" : "anonymous";
-  const effectiveViewerTier: ViewerTier = debugViewer ?? resolvedViewerTierFromAuth;
+  const effectiveViewerTier: ViewerTier =
+    debugViewer ?? billingPlan ?? (billingStatusChecked ? (me ? "free" : "anonymous") : "anonymous");
 
   const debugLimitReached = sp.get("limit") === "1";
   const resolvedIsLimitReached = debugLimitReached || isLimitReached;

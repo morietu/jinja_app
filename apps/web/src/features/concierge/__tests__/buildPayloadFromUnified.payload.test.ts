@@ -29,16 +29,18 @@ describe("buildPayloadFromUnified (payload/meta/astro)", () => {
     expect(p?.meta?.tid).toBe("123");
   });
 
-  it("recs無しでも remainingFree=0 なら limit として payload を返す", () => {
+  it("recs無しでも limitReached=true なら limit として payload を返す", () => {
     const u: any = {
-      meta: { remainingFree: 0 },
+      limitReached: true,
+      remaining: 0,
       data: { recommendations: [] },
       thread_id: 9,
     };
 
     const p = buildPayloadFromUnified(u, baseFilterState);
     expect(p).not.toBeNull();
-    expect(p?.meta?.remainingFree).toBe(0);
+    expect(p?.meta?.limitReached).toBe(true);
+    expect(p?.meta?.remaining).toBe(0);
     expect(p?.meta?.tid).toBe("9");
   });
 
@@ -90,10 +92,10 @@ describe("buildPayloadFromUnified (payload/meta/astro)", () => {
     expect(p?.meta?.mode).toBe("B");
   });
 
-  it("meta の揺れ: note/reply/remaining_free を u 側からも拾える", () => {
+  it("meta の揺れ: reply / remaining / limitReached を u 側からも拾える", () => {
     const u: any = {
-      note: "limit-reached",
-      remaining_free: 0,
+      remaining: 0,
+      limitReached: true,
       reply: "上限です",
       data: { recommendations: [] },
       thread_id: 555,
@@ -101,8 +103,8 @@ describe("buildPayloadFromUnified (payload/meta/astro)", () => {
 
     const p = buildPayloadFromUnified(u, baseFilterState);
     expect(p).not.toBeNull();
-    expect(p?.meta?.note).toBe("limit-reached");
-    expect(p?.meta?.remainingFree).toBe(0);
+    expect(p?.meta?.remaining).toBe(0);
+    expect(p?.meta?.limitReached).toBe(true);
     expect(p?.meta?.reply).toBe("上限です");
     expect(p?.meta?.tid).toBe("555");
   });

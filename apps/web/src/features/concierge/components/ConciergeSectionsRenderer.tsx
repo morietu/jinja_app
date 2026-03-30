@@ -221,10 +221,8 @@ export default function ConciergeSectionsRenderer({
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
 
-                {typeof payload?.meta?.remainingFree === "number" && (
-                  <div className="mb-2 text-xs text-slate-500">
-                    あと {payload.meta.remainingFree}回までは無料で試せます
-                  </div>
+                {typeof payload?.meta?.remaining === "number" && payload.meta.remaining > 0 && (
+                  <div className="mb-2 text-xs text-slate-500">あと {payload.meta.remaining}回までは無料で試せます</div>
                 )}
 
                 {bannerText && (
@@ -289,7 +287,6 @@ export default function ConciergeSectionsRenderer({
 
                       return (
                         <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
-                          
                           <ShrineCard
                             name={item.title}
                             address={item.address}
@@ -311,7 +308,6 @@ export default function ConciergeSectionsRenderer({
 
                     return (
                       <div key={`rec-${i}-${idx}-place-${item.placeId}`} className="space-y-2">
-                        
                         <PlaceShrineCard
                           placeId={item.placeId}
                           title={item.title}

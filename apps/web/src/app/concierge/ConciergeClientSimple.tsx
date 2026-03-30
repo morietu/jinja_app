@@ -15,7 +15,7 @@ export default function ConciergeClientSimple() {
   const router = useRouter();
   const [text, setText] = useState("");
 
-  const { items, loading, error, remainingFree, limit, reply, search, clear } = useConciergeSearch();
+  const { items, loading, error, remaining, limit, limitReached, reply, search, clear } = useConciergeSearch();
 
   const submit = useCallback(
     async (value: string) => {
@@ -29,7 +29,7 @@ export default function ConciergeClientSimple() {
     clear();
   }, [clear]);
 
-  const isLimitReached = remainingFree === 0;
+  const isLimitReached = limitReached;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -111,9 +111,9 @@ export default function ConciergeClientSimple() {
             </div>
           </div>
 
-          {typeof remainingFree === "number" && typeof limit === "number" && remainingFree > 0 && (
+          {typeof remaining === "number" && typeof limit === "number" && remaining > 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              あと {remainingFree} 回までは無料で試せます
+              あと {remaining} 回までは無料で試せます
             </div>
           )}
 
@@ -148,8 +148,6 @@ export default function ConciergeClientSimple() {
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3">
               {items.map(({ id, cardProps, tid }, idx) => {
-
-
                 return <ConciergeShrineCard key={id} {...cardProps} tid={tid ?? null} hideLeftMark={idx !== 0} />;
               })}
             </div>

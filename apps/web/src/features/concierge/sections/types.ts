@@ -112,9 +112,9 @@ export type ConciergeSectionsPayload = {
   sections: readonly ConciergeSection[];
   meta?: {
     mode?: ConciergeModeSignal | null;
-    note?: string | null;
     reply?: string | null;
-    remainingFree?: number | null;
+    remaining?: number | null;
+    limitReached?: boolean;
     tid?: string | null;
     resultState?: {
       matched_count?: number;

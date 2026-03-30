@@ -6,14 +6,13 @@ import { bffFetchWithAuthFromReq } from "@/lib/server/bffFetch";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// 表示の都合で残しているダミー拡張
+// 互換API。新規参照禁止。
+// 正規の user 取得は /api/users/me/ を使うこと。
 function enrich(data: any) {
   return {
     ...data,
     profile: {
       ...(data.profile ?? {}),
-      birthday: data.profile?.birthday ?? "1990-04-10",
-      location: data.profile?.location ?? "Tokyo",
     },
   };
 }

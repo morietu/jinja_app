@@ -173,32 +173,24 @@ export function buildPayloadFromUnified(
   filterState: ConciergeFilterState,
 ): ConciergeSectionsPayload | null {
   const recs = u?.data?.recommendations;
-
-  // ✅ meta の場所が揺れてる前提で吸収する
   const metaObj = (u as any)?.meta ?? null;
-
-  const note =
-    (typeof metaObj?.note === "string" ? metaObj.note : null) ??
-    (typeof (u as any)?.note === "string" ? (u as any).note : null) ??
-    null;
 
   const reply =
     (typeof (u as any)?.reply === "string" ? (u as any).reply : null) ??
     (typeof metaObj?.reply === "string" ? metaObj.reply : null) ??
     null;
 
-  const remainingFree =
-    (typeof metaObj?.remainingFree === "number" ? metaObj.remainingFree : null) ??
-    (typeof metaObj?.remaining_free === "number" ? metaObj.remaining_free : null) ??
-    (typeof (u as any)?.remaining_free === "number" ? (u as any).remaining_free : null) ??
-    (typeof (u as any)?.remainingFree === "number" ? (u as any).remainingFree : null) ??
+  const remaining =
+    (typeof metaObj?.remaining === "number" ? metaObj.remaining : null) ??
+    (typeof (u as any)?.remaining === "number" ? (u as any).remaining : null) ??
     null;
 
+  const limitReached = metaObj?.limitReached === true || (u as any)?.limitReached === true;
   const tidRaw = (u as any)?.thread?.id ?? (u as any)?.thread_id ?? (u as any)?.data?.thread_id ?? null;
   const tid = tidRaw != null ? String(tidRaw) : null;
 
   const hasRecs = Array.isArray(recs) && recs.length > 0;
-  const isLimitReached = note === "limit-reached" || remainingFree === 0;
+  const isLimitReached = limitReached;
 
   const mode = (u as any)?.data?._signals?.mode ?? null;
   const rsRaw = (u as any)?.data?._signals?.result_state ?? (u as any)?.data?._signals?.resultState ?? null;
@@ -215,7 +207,6 @@ export function buildPayloadFromUnified(
         }
       : null;
 
-  // ✅ recommendations が無いが理由はある → payload 返す
   if (!hasRecs && (reply || isLimitReached)) {
     const sections: ConciergeSection[] = [
       {
@@ -233,19 +224,16 @@ export function buildPayloadFromUnified(
       },
     ];
 
-    
-
     return {
       version: 1,
       sections,
-      meta: { mode, note, reply, remainingFree, tid, resultState },
+      meta: { mode, reply, remaining, limitReached, tid, resultState },
     };
   }
 
   if (!hasRecs) return null;
 
   let items = recs.map((r: any) => normalizeRecommendation(r, tid)).filter((x): x is NormalizedItem => x !== null);
-
   items = dedupeItems(items);
 
   if (items.length === 0) return null;
@@ -284,13 +272,13 @@ export function buildPayloadFromUnified(
     });
   }
 
-  // ✅ hasRecs のときも meta を揃える（UIが metaReply / limit を参照しても死なない）
   return {
     version: 1,
     sections,
-    meta: { mode, note, reply, remainingFree, tid, resultState },
+    meta: { mode, reply, remaining, limitReached, tid, resultState },
   };
 }
+
 
 export function __dedupeItemsForTest(items: NormalizedItem[]): NormalizedItem[] {
   return dedupeItems(items);

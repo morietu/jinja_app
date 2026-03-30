@@ -375,20 +375,14 @@ def _build_chat_response(
     intent: Dict[str, Any],
     recs: Dict[str, Any],
     reply: Optional[str],
-    remaining_free: Optional[int],
+    plan: Optional[str],
+    remaining: Optional[int],
     limit: Optional[int],
+    limit_reached: bool,
     thread: Optional[Any],
     debug: Optional[Dict[str, Any]],
     anon_cookie_value: Optional[str],
 ) -> Dict[str, Any]:
-    """
-    chat 用レスポンスの組み立て。
-
-    注意:
-    - remaining_free / limit は chat のみで返す
-    - plan 用レスポンス形とは混ぜない
-    - frontend の sections 表示はこの契約を前提にしている
-    """
     thread_id = str(thread.id) if thread is not None else None
 
     data = dict(recs or {})
@@ -399,15 +393,15 @@ def _build_chat_response(
         "intent": intent,
         "thread_id": thread_id,
         "data": data,
+        "plan": plan,
+        "remaining": remaining,
+        "limit": limit,
+        "limitReached": limit_reached,
+        "reply": reply,
     }
 
     if debug is not None:
         body["_debug"] = debug
-    if remaining_free is not None:
-        body["remaining_free"] = remaining_free
-    if limit is not None:
-        body["limit"] = limit
-    body["reply"] = reply
     if thread is not None:
         body["thread"] = {"id": thread.id}
     if anon_cookie_value is not None:
@@ -604,13 +598,15 @@ class ConciergeChatView(APIView):
             if not quota.allowed:
                 limit_reached = True
                 recs = {"recommendations": []}
-                remaining_free, limit_value = _chat_quota_fields(plan=plan_context.plan, quota=quota)
+                remaining, limit_value = _chat_quota_fields(plan=plan_context.plan, quota=quota)
                 body = _build_chat_response(
                     intent=intent,
                     recs=recs,
                     reply=LIMIT_MSG,
-                    remaining_free=0 if remaining_free is not None else None,
+                    plan=plan_context.plan,
+                    remaining=0 if remaining is not None else None,
                     limit=limit_value,
+                    limit_reached=True,
                     thread=None,
                     debug=None,
                     anon_cookie_value=(
@@ -619,7 +615,9 @@ class ConciergeChatView(APIView):
                         else None
                     ),
                 )
-                body["note"] = "limit-reached"
+                # 互換が不要なら削除
+                # body["note"] = "limit-reached"
+
 
                 if is_message_mode:
                     body["reply"] = "候補: "
@@ -881,26 +879,28 @@ class ConciergeChatView(APIView):
                 remaining = max(remaining - 1, 0)
 
             body = _build_chat_response(
-                intent=intent,
-                recs=recs,
-                reply=reply,
-                remaining_free=remaining,
-                limit=limit_value,
-                thread=thread_obj,
-                debug={
-                    "rid": rid,
-                    "before": before_n,
-                    "after": after_n,
-                    "applied": applied,
-                    "flow": flow,
-                    "mode": public_mode,
-                },
-                anon_cookie_value=(
-                    build_anonymous_cookie_value(plan_context.anon_id)
-                    if plan_context.plan == "anonymous" and plan_context.anon_id
-                    else None
-                ),
-            )
+                    intent=intent,
+                    recs=recs,
+                    reply=reply,
+                    plan=plan_context.plan,
+                    remaining=remaining,
+                    limit=limit_value,
+                    limit_reached=False,
+                    thread=thread_obj,
+                    debug={
+                        "rid": rid,
+                        "before": before_n,
+                        "after": after_n,
+                        "applied": applied,
+                        "flow": flow,
+                        "mode": public_mode,
+                    },
+                    anon_cookie_value=(
+                        build_anonymous_cookie_value(plan_context.anon_id)
+                        if plan_context.plan == "anonymous" and plan_context.anon_id
+                        else None
+                    ),
+                )
 
             phase = "response"
             response = Response(body, status=status.HTTP_200_OK)
