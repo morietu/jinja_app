@@ -277,7 +277,7 @@ describe("buildShrineDetailModel", () => {
     expect(result.proposal).toBe("仕事や転機に向き合う参拝先");
     expect(result.proposalWhy[0]).toEqual({
       label: "相談との一致",
-      text: "仕事や転機への意識が中心にあり、前に進むきっかけも必要としている状態です。",
+      text: "行動のきっかけや後押しを求める意図が相談の中心にあります。",
     });
   });
 
