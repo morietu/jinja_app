@@ -13,7 +13,7 @@ export default function MapPage() {
           <span>近くの神社</span>
         </h1>
         <p className="text-xs text-gray-500">
-          近くの神社を一覧で確認できる探索用の補助ページです。詳細確認や経路案内に進む前の補助導線として利用します。
+          近くの神社を確認できる探索用の補助ページです。必要に応じて詳細確認や経路案内に進めます。
         </p>
       </header>
 
