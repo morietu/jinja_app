@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { getShrinePublic } from "@/lib/api/shrines";
+import { gmapsDirUrl } from "@/lib/maps";
+import { buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
+
 import type { Shrine } from "@/lib/api/shrines";
 
-function enc(v: string) {
-  return encodeURIComponent(v);
-}
+
 
 export default function NaviPage() {
   const params = useParams();
@@ -63,17 +64,13 @@ export default function NaviPage() {
   }, [shrine]);
 
   const dirUrl = useMemo(() => {
-    if (!origin || !destination) return null;
-    const org = enc(`${origin.lat},${origin.lng}`);
-    const dest = enc(`${destination.lat},${destination.lng}`);
-    return `https://www.google.com/maps/dir/?api=1&origin=${org}&destination=${dest}`;
-  }, [origin, destination]);
+    if (!destination) return null;
+    return gmapsDirUrl({ dest: destination });
+  }, [destination]);
 
   const searchUrl = useMemo(() => {
-    if (!destination) return null;
-    const q = enc(`${destination.lat},${destination.lng}`);
-    return `https://www.google.com/maps/search/?api=1&query=${q}`;
-  }, [destination]);
+    return buildGoogleMapsSearchUrl(shrine?.name_jp ?? "神社", shrine?.address ?? undefined);
+  }, [shrine]);
 
   if (error) return <p className="p-4 text-red-500">{error}</p>;
   if (!shrine) return <p className="p-4">神社情報を取得中…</p>;
@@ -86,7 +83,7 @@ export default function NaviPage() {
             className="inline-block underline"
             target="_blank"
             rel="noopener noreferrer"
-            href={`https://www.google.com/maps/search/?api=1&query=${enc(`${shrine.name_jp ?? ""} ${shrine.address}`)}`}
+            href={buildGoogleMapsSearchUrl(shrine.name_jp ?? "神社", shrine.address)}
           >
             住所でGoogleマップ検索
           </a>
@@ -100,7 +97,7 @@ export default function NaviPage() {
       <h1 className="text-xl font-bold">ナビ：{shrine.name_jp}</h1>
       {shrine.address && <p className="text-sm text-slate-600">{shrine.address}</p>}
 
-      {origin ? (
+      <div className="space-y-2">
         <div className="flex gap-2">
           {searchUrl && (
             <a
@@ -119,24 +116,26 @@ export default function NaviPage() {
               rel="noopener noreferrer"
               href={dirUrl}
             >
-              ルート
+              経路案内
             </a>
           )}
         </div>
-      ) : (
-        <div className="space-y-2">
-          <p className="text-sm text-slate-600">
-            {locDenied ? "現在地の取得ができませんでした（許可が必要です）。" : "現在地を取得中…"}
-          </p>
-          <button
-            type="button"
-            onClick={getLocation}
-            className="rounded-xl border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            もう一度取得する
-          </button>
-        </div>
-      )}
+
+        {!origin && (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">
+              {locDenied ? "現在地の取得ができませんでした（許可が必要です）。" : "現在地を取得中…"}
+            </p>
+            <button
+              type="button"
+              onClick={getLocation}
+              className="rounded-xl border px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              もう一度取得する
+            </button>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
