@@ -145,6 +145,16 @@ export default async function Page({ params, searchParams }: Props) {
         conciergeReason = pickReasonFromThread(thread, numericId);
         conciergeExplanationPayload = pickExplanationPayloadFromThread(thread, numericId);
         conciergeMode = pickModeFromThread(thread);
+        serverLog("info", "SHRINE_DETAIL_CONCIERGE_DEBUG", {
+          shrineId: numericId,
+          ctx,
+          tid,
+          hasThread: Boolean(thread),
+          hasBreakdown: Boolean(conciergeBreakdown),
+          hasReason: Boolean(conciergeReason),
+          hasExplanationPayload: Boolean(conciergeExplanationPayload),
+          conciergeMode,
+        });
       }
     } catch (e) {
       serverLog("warn", "GET_CONCIERGE_THREAD_FAILED", {
@@ -218,6 +228,13 @@ export default async function Page({ params, searchParams }: Props) {
 
     const shrineName = (s.name_jp ?? "").trim() || pageTitle;
     const rawReason = conciergeExplanationPayload?.original_reason?.trim() || conciergeReason?.trim() || null;
+    serverLog("info", "SHRINE_DETAIL_DEEP_REASON_INPUT", {
+      shrineId: numericId,
+      primaryReasonLabel,
+      fallbackTags,
+      rawReason,
+      shrineName,
+    });
 
     const normalizeShrineName = (name?: string | null) => (name ?? "").replace(/\s+/g, "").trim();
     const normalizedName = normalizeShrineName(shrineName);
