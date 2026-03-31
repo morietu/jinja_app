@@ -17,9 +17,20 @@ export async function GET(req: Request) {
 
     let upstream: Response;
     try {
+      serverLog("info", "BFF_NEARBY_PROXY_START", {
+        requestId,
+        qs,
+      });
+
       upstream = await djFetch(`/api/places/nearby/?${qs}`, {
         cache: "no-store",
         headers: { Accept: "application/json" },
+      });
+
+      serverLog("info", "BFF_NEARBY_PROXY_RESULT", {
+        requestId,
+        status: upstream.status,
+        contentType: upstream.headers.get("content-type"),
       });
     } catch (e) {
       serverLog("warn", "BFF_NEARBY_UPSTREAM_FETCH_FAILED", {
