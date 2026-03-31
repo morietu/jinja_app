@@ -137,6 +137,8 @@ def test_chat_response_matrix_message_mode_rate_limit_reached(user, settings, mo
     assert r.status_code == 200
 
     body = r.json()
-    assert body["reply"].startswith("候補: ")
-    assert body["remaining_free"] == 0
-    assert "limit" in body
+    assert body["plan"] == "free"
+    assert body["remaining"] == 0
+    assert body["limit"] == 5
+    assert body["limitReached"] is True
+    assert body["reply"] == "候補: "

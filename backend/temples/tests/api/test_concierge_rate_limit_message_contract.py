@@ -43,9 +43,11 @@ def test_rate_limit_reached_in_message_mode_keeps_reply_and_response_contract(
     assert "data" in body
     assert "recommendations" in body["data"]
     assert isinstance(body["data"]["recommendations"], list)
-    assert "remaining_free" in body
+    assert "remaining" in body
     assert "limit" in body
 
-    assert body["remaining_free"] == 0
+    assert body["plan"] == "free"
+    assert body["remaining"] == 0
     assert body["limit"] == settings.CONCIERGE_DAILY_FREE_LIMIT
+    assert body["limitReached"] is True
     assert body["reply"].startswith("候補: ")

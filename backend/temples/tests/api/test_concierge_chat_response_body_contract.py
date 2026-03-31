@@ -92,8 +92,11 @@ def test_chat_response_authenticated_non_premium_includes_remaining_and_limit(us
     assert r.status_code == 200
 
     body = r.json()
-    assert "remaining_free" in body
-    assert "limit" in body
+    assert body["plan"] == "free"
+    assert "remaining" in body
+    assert body["remaining"] == 4
+    assert body["limit"] == 5
+    assert body["limitReached"] is False
 
 
 @pytest.mark.django_db
@@ -112,12 +115,11 @@ def test_chat_response_anonymous_includes_remaining_and_limit(client, monkeypatc
     assert r.status_code == 200
 
     body = r.json()
-    assert "remaining_free" in body
-    assert "limit" in body
-    assert isinstance(body["remaining_free"], int)
-    assert isinstance(body["limit"], int)
-    assert body["limit"] >= 1
-    assert 0 <= body["remaining_free"] <= body["limit"]
+    assert "remaining" in body
+    assert isinstance(body["remaining"], int)
+    assert 0 <= body["remaining"] <= body["limit"]
+    assert body["plan"] == "anonymous"
+    assert body["limitReached"] is False
 
 
 @pytest.mark.django_db

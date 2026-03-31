@@ -394,11 +394,17 @@ def _build_chat_response(
         "thread_id": thread_id,
         "data": data,
         "plan": plan,
-        "remaining": remaining,
-        "limit": limit,
-        "limitReached": limit_reached,
         "reply": reply,
     }
+
+    if remaining is not None:
+        body["remaining"] = remaining
+
+    if limit is not None:
+        body["limit"] = limit
+
+    if remaining is not None or limit is not None or limit_reached:
+        body["limitReached"] = limit_reached
 
     if debug is not None:
         body["_debug"] = debug
@@ -406,6 +412,7 @@ def _build_chat_response(
         body["thread"] = {"id": thread.id}
     if anon_cookie_value is not None:
         body["_anon_cookie_value"] = anon_cookie_value
+
     return body
 
 def build_reason_facts(

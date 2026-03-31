@@ -83,7 +83,7 @@ def test_rate_limit_authenticated_user():
         res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
         assert res.status_code == 200
         replies.append(res.data.get("reply"))
-        remainings.append(res.data.get("remaining_free"))
+        remainings.append(res.data.get("remaining"))
 
     assert remainings[:5] == [4, 3, 2, 1, 0]
     assert replies[5] == "無料で利用できる回数を使い切りました。"
@@ -119,7 +119,10 @@ def test_rate_limit_is_separated_per_user():
 
     res = client.post("/api/concierge/chat/", {"query": "仕事運を上げたい"}, format="json")
     assert res.status_code == 200
-    assert res.data["remaining_free"] == 4
+    assert res.data["plan"] == "free"
+    assert res.data["remaining"] == 4
+    assert res.data["limit"] == 5
+    assert res.data["limitReached"] is False
 
     usage_b = ConciergeUsage.objects.get(user=user_b, date=today)
     assert usage_b.count == 1
@@ -139,12 +142,14 @@ def test_guest_user_is_not_rate_limited():
         bodies.append(res.data)
 
     for body in bodies:
-        assert "remaining_free" in body
+        assert body["plan"] == "anonymous"
+        assert "remaining" in body
         assert "limit" in body
-        assert isinstance(body["remaining_free"], int)
+        assert isinstance(body["remaining"], int)
         assert isinstance(body["limit"], int)
         assert body["limit"] == 3
-        assert 0 <= body["remaining_free"] <= body["limit"]
+        assert 0 <= body["remaining"] <= body["limit"]
+        assert body["limitReached"] is False
 
     assert all(r != "無料で利用できる回数を使い切りました。" for r in replies)
 
@@ -175,7 +180,7 @@ def test_premium_user_is_not_rate_limited(monkeypatch):
     assert all(r != "無料で利用できる回数を使い切りました。" for r in replies)
 
     for keys in keys_list:
-        assert "remaining_free" not in keys
+        assert "remaining" not in keys
         assert "limit" not in keys
 
     assert ConciergeUsage.objects.filter(user=user, date=today).count() == 0
