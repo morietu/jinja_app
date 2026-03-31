@@ -408,6 +408,59 @@ def _build_chat_response(
         body["_anon_cookie_value"] = anon_cookie_value
     return body
 
+def build_reason_facts(
+    *,
+    matched_need_tags: list[str],
+    shrine_benefit: str | None,
+    shrine_feature: str | None,
+    visit_fit: str | None,
+    astro_label_ja: str | None,
+    distance_m: float | None,
+    popular_score: float | None,
+    fallback_mode: str | None,
+    fallback_reason_ja: str | None,
+    score_need: float | None,
+    score_element: float | None,
+) -> dict:
+    if fallback_mode == "nearby_unfiltered":
+        primary_axis = "fallback"
+    elif score_need and score_need > 0:
+        primary_axis = "need"
+    elif shrine_feature:
+        primary_axis = "feature"
+    elif score_element and score_element > 0 and astro_label_ja:
+        primary_axis = "element"
+    elif distance_m is not None:
+        primary_axis = "distance"
+    elif popular_score is not None:
+        primary_axis = "popularity"
+    else:
+        primary_axis = "fallback"
+
+    distance_label = None
+    if distance_m is not None:
+        if distance_m < 1000:
+            distance_label = f"{round(distance_m)}m"
+        else:
+            distance_label = f"{distance_m / 1000:.1f}km"
+
+    popularity_label = None
+    if popular_score is not None and popular_score >= 4:
+        popularity_label = "定番として選びやすい候補です"
+
+    return {
+        "version": 1,
+        "primary_axis": primary_axis,
+        "matched_need_tags": matched_need_tags[:2],
+        "shrine_benefit": shrine_benefit,
+        "shrine_feature": shrine_feature,
+        "visit_fit": visit_fit,
+        "matched_element": astro_label_ja,
+        "distance_label": distance_label,
+        "popularity_label": popularity_label,
+        "fallback_reason": fallback_reason_ja,
+        "confidence": "high" if (score_need or 0) + (score_element or 0) >= 2 else "mid",
+    }
 
 def _chat_quota_fields(*, plan: Optional[str], quota: Any) -> tuple[Optional[int], Optional[int]]:
     if getattr(quota, "unlimited", False):
@@ -692,10 +745,6 @@ class ConciergeChatView(APIView):
             )
 
 
-
-
-
-
             # -------------------------
             # ⑤ recommendation
             # -------------------------
@@ -954,9 +1003,6 @@ class ConciergeChatView(APIView):
                     round(float(q["time"]) * 1000, 1),
                     q["sql"][:1000],
                 )
-
-        
-
 
 class ConciergeChatViewLegacy(ConciergeChatView):
     schema = None

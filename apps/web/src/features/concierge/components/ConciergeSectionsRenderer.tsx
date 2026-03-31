@@ -278,6 +278,7 @@ export default function ConciergeSectionsRenderer({
                           astro_elements: (item as any).astro_elements ?? null,
                           astro_priority: (item as any).astro_priority ?? null,
                           explanation: (item as any).explanation ?? null,
+                          reason_facts: (item as any).reasonFacts ?? null,
                         },
                         index: idx,
                         mode: normalizedMode,

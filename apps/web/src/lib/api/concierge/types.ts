@@ -16,51 +16,6 @@ export type ConciergeMessage = {
   created_at: string;
 };
 
-export type ConciergeRecommendation = {
-  id?: number | null;
-  place_id?: string | null;
-
-  name: string;
-  display_name?: string;
-
-  address?: string | null;
-  display_address?: string | null;
-
-  location?: string | null;
-
-  lat?: number | null;
-  lng?: number | null;
-
-  distance_m?: number | null;
-  duration_min?: number | null;
-  score?: number | null;
-  popular_score?: number | null;
-  breakdown?: ConciergeBreakdown | null;
-
-  tags?: string[];
-  deities?: string[];
-
-  reason?: string | null;
-  reason_source?: string | null;
-
-  bullets?: string[] | null;
-  explanation?: {
-    version?: number | null;
-    summary?: string | null;
-    reasons?: Array<{
-      code?: string | null;
-      label?: string | null;
-      text?: string | null;
-      strength?: "low" | "mid" | "high" | null;
-      evidence?: Record<string, unknown> | null;
-    }> | null;
-    disclaimer?: string | null;
-  } | null;
-
-  photo_url?: string | null;
-  is_dummy?: boolean;
-  __dummy?: boolean;
-};
 
 export type ConciergeChatRequest = {
   query: string;
@@ -112,4 +67,83 @@ export type ConciergeBreakdown = {
     popular: number;
   };
   matched_need_tags: string[];
+};
+
+export type ConciergeReasonFactAxis =
+  | "need"
+  | "benefit"
+  | "feature"
+  | "element"
+  | "distance"
+  | "popularity"
+  | "fallback";
+
+export type ConciergeReasonFacts = {
+  version?: 1;
+  primary_axis?: ConciergeReasonFactAxis | null;
+  secondary_axis?: ConciergeReasonFactAxis | null;
+
+  matched_need_tags?: string[];
+  matched_benefits?: string[];
+
+  shrine_feature?: string | null;
+  shrine_benefit?: string | null;
+  visit_fit?: string | null;
+
+  matched_element?: string | null;
+  matched_sign?: string | null;
+
+  distance_label?: string | null;
+  popularity_label?: string | null;
+
+  fallback_reason?: string | null;
+  confidence?: "high" | "mid" | "low" | null;
+};
+
+export type ConciergeRecommendation = {
+  id?: number | null;
+  place_id?: string | null;
+
+  name: string;
+  display_name?: string;
+
+  address?: string | null;
+  display_address?: string | null;
+
+  location?: string | null;
+
+  lat?: number | null;
+  lng?: number | null;
+
+  distance_m?: number | null;
+  duration_min?: number | null;
+  score?: number | null;
+  popular_score?: number | null;
+  breakdown?: ConciergeBreakdown | null;
+
+  tags?: string[];
+  deities?: string[];
+
+  reason?: string | null;
+  reason_source?: string | null;
+
+  bullets?: string[] | null;
+  explanation?: {
+    version?: number | null;
+    summary?: string | null;
+    reasons?: Array<{
+      code?: string | null;
+      label?: string | null;
+      text?: string | null;
+      strength?: "low" | "mid" | "high" | null;
+      evidence?: Record<string, unknown> | null;
+    }> | null;
+    disclaimer?: string | null;
+  } | null;
+
+  reason_facts?: ConciergeReasonFacts | null;
+
+  photo_url?: string | null;
+  is_dummy?: boolean;
+  __dummy?: boolean;
 };

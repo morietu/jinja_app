@@ -1,6 +1,4 @@
-//apps / web / src / features / concierge / sections / types.ts;
-
-import type { ConciergeBreakdown } from "@/lib/api/concierge";
+import type { ConciergeBreakdown, ConciergeReasonFacts } from "@/lib/api/concierge";
 import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 
 /* =========================
@@ -33,6 +31,7 @@ export type RegisteredShrineItem = {
   imageUrl?: string | null;
   detailHref?: string;
   breakdown?: ConciergeBreakdown | null;
+  reasonFacts?: ConciergeReasonFacts | null;
   explanation?: {
     version?: number | null;
     summary?: string | null;
@@ -54,12 +53,11 @@ export type PlaceShrineItem = {
   address?: string | null;
   description: string;
   imageUrl?: string | null;
-
   detailHref?: string;
   detailLabel?: string;
   breakdown?: ConciergeBreakdown | null;
+  reasonFacts?: ConciergeReasonFacts | null;
   isDummy?: boolean;
-
 };
 
 /* =========================

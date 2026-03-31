@@ -1,25 +1,7 @@
+// apps/web/src/lib/api/concierge.ts
 import axios from "axios";
 import api from "./client";
 import { apiPost } from "./http";
-
-
-export type ConciergeNeed = {
-  tags?: string[];
-  hits?: Record<string, string[]>;
-};
-
-export type ConciergeBreakdown = {
-  score_element: number;
-  score_need: number;
-  score_popular: number;
-  score_total: number;
-  weights: {
-    element: number;
-    need: number;
-    popular: number;
-  };
-  matched_need_tags: string[];
-};
 
 export type {
   ConciergeThread,
@@ -29,6 +11,10 @@ export type {
   ConciergeChatData,
   ConciergeChatResponse,
   ConciergeThreadDetail,
+  ConciergeNeed,
+  ConciergeBreakdown,
+  ConciergeReasonFactAxis,
+  ConciergeReasonFacts,
 } from "./concierge/types";
 
 import type {
@@ -71,8 +57,6 @@ export async function getConciergeThread(tid: string): Promise<ConciergeThreadDe
   }
 }
 
-// 互換のため残すなら thin wrapper にする
 export async function fetchThreadDetail(threadId: string): Promise<ConciergeThreadDetail | null> {
   return getConciergeThread(threadId);
 }
-

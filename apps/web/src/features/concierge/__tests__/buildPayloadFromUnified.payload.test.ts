@@ -109,3 +109,33 @@ describe("buildPayloadFromUnified (payload/meta/astro)", () => {
     expect(p?.meta?.tid).toBe("555");
   });
 });
+
+it("reason_facts を recommendation item に通す", () => {
+  const u: any = {
+    data: {
+      recommendations: [
+        {
+          shrine_id: 10,
+          display_name: "S1",
+          reason: "R1",
+          reason_facts: {
+            version: 1,
+            primary_axis: "need",
+            matched_need_tags: ["厄除け"],
+            shrine_feature: "静かに歩ける",
+          },
+        },
+      ],
+    },
+    thread: { id: 1 },
+  };
+
+  const p = buildPayloadFromUnified(u, baseFilterState);
+  const recSec = p?.sections.find((s: any) => s.type === "recommendations") as any;
+  expect(recSec.items[0].reasonFacts).toEqual(
+    expect.objectContaining({
+      primary_axis: "need",
+      matched_need_tags: ["厄除け"],
+    }),
+  );
+});
