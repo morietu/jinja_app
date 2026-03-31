@@ -132,3 +132,76 @@ describe("buildRecommendationReasonViewModel", () => {
     expect(samples).toMatchSnapshot();
   });
 });
+
+  it("reason_facts.primary_axis=distance を優先できる", () => {
+    const vm = buildRecommendationReasonViewModel({
+      rec: {
+        reason_facts: {
+          primary_axis: "distance",
+          distance_label: "800m",
+        },
+        fallback_mode: "none",
+      },
+      index: 0,
+      mode: "need",
+      needTags: [],
+    });
+
+    expect(vm.reasonKeys.primary).toBe("distance");
+    expect(vm.primaryReason).toContain("800m");
+  });
+
+  it("reason_facts.primary_axis=popularity を優先できる", () => {
+    const vm = buildRecommendationReasonViewModel({
+      rec: {
+        reason_facts: {
+          primary_axis: "popularity",
+          popularity_label: "選ばれやすさの安定感があります",
+        },
+        fallback_mode: "none",
+      },
+      index: 0,
+      mode: "need",
+      needTags: [],
+    });
+
+    expect(vm.reasonKeys.primary).toBe("popular");
+    expect(vm.primaryReason).toContain("安定感");
+  });
+
+  it("reason_facts.primary_axis=element を優先できる", () => {
+    const vm = buildRecommendationReasonViewModel({
+      rec: {
+        reason_facts: {
+          primary_axis: "element",
+          matched_element: "水",
+        },
+        fallback_mode: "none",
+      },
+      index: 0,
+      mode: "compat",
+      birthdate: "1992-08-10",
+      needTags: [],
+    });
+
+    expect(vm.reasonKeys.primary).toBe("element_match");
+    expect(vm.primaryReason).toContain("水");
+  });
+
+  it("reason_facts.primary_axis=fallback を優先できる", () => {
+    const vm = buildRecommendationReasonViewModel({
+      rec: {
+        reason_facts: {
+          primary_axis: "fallback",
+          fallback_reason: "まずは動きやすさを優先して見られる候補です",
+        },
+        fallback_mode: "nearby_unfiltered",
+      },
+      index: 0,
+      mode: "need",
+      needTags: [],
+    });
+
+    expect(vm.reasonKeys.primary).toBe("distance");
+    expect(vm.primaryReason).toContain("動きやすさ");
+  });

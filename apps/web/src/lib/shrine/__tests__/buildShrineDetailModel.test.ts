@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildShrineDetailModel } from "../buildShrineDetailModel";
 
 vi.mock("@/components/shrine/buildShrineCardProps", () => ({
-  buildShrineCardProps: vi.fn(() => ({
+  buildShrineCardProps: vi.fn((shrine: any) => ({
     cardProps: {
-      title: "三峯神社",
+      title: shrine.name ?? `神社 #${shrine.id}`,
       imageUrl: "https://example.com/card.jpg",
     },
   })),
@@ -259,3 +259,182 @@ describe("buildShrineDetailModel", () => {
     expect(result.publicGoshuinsViewAllHref).toBe("/shrines/101/goshuins?ctx=concierge&tid=thread-xyz");
   });
 });
+
+  it("career + courage では仕事や転機に向き合う参拝先になる", () => {
+    const result = buildShrineDetailModel({
+      shrine: {
+        ...shrineStub,
+        id: 102,
+        name: "乃木神社",
+      } as any,
+      publicGoshuins: [],
+      conciergeBreakdown: {
+        matched_need_tags: ["career", "courage"],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.proposal).toBe("仕事や転機に向き合う参拝先");
+    expect(result.proposalWhy[0]).toEqual({
+      label: "相談との一致",
+      text: "仕事や転機への意識が中心にあり、前に進むきっかけも必要としている状態です。",
+    });
+  });
+
+  it("mental + rest では気持ちを整えて休息したい時の参拝先になる", () => {
+    const result = buildShrineDetailModel({
+      shrine: {
+        ...shrineStub,
+        id: 103,
+        name: "伊勢神宮（内宮）",
+      } as any,
+      publicGoshuins: [],
+      conciergeBreakdown: {
+        matched_need_tags: ["mental", "rest"],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.proposal).toBe("気持ちを整えて休息したい時の参拝先");
+    expect(result.proposalWhy[0]).toEqual({
+      label: "相談との一致",
+      text: "不安や気持ちの揺れを整えたい意図が中心にあり、落ち着いて休みたい状態も見られます。",
+    });
+  });
+
+  it("love では良縁を願う参拝先になる", () => {
+    const result = buildShrineDetailModel({
+      shrine: {
+        ...shrineStub,
+        id: 104,
+        name: "神社L",
+      } as any,
+      publicGoshuins: [],
+      conciergeBreakdown: {
+        matched_need_tags: ["love"],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.proposal).toBe("良縁を願う参拝先");
+    expect(result.proposalWhy[0]).toEqual({
+      label: "相談との一致",
+      text: "良縁や恋愛を前向きに進めたい意図が相談の中心にあります。",
+    });
+  });
+
+  it("study では学業や合格に集中したい時の参拝先になる", () => {
+    const result = buildShrineDetailModel({
+      shrine: {
+        ...shrineStub,
+        id: 105,
+        name: "乃木神社",
+      } as any,
+      publicGoshuins: [],
+      conciergeBreakdown: {
+        matched_need_tags: ["study"],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.proposal).toBe("学業や合格に集中したい時の参拝先");
+    expect(result.proposalWhy[0]).toEqual({
+      label: "相談との一致",
+      text: "学業や合格に集中したい意図が相談の中心にあります。",
+    });
+  });
+
+  it("money × quiet では神社のご利益文が quiet 向けになる", () => {
+    const result = buildShrineDetailModel({
+      shrine: {
+        ...shrineStub,
+        id: 106,
+        name: "伊勢神宮（内宮）",
+      } as any,
+      publicGoshuins: [],
+      conciergeBreakdown: {
+        matched_need_tags: ["money"],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.proposalWhy[1]).toEqual({
+      label: "神社のご利益",
+      text: "伊勢神宮（内宮）は開運・厄除け・金運に関わるご利益で知られ、金運や巡りを焦らず整え直したい段階で判断材料にしやすい神社です。",
+    });
+  });
+
+  it("mode=compat では judgeSection が相性ベースになる", () => {
+    const result = buildShrineDetailModel({
+      shrine: shrineStub,
+      publicGoshuins: [],
+      conciergeMode: "compat",
+      conciergeExplanationPayload: {
+        primary_reason: {
+          label_ja: "生年月日との相性",
+        },
+        secondary_reasons: [],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.judgeSection.disclosureTitle).toBe("相性の根拠");
+    expect(result.judgeSection.title).toBe("今回の相性に応じた参拝先");
+    expect(result.judgeSection.items[0]).toEqual({
+      key: "compat",
+      title: "生年月日との相性",
+      body: "今回の提案では、生年月日との相性を主軸に候補を整理しています。",
+    });
+  });
+
+  it("mode=need では judgeSection が相談ベースになる", () => {
+    const result = buildShrineDetailModel({
+      shrine: shrineStub,
+      publicGoshuins: [],
+      conciergeMode: "need",
+      conciergeExplanationPayload: {
+        primary_need_label_ja: "金運",
+        primary_reason: {
+          label_ja: "金運",
+        },
+        secondary_reasons: [{ label_ja: "前進・後押し" }],
+      } as any,
+      ctx: "map",
+    });
+
+    expect(result.judgeSection.disclosureTitle).toBe("おすすめの根拠");
+    expect(result.judgeSection.title).toBe("今回の相談に応じた参拝先");
+    expect(result.judgeSection.items[0]).toEqual({
+      key: "lead",
+      title: "主軸",
+      body: "今回の相談では、金運に関わる悩みが主軸にあります。",
+    });
+  });
+
+  it("public goshuin が無いときは cardProps.imageUrl を heroImageUrl に使う", () => {
+    const result = buildShrineDetailModel({
+      shrine: shrineStub,
+      publicGoshuins: [],
+      ctx: "map",
+    });
+
+    expect(result.heroImageUrl).toBe("https://example.com/card.jpg");
+  });
+
+  it("public goshuin も cardProps.imageUrl も無いときは heroImageUrl が null", async () => {
+    const { buildShrineCardProps } = await import("@/components/shrine/buildShrineCardProps");
+    vi.mocked(buildShrineCardProps).mockReturnValueOnce({
+      cardProps: {
+        title: "三峯神社",
+        imageUrl: null,
+      },
+    } as any);
+
+    const result = buildShrineDetailModel({
+      shrine: shrineStub,
+      publicGoshuins: [],
+      ctx: "map",
+    });
+
+    expect(result.heroImageUrl).toBeNull();
+  });
