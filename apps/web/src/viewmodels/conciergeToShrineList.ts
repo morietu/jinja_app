@@ -1,4 +1,5 @@
 import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
+import { buildDeepReason } from "@/lib/concierge/buildDeepReason";
 
 export type ConciergeResponse = {
   ok: boolean;
@@ -185,7 +186,17 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         fallbackTags: rawTags,
       });
 
-      const recommendReason = buildCardPrimaryReason(name, primaryTag, rawReason) ?? rawReason;
+      const fallbackShort = buildCardPrimaryReason(name, primaryTag, rawReason) ?? rawReason;
+
+      const deepReason = buildDeepReason({
+        shrineName: name,
+        primaryTag,
+        rawReason,
+        fallbackShort,
+        shrineTone: getShrineTone(name),
+      });
+
+      const recommendReason = deepReason.short ?? rawReason;
 
       console.log("rec keys", Object.keys(r));
       console.log("_explanation_payload", r._explanation_payload);
@@ -204,6 +215,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
           breakdown: r.breakdown ?? null,
           badgesOverride: tags,
         },
+        deepReason,
       };
     });
 

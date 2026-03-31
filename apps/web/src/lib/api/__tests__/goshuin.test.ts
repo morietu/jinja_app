@@ -70,3 +70,34 @@ describe("updateMyGoshuinVisibility", () => {
     expect(result).toEqual(updated);
   });
 });
+
+it("fetchPublicGoshuin: results を配列化して返す", async () => {
+  apiGetMock().mockResolvedValue({ data: { results: [{ id: 10 }] } });
+
+  const res = await fetchPublicGoshuin();
+
+  expect(res).toEqual([{ id: 10 }]);
+});
+
+it("fetchPublicGoshuin: 不正な shape は空配列を返す", async () => {
+  apiGetMock().mockResolvedValue({ data: { foo: "bar" } });
+
+  const res = await fetchPublicGoshuin();
+
+  expect(res).toEqual([]);
+});
+
+it("uploadMyGoshuin: shrineId なしでも送信できる", async () => {
+  const { uploadMyGoshuin } = await import("../goshuin");
+  (api.post as Mock).mockResolvedValue({ data: { id: 1 } });
+
+  const file = new File(["x"], "test.png", { type: "image/png" });
+  const res = await uploadMyGoshuin({
+    title: "御朱印",
+    isPublic: false,
+    file,
+  });
+
+  expect(api.post).toHaveBeenCalledWith("/my/goshuins/", expect.any(FormData));
+  expect(res).toEqual({ id: 1 });
+});
