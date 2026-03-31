@@ -258,11 +258,13 @@ function buildFactsCandidates(rec: RecommendationLike): Candidate[] {
 
   if (visitFit) out.push({ key: "text_match", text: visitFit });
   if (feature && f.primary_axis !== "feature") out.push({ key: "text_match", text: `${feature}点も見やすい候補です` });
-  if (benefit && f.primary_axis !== "benefit")
+  if (benefit && f.primary_axis !== "benefit") {
     out.push({ key: "need_match", text: `${benefit}の方向とも重なりやすい候補です` });
+  }
   if (secondaryNeed) out.push({ key: "text_match", text: `${secondaryNeed}の観点も含む候補です` });
-  if (element && f.primary_axis !== "element")
+  if (element && f.primary_axis !== "element") {
     out.push({ key: "sign_match", text: `${element}の相性傾向も見られる候補です` });
+  }
   if (popularityLabel && f.primary_axis !== "popularity") out.push({ key: "popular", text: popularityLabel });
 
   return out;
@@ -348,7 +350,9 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
             : "今の気持ちに沿って選びやすい候補です",
     } satisfies Candidate);
 
-  const secondary = candidates.slice(1).find((x) => x.key !== primary.key && clean(x.text) !== clean(primary.text));
+  const secondary = candidates
+    .slice(1)
+    .find((x) => x.key !== primary.key && clean(x.text) !== clean(primary.text));
   const summary = buildSummary(inputType, primary, secondary);
 
   return {

@@ -10,6 +10,7 @@ import { serverLog } from "@/lib/server/logging";
 import { gmapsDirUrl } from "@/lib/maps";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
+import { buildDeepReason } from "@/lib/concierge/buildDeepReason";
 import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
 import {
   pickExplanationPayloadFromThread,
@@ -158,6 +159,8 @@ export default async function Page({ params, searchParams }: Props) {
     }
   }
 
+  
+
   if (ctx === "concierge" && !tid) {
     conciergeMode = "compat";
     conciergeExplanationPayload = {
@@ -182,11 +185,107 @@ export default async function Page({ params, searchParams }: Props) {
     };
   }
 
+  let conciergeDeepReason: Parameters<typeof buildShrineDetailModel>[0]["conciergeDeepReason"] = null;
+
+  if (ctx === "concierge") {
+    const primaryReasonLabel = conciergeExplanationPayload?.primary_reason?.label ?? null;
+    const fallbackTags = conciergeBreakdown?.matched_need_tags ?? [];
+
+    const primaryTag =
+      primaryReasonLabel === "money" ||
+      primaryReasonLabel === "courage" ||
+      primaryReasonLabel === "career" ||
+      primaryReasonLabel === "mental" ||
+      primaryReasonLabel === "rest" ||
+      primaryReasonLabel === "love" ||
+      primaryReasonLabel === "study"
+        ? primaryReasonLabel
+        : fallbackTags.includes("courage")
+          ? "courage"
+          : fallbackTags.includes("money")
+            ? "money"
+            : fallbackTags.includes("career")
+              ? "career"
+              : fallbackTags.includes("mental")
+                ? "mental"
+                : fallbackTags.includes("rest")
+                  ? "rest"
+                  : fallbackTags.includes("love")
+                    ? "love"
+                    : fallbackTags.includes("study")
+                      ? "study"
+                      : null;
+
+    const shrineName = (s.name_jp ?? "").trim() || pageTitle;
+    const rawReason = conciergeExplanationPayload?.original_reason?.trim() || conciergeReason?.trim() || null;
+
+    const normalizeShrineName = (name?: string | null) => (name ?? "").replace(/\s+/g, "").trim();
+    const normalizedName = normalizeShrineName(shrineName);
+
+    const shrineTone = normalizedName.includes("三峯")
+      ? "strong"
+      : normalizedName.includes("伊勢神宮") || normalizedName.includes("内宮")
+        ? "quiet"
+        : normalizedName.includes("乃木")
+          ? "tight"
+          : "neutral";
+
+    const fallbackShort =
+      primaryTag === "courage"
+        ? shrineTone === "strong"
+          ? "止まった流れを動かす"
+          : shrineTone === "tight"
+            ? "次の一歩を定める"
+            : shrineTone === "quiet"
+              ? "気持ちを整えて一歩を決める"
+              : "次の一歩を後押しする"
+        : primaryTag === "mental"
+          ? shrineTone === "strong"
+            ? "気持ちを切り替える"
+            : shrineTone === "tight"
+              ? "気持ちを引き締めて整える"
+              : "不安や気持ちを整える"
+          : primaryTag === "career"
+            ? shrineTone === "strong"
+              ? "仕事の停滞を動かす"
+              : shrineTone === "tight"
+                ? "仕事や転機の判断を定める"
+                : "仕事や転機を整える"
+            : primaryTag === "money"
+              ? shrineTone === "strong"
+                ? "金運や流れを動かす"
+                : shrineTone === "quiet"
+                  ? "金運や巡りを整える"
+                  : "金運や流れを立て直す"
+              : primaryTag === "rest"
+                ? shrineTone === "quiet"
+                  ? "心身を休める"
+                  : "心身を整える"
+                : primaryTag === "love"
+                  ? shrineTone === "quiet"
+                    ? "関係性を見直す"
+                    : "良縁や関係性を進める"
+                  : primaryTag === "study"
+                    ? shrineTone === "tight"
+                      ? "集中や目標を定める"
+                      : "集中や学業の流れを整える"
+                    : rawReason;
+
+    conciergeDeepReason = buildDeepReason({
+      shrineName,
+      primaryTag,
+      rawReason,
+      fallbackShort,
+      shrineTone,
+    });
+  }
+
   const model = buildShrineDetailModel({
     shrine: s,
     publicGoshuins,
     conciergeBreakdown,
     conciergeReason,
+    conciergeDeepReason,
     conciergeExplanationPayload,
     conciergeMode,
     ctx,
