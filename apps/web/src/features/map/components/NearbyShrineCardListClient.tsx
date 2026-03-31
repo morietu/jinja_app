@@ -252,9 +252,7 @@ export default function NearbyShrineCardListClient() {
 
             const key =
               p.place_id ??
-              (shrineId
-                ? `shrine:${shrineId}`
-                : `fallback:${p.name}:${p.lat ?? ""},${p.lng ?? ""}:${p.address ?? ""}`);
+              (shrineId ? `shrine:${shrineId}` : `fallback:${p.name}:${p.lat ?? ""},${p.lng ?? ""}:${p.address ?? ""}`);
 
             return (
               <li key={key} className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -266,22 +264,22 @@ export default function NearbyShrineCardListClient() {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {p.detailHref ? (
                     <Link
-                      className="col-span-2 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
+                      className="rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
                       href={p.detailHref}
                       prefetch={false}
                     >
                       詳細を見る
                     </Link>
-                  ) : null}
-
-                  <a
-                    className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    href={buildGoogleMapsSearchUrl(p.name, p.address ?? undefined)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Googleマップ
-                  </a>
+                  ) : (
+                    <a
+                      className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      href={buildGoogleMapsSearchUrl(p.name, p.address ?? undefined)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Googleマップで見る
+                    </a>
+                  )}
 
                   <a
                     className="rounded-xl bg-emerald-600 px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-95"
@@ -294,7 +292,7 @@ export default function NearbyShrineCardListClient() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    ルート
+                    経路案内
                   </a>
                 </div>
               </li>
