@@ -487,7 +487,6 @@ function buildRankReasonText(args: {
   secondaryNeedTags?: NeedTag[];
 }): string {
   const total = args.breakdown?.score_total ?? null;
-  const need = args.breakdown?.score_need ?? null;
   const element = args.breakdown?.score_element ?? null;
 
   if (args.mode === "compat") {

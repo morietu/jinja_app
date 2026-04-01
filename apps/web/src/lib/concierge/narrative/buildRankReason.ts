@@ -10,7 +10,6 @@ type BuildRankReasonArgs = {
 
 export function buildRankReason(args: BuildRankReasonArgs): string {
   const total = args.breakdown?.score_total ?? null;
-  const need = args.breakdown?.score_need ?? null;
   const element = args.breakdown?.score_element ?? null;
 
   if (args.mode === "compat") {
@@ -47,10 +46,6 @@ export function buildRankReason(args: BuildRankReasonArgs): string {
 
   if (args.primaryNeed === "study") {
     return "今回は「学業や合格」のテーマとの一致が強く、他候補より集中や姿勢を立て直す参拝先として置きやすいため上位に入りました。";
-  }
-
-  if (typeof need === "number" && need > 0) {
-    return "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。";
   }
 
   if (typeof total === "number") {
