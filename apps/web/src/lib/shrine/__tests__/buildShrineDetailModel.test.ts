@@ -126,11 +126,15 @@ describe("buildShrineDetailModel", () => {
       },
       {
         label: "上位になった理由",
-        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+        text: "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
+      },
+      {
+        label: "他候補との差",
+        text: "三峯神社は、今回の候補の中でも行動のきっかけを持ちやすい候補です。",
       },
     ]);
     expect(result.rankReason).toBe(
-      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
     );
 
     expect(result.judgeSection.lead).toBe("迷いが長い時は、まず流れを切り替える視点が必要です。");
@@ -183,7 +187,11 @@ describe("buildShrineDetailModel", () => {
       },
       {
         label: "上位になった理由",
-        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+        text: "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
+      },
+      {
+        label: "他候補との差",
+        text: "三峯神社は、今回の候補の中でも行動のきっかけを持ちやすい候補です。",
       },
     ]);
 
@@ -212,14 +220,14 @@ describe("buildShrineDetailModel", () => {
       {
         key: "rank",
         title: "上位になった理由",
-        body: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+        body: "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
       },
     ]);
     expect(result.rankReason).toBe(
-      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
     );
     expect(result.explanation.rankReason).toBe(
-      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
     );
   });
 
@@ -239,8 +247,8 @@ describe("buildShrineDetailModel", () => {
       ctx: "map",
     });
 
-    expect(result.proposal).toBe("金運と前進を後押しする参拝先");
-    expect(result.proposalLead).toBe("今回の相談では、今の状態に近い悩みを主軸に見ています。");
+    expect(result.proposal).toBe("流れを立て直し、次の一歩を決めたい時の参拝先");
+    expect(result.proposalLead).toBe("今の状態を整理すると、まず向き合うべきテーマがあります。");
 
     expect(result.proposalWhy).toEqual([
       {
@@ -257,11 +265,15 @@ describe("buildShrineDetailModel", () => {
       },
       {
         label: "上位になった理由",
-        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+        text: "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。",
+      },
+      {
+        label: "他候補との差",
+        text: "三峯神社は、今回の候補の中でも行動のきっかけを持ちやすい候補です。",
       },
     ]);
 
-    expect(result.judgeSection.lead).toBe("今回の相談では、今の状態に近い悩みを主軸に見ています。");
+    expect(result.judgeSection.lead).toBe("今の状態を整理すると、まず向き合うべきテーマがあります。");
   });
   it("explanation に proposal / judgeSection / rankReason を集約する", () => {
     const result = buildShrineDetailModel({

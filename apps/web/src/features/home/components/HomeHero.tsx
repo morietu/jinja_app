@@ -7,11 +7,16 @@ export function HomeHero() {
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight mb-1">神社ナビ</h1>
-        <p className="text-xs text-gray-600 leading-relaxed">
-          今の気持ちや悩みを伝えると、
+        <div className="text-3xl mb-1">⛩</div>
+        <h1 className="text-2xl font-bold tracking-tight leading-tight">
+          人生の節目を整理する
           <br />
-          あなたに合った神社をコンシェルジュが提案します。
+          神社コンシェルジュ
+        </h1>
+        <p className="text-xs text-gray-600 leading-relaxed mt-2">
+          今の悩みや迷いを書くだけで
+          <br />
+          相性のよい神社を整理して提案します
         </p>
       </div>
 
@@ -19,14 +24,14 @@ export function HomeHero() {
         href="/concierge"
         className="inline-flex items-center justify-center rounded-full px-4 py-3 text-sm font-semibold bg-black text-white shadow-md active:scale-[0.98] transition"
       >
-        今の気持ちから神社を探す
+        相談して神社を見つける
       </Link>
 
       <Link
         href="/map"
         className="inline-flex items-center justify-center rounded-full px-4 py-3 text-sm font-semibold bg-emerald-600 text-white shadow-md active:scale-[0.98] transition"
       >
-        キーワードで神社を検索
+        地図から神社を見る
       </Link>
     </div>
   );

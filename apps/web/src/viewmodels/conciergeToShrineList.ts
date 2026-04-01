@@ -196,7 +196,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         shrineTone: getShrineTone(name),
       });
 
-      const recommendReason = deepReason.short ?? rawReason;
+      const primaryMeaning = deepReason.short ?? fallbackShort ?? rawReason;
 
       console.log("rec keys", Object.keys(r));
       console.log("_explanation_payload", r._explanation_payload);
@@ -211,7 +211,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
           address: r.address ?? r.location ?? undefined,
           imageUrl: null,
           explanationSummary,
-          explanationPrimaryReason: recommendReason,
+          explanationPrimaryReason: primaryMeaning,
           breakdown: r.breakdown ?? null,
           badgesOverride: tags,
         },

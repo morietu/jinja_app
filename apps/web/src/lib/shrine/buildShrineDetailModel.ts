@@ -8,13 +8,17 @@ import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import {
+  type ConciergeMode,
+  type NeedTag,
+  type ShrineTone,
+  type ExplanationPayload,
+  type DeepReason,
+} from "@/lib/concierge/narrative/types";
+import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
+import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
 
-type DeepReason = {
-  interpretation: string | null;
-  shrineMeaning: string | null;
-  action: string | null;
-  short: string | null;
-};
+
 
 type Args = {
   shrine: Shrine;
@@ -33,35 +37,10 @@ type Args = {
   };
 };
 
-type ExplanationPrimaryReason = {
-  type?: string | null;
-  label?: string | null;
-  label_ja?: string | null;
-  evidence?: string[] | null;
-  score?: number | null;
-  is_primary?: boolean | null;
-};
 
-type ExplanationPayload = {
-  primary_need_tag?: string | null;
-  primary_need_label_ja?: string | null;
-  primary_reason?: ExplanationPrimaryReason | null;
-  secondary_reasons?: ExplanationPrimaryReason[] | null;
-  original_reason?: string | null;
-  score?: {
-    element?: number | null;
-    need?: number | null;
-    total?: number | null;
-    total_ranked?: number | null;
-  } | null;
-};
-
-type ConciergeMode = "need" | "compat";
-type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
-type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
 
 type RecommendationWhySection = {
-  label: "相談との一致" | "神社のご利益" | "補助的な一致" | "上位になった理由";
+  label: "相談との一致" | "神社のご利益" | "補助的な一致" | "上位になった理由" | "他候補との差";
   text: string;
 };
 
@@ -143,6 +122,7 @@ function getSecondaryNeedTags(breakdown?: ConciergeBreakdown | null): NeedTag[] 
   return getMatchedNeedTags(breakdown).filter((tag) => tag !== primary);
 }
 
+
 function buildNeedMatchText(primary: NeedTag | null, secondary: NeedTag[]): string {
   if (primary === "courage") {
     return secondary.includes("money")
@@ -219,7 +199,7 @@ function buildProposalFromBreakdown(breakdown?: ConciergeBreakdown | null): stri
   const set = new Set(getMatchedNeedTags(breakdown));
 
   if (set.has("money") && set.has("courage")) {
-    return "金運と前進を後押しする参拝先";
+    return "流れを立て直し、次の一歩を決めたい時の参拝先";
   }
 
   if (set.has("career") && set.has("courage")) {
@@ -258,7 +238,7 @@ function buildProposalLead(args: { mode: ConciergeMode; explanationPayload?: Exp
 
   return payload?.primary_need_label_ja
     ? `今回の相談では、${payload.primary_need_label_ja}が中心テーマです。`
-    : "今回の相談では、今の状態に近い悩みを主軸に見ています。";
+    : "今の状態を整理すると、まず向き合うべきテーマがあります。";
 }
 
 function resolveDeepReasonLead(args: {
@@ -507,7 +487,6 @@ function buildRankReasonText(args: {
   secondaryNeedTags?: NeedTag[];
 }): string {
   const total = args.breakdown?.score_total ?? null;
-  const need = args.breakdown?.score_need ?? null;
   const element = args.breakdown?.score_element ?? null;
 
   if (args.mode === "compat") {
@@ -517,8 +496,32 @@ function buildRankReasonText(args: {
     return "今回は相性軸を主に見たときに、他候補より噛み合いが見られました。";
   }
 
-  if (typeof need === "number" && need > 0) {
-    return "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。";
+  if (args.mode === "need" && args.primaryNeed === "courage") {
+    return "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "mental") {
+    return "今回は「気持ちを整える」テーマとの一致が強く、他候補より落ち着きを取り戻す参拝先として位置づけやすいため上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "career") {
+    return "今回は「仕事や転機」のテーマとの一致が強く、他候補より判断を整理する節目として置きやすいため上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "money") {
+    return "今回は「金運や巡り」のテーマとの一致が強く、他候補より流れを立て直す節目として置きやすいため上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "rest") {
+    return "今回は「休息」のテーマとの一致が強く、他候補より無理に進まず立て直す参拝先として位置づけやすいため上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "love") {
+    return "今回は「良縁や関係性」のテーマとの一致が強く、他候補より気持ちを整えながら向き合いやすい候補として上位に入りました。";
+  }
+
+  if (args.mode === "need" && args.primaryNeed === "study") {
+    return "今回は「学業や合格」のテーマとの一致が強く、他候補より集中や姿勢を立て直す参拝先として置きやすいため上位に入りました。";
   }
 
   if (typeof total === "number") {
@@ -527,6 +530,7 @@ function buildRankReasonText(args: {
 
   return "今回は今回の相談軸に近い候補として上位に入りました。";
 }
+
 
 function buildProposalWhyFromBreakdown(args: {
   mode: ConciergeMode;
@@ -573,6 +577,15 @@ function buildProposalWhyFromBreakdown(args: {
           secondaryNeedTags: secondary,
         }),
       },
+      {
+        label: "他候補との差",
+        text: buildComparisonText({
+          mode: args.mode,
+          primaryNeed: primary,
+          shrineName: shrineText,
+          shrineTone,
+        }),
+      },
     ];
   }
 
@@ -598,12 +611,22 @@ function buildProposalWhyFromBreakdown(args: {
         secondaryNeedTags: secondary,
       }),
     },
+    {
+      label: "他候補との差",
+      text: buildComparisonText({
+        mode: args.mode,
+        primaryNeed: primary,
+        shrineName: shrineText,
+        shrineTone,
+      }),
+    },
   ];
 }
 
 function buildProposalWhyFromDeepReason(
   deepReason?: DeepReason | null,
   rankReason?: string | null,
+  comparisonText?: string | null,
 ): RecommendationWhySection[] | null {
   if (!deepReason) return null;
 
@@ -634,6 +657,13 @@ function buildProposalWhyFromDeepReason(
     items.push({
       label: "上位になった理由",
       text: rankReason,
+    });
+  }
+
+  if (comparisonText) {
+    items.push({
+      label: "他候補との差",
+      text: comparisonText,
     });
   }
 
@@ -836,11 +866,18 @@ export function buildShrineDetailModel({
     explanationPayload,
   });
 
-  const rankReason = buildRankReasonText({
+  const rankReason = buildRankReason({
     mode,
     breakdown: conciergeBreakdown,
     primaryNeed: getPrimaryNeedTag(conciergeBreakdown),
     secondaryNeedTags: getSecondaryNeedTags(conciergeBreakdown),
+  });
+
+  const comparisonText = buildComparisonText({
+    mode,
+    primaryNeed: getPrimaryNeedTag(conciergeBreakdown),
+    shrineName: cardProps.title ?? null,
+    shrineTone: getShrineTone(cardProps.title ?? null),
   });
 
   const fallbackProposalWhy = buildProposalWhyFromBreakdown({
@@ -851,7 +888,7 @@ export function buildShrineDetailModel({
     explanationPayload,
   });
 
-  const deepProposalWhy = buildProposalWhyFromDeepReason(conciergeDeepReason, rankReason);
+  const deepProposalWhy = buildProposalWhyFromDeepReason(conciergeDeepReason, rankReason, comparisonText);
   const proposalWhy = isConciergeContext && deepProposalWhy ? deepProposalWhy : fallbackProposalWhy;
 
   const judgeLead = resolveDeepReasonLead({

@@ -49,7 +49,7 @@ export default function ShrineDetailArticle({
   proposal?: string;
   proposalLead?: string;
   proposalWhy?: Array<{
-    label: "相談との一致" | "神社のご利益" | "補助的な一致" | "上位になった理由";
+    label: "相談との一致" | "神社のご利益" | "補助的な一致" | "上位になった理由" | "他候補との差";
     text: string;
   }>;
   judgeSection?: {
