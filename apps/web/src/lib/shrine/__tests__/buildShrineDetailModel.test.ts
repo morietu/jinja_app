@@ -124,7 +124,14 @@ describe("buildShrineDetailModel", () => {
         label: "補助的な一致",
         text: "先延ばしを止めて一歩を決める参拝に向いています。",
       },
+      {
+        label: "上位になった理由",
+        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      },
     ]);
+    expect(result.rankReason).toBe(
+      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+    );
 
     expect(result.judgeSection.lead).toBe("迷いが長い時は、まず流れを切り替える視点が必要です。");
 
@@ -174,6 +181,10 @@ describe("buildShrineDetailModel", () => {
         label: "補助的な一致",
         text: "三峯神社は、背中を押してほしい気持ちに加えて、金運や巡りの停滞も立て直したい今の段階で向いています。",
       },
+      {
+        label: "上位になった理由",
+        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      },
     ]);
 
     expect(result.judgeSection.lead).toBe("旧来の理由文です");
@@ -198,7 +209,18 @@ describe("buildShrineDetailModel", () => {
         title: "補助的な方向性",
         body: "主軸を補う方向性があります。",
       },
+      {
+        key: "rank",
+        title: "上位になった理由",
+        body: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      },
     ]);
+    expect(result.rankReason).toBe(
+      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+    );
+    expect(result.explanation.rankReason).toBe(
+      "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+    );
   });
 
   it("map文脈では conciergeDeepReason があっても従来表示を優先する", () => {
@@ -233,9 +255,29 @@ describe("buildShrineDetailModel", () => {
         label: "補助的な一致",
         text: "三峯神社は、背中を押してほしい気持ちに加えて、金運や巡りの停滞も立て直したい今の段階で向いています。",
       },
+      {
+        label: "上位になった理由",
+        text: "今回は相談内容との一致度が高く、主軸の悩みに最も近い候補として上位に入りました。",
+      },
     ]);
 
     expect(result.judgeSection.lead).toBe("今回の相談では、今の状態に近い悩みを主軸に見ています。");
+  });
+  it("explanation に proposal / judgeSection / rankReason を集約する", () => {
+    const result = buildShrineDetailModel({
+      shrine: shrineStub,
+      publicGoshuins: [],
+      conciergeBreakdown: conciergeBreakdownStub,
+      conciergeMode: "need",
+      ctx: "map",
+    });
+
+    expect(result.explanation).toBeDefined();
+    expect(result.explanation.proposal).toBe(result.proposal);
+    expect(result.explanation.proposalLead).toBe(result.proposalLead);
+    expect(result.explanation.proposalWhy).toEqual(result.proposalWhy);
+    expect(result.explanation.judgeSection).toEqual(result.judgeSection);
+    expect(result.explanation.rankReason).toBe(result.rankReason);
   });
 
   it("heroImageUrl は最新の public goshuin を優先する", () => {
@@ -258,7 +300,6 @@ describe("buildShrineDetailModel", () => {
 
     expect(result.publicGoshuinsViewAllHref).toBe("/shrines/101/goshuins?ctx=concierge&tid=thread-xyz");
   });
-});
 
   it("career + courage では仕事や転機に向き合う参拝先になる", () => {
     const result = buildShrineDetailModel({
@@ -438,3 +479,4 @@ describe("buildShrineDetailModel", () => {
 
     expect(result.heroImageUrl).toBeNull();
   });
+});
