@@ -8,13 +8,17 @@ import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
 import { buildShrineExplanation } from "@/lib/shrine/buildShrineExplanation";
 import { buildShrineJudge } from "@/lib/shrine/buildShrineJudge";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import {
+  type ConciergeMode,
+  type NeedTag,
+  type ShrineTone,
+  type ExplanationPayload,
+  type DeepReason,
+} from "@/lib/concierge/narrative/types";
+import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
+import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
 
-type DeepReason = {
-  interpretation: string | null;
-  shrineMeaning: string | null;
-  action: string | null;
-  short: string | null;
-};
+
 
 type Args = {
   shrine: Shrine;
@@ -33,32 +37,7 @@ type Args = {
   };
 };
 
-type ExplanationPrimaryReason = {
-  type?: string | null;
-  label?: string | null;
-  label_ja?: string | null;
-  evidence?: string[] | null;
-  score?: number | null;
-  is_primary?: boolean | null;
-};
 
-type ExplanationPayload = {
-  primary_need_tag?: string | null;
-  primary_need_label_ja?: string | null;
-  primary_reason?: ExplanationPrimaryReason | null;
-  secondary_reasons?: ExplanationPrimaryReason[] | null;
-  original_reason?: string | null;
-  score?: {
-    element?: number | null;
-    need?: number | null;
-    total?: number | null;
-    total_ranked?: number | null;
-  } | null;
-};
-
-type ConciergeMode = "need" | "compat";
-type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
-type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
 
 type RecommendationWhySection = {
   label: "相談との一致" | "神社のご利益" | "補助的な一致" | "上位になった理由" | "他候補との差";
@@ -141,49 +120,6 @@ function getPrimaryNeedTag(breakdown?: ConciergeBreakdown | null): NeedTag | nul
 function getSecondaryNeedTags(breakdown?: ConciergeBreakdown | null): NeedTag[] {
   const primary = getPrimaryNeedTag(breakdown);
   return getMatchedNeedTags(breakdown).filter((tag) => tag !== primary);
-}
-
-function buildComparisonText(args: {
-  mode: ConciergeMode;
-  primaryNeed?: NeedTag | null;
-  shrineName?: string | null;
-  shrineTone?: ShrineTone;
-}): string {
-  const shrineText = args.shrineName?.trim() || "この神社";
-
-  if (args.mode === "compat") {
-    return `${shrineText}は、今回の候補の中でも相性軸との噛み合いが強い候補です。`;
-  }
-
-  if (args.primaryNeed === "courage") {
-    return `${shrineText}は、今回の候補の中でも行動のきっかけを持ちやすい候補です。`;
-  }
-
-  if (args.primaryNeed === "mental") {
-    return `${shrineText}は、今回の候補の中でも気持ちを落ち着ける方向に最も寄った候補です。`;
-  }
-
-  if (args.primaryNeed === "career") {
-    return `${shrineText}は、今回の候補の中でも仕事や転機の判断を整理しやすい候補です。`;
-  }
-
-  if (args.primaryNeed === "money") {
-    return `${shrineText}は、今回の候補の中でも巡りや流れを立て直す意味を持たせやすい候補です。`;
-  }
-
-  if (args.primaryNeed === "rest") {
-    return `${shrineText}は、今回の候補の中でも無理に進まず休息を置きやすい候補です。`;
-  }
-
-  if (args.primaryNeed === "love") {
-    return `${shrineText}は、今回の候補の中でも良縁や関係性に丁寧に向き合いやすい候補です。`;
-  }
-
-  if (args.primaryNeed === "study") {
-    return `${shrineText}は、今回の候補の中でも集中や姿勢を立て直しやすい候補です。`;
-  }
-
-  return `${shrineText}は、今回の候補の中でも相談軸に近い候補です。`;
 }
 
 
@@ -931,7 +867,7 @@ export function buildShrineDetailModel({
     explanationPayload,
   });
 
-  const rankReason = buildRankReasonText({
+  const rankReason = buildRankReason({
     mode,
     breakdown: conciergeBreakdown,
     primaryNeed: getPrimaryNeedTag(conciergeBreakdown),

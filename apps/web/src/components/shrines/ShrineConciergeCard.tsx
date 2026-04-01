@@ -159,7 +159,9 @@ export default function ShrineConciergeCard({
   const matchedTags = breakdown?.matched_need_tags ?? [];
   const heroClaim = suppressHeroCopy ? "" : buildHeroClaimFromTags(matchedTags);
   const heroReason = hideDescription || suppressHeroCopy ? "" : buildHeroReason(primaryReason);
-  const supportingReason = hideDescription ? "" : primaryReason;
+
+  const listSubtitle = primaryReason;
+  const listDescription = hideDescription ? "" : mainSummary;
 
   const badges =
     badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3) ?? [];
@@ -169,8 +171,8 @@ export default function ShrineConciergeCard({
       title={title}
       address={addr || undefined}
       imageUrl={imageUrl}
-      subtitle={isHero ? heroClaim : mainSummary}
-      description={isHero ? heroReason : supportingReason}
+      subtitle={isHero ? heroClaim : listSubtitle}
+      description={isHero ? heroReason : listDescription}
       hideBadges={effHideBadges}
       hideLeftMark={effHideLeftMark}
       isPrimary={variant !== "detail"}

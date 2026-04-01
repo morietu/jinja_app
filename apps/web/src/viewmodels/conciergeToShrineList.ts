@@ -19,10 +19,10 @@ export type ConciergeResponse = {
 };
 
 const NEED_LABELS: Record<string, string> = {
-  career: "転機・仕事",
-  mental: "不安・心",
-  love: "恋愛",
-  money: "金運",
+  career: "仕事・転機",
+  mental: "不安・気持ち",
+  love: "良縁・恋愛",
+  money: "金運・流れ",
   rest: "休息",
   courage: "前進・後押し",
   protection: "厄除け・守護",
@@ -105,43 +105,43 @@ function buildCardPrimaryReason(
   const tone = getShrineTone(shrineName);
 
   if (primaryTag === "courage") {
-    if (tone === "strong") return "止まった流れを動かす";
-    if (tone === "tight") return "次の一歩を定める";
-    if (tone === "quiet") return "気持ちを整えて一歩を決める";
-    return "次の一歩を後押しする";
+    if (tone === "strong") return "流れを切り替えたい時に";
+    if (tone === "tight") return "次の一歩を決めたい時に";
+    if (tone === "quiet") return "気持ちを整えて決めたい時に";
+    return "前に進むきっかけがほしい時に";
   }
 
   if (primaryTag === "mental") {
-    if (tone === "strong") return "気持ちを切り替える";
-    if (tone === "tight") return "気持ちを引き締めて整える";
-    return "不安や気持ちを整える";
+    if (tone === "strong") return "気持ちを切り替えたい時に";
+    if (tone === "tight") return "気持ちを立て直したい時に";
+    return "不安や気持ちを整えたい時に";
   }
 
   if (primaryTag === "career") {
-    if (tone === "strong") return "仕事の停滞を動かす";
-    if (tone === "tight") return "仕事や転機の判断を定める";
-    return "仕事や転機を整える";
+    if (tone === "strong") return "仕事の停滞を動かしたい時に";
+    if (tone === "tight") return "仕事や転機の判断を定めたい時に";
+    return "仕事や転機を整理したい時に";
   }
 
   if (primaryTag === "money") {
-    if (tone === "strong") return "金運や流れを動かす";
-    if (tone === "quiet") return "金運や巡りを整える";
-    return "金運や流れを立て直す";
+    if (tone === "strong") return "流れを立て直したい時に";
+    if (tone === "quiet") return "巡りを整えたい時に";
+    return "金運や流れを整えたい時に";
   }
 
   if (primaryTag === "rest") {
-    if (tone === "quiet") return "心身を休める";
-    return "心身を整える";
+    if (tone === "quiet") return "静かに休みたい時に";
+    return "心身を整え直したい時に";
   }
 
   if (primaryTag === "love") {
-    if (tone === "quiet") return "関係性を見直す";
-    return "良縁や関係性を進める";
+    if (tone === "quiet") return "関係性を見直したい時に";
+    return "良縁や関係性に向き合いたい時に";
   }
 
   if (primaryTag === "study") {
-    if (tone === "tight") return "集中や目標を定める";
-    return "集中や学業の流れを整える";
+    if (tone === "tight") return "集中や目標を定めたい時に";
+    return "集中を整え直したい時に";
   }
 
   return fallbackText ?? null;
@@ -196,7 +196,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         shrineTone: getShrineTone(name),
       });
 
-      const recommendReason = deepReason.short ?? rawReason;
+      const primaryMeaning = deepReason.short ?? fallbackShort ?? rawReason;
 
       console.log("rec keys", Object.keys(r));
       console.log("_explanation_payload", r._explanation_payload);
@@ -211,7 +211,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
           address: r.address ?? r.location ?? undefined,
           imageUrl: null,
           explanationSummary,
-          explanationPrimaryReason: recommendReason,
+          explanationPrimaryReason: primaryMeaning,
           breakdown: r.breakdown ?? null,
           badgesOverride: tags,
         },
