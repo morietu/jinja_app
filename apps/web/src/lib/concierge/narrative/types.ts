@@ -1,5 +1,6 @@
-//apps / web / src / lib / concierge / narrative / types.ts;
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
+import type { PsychologicalTag } from "@/lib/concierge/narrative/psychologicalTags";
+import type { SymbolTag } from "@/lib/concierge/narrative/symbolTags";
 
 export type ConciergeMode = "need" | "compat";
 
@@ -63,6 +64,8 @@ export type RecommendationNarrative = {
   secondaryNeeds: NeedTag[];
   shrineTone: ShrineTone;
   breakdown?: ConciergeBreakdown | null;
+  psychologicalTags: PsychologicalTag[];
+  symbolTags: SymbolTag[];
   meaning: RecommendationMeaning;
   match: RecommendationMatch;
   ranking: RecommendationRanking;
@@ -82,4 +85,5 @@ export type BuildNarrativeBaseArgs = {
   benefitLabels?: string[];
   userElementLabel?: string | null;
   primaryReasonLabel?: string | null;
+  shrineSymbolTags?: SymbolTag[] | null;
 };

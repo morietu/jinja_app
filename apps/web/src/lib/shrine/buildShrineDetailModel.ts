@@ -15,8 +15,8 @@ import {
   type ExplanationPayload,
   type DeepReason,
 } from "@/lib/concierge/narrative/types";
-import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
+import { buildRecommendationNarrative } from "@/lib/concierge/narrative/buildRecommendationNarrative";
 
 
 
@@ -849,6 +849,25 @@ export function buildShrineDetailModel({
   const mode = resolveConciergeMode(conciergeMode);
   const explanationPayload = conciergeExplanationPayload ?? null;
 
+  const primaryNeed = getPrimaryNeedTag(conciergeBreakdown);
+  const secondaryNeedTags = getSecondaryNeedTags(conciergeBreakdown);
+
+  const narrative = buildRecommendationNarrative({
+    mode,
+    primaryNeed,
+    secondaryNeedTags,
+    shrineName: cardProps.title ?? null,
+    shrineTone: getShrineTone(cardProps.title ?? null),
+    breakdown: conciergeBreakdown,
+    explanationPayload,
+    deepReason: conciergeDeepReason,
+    conciergeReason,
+    benefitLabels,
+    userElementLabel: explanationPayload?.primary_need_label_ja ?? null,
+    primaryReasonLabel: explanationPayload?.primary_reason?.label_ja ?? null,
+    shrineSymbolTags: null,
+  });
+
   const isConciergeContext = ctx === "concierge";
   const hasConciergeNarrative =
     isConciergeContext &&
@@ -858,27 +877,26 @@ export function buildShrineDetailModel({
 
   const proposal = hasConciergeNarrative ? "今回の相談の整理" : fallbackProposal;
 
-  const proposalLead = resolveDeepReasonLead({
-    ctx,
-    conciergeDeepReason,
-    conciergeReason,
-    mode,
-    explanationPayload,
-  });
+  const proposalLead = isConciergeContext
+    ? (narrative.meaning.lead ??
+      resolveDeepReasonLead({
+        ctx,
+        conciergeDeepReason,
+        conciergeReason,
+        mode,
+        explanationPayload,
+      }))
+    : resolveDeepReasonLead({
+        ctx,
+        conciergeDeepReason,
+        conciergeReason,
+        mode,
+        explanationPayload,
+      });
 
-  const rankReason = buildRankReason({
-    mode,
-    breakdown: conciergeBreakdown,
-    primaryNeed: getPrimaryNeedTag(conciergeBreakdown),
-    secondaryNeedTags: getSecondaryNeedTags(conciergeBreakdown),
-  });
+  const rankReason = narrative.ranking.rankReason;
 
-  const comparisonText = buildComparisonText({
-    mode,
-    primaryNeed: getPrimaryNeedTag(conciergeBreakdown),
-    shrineName: cardProps.title ?? null,
-    shrineTone: getShrineTone(cardProps.title ?? null),
-  });
+  const comparisonText = narrative.ranking.comparisonText;
 
   const fallbackProposalWhy = buildProposalWhyFromBreakdown({
     mode,
@@ -948,5 +966,7 @@ export function buildShrineDetailModel({
     publicGoshuinsViewAllHref,
     judgeSection: explanation.judgeSection,
     rankReason: explanation.rankReason,
+    psychologicalTags: narrative.psychologicalTags,
+    symbolTags: narrative.symbolTags,
   };
 }

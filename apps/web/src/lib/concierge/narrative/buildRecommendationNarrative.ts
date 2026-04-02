@@ -5,6 +5,8 @@ import type {
   RecommendationNarrative,
   ShrineTone,
 } from "@/lib/concierge/narrative/types";
+import { buildPsychologicalTags } from "@/lib/concierge/narrative/buildPsychologicalTags";
+import { buildSymbolTags } from "@/lib/concierge/narrative/buildSymbolTags";
 import { buildMeaningShort } from "@/lib/concierge/narrative/buildMeaningShort";
 import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
@@ -334,9 +336,7 @@ function buildProposalLead(args: {
     : "今の状態を整理すると、まず向き合うべきテーマがあります。";
 }
 
-export function buildRecommendationNarrative(
-  args: BuildNarrativeBaseArgs,
-): RecommendationNarrative {
+export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): RecommendationNarrative {
   const mode = args.mode;
   const primaryNeed = args.primaryNeed ?? null;
   const secondaryNeeds = args.secondaryNeedTags ?? [];
@@ -386,6 +386,17 @@ export function buildRecommendationNarrative(
     shrineTone,
   });
 
+  const psychologicalTags = buildPsychologicalTags({
+    primaryNeed,
+    secondaryNeeds,
+  });
+
+  const derivedSymbolTags = buildSymbolTags({
+    psychologicalTags,
+  });
+
+  const symbolTags = Array.from(new Set([...(args.shrineSymbolTags ?? []), ...derivedSymbolTags]));
+
   const lead = buildProposalLead({
     mode,
     explanationPayload: args.explanationPayload ?? null,
@@ -400,6 +411,8 @@ export function buildRecommendationNarrative(
     secondaryNeeds,
     shrineTone,
     breakdown: args.breakdown ?? null,
+    psychologicalTags,
+    symbolTags,
     meaning: {
       short: meaningShort,
       lead,
