@@ -15,7 +15,6 @@ import {
   type ExplanationPayload,
   type DeepReason,
 } from "@/lib/concierge/narrative/types";
-import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
 import { buildRecommendationNarrative } from "@/lib/concierge/narrative/buildRecommendationNarrative";
 
