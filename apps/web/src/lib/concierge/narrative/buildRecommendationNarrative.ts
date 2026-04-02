@@ -10,6 +10,7 @@ import { buildSymbolTags } from "@/lib/concierge/narrative/buildSymbolTags";
 import { buildMeaningShort } from "@/lib/concierge/narrative/buildMeaningShort";
 import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
+import { sanitizeCopyText } from "@/lib/concierge/conciergeCopyRules";
 
 function buildNeedMatchText(primary: NeedTag | null, secondary: NeedTag[]): string {
   if (primary === "courage") {
@@ -414,13 +415,13 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     psychologicalTags,
     symbolTags,
     meaning: {
-      short: meaningShort,
-      lead,
+      short: sanitizeCopyText(meaningShort),
+      lead: sanitizeCopyText(lead),
     },
     match: {
-      userState,
-      shrineBenefit,
-      actionMeaning,
+      userState: sanitizeCopyText(userState),
+      shrineBenefit: sanitizeCopyText(shrineBenefit),
+      actionMeaning: sanitizeCopyText(actionMeaning),
     },
     ranking: {
       rankReason,

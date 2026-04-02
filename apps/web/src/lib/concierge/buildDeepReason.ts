@@ -1,4 +1,5 @@
 // apps/web/src/lib/concierge/buildDeepReason.ts
+import { sanitizeCopyText, normalizeCopyText } from "@/lib/concierge/conciergeCopyRules";
 import { findShrineMeaning } from "./findShrineMeaning";
 import { buildInterpretation, type ReasonNeedTag } from "./buildInterpretation";
 
@@ -32,9 +33,9 @@ export function buildDeepReason(args: Args): DeepReason {
   const short = args.fallbackShort ?? args.rawReason ?? null;
 
   return {
-    interpretation,
-    shrineMeaning: found?.meaningSentence ?? null,
-    action: found?.actionSentence ?? short ?? null,
-    short,
+    interpretation: sanitizeCopyText(interpretation),
+    shrineMeaning: sanitizeCopyText(found?.meaningSentence ?? null),
+    action: sanitizeCopyText(found?.actionSentence ?? short ?? null),
+    short: normalizeCopyText(short),
   };
 }

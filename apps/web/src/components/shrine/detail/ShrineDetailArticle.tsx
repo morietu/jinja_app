@@ -85,7 +85,12 @@ export default function ShrineDetailArticle({
     <article className="space-y-4">
       <ShrineCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
 
-      <ShrineProposalSection proposal={proposal} proposalLead={proposalLead} proposalWhy={proposalWhy} />
+      <ShrineProposalSection
+        proposal={proposal}
+        proposalLead={proposalLead}
+        proposalWhy={proposalWhy}
+        symbolTags={visibleSymbolTags}
+      />
 
       {visibleSymbolTags.length > 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
