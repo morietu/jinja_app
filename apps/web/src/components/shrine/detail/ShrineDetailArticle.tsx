@@ -85,23 +85,12 @@ export default function ShrineDetailArticle({
     <article className="space-y-4">
       <ShrineCard {...heroCardProps} variant="hero" hideDetailLink hideDescription suppressHeroCopy />
 
-      <ShrineProposalSection proposal={proposal} proposalLead={proposalLead} proposalWhy={proposalWhy} />
-
-      {visibleSymbolTags.length > 0 ? (
-        <section className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-          <div className="mb-2 text-xs font-medium text-slate-500">今回の相談に重なる象徴</div>
-          <div className="flex flex-wrap gap-1.5">
-            {visibleSymbolTags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <ShrineProposalSection
+        proposal={proposal}
+        proposalLead={proposalLead}
+        proposalWhy={proposalWhy}
+        symbolTags={visibleSymbolTags}
+      />
 
       <section id="goshuins">
         <PublicGoshuinSection
