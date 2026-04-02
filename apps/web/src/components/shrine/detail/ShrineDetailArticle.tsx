@@ -106,7 +106,7 @@ export default function ShrineDetailArticle({
       <div className="space-y-2">
         <DetailDisclosureBlock
           title={judgeSection?.disclosureTitle ?? "おすすめの根拠"}
-          summary={judge.summary || "おすすめの根拠を確認できます"}
+          summary={judge.summary || "この神社をおすすめする理由です"}
           defaultOpen={false}
           level={judge.level}
           hint={judge.hint}

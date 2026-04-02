@@ -1,89 +1,445 @@
-import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import type { PsychologicalTag } from "@/lib/concierge/narrative/psychologicalTags";
-import type { SymbolTag } from "@/lib/concierge/narrative/symbolTags";
+import { sanitizeCopyText } from "@/lib/concierge/narrative/helpers";
+import type {
+  BuildNarrativeBaseArgs,
+  ConciergeMode,
+  NeedTag,
+  ShrineTone,
+} from "@/lib/concierge/narrative/types";
+import {
+  buildConnectionSentence,
+  buildMeaningSentence,
+  buildStateSentence,
+} from "@/lib/concierge/narrative/sentenceBuilders";
 
-export type ConciergeMode = "need" | "compat";
+function buildNeedMatchText(primary: NeedTag | null, secondary: NeedTag[]): string {
+  if (primary === "courage") {
+    return secondary.includes("money")
+      ? "行動のきっかけや後押しを求める意図が中心にあり、金運面も立て直したい流れが見られます。"
+      : "行動のきっかけや後押しを求める意図が相談の中心にあります。";
+  }
 
-export type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
+  if (primary === "money") {
+    return secondary.includes("courage")
+      ? "金運や流れを立て直したい意図が中心にあり、動き出すきっかけも求めている状態です。"
+      : "金運や流れを立て直したい意図が相談の中心にあります。";
+  }
 
-export type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
+  if (primary === "career") {
+    return secondary.includes("courage")
+      ? "仕事や転機への意識が中心にあり、前に進むきっかけも必要としている状態です。"
+      : "仕事や転機に向き合いたい意図が相談の中心にあります。";
+  }
 
-export type ExplanationPrimaryReason = {
-  type?: string | null;
-  label?: string | null;
-  label_ja?: string | null;
-  evidence?: string[] | null;
-  score?: number | null;
-  is_primary?: boolean | null;
-};
+  if (primary === "mental") {
+    return secondary.includes("rest")
+      ? "不安や気持ちの揺れを整えたい意図が中心にあり、落ち着いて休みたい状態も見られます。"
+      : "不安や気持ちの揺れを整えたい意図が相談の中心にあります。";
+  }
 
-export type ExplanationPayload = {
-  primary_need_tag?: string | null;
-  primary_need_label_ja?: string | null;
-  primary_reason?: ExplanationPrimaryReason | null;
-  secondary_reasons?: ExplanationPrimaryReason[] | null;
-  original_reason?: string | null;
-  score?: {
-    element?: number | null;
-    need?: number | null;
-    total?: number | null;
-    total_ranked?: number | null;
-  } | null;
-};
+  if (primary === "rest") {
+    return secondary.includes("mental")
+      ? "休息したい意図が中心にあり、気持ちの揺れも整えたい状態が見られます。"
+      : "落ち着いて休みたい意図が相談の中心にあります。";
+  }
 
-export type DeepReason = {
-  interpretation: string | null;
-  shrineMeaning: string | null;
-  action: string | null;
-  short: string | null;
-};
+  if (primary === "love") {
+    return "良縁や恋愛を前向きに進めたい意図が相談の中心にあります。";
+  }
 
-export type RecommendationMeaning = {
-  short: string | null;
-  lead: string | null;
-};
+  if (primary === "study") {
+    return "学業や合格に集中したい意図が相談の中心にあります。";
+  }
 
-export type RecommendationMatch = {
-  userState: string | null;
-  shrineBenefit: string | null;
-  actionMeaning: string | null;
-};
+  return "相談内容の中に、今の状態を整えたい意図が見られます。";
+}
 
-export type RecommendationRanking = {
-  rankReason: string | null;
-  comparisonText: string | null;
-};
+function buildCompatMatchText(args: {
+  userElementLabel?: string | null;
+  shrineElementLabels?: string[] | null;
+  primaryReasonLabel?: string | null;
+}): string {
+  const user = args.userElementLabel ?? "今回の生年月日傾向";
+  const shrine = (args.shrineElementLabels ?? []).filter(Boolean).slice(0, 2).join("・");
 
-export type RecommendationShrine = {
-  shrineMeaning: string | null;
-};
+  if (shrine) {
+    return `${user}と、${shrine}の要素を持つこの神社の噛み合いを主軸に見ています。`;
+  }
 
-export type RecommendationNarrative = {
-  mode: ConciergeMode;
-  primaryNeed: NeedTag | null;
-  secondaryNeeds: NeedTag[];
-  shrineTone: ShrineTone;
-  breakdown?: ConciergeBreakdown | null;
-  psychologicalTags: PsychologicalTag[];
-  symbolTags: SymbolTag[];
-  meaning: RecommendationMeaning;
-  match: RecommendationMatch;
-  ranking: RecommendationRanking;
-  shrine: RecommendationShrine;
-};
+  if (args.primaryReasonLabel) {
+    return `${user}を主軸に見つつ、${args.primaryReasonLabel}に関わる相談内容との重なりも補助的に見ています。`;
+  }
 
-export type BuildNarrativeBaseArgs = {
-  mode: ConciergeMode;
+  return `${user}と、この神社が持つ要素の噛み合いを主軸に見ています。`;
+}
+
+function buildShrineBenefitText(args: {
+  shrineName?: string | null;
+  benefitLabels?: string[];
+  primaryNeed?: NeedTag | null;
+  shrineTone?: ShrineTone;
+}): string {
+  const shrineText = args.shrineName?.trim() || "この神社";
+  const benefitLabels = args.benefitLabels ?? [];
+  const primaryNeed = args.primaryNeed ?? null;
+  const shrineTone = args.shrineTone ?? "neutral";
+
+  const labels = benefitLabels.filter(Boolean).slice(0, 3);
+  const joined =
+    labels.length >= 3
+      ? `${labels[0]}・${labels[1]}・${labels[2]}`
+      : labels.length === 2
+        ? `${labels[0]}と${labels[1]}`
+        : labels.length === 1
+          ? labels[0]
+          : null;
+
+  if (!joined) {
+    return `${shrineText}は、今回の相談内容に照らして、気持ちや優先順位を整え直す節目として置きやすい神社です。`;
+  }
+
+  if (primaryNeed === "courage") {
+    if (shrineTone === "strong") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、止まっている流れを動かし始める節目や、背中を押す場として据えやすい神社です。`;
+    }
+    if (shrineTone === "tight") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、迷いを断ち切って一歩を決めたい段階で判断材料にしやすい神社です。`;
+    }
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、勢いで進むより気持ちを整えてから一歩を決めたい段階で節目として置きやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、次の一歩を踏み出すきっかけを持ちたい段階で参拝先として据えやすい神社です。`;
+  }
+
+  if (primaryNeed === "money") {
+    if (shrineTone === "strong") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、停滞した巡りを切り替えて流れを再開したい段階で節目として置きやすい神社です。`;
+    }
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、金運や巡りを焦らず整え直したい段階で判断材料にしやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、金運や巡りの停滞を立て直したい段階で意識を向けやすい神社です。`;
+  }
+
+  if (primaryNeed === "mental") {
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、揺れた気持ちを静かに整え直し、落ち着きを取り戻したい段階で一度立ち止まる場として使いやすい神社です。`;
+    }
+    if (shrineTone === "strong") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、沈んだ流れを切り替えつつ気持ちを立て直したい段階で節目として置きやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、気持ちを整えながら無理のない形で立て直したい段階で気持ちを向けやすい神社です。`;
+  }
+
+  if (primaryNeed === "career") {
+    if (shrineTone === "tight") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、仕事や転機への姿勢を引き締め、判断をぶらさず整理したい段階で判断材料にしやすい神社です。`;
+    }
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、仕事や転機への向き合い方を急がず見直したい段階で一度立ち止まる場として使いやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、仕事や転機への向き合い方を整理し、次の判断を落ち着いて考えたい段階で節目として置きやすい神社です。`;
+  }
+
+  if (primaryNeed === "rest") {
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、消耗した状態を静かに整え直したい段階で一度立ち止まる場として使いやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、無理に進まず消耗を立て直したい段階で参拝先として置きやすい神社です。`;
+  }
+
+  if (primaryNeed === "love") {
+    if (shrineTone === "quiet") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、良縁や恋愛に対して気持ちを静かに整えたい段階で気持ちを向けやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、良縁や恋愛を丁寧に見直しながら前へ進めたい段階で参拝先として据えやすい神社です。`;
+  }
+
+  if (primaryNeed === "study") {
+    if (shrineTone === "tight") {
+      return `${shrineText}は${joined}に関わるご利益で知られ、学業や合格に向けて気持ちを引き締め直したい段階で判断材料にしやすい神社です。`;
+    }
+    return `${shrineText}は${joined}に関わるご利益で知られ、学業や合格に向けて乱れた集中やペースを立て直したい段階で参拝先として置きやすい神社です。`;
+  }
+
+  return `${shrineText}は${joined}に関わるご利益で知られ、今回の相談内容に照らして参拝先として検討しやすい神社です。`;
+}
+
+function buildActionMeaningText(args: {
   primaryNeed?: NeedTag | null;
   secondaryNeedTags?: NeedTag[];
   shrineName?: string | null;
   shrineTone?: ShrineTone;
-  breakdown?: ConciergeBreakdown | null;
-  explanationPayload?: ExplanationPayload | null;
-  deepReason?: DeepReason | null;
-  conciergeReason?: string | null;
-  benefitLabels?: string[];
-  userElementLabel?: string | null;
-  primaryReasonLabel?: string | null;
-  shrineSymbolTags?: SymbolTag[] | null;
-};
+}): string {
+  const primary = args.primaryNeed ?? null;
+  const secondary = args.secondaryNeedTags ?? [];
+  const shrineText = args.shrineName?.trim() || "この神社";
+  const shrineTone = args.shrineTone ?? "neutral";
+
+  if (secondary.length === 0) {
+    if (primary === "courage") {
+      if (shrineTone === "strong") {
+        return `${shrineText}は、静かに様子を見る場というより、止まった流れを切り替える節目として使いやすい神社です。`;
+      }
+      if (shrineTone === "tight") {
+        return `${shrineText}は、勢いで動く場というより、迷いを整理して一歩を定めるための神社です。`;
+      }
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、強く背中を押す場というより、気持ちを整えてから一歩を決めるための神社です。`;
+      }
+      return `${shrineText}は、結論を急ぐより、まず最初の一歩を決めたい段階で向いています。`;
+    }
+
+    if (primary === "money") {
+      if (shrineTone === "strong") {
+        return `${shrineText}は、運を待つ場というより、停滞した流れを切り替える節目として使いやすい神社です。`;
+      }
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、一気の好転を狙う場というより、巡りを落ち着いて整え直すための神社です。`;
+      }
+      return `${shrineText}は、金運や巡りを整え直したい今の段階で向いています。`;
+    }
+
+    if (primary === "career") {
+      if (shrineTone === "tight") {
+        return `${shrineText}は、感覚で決める場というより、仕事や転機への姿勢を引き締めて判断するための神社です。`;
+      }
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、結論を急ぐ場というより、向き合い方を静かに整理するための神社です。`;
+      }
+      return `${shrineText}は、仕事や転機への向き合い方を整えたい今の段階で向いています。`;
+    }
+
+    if (primary === "mental") {
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、強く前へ押し出す場というより、揺れた気持ちを静かに整え直すための神社です。`;
+      }
+      if (shrineTone === "strong") {
+        return `${shrineText}は、ただ休む場というより、沈んだ流れを切り替えて立て直す節目として使いやすい神社です。`;
+      }
+      if (shrineTone === "tight") {
+        return `${shrineText}は、感情に流されるまま過ごすより、気持ちを引き締めて整えたい段階で向いています。`;
+      }
+      return `${shrineText}は、不安や揺れを整えたい今の段階で向いています。`;
+    }
+
+    if (primary === "rest") {
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、何かを進める場というより、消耗を静かに整え直すための神社です。`;
+      }
+      return `${shrineText}は、無理に予定を前へ進めるより、疲れを立て直したい今の段階で向いています。`;
+    }
+
+    if (primary === "love") {
+      if (shrineTone === "quiet") {
+        return `${shrineText}は、気持ちを勢いで動かす場というより、関係性を静かに見直すための神社です。`;
+      }
+      return `${shrineText}は、良縁や関係性を丁寧に整えたい今の段階で向いています。`;
+    }
+
+    if (primary === "study") {
+      if (shrineTone === "tight") {
+        return `${shrineText}は、焦って結果だけを追う場というより、集中や姿勢を引き締め直すための神社です。`;
+      }
+      return `${shrineText}は、学業や合格に向けた集中を整え直したい今の段階で向いています。`;
+    }
+
+    return `${shrineText}は、今の状態を整えながら次を決めたい今の段階で向いています。`;
+  }
+
+  if (primary === "courage" && secondary.includes("money")) {
+    return `${shrineText}は、背中を押してほしい気持ちに加えて、金運や巡りの停滞も立て直したい今の段階で向いています。`;
+  }
+
+  if (primary === "money" && secondary.includes("courage")) {
+    if (shrineTone === "strong") {
+      return `${shrineText}は、停滞した巡りを切り替えつつ、止まった状態から動き出すきっかけも欲しい今の段階で向いています。`;
+    }
+    if (shrineTone === "quiet") {
+      return `${shrineText}は、巡りを焦って変えるより、落ち着いて整えながら次の一歩も決めたい今の段階で向いています。`;
+    }
+    if (shrineTone === "tight") {
+      return `${shrineText}は、巡りを立て直しつつ、迷いを絞って動き出す判断も固めたい今の段階で向いています。`;
+    }
+    return `${shrineText}は、巡りを整えるだけでなく、止まった状態から動き出すきっかけも欲しい今の段階で向いています。`;
+  }
+
+  if (primary === "career" && secondary.includes("courage")) {
+    if (shrineTone === "strong") {
+      return `${shrineText}は、仕事や転機への向き合い方を整理しながら、次の一歩へ切り替える節目も欲しい今の段階で向いています。`;
+    }
+    if (shrineTone === "quiet") {
+      return `${shrineText}は、仕事や転機への向き合い方を静かに見直しながら、急がず次の一歩も定めたい今の段階で向いています。`;
+    }
+    if (shrineTone === "tight") {
+      return `${shrineText}は、仕事や転機への姿勢を引き締めつつ、迷いを減らして次の一歩を決めたい今の段階で向いています。`;
+    }
+    return `${shrineText}は、仕事や転機への向き合い方を整理しつつ、次の一歩も決めたい今の段階で向いています。`;
+  }
+
+  if (primary === "mental" && secondary.includes("rest")) {
+    if (shrineTone === "quiet") {
+      return `${shrineText}は、気持ちを静かに整えながら、無理に進まず休みつつ立て直したい今の段階で向いています。`;
+    }
+    if (shrineTone === "strong") {
+      return `${shrineText}は、沈んだ流れを切り替えながら、気持ちと休息の両方を立て直したい今の段階で向いています。`;
+    }
+    return `${shrineText}は、気持ちを整えることに加えて、無理に進まず休みながら立て直したい今の段階で向いています。`;
+  }
+
+  if (primary === "rest" && secondary.includes("mental")) {
+    if (shrineTone === "quiet") {
+      return `${shrineText}は、休息を取りながら、気持ちの揺れも静かに整え直したい今の段階で一度立ち止まる場として使いやすい神社です。`;
+    }
+    if (shrineTone === "strong") {
+      return `${shrineText}は、休息を取りながら、沈んだ流れも切り替えて立て直したい今の段階で節目として置きやすい神社です。`;
+    }
+    if (shrineTone === "tight") {
+      return `${shrineText}は、休息を取りながら、気持ちの揺れを引き締め直して整えたい今の段階で判断材料にしやすい神社です。`;
+    }
+    return `${shrineText}は、休息を取りながら、気持ちの揺れも静かに整え直したい今の段階で向いています。`;
+  }
+
+  return `${shrineText}は、${secondary.map(needLabelJa).join("、")}も視野に入れながら、優先順位を落ち着いて整理したい段階で向いています。`;
+}
+
+function needLabelJa(tag: NeedTag): string {
+  switch (tag) {
+    case "money":
+      return "お金";
+    case "courage":
+      return "勇気";
+    case "career":
+      return "仕事";
+    case "mental":
+      return "気持ち";
+    case "rest":
+      return "休息";
+    case "love":
+      return "恋愛";
+    case "study":
+      return "学業";
+    default:
+      return tag;
+  }
+}
+
+export function buildRecommendationNarrative(
+  args: BuildNarrativeBaseArgs
+): {
+  mode: ConciergeMode;
+  primaryNeed: NeedTag | null;
+  secondaryNeeds: NeedTag[];
+  shrineTone: ShrineTone;
+  breakdown: any;
+  psychologicalTags: string[];
+  symbolTags: string[];
+  turningPoint: {
+    type: string;
+    label: string;
+    shortLabel: string;
+    sentence: string | null;
+  };
+  meaning: {
+    short: string | null;
+    lead: string | null;
+  };
+  match: {
+    userState: string | null;
+    shrineBenefit: string | null;
+    actionMeaning: string | null;
+  };
+  ranking: {
+    rankReason: string | null;
+    comparisonText: string | null;
+  };
+  shrine: {
+    shrineMeaning: string | null;
+  };
+} {
+  const mode = args.mode;
+  const primaryNeed = args.primaryNeed ?? null;
+  const secondaryNeeds = args.secondaryNeedTags ?? [];
+  const shrineTone = args.shrineTone ?? "neutral";
+
+  const userState =
+    mode === "compat"
+      ? buildCompatMatchText({
+          userElementLabel: args.userElementLabel,
+          shrineElementLabels: args.benefitLabels,
+          primaryReasonLabel: args.primaryReasonLabel,
+        })
+      : buildNeedMatchText(primaryNeed, secondaryNeeds);
+
+  const shrineBenefit = buildShrineBenefitText({
+    shrineName: args.shrineName,
+    benefitLabels: args.benefitLabels,
+    primaryNeed,
+    shrineTone,
+  });
+
+  const actionMeaning = buildActionMeaningText({
+    primaryNeed,
+    secondaryNeedTags: secondaryNeeds,
+    shrineName: args.shrineName,
+    shrineTone,
+  });
+
+  const stateSentence = buildStateSentence({
+    mode,
+    primaryNeed,
+    secondaryNeedTags: secondaryNeeds,
+    explanationPayload: args.explanationPayload,
+  });
+
+  const connectionSentence = buildConnectionSentence({
+    mode,
+    primaryNeed,
+    secondaryNeedTags: secondaryNeeds,
+    shrineTone,
+    shrineName: args.shrineName,
+    breakdown: args.breakdown,
+    deepReason: args.deepReason,
+  });
+
+  const meaningSentence = buildMeaningSentence({
+    mode,
+    primaryNeed,
+    secondaryNeedTags: secondaryNeeds,
+    shrineTone,
+    shrineName: args.shrineName,
+    breakdown: args.breakdown,
+    deepReason: args.deepReason,
+  });
+
+  return {
+    mode,
+    primaryNeed,
+    secondaryNeeds,
+    shrineTone,
+    breakdown: args.breakdown ?? null,
+    psychologicalTags: [], // Placeholder, fill as needed
+    symbolTags: args.shrineSymbolTags?.map((t) => t.tag) ?? [],
+    turningPoint: {
+      type: "exampleType",
+      label: "Example Label",
+      shortLabel: "Example",
+      sentence: null,
+    },
+    meaning: {
+      short: meaningSentence,
+      lead: null,
+    },
+    match: {
+      userState: sanitizeCopyText(userState),
+      shrineBenefit: sanitizeCopyText(shrineBenefit),
+      actionMeaning: sanitizeCopyText(actionMeaning),
+    },
+    ranking: {
+      rankReason: null,
+      comparisonText: null,
+    },
+    shrine: {
+      shrineMeaning: sanitizeCopyText(args.deepReason?.shrineMeaning ?? shrineBenefit),
+    },
+  };
+}
