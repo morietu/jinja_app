@@ -21,27 +21,27 @@ type Props = {
 };
 
 export default function ShrineJudgeSection({ concierge, exp, judgeSection }: Props) {
+  const visibleJudgeItems =
+    judgeSection?.items.filter((item) => item.title === "上位になった理由" || item.title === "他候補との差") ?? [];
+
   return (
     <div className="space-y-3">
       {judgeSection ? (
-        <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">{judgeSection.title}</div>
-            <p className="mt-1 text-sm text-slate-800">{judgeSection.lead}</p>
-          </div>
+        visibleJudgeItems.length > 0 ? (
+          <div className="space-y-3">
+            {visibleJudgeItems.map((item) => {
+              const heading = item.title === "上位になった理由" ? "上位理由" : "他候補との差";
 
-          <div className="space-y-2">
-            {judgeSection.items.map((item) => (
-              <div key={item.key}>
-                <div className="text-xs font-semibold text-slate-500">{item.title}</div>
-                <p className="mt-1 text-sm text-slate-800">{item.body}</p>
-              </div>
-            ))}
+              return (
+                <div key={item.key} className="space-y-1">
+                  <div className="text-xs font-semibold text-slate-500">{heading}</div>
+                  <p className="text-sm leading-6 text-slate-800">{item.body}</p>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      ) : null}
-
-      {concierge ? (
+        ) : null
+      ) : concierge ? (
         <div className="space-y-2 text-sm text-slate-800">
           <div className="text-xs font-semibold text-slate-500">おすすめ理由（内訳）</div>
           <ConciergeBreakdownBody breakdown={concierge} />

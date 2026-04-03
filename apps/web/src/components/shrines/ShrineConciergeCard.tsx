@@ -102,6 +102,48 @@ function buildHeroReason(reason?: string | null): string {
   return "→ 今の状態と強く一致しています。";
 }
 
+
+function buildListDescriptionFromReason(reason?: string | null): string {
+  const s = (reason ?? "").trim();
+
+  if (!s) return "今の悩みに合わせて選びやすい神社です。";
+
+  if (s.includes("流れを切り替え")) {
+    return "流れを切り替えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("巡りを整え")) {
+    return "巡りを整えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("気持ちを切り替え")) {
+    return "気持ちを切り替えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("不安や気持ちを整え")) {
+    return "不安や気持ちを整えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("仕事") || s.includes("転機")) {
+    return "仕事や転機を整えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("集中") || s.includes("目標")) {
+    return "集中や目標を定めたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("良縁") || s.includes("関係性")) {
+    return "良縁や関係を整えたい時に選びやすい神社です。";
+  }
+
+  if (s.includes("休み") || s.includes("休息")) {
+    return "落ち着いて休みたい時に選びやすい神社です。";
+  }
+
+  return `${s.replace(/時に$/, "").replace(/たい$/, "たい")}時に選びやすい神社です。`;
+}
+
+
 export default function ShrineConciergeCard({
   shrineId,
   title,
@@ -160,8 +202,8 @@ export default function ShrineConciergeCard({
   const heroClaim = suppressHeroCopy ? "" : buildHeroClaimFromTags(matchedTags);
   const heroReason = hideDescription || suppressHeroCopy ? "" : buildHeroReason(primaryReason);
 
-  const listSubtitle = primaryReason;
-  const listDescription = hideDescription ? "" : mainSummary;
+  const listSubtitle = "";
+  const listDescription = hideDescription ? "" : buildListDescriptionFromReason(primaryReason || mainSummary);
 
   const badges =
     badgesOverride?.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3) ?? [];

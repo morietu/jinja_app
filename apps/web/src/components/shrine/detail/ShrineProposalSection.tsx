@@ -22,7 +22,6 @@ export default function ShrineProposalSection({
   const secondaryItem = proposalWhy.find((item) => item.label === "補助的な一致") ?? null;
 
   const visibleSymbolTags = symbolTags.filter(Boolean).slice(0, 4);
-
   const hasSupplement = Boolean(secondaryItem) || visibleSymbolTags.length > 0;
 
   return (
@@ -32,31 +31,35 @@ export default function ShrineProposalSection({
 
         {proposalLead ? (
           <div className="rounded-xl bg-slate-50 px-3 py-3">
-            <div className="mb-1 text-[11px] font-medium text-slate-500">主題</div>
+            <div className="mb-1 text-[11px] font-medium text-slate-500">主</div>
             <p className="text-sm leading-6 text-slate-700">{proposalLead}</p>
           </div>
         ) : null}
 
-        {primaryItems.map((item) => (
-          <div key={item.label} className="rounded-xl border border-slate-200 px-3 py-3">
-            <div className="mb-1 text-[11px] font-medium text-slate-500">{item.label}</div>
-            <p className="text-sm leading-6 text-slate-700">{item.text}</p>
-          </div>
-        ))}
+        {primaryItems.map((item) => {
+          const heading = item.label === "相談との一致" ? "接点" : "意味";
+
+          return (
+            <div key={item.label} className="rounded-xl border border-slate-200 px-3 py-3">
+              <div className="mb-1 text-[11px] font-medium text-slate-500">{heading}</div>
+              <p className="text-sm leading-6 text-slate-700">{item.text}</p>
+            </div>
+          );
+        })}
 
         {hasSupplement ? (
           <DetailDisclosureBlock title="補足" summary="補助的な一致や象徴を確認できます" defaultOpen={false}>
-            <div className="space-y-3">
+            <div className="space-y-3 px-1 py-1">
               {secondaryItem ? (
-                <div className="rounded-xl border border-slate-200 px-3 py-3">
-                  <div className="mb-1 text-[11px] font-medium text-slate-500">補助的な一致</div>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-medium text-slate-500">補助的な一致</div>
                   <p className="text-sm leading-6 text-slate-700">{secondaryItem.text}</p>
                 </div>
               ) : null}
 
               {visibleSymbolTags.length > 0 ? (
-                <div>
-                  <div className="mb-2 text-[11px] font-medium text-slate-500">象徴</div>
+                <div className="space-y-2">
+                  <div className="text-[11px] font-medium text-slate-500">象徴</div>
                   <div className="flex flex-wrap gap-1.5">
                     {visibleSymbolTags.map((tag) => (
                       <span

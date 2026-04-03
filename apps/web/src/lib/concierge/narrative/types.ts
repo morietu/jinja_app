@@ -1,5 +1,4 @@
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
-import type { PsychologicalTag } from "@/lib/concierge/narrative/psychologicalTags";
 import type { SymbolTag } from "@/lib/concierge/narrative/symbolTags";
 
 export type ConciergeMode = "need" | "compat";
@@ -32,30 +31,26 @@ export type ExplanationPayload = {
 };
 
 export type DeepReason = {
-  interpretation: string | null;
-  shrineMeaning: string | null;
-  action: string | null;
-  short: string | null;
+  interpretation?: string | null;
+  shrineMeaning?: string | null;
+  action?: string | null;
+  short?: string | null;
 };
 
-export type RecommendationMeaning = {
-  short: string | null;
-  lead: string | null;
-};
-
-export type RecommendationMatch = {
-  userState: string | null;
-  shrineBenefit: string | null;
-  actionMeaning: string | null;
-};
-
-export type RecommendationRanking = {
-  rankReason: string | null;
-  comparisonText: string | null;
-};
-
-export type RecommendationShrine = {
-  shrineMeaning: string | null;
+export type BuildNarrativeBaseArgs = {
+  mode: ConciergeMode;
+  primaryNeed?: NeedTag | null;
+  secondaryNeedTags?: NeedTag[];
+  shrineTone?: ShrineTone;
+  shrineName?: string | null;
+  benefitLabels?: string[];
+  primaryReasonLabel?: string | null;
+  userElementLabel?: string | null;
+  breakdown?: ConciergeBreakdown | null;
+  explanationPayload?: ExplanationPayload | null;
+  deepReason?: DeepReason | null;
+  conciergeReason?: string | null;
+  shrineSymbolTags?: SymbolTag[] | null;
 };
 
 export type RecommendationNarrative = {
@@ -63,27 +58,29 @@ export type RecommendationNarrative = {
   primaryNeed: NeedTag | null;
   secondaryNeeds: NeedTag[];
   shrineTone: ShrineTone;
-  breakdown?: ConciergeBreakdown | null;
-  psychologicalTags: PsychologicalTag[];
-  symbolTags: SymbolTag[];
-  meaning: RecommendationMeaning;
-  match: RecommendationMatch;
-  ranking: RecommendationRanking;
-  shrine: RecommendationShrine;
-};
-
-export type BuildNarrativeBaseArgs = {
-  mode: ConciergeMode;
-  primaryNeed?: NeedTag | null;
-  secondaryNeedTags?: NeedTag[];
-  shrineName?: string | null;
-  shrineTone?: ShrineTone;
-  breakdown?: ConciergeBreakdown | null;
-  explanationPayload?: ExplanationPayload | null;
-  deepReason?: DeepReason | null;
-  conciergeReason?: string | null;
-  benefitLabels?: string[];
-  userElementLabel?: string | null;
-  primaryReasonLabel?: string | null;
-  shrineSymbolTags?: SymbolTag[] | null;
+  breakdown: ConciergeBreakdown | null;
+  psychologicalTags: string[];
+  symbolTags: string[];
+  turningPoint: {
+    type: string;
+    label: string;
+    shortLabel: string;
+    sentence: string | null;
+  };
+  meaning: {
+    short: string | null;
+    lead: string | null;
+  };
+  match: {
+    userState: string | null;
+    shrineBenefit: string | null;
+    actionMeaning: string | null;
+  };
+  ranking: {
+    rankReason: string | null;
+    comparisonText: string | null;
+  };
+  shrine: {
+    shrineMeaning: string | null;
+  };
 };
