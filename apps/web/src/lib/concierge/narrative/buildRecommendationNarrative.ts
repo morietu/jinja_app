@@ -11,7 +11,8 @@ import { buildMeaningShort } from "@/lib/concierge/narrative/buildMeaningShort";
 import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
 import { sanitizeCopyText } from "@/lib/concierge/conciergeCopyRules";
-
+import { resolveTurningPoint } from "@/lib/concierge/turningPoint/resolveTurningPoint";
+import { buildTurningPointSentence } from "@/lib/concierge/turningPoint/buildTurningPointSentence";
 /**
  * 主
  * 今の状態や、今回の相談の中心テーマを短く出す
@@ -462,6 +463,8 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     ctx: "concierge",
   });
 
+
+
   const meaningSentence = buildMeaningSentence({
     primaryNeed,
     secondaryNeedTags: secondaryNeeds,
@@ -495,6 +498,15 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
 
   const symbolTags = Array.from(new Set([...(args.shrineSymbolTags ?? []), ...derivedSymbolTags]));
 
+  const turningPointMeta = resolveTurningPoint({
+    primaryNeed,
+    secondaryNeedTags: secondaryNeeds,
+  });
+
+  const turningPointSentence = buildTurningPointSentence({
+    turningPoint: turningPointMeta,
+  });
+
   return {
     mode,
     primaryNeed,
@@ -503,6 +515,12 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     breakdown: args.breakdown ?? null,
     psychologicalTags,
     symbolTags,
+    turningPoint: {
+      type: turningPointMeta.type,
+      label: turningPointMeta.label,
+      shortLabel: turningPointMeta.shortLabel,
+      sentence: sanitizeCopyText(turningPointSentence),
+    },
     meaning: {
       short: sanitizeCopyText(meaningSentence),
       lead: sanitizeCopyText(stateSentence),
