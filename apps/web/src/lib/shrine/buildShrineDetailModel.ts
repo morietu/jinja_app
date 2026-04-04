@@ -2,6 +2,16 @@
 import type { Shrine } from "@/lib/api/shrines";
 import type { ShrineTag } from "@/lib/shrine/tags/types";
 import type { PublicGoshuinItem } from "@/components/shrine/detail/PublicGoshuinSection";
+import type {
+  DetailMeaningItem,
+  DetailMeaningSection,
+  DetailProposalSection,
+  DetailReasonGroup,
+  DetailReasonSection,
+  DetailSupplementGroup,
+  DetailSupplementSection,
+  ShrineDetailSectionModel,
+} from "@/components/shrine/detail/types";
 import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
@@ -19,7 +29,6 @@ import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonTe
 import { buildRecommendationNarrative } from "@/lib/concierge/narrative/buildRecommendationNarrative";
 
 
-
 type Args = {
   shrine: Shrine;
   publicGoshuins: PublicGoshuinItem[];
@@ -28,6 +37,8 @@ type Args = {
   conciergeDeepReason?: DeepReason | null;
   conciergeExplanationPayload?: ExplanationPayload | null;
   conciergeMode?: ConciergeMode | null;
+  recommendationRankExplanation?: RankExplanation | null;
+  recommendationRankComparison?: RankComparison | null;
   ctx?: "map" | "concierge" | null;
   tid?: string | null;
   signals?: {
@@ -65,6 +76,54 @@ type JudgeSectionItem = {
   body: string;
 };
 
+type RankExplanation = {
+  version: number;
+  summary?: string;
+  primary_axis?: string;
+  primary_axis_ja?: string;
+  primary_label?: string | null;
+  primary_label_ja?: string | null;
+};
+
+type RankComparison = {
+  version: number;
+  rank?: number;
+  is_top?: boolean;
+  top_name?: string | null;
+  gap_from_top?: number;
+  comparison_summary?: string | null;
+};
+
+type RecommendationMeta = {
+  rankExplanation?: RankExplanation | null;
+  rankComparison?: RankComparison | null;
+  rankTitle?: string | null;
+  rankBody?: string | null;
+};
+
+
+function buildRecommendationMeta(args: {
+  rankExplanation?: RankExplanation | null;
+  rankComparison?: RankComparison | null;
+}): RecommendationMeta | null {
+  const rankExplanation = args.rankExplanation ?? null;
+  const rankComparison = args.rankComparison ?? null;
+
+  const isTop = Boolean(rankComparison?.is_top);
+  const rankTitle = isTop ? "この神社が1位の理由" : "1位との違い";
+
+  const rankBody = isTop ? (rankExplanation?.summary ?? null) : (rankComparison?.comparison_summary ?? null);
+
+  if (!rankTitle || !rankBody) return null;
+
+  return {
+    rankExplanation,
+    rankComparison,
+    rankTitle,
+    rankBody,
+  };
+}
+
 function resolveConciergeMode(value: unknown): ConciergeMode {
   return value === "compat" ? "compat" : "need";
 }
@@ -82,6 +141,26 @@ function getShrineTone(shrineName?: string | null): ShrineTone {
 
   return "neutral";
 }
+
+const NEED_REASON_LABELS: Record<NeedTag, string> = {
+  money: "金運",
+  courage: "前進のきっかけ",
+  career: "仕事や転機",
+  mental: "気持ちを整えたい",
+  rest: "休息したい",
+  love: "良縁や恋愛",
+  study: "学業や合格",
+};
+
+const NEED_STATE_LABELS: Record<NeedTag, string> = {
+  money: "流れを立て直したい",
+  courage: "前に進むきっかけがほしい",
+  career: "判断や転機を整理したい",
+  mental: "気持ちを整えたい",
+  rest: "無理せず休みたい",
+  love: "関係性を前向きに整えたい",
+  study: "集中を立て直したい",
+};
 
 function needLabelJa(tag: NeedTag): string {
   if (tag === "money") return "金運";
@@ -192,6 +271,95 @@ function toBenefitTag(label: string): ShrineTag {
     type: "benefit",
     source: "official",
     confidence: "high",
+  };
+}
+
+function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean))];
+}
+
+function buildCompatReasonItems(payload?: ExplanationPayload | null, benefitLabels: string[] = []): {
+  consultation: string[];
+  states: string[];
+  shrineFactors: string[];
+} {
+  const consultation = payload?.primary_reason?.label_ja ? [payload.primary_reason.label_ja] : [];
+
+  const states = payload?.primary_need_label_ja ? [payload.primary_need_label_ja] : ["生年月日との相性を見ています"];
+
+  const shrineFactors = benefitLabels.slice(0, 3);
+
+  return { consultation, states, shrineFactors };
+}
+
+function buildReasonSection(args: {
+  mode: ConciergeMode;
+  breakdown?: ConciergeBreakdown | null;
+  explanationPayload?: ExplanationPayload | null;
+  benefitLabels: string[];
+}): DetailReasonSection | null {
+  const primary = getPrimaryNeedTag(args.breakdown);
+  const secondary = getSecondaryNeedTags(args.breakdown);
+  const payload = args.explanationPayload ?? null;
+
+  if (args.mode === "compat") {
+    const compat = buildCompatReasonItems(payload, args.benefitLabels);
+
+    const groups: DetailReasonGroup[] = [
+      { title: "一致した相談", items: compat.consultation },
+      { title: "一致した状態", items: compat.states },
+      { title: "一致した神社要素", items: compat.shrineFactors },
+    ].filter((g) => g.items.length > 0);
+
+    return groups.length > 0
+      ? {
+          kind: "reason",
+          heading: "この神社が出てきた理由",
+          groups,
+        }
+      : null;
+  }
+
+  const consultation = uniqueNonEmpty([
+    primary ? NEED_REASON_LABELS[primary] : null,
+    ...secondary.map((tag) => NEED_REASON_LABELS[tag]),
+  ]);
+
+  const states = uniqueNonEmpty([
+    primary ? NEED_STATE_LABELS[primary] : null,
+    ...secondary.map((tag) => NEED_STATE_LABELS[tag]),
+  ]);
+
+  const shrineFactors = uniqueNonEmpty(args.benefitLabels.slice(0, 3));
+
+  const groups: DetailReasonGroup[] = [
+    { title: "一致した相談", items: consultation },
+    { title: "一致した状態", items: states },
+    { title: "一致した神社要素", items: shrineFactors },
+  ].filter((g) => g.items.length > 0);
+
+  return groups.length > 0
+    ? {
+        kind: "reason",
+        heading: "この神社が出てきた理由",
+        groups,
+      }
+    : null;
+}
+
+function buildProposalSection(args: {
+  lead?: string | null;
+  consultationSummary?: string | null;
+  proposal?: string | null;
+  ctx?: "map" | "concierge" | null;
+}): DetailProposalSection | null {
+  if (args.ctx !== "concierge") return null;
+
+  return {
+    kind: "proposal",
+    heading: "今回の相談の整理",
+    lead: args.consultationSummary ?? args.lead ?? "",
+    body: args.proposal ?? null,
   };
 }
 
@@ -772,14 +940,6 @@ function buildJudgeSectionOrderFromDeepReason(deepReason?: DeepReason | null): J
 
   const items: JudgeSectionItem[] = [];
 
-  if (deepReason.interpretation) {
-    items.push({
-      key: "interpretation",
-      title: "今の状態との重なり",
-      body: deepReason.interpretation,
-    });
-  }
-
   if (deepReason.shrineMeaning) {
     items.push({
       key: "meaning",
@@ -799,6 +959,77 @@ function buildJudgeSectionOrderFromDeepReason(deepReason?: DeepReason | null): J
   return items.length > 0 ? items : null;
 }
 
+function buildMeaningSection(args: {
+  lead: string;
+  deepReason?: DeepReason | null;
+  shrineName?: string | null;
+  benefitLabels: string[];
+  mode: ConciergeMode;
+  breakdown?: ConciergeBreakdown | null;
+}): DetailMeaningSection {
+  const deepItems = buildJudgeSectionOrderFromDeepReason(args.deepReason);
+
+  const fallbackItems: DetailMeaningItem[] = deepItems ?? [
+    {
+      key: "meaning",
+      title: "この神社をすすめる理由",
+      body: buildBenefitText(
+        args.shrineName?.trim() || "この神社",
+        args.benefitLabels,
+        getPrimaryNeedTag(args.breakdown),
+        getShrineTone(args.shrineName ?? null),
+      ),
+    },
+    {
+      key: "action",
+      title: "参拝を置く意味",
+      body: buildSecondaryText(
+        getPrimaryNeedTag(args.breakdown),
+        getSecondaryNeedTags(args.breakdown),
+        args.shrineName ?? undefined,
+      ),
+    },
+  ];
+
+  return {
+    kind: "meaning",
+    heading: "この神社を今どう読むか",
+    lead: args.lead,
+    items: fallbackItems,
+  };
+}
+
+function buildSupplementSection(args: {
+  benefitLabels: string[];
+  psychologicalTags?: string[] | null;
+  symbolTags?: string[] | null;
+  mode: ConciergeMode;
+  explanationPayload?: ExplanationPayload | null;
+}): DetailSupplementSection | null {
+  const groups: DetailSupplementGroup[] = [
+    {
+      title: "ご利益",
+      items: uniqueNonEmpty(args.benefitLabels.slice(0, 5)),
+    },
+    {
+      title: "象徴",
+      items: uniqueNonEmpty((args.symbolTags ?? []).slice(0, 5)),
+    },
+    {
+      title: "相性・補助情報",
+      items: uniqueNonEmpty((args.psychologicalTags ?? []).slice(0, 5)),
+    },
+  ].filter((g) => g.items.length > 0);
+
+  return groups.length > 0
+    ? {
+        kind: "supplement",
+        heading: "補足",
+        groups,
+      }
+    : null;
+}
+
 export function buildShrineDetailModel({
   shrine,
   publicGoshuins,
@@ -807,6 +1038,8 @@ export function buildShrineDetailModel({
   conciergeDeepReason = null,
   conciergeExplanationPayload = null,
   conciergeMode = null,
+  recommendationRankExplanation = null,
+  recommendationRankComparison = null,
   ctx = null,
   tid = null,
   signals,
@@ -849,8 +1082,14 @@ export function buildShrineDetailModel({
   const mode = resolveConciergeMode(conciergeMode);
   const explanationPayload = conciergeExplanationPayload ?? null;
 
+  const recommendationMeta = buildRecommendationMeta({
+    rankExplanation: recommendationRankExplanation,
+    rankComparison: recommendationRankComparison,
+  });
+
   const primaryNeed = getPrimaryNeedTag(conciergeBreakdown);
   const secondaryNeedTags = getSecondaryNeedTags(conciergeBreakdown);
+  const isConciergeContext = ctx === "concierge";
 
   const narrative = buildRecommendationNarrative({
     mode,
@@ -868,7 +1107,10 @@ export function buildShrineDetailModel({
     shrineSymbolTags: null,
   });
 
-  const isConciergeContext = ctx === "concierge";
+  const consultationSummary = isConciergeContext
+    ? (narrative.meaning.consultationSummary ?? conciergeDeepReason?.consultationSummary ?? null)
+    : null;
+
   const hasConciergeNarrative =
     isConciergeContext &&
     Boolean(
@@ -949,6 +1191,44 @@ export function buildShrineDetailModel({
     rankReason,
   };
 
+  const reasonSection = buildReasonSection({
+    mode,
+    breakdown: conciergeBreakdown,
+    explanationPayload,
+    benefitLabels,
+  });
+
+  const proposalSection = buildProposalSection({
+    lead: proposalLead,
+    consultationSummary,
+    proposal,
+    ctx,
+  });
+
+  const meaningSection = buildMeaningSection({
+    lead: judgeLead,
+    deepReason: conciergeDeepReason,
+    shrineName: cardProps.title ?? null,
+    benefitLabels,
+    mode,
+    breakdown: conciergeBreakdown,
+  });
+
+  const supplementSection = buildSupplementSection({
+    benefitLabels,
+    psychologicalTags: narrative.psychologicalTags,
+    symbolTags: narrative.symbolTags,
+    mode,
+    explanationPayload,
+  });
+
+  const sections: ShrineDetailSectionModel[] = [
+    ...(reasonSection ? [reasonSection] : []),
+    ...(proposalSection ? [proposalSection] : []),
+    ...(meaningSection ? [meaningSection] : []),
+    ...(supplementSection ? [supplementSection] : []),
+  ];
+
   return {
     shrineId: shrine.id,
     cardProps,
@@ -958,6 +1238,11 @@ export function buildShrineDetailModel({
     judge,
     conciergeBreakdown,
     exp,
+    sections,
+    reasonSection,
+    proposalSection,
+    meaningSection,
+    supplementSection,
     proposal: explanation.proposal,
     proposalLead: explanation.proposalLead,
     proposalWhy: explanation.proposalWhy,
@@ -966,6 +1251,7 @@ export function buildShrineDetailModel({
     publicGoshuinsViewAllHref,
     judgeSection: explanation.judgeSection,
     rankReason: explanation.rankReason,
+    recommendationMeta,
     psychologicalTags: narrative.psychologicalTags,
     symbolTags: narrative.symbolTags,
   };
