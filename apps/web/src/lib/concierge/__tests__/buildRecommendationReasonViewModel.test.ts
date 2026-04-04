@@ -14,9 +14,9 @@ describe("buildRecommendationReasonViewModel", () => {
     });
 
     expect(vm.inputType).toBe("query");
-    expect(vm.reasonKeys.primary).toBe("need_match");
-    expect(vm.primaryReason.length).toBeGreaterThan(0);
-    expect(vm.topReasonLabel).toBe("相談に合う");
+    expect(vm.why.reasonKeys.primary).toBe("need_match");
+    expect(vm.why.primaryReason.length).toBeGreaterThan(0);
+    expect(vm.hero.topReasonLabel).toBe("相談に合う");
   });
 
   it("birthdateのみで primary_reason が相性系になる", () => {
@@ -33,9 +33,9 @@ describe("buildRecommendationReasonViewModel", () => {
     });
 
     expect(vm.inputType).toBe("birthdate");
-    expect(vm.reasonKeys.primary).toBe("element_match");
-    expect(vm.primaryReason.length).toBeGreaterThan(0);
-    expect(vm.topReasonLabel).toBe("相性が最も高い");
+    expect(vm.why.reasonKeys.primary).toBe("element_match");
+    expect(vm.why.primaryReason.length).toBeGreaterThan(0);
+    expect(vm.hero.topReasonLabel).toBe("相性が最も高い");
   });
 
   it("fallback時に need文が出ない", () => {
@@ -51,8 +51,8 @@ describe("buildRecommendationReasonViewModel", () => {
     });
 
     expect(vm.inputType).toBe("fallback");
-    expect(vm.primaryReason).not.toContain("転機");
-    expect(vm.summary).not.toContain("願い");
+    expect(vm.why.primaryReason).not.toContain("転機");
+    expect(vm.why.summary).not.toContain("願い");
   });
 
   it("secondary_reason が2件以上出ない", () => {
@@ -68,7 +68,7 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: ["仕事"],
     });
 
-    expect(typeof vm.secondaryReason === "string" || typeof vm.secondaryReason === "undefined").toBe(true);
+    expect(typeof vm.why.secondaryReason === "string" || typeof vm.why.secondaryReason === "undefined").toBe(true);
   });
 
   it("summary が1行で重複しない", () => {
@@ -82,9 +82,9 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: ["厄除け"],
     });
 
-    expect(vm.summary.includes("\n")).toBe(false);
-    expect(vm.summary).not.toBe(vm.primaryReason);
-    expect(vm.summary).not.toBe(vm.secondaryReason);
+    expect(vm.why.summary.includes("\n")).toBe(false);
+    expect(vm.why.summary).not.toBe(vm.why.primaryReason);
+    expect(vm.why.summary).not.toBe(vm.why.secondaryReason);
   });
 
   it("top1 のみ reason_label が表示される", () => {
@@ -102,8 +102,8 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: ["転機"],
     });
 
-    expect(a.topReasonLabel).toBeTruthy();
-    expect(b.topReasonLabel).toBeUndefined();
+    expect(a.hero.topReasonLabel).toBeTruthy();
+    expect(b.hero.topReasonLabel).toBeUndefined();
   });
 
   it("reason文の代表パターンを snapshot で固定する", () => {
@@ -131,7 +131,6 @@ describe("buildRecommendationReasonViewModel", () => {
 
     expect(samples).toMatchSnapshot();
   });
-});
 
   it("reason_facts.primary_axis=distance を優先できる", () => {
     const vm = buildRecommendationReasonViewModel({
@@ -147,8 +146,8 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: [],
     });
 
-    expect(vm.reasonKeys.primary).toBe("distance");
-    expect(vm.primaryReason).toContain("800m");
+    expect(vm.why.reasonKeys.primary).toBe("distance");
+    expect(vm.why.primaryReason).toContain("800m");
   });
 
   it("reason_facts.primary_axis=popularity を優先できる", () => {
@@ -165,8 +164,8 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: [],
     });
 
-    expect(vm.reasonKeys.primary).toBe("popular");
-    expect(vm.primaryReason).toContain("安定感");
+    expect(vm.why.reasonKeys.primary).toBe("popular");
+    expect(vm.why.primaryReason).toContain("安定感");
   });
 
   it("reason_facts.primary_axis=element を優先できる", () => {
@@ -184,8 +183,8 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: [],
     });
 
-    expect(vm.reasonKeys.primary).toBe("element_match");
-    expect(vm.primaryReason).toContain("水");
+    expect(vm.why.reasonKeys.primary).toBe("element_match");
+    expect(vm.why.primaryReason).toContain("水");
   });
 
   it("reason_facts.primary_axis=fallback を優先できる", () => {
@@ -202,6 +201,7 @@ describe("buildRecommendationReasonViewModel", () => {
       needTags: [],
     });
 
-    expect(vm.reasonKeys.primary).toBe("distance");
-    expect(vm.primaryReason).toContain("動きやすさ");
+    expect(vm.why.reasonKeys.primary).toBe("distance");
+    expect(vm.why.primaryReason).toContain("動きやすさ");
   });
+});
