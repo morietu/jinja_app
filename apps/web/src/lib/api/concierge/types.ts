@@ -49,6 +49,7 @@ export type ConciergeThreadDetail = {
   thread: ConciergeThread;
   messages: ConciergeMessage[];
   recommendations?: ConciergeRecommendation[];
+  recommendations_v2?: ConciergeRecommendation[];
 };
 
 export type ConciergeNeed = {
@@ -102,6 +103,7 @@ export type ConciergeReasonFacts = {
 
 export type ConciergeRecommendation = {
   id?: number | null;
+  shrine_id?: number | null;
   place_id?: string | null;
 
   name: string;
@@ -143,7 +145,28 @@ export type ConciergeRecommendation = {
 
   reason_facts?: ConciergeReasonFacts | null;
 
+  rank_explanation?: ConciergeRankExplanation | null;
+  rank_comparison?: ConciergeRankComparison | null;
+
   photo_url?: string | null;
   is_dummy?: boolean;
   __dummy?: boolean;
+};
+
+export type ConciergeRankExplanation = {
+  version: number;
+  summary?: string | null;
+  primary_axis?: string | null;
+  primary_axis_ja?: string | null;
+  primary_label?: string | null;
+  primary_label_ja?: string | null;
+};
+
+export type ConciergeRankComparison = {
+  version: number;
+  rank?: number;
+  is_top?: boolean;
+  top_name?: string | null;
+  gap_from_top?: number;
+  comparison_summary?: string | null;
 };
