@@ -20,7 +20,6 @@ import type {
 
 type MetaMode = NonNullable<ConciergeSectionsPayload["meta"]>["mode"];
 
-const conciergeCardClass = "rounded-2xl border border-slate-200 bg-white shadow-sm p-6";
 const conciergeSoftCardClass = "rounded-2xl border border-slate-200 bg-slate-50 shadow-sm p-4";
 const conciergeNoticeCardClass = "rounded-2xl border border-amber-200 bg-amber-50 shadow-sm p-4";
 
