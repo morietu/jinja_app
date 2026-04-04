@@ -28,6 +28,7 @@ from temples.services.concierge_chat_presentation import (
 )
 from temples.services.concierge_chat_ranking import (
     _attach_breakdown,
+    _attach_rank_comparison,
     _diversify_by_need,
     _resolve_mode_weights,
     build_recommendation_reason,
@@ -42,6 +43,7 @@ from temples.services.concierge_explanations import (
     attach_explanations_for_chat,
 )
 
+
 log = logging.getLogger(__name__)
 
 
@@ -53,9 +55,11 @@ def _resolve_astro_profile(
 
     try:
         from temples.domain.astrology import sun_sign_and_element  # type: ignore
+
         return sun_sign_and_element(birthdate)
     except Exception:
         return None
+
 
 def _attach_chat_rec_enrichment(
     recs: Dict[str, Any],
@@ -101,10 +105,7 @@ def _sort_chat_recommendations(
     *,
     sort_tags: set[str],
 ) -> Dict[str, Any]:
-    recommendations = [
-        r for r in (recs.get("recommendations") or [])
-        if isinstance(r, dict)
-    ]
+    recommendations = [r for r in (recs.get("recommendations") or []) if isinstance(r, dict)]
 
     distance_mode = "sort_distance" in sort_tags
 
@@ -154,8 +155,7 @@ def _attach_astro_meta(
         "matched_count": sum(
             1
             for r in (recs.get("recommendations") or [])
-            if isinstance(r, dict)
-            and int(r.get("breakdown", {}).get("score_element", 0)) >= 2
+            if isinstance(r, dict) and int(r.get("breakdown", {}).get("score_element", 0)) >= 2
         ),
     }
     return recs
@@ -182,14 +182,12 @@ def build_chat_recommendations(
     ranking / pool / presentation の責務は各モジュールへ分離する。
     """
     valid_candidates = [
-        _normalize_candidate_fields(c)
-        for c in (candidates or [])
-        if isinstance(c, dict)
+        _normalize_candidate_fields(c) for c in (candidates or []) if isinstance(c, dict)
     ]
 
     need_payload = resolve_need_payload(
         query=query or "",
-        need_tags=[],
+        need_tags=need_tags or [],
         max_tags=3,
     )
     need_tags = need_payload["tags"]
@@ -259,11 +257,7 @@ def build_chat_recommendations(
     log.info(
         "[dbg] pool_after_merge size=%d top_names=%r",
         len(recs.get("recommendations") or []),
-        [
-            r.get("name")
-            for r in (recs.get("recommendations") or [])[:5]
-            if isinstance(r, dict)
-        ],
+        [r.get("name") for r in (recs.get("recommendations") or [])[:5] if isinstance(r, dict)],
     )
 
     recs = _attach_chat_rec_enrichment(
@@ -285,7 +279,9 @@ def build_chat_recommendations(
                 {
                     "shrine_id": r.get("shrine_id"),
                     "name": r.get("name"),
-                    "breakdown_matched_need_tags": (r.get("breakdown") or {}).get("matched_need_tags"),
+                    "breakdown_matched_need_tags": (r.get("breakdown") or {}).get(
+                        "matched_need_tags"
+                    ),
                     "breakdown_score_need": (r.get("breakdown") or {}).get("score_need"),
                     "explanation_payload": r.get("_explanation_payload"),
                 }
@@ -300,6 +296,7 @@ def build_chat_recommendations(
         recs,
         sort_tags=sort_tags,
     )
+    recs["recommendations"] = _attach_rank_comparison(recs.get("recommendations") or [])
 
     _fill_location_from_existing_address(recs)
     _backfill_location_from_name(

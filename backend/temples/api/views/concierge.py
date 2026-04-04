@@ -168,6 +168,39 @@ class ConciergeThreadDetailView(APIView):
             thread = get_object_or_404(qs)
             msgs = ConciergeMessage.objects.filter(thread=thread).order_by("created_at", "id")
 
+            recommendations = getattr(thread, "recommendations", None)
+recommendations_v2 = getattr(thread, "recommendations_v2", None)
+
+logger.warning(
+    "THREAD_DETAIL_RECOMMENDATION_KEYS %s",
+    {
+        "pk": pk,
+        "recommendations": [
+            {
+                "shrine_id": r.get("shrine_id"),
+                "id": r.get("id"),
+                "keys": sorted(list(r.keys())),
+                "has_rank_explanation": "rank_explanation" in r,
+                "has_rank_comparison": "rank_comparison" in r,
+            }
+            for r in (recommendations or [])[:3]
+            if isinstance(r, dict)
+        ],
+        "recommendations_v2": [
+            {
+                "shrine_id": r.get("shrine_id"),
+                "id": r.get("id"),
+                "keys": sorted(list(r.keys())),
+                "has_rank_explanation": "rank_explanation" in r,
+                "has_rank_comparison": "rank_comparison" in r,
+            }
+            for r in (recommendations_v2 or [])[:3]
+            if isinstance(r, dict)
+        ],
+    },
+)
+
+
             payload = {
                 "id": thread.id,
                 "title": thread.title,

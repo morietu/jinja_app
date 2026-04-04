@@ -7,7 +7,6 @@ from rest_framework import serializers
 from temples.models import ConciergeThread, ConciergeMessage
 
 
-
 # まず新モジュールからインポート（存在すればそれを使う）
 try:
     from temples.serializers.concierge import (
@@ -105,6 +104,7 @@ class _FallbackConciergeRecommendationsResponse(serializers.Serializer):
     # optional origin: {lat, lng, label?}
     origin = serializers.DictField(required=False)
 
+
 class ConciergeThreadSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConciergeThread
@@ -120,7 +120,6 @@ class ConciergeThreadSerializer(serializers.ModelSerializer):
 class ConciergeMessageSerializer(serializers.ModelSerializer):
     thread_id = serializers.IntegerField(read_only=True)
 
-    
     class Meta:
         model = ConciergeMessage
         fields = [
@@ -145,6 +144,7 @@ class ConciergeThreadDetailSerializer(serializers.ModelSerializer):
             "message_count",
             "messages",
         ]
+
 
 class ConciergeRecommendationSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False, allow_null=True)
