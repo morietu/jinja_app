@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/components/PrimaryRecommendationCard.tsx
 "use client";
 
 import ConciergeCard from "@/components/ConciergeCard";
@@ -30,21 +29,16 @@ export default function PrimaryRecommendationCard({
     needTags,
   });
 
-  const description = [vm.primaryReason, vm.secondaryReason, vm.summary]
-    .filter((x): x is string => typeof x === "string" && !!x.trim())
-    .join(" / ");
+  const description = [vm.why.primaryReason, vm.why.secondaryReason, vm.why.summary].filter(Boolean).join(" ");
 
-  const badges = [
-    ...(vm.topReasonLabel ? [vm.topReasonLabel] : []),
-    ...(Array.isArray(needTags) ? needTags : []).filter((t) => typeof t === "string" && t.trim()).slice(0, 2),
-  ];
+  const chips = [...(vm.hero.topReasonLabel ? [vm.hero.topReasonLabel] : [])];
 
   return (
     <ConciergeCard
       title={(rec.display_name || rec.name || "").trim() || "（名称不明）"}
       description={description}
       isPrimary
-      badges={badges}
+      badges={chips}
     />
   );
 }
