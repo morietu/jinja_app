@@ -1,5 +1,21 @@
 // apps/web/src/lib/concierge/buildRecommendationReasonViewModel.ts
-
+/**
+ * buildRecommendationReasonViewModel
+ *
+ * responsibility:
+ * - backend から返る reason_facts / breakdown / fallback 情報を受け取り、
+ *   frontend 表示向けの推薦理由 view model を組み立てる
+ *
+ * boundary:
+ * - reason_facts は「推薦判断の事実」を表す構造化データであり、
+ *   UI 表示用の完成文は含めない
+ * - hero / why / interpretation / rank は frontend 側で生成する
+ *
+ * design note:
+ * - backend は推薦の根拠となる evidence を返す
+ * - frontend はその evidence を画面用途に応じた説明文へ翻訳する
+ * - 一覧 / 詳細 / 1位表示の差分はこの view model 層で吸収する
+ */
 export type ReasonInputType = "query" | "birthdate" | "fallback";
 export type ReasonKey = "need_match" | "text_match" | "element_match" | "sign_match" | "distance" | "popular";
 
@@ -221,6 +237,23 @@ function buildFallbackCandidates(rec: RecommendationLike): Candidate[] {
   return out;
 }
 
+/**
+ * reason_facts を Candidate の素材へ変換する。
+ *
+ * ここで扱うのは backend が返した「推薦判断の事実」であり、
+ * まだ UI 完成文や順位比較文は生成しない。
+ *
+ * role:
+ * - primary_axis / secondary_axis
+ * - matched_need_tags / matched_benefits
+ * - shrine_feature / shrine_benefit / visit_fit
+ * - matched_element / matched_sign
+ * - distance_label / popularity_label / fallback_reason
+ *
+ * note:
+ * - ここは evidence → candidate 素材の変換層
+ * - 「なぜ1位か」「他候補との差」は buildRankReason 側で扱う
+ */
 function buildFactsCandidates(rec: RecommendationLike): Candidate[] {
   const f = rec.reason_facts;
   if (!f) return [];
@@ -483,6 +516,21 @@ function buildShrineMeaning(params: BuildParams, primary: Candidate): string {
   return buildStateShrineMeaningText(params, primary);
 }
 
+/**
+ * rank reason は frontend view model 層で生成する。
+ *
+ * reason_facts は比較の材料までを持ち、
+ * 「なぜ1位か」「他候補との差」といった表示解釈はここで組み立てる。
+ *
+ * boundary:
+ * - backend は ranking evidence を返す
+ * - frontend は index / primary candidate / mode などを使って
+ *   rank.whyTop / rank.differenceFromOthers を生成する
+ *
+ * note:
+ * - 1位以外では rank 文面を無理に返さない
+ * - UI 向けの比較表現は backend 契約に含めない
+ */
 function buildRankReason(
   params: BuildParams,
   primary: Candidate,
