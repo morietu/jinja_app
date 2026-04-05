@@ -100,7 +100,9 @@ class ConciergeThreadDetailView(APIView):
                 {
                     "thread_id": pk,
                     "user_id": getattr(getattr(request, "user", None), "id", None),
-                    "is_authenticated": bool(getattr(getattr(request, "user", None), "is_authenticated", False)),
+                    "is_authenticated": bool(
+                        getattr(getattr(request, "user", None), "is_authenticated", False)
+                    ),
                     "anon_id_cookie": request.COOKIES.get("concierge_anon_id"),
                     "cookies": dict(getattr(request, "COOKIES", {}) or {}),
                 },
@@ -143,7 +145,9 @@ class ConciergeThreadDetailView(APIView):
                         "pk": pk,
                         "is_authenticated": bool(getattr(user, "is_authenticated", False)),
                         "cookies": dict(getattr(request, "COOKIES", {}) or {}),
-                        "_request_cookies": dict(getattr(raw_req, "COOKIES", {}) or {}) if raw_req else None,
+                        "_request_cookies": (
+                            dict(getattr(raw_req, "COOKIES", {}) or {}) if raw_req else None
+                        ),
                         "anonymous_id": anonymous_id,
                     },
                 )
@@ -165,41 +169,41 @@ class ConciergeThreadDetailView(APIView):
                     return Response({"detail": "not found"}, status=status.HTTP_404_NOT_FOUND)
 
                 qs = qs.filter(user__isnull=True, anonymous_id=anonymous_id)
+
             thread = get_object_or_404(qs)
             msgs = ConciergeMessage.objects.filter(thread=thread).order_by("created_at", "id")
 
             recommendations = getattr(thread, "recommendations", None)
-recommendations_v2 = getattr(thread, "recommendations_v2", None)
+            recommendations_v2 = getattr(thread, "recommendations_v2", None)
 
-logger.warning(
-    "THREAD_DETAIL_RECOMMENDATION_KEYS %s",
-    {
-        "pk": pk,
-        "recommendations": [
-            {
-                "shrine_id": r.get("shrine_id"),
-                "id": r.get("id"),
-                "keys": sorted(list(r.keys())),
-                "has_rank_explanation": "rank_explanation" in r,
-                "has_rank_comparison": "rank_comparison" in r,
-            }
-            for r in (recommendations or [])[:3]
-            if isinstance(r, dict)
-        ],
-        "recommendations_v2": [
-            {
-                "shrine_id": r.get("shrine_id"),
-                "id": r.get("id"),
-                "keys": sorted(list(r.keys())),
-                "has_rank_explanation": "rank_explanation" in r,
-                "has_rank_comparison": "rank_comparison" in r,
-            }
-            for r in (recommendations_v2 or [])[:3]
-            if isinstance(r, dict)
-        ],
-    },
-)
-
+            logger.warning(
+                "THREAD_DETAIL_RECOMMENDATION_KEYS %s",
+                {
+                    "pk": pk,
+                    "recommendations": [
+                        {
+                            "shrine_id": r.get("shrine_id"),
+                            "id": r.get("id"),
+                            "keys": sorted(list(r.keys())),
+                            "has_rank_explanation": "rank_explanation" in r,
+                            "has_rank_comparison": "rank_comparison" in r,
+                        }
+                        for r in (recommendations or [])[:3]
+                        if isinstance(r, dict)
+                    ],
+                    "recommendations_v2": [
+                        {
+                            "shrine_id": r.get("shrine_id"),
+                            "id": r.get("id"),
+                            "keys": sorted(list(r.keys())),
+                            "has_rank_explanation": "rank_explanation" in r,
+                            "has_rank_comparison": "rank_comparison" in r,
+                        }
+                        for r in (recommendations_v2 or [])[:3]
+                        if isinstance(r, dict)
+                    ],
+                },
+            )
 
             payload = {
                 "id": thread.id,
@@ -216,8 +220,8 @@ logger.warning(
                     }
                     for m in msgs
                 ],
-                "recommendations": getattr(thread, "recommendations", None),
-                "recommendations_v2": getattr(thread, "recommendations_v2", None),
+                "recommendations": recommendations,
+                "recommendations_v2": recommendations_v2,
             }
             return Response(payload, status=status.HTTP_200_OK)
 
