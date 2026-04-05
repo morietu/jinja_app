@@ -1,7 +1,9 @@
+// apps/web/src/lib/shrine/buildShrineListItemModel.ts
 import type { Shrine } from "@/lib/api/shrines";
-import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
+import { buildShrineListCardModel } from "@/lib/shrine/buildShrineListCardModel";
 
 export function buildShrineListItemModel(shrine: Shrine) {
-  const { cardProps } = buildShrineCardProps(shrine);
-  return { cardProps };
+  return {
+    cardProps: buildShrineListCardModel(shrine),
+  };
 }

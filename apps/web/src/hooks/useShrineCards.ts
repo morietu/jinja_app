@@ -3,7 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getShrines, type Shrine } from "@/lib/api/shrines";
-import { buildShrineCardProps, type ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
+import type { ShrineCardAdapterProps } from "@/components/shrine/buildShrineCardProps";
+import { buildShrineListCardModel } from "@/lib/shrine/buildShrineListCardModel";
 
 type Result = {
   cards: ShrineCardAdapterProps[];
@@ -39,7 +40,7 @@ export function useShrineCards(): Result {
   }, []);
 
   const cards = useMemo(() => {
-    return shrines.map((s) => buildShrineCardProps(s).cardProps);
+    return shrines.map((s) => buildShrineListCardModel(s));
   }, [shrines]);
 
   return { cards, loading, error };

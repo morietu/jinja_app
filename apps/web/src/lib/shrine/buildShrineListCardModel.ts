@@ -3,5 +3,12 @@ import type { Shrine } from "@/lib/api/shrines";
 import { buildShrineCardProps } from "@/components/shrine/buildShrineCardProps";
 
 export function buildShrineListCardModel(shrine: Shrine) {
-  return buildShrineCardProps(shrine).cardProps;
+  const { cardProps } = buildShrineCardProps(shrine);
+
+  return {
+    ...cardProps,
+    address: null,
+    rating: null,
+    reviewCount: null,
+  };
 }

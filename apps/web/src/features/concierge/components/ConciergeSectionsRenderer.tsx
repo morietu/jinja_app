@@ -350,14 +350,13 @@ export default function ConciergeSectionsRenderer({
                               name={heroItem.title}
                               href={heroItem.detailHref}
                               imageUrl={heroItem.imageUrl}
-                              address={heroItem.address}
+                              address={null}
                               topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
                               catchCopy={reasonVm.hero.catchCopy}
                               whyTop={reasonVm.rank.whyTop ?? null}
                               primaryReason={reasonVm.why.primaryReason}
                               secondaryReason={reasonVm.why.secondaryReason ?? null}
                               differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
-                              nextActionHint="まずは詳細を見て、この神社が今の悩みにどう重なるかを確認してください。"
                               tags={(heroItem.breakdown?.matched_need_tags ?? []).slice(0, 3)}
                               onRouteClick={() => onAction?.({ type: "open_map" })}
                             />
@@ -401,7 +400,7 @@ export default function ConciergeSectionsRenderer({
                                 name={item.title}
                                 href={item.detailHref}
                                 imageUrl={item.imageUrl}
-                                address={item.address}
+                                address={null}
                                 summary={reasonVm.why.summary}
                                 primaryReason={reasonVm.why.primaryReason}
                                 tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
