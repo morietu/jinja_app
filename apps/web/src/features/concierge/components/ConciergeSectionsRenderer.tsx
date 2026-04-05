@@ -73,12 +73,14 @@ export default function ConciergeSectionsRenderer({
   threadId: _threadId = null,
   isEntryRoute = false,
 }: Props) {
+  // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
 
+  // ✅ filter state は map の外で1回だけ取る
   const filterState: ConciergeFilterState | null = useMemo(() => {
     const sec = payload.sections.find((s) => s.type === "filter") as any;
     return (sec?.state ?? null) as ConciergeFilterState | null;
@@ -100,6 +102,7 @@ export default function ConciergeSectionsRenderer({
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
 
+            // 閉じ状態（プリセット選択 + 即絞り）
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
 
@@ -178,6 +181,7 @@ export default function ConciergeSectionsRenderer({
               );
             }
 
+            // 開いた状態（既存のフィルタパネル）
             return (
               <DetailSection key={`filter-${i}`} title={title}>
                 <ConciergeFilterPanel
