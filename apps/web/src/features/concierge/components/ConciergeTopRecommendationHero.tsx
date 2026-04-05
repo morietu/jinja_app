@@ -14,6 +14,7 @@ type Props = {
   primaryReason: string;
   secondaryReason?: string | null;
   differenceFromOthers?: string | null;
+  nextActionHint?: string | null;
   tags?: string[];
   routeLabel?: string;
   onRouteClick?: () => void;
@@ -35,6 +36,7 @@ export default function ConciergeTopRecommendationHero({
   primaryReason,
   secondaryReason = null,
   differenceFromOthers = null,
+  nextActionHint = null,
   tags = [],
   routeLabel = "経路案内",
   onRouteClick,
@@ -88,6 +90,12 @@ export default function ConciergeTopRecommendationHero({
               </div>
             ) : null}
           </div>
+
+          {nextActionHint ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm leading-7 text-slate-700">{nextActionHint}</p>
+            </div>
+          ) : null}
 
           {safeTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">

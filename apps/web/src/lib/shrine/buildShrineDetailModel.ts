@@ -1030,6 +1030,120 @@ function buildSupplementSection(args: {
     : null;
 }
 
+const HERO_MEANING_BY_TAG: Record<NeedTag, string> = {
+  courage: "止まった流れを切り替え、次の一歩を定め直す神社",
+  money: "巡りと流れを整え、立て直しの軸を取り戻す神社",
+  career: "判断を整え、仕事や転機の方向を見直す神社",
+  mental: "気持ちを静め、受け取り方を整え直す神社",
+  rest: "心身をゆるめ、回復の順番を取り戻す神社",
+  love: "関係性を見つめ直し、縁の受け取り方を整える神社",
+  study: "集中を整え、目標に向き直る神社",
+};
+
+const HERO_MEANING_BY_LABEL_JA: Record<string, string> = {
+  金運: "巡りと流れを整え、立て直しの軸を取り戻す神社",
+  "前に進むきっかけ": "止まった流れを切り替え、次の一歩を定め直す神社",
+  "仕事や転機": "判断を整え、仕事や転機の方向を見直す神社",
+  "不安や気持ちの揺れ": "気持ちを静め、受け取り方を整え直す神社",
+  休息: "心身をゆるめ、回復の順番を取り戻す神社",
+  "良縁や恋愛": "関係性を見つめ直し、縁の受け取り方を整える神社",
+  "学業や合格": "集中を整え、目標に向き直る神社",
+};
+
+function compressShrineMeaning(text?: string | null): string | null {
+  const raw = (text ?? "").trim();
+  if (!raw) return null;
+
+  const cleaned = raw
+    .replace(/^.*?は、/, "")
+    .replace(/今の状態で|今回の相談では|今回の相談において/g, "")
+    .replace(/参拝先として|候補として/g, "")
+    .replace(/重ねやすい|据えやすい|置きやすい/g, "")
+    .replace(/段階で/g, "")
+    .replace(/です。?$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return null;
+
+  if (cleaned.includes("決断や覚悟")) {
+    return "止まった流れを切り替え、決断と覚悟を定め直す神社";
+  }
+
+  if (cleaned.includes("原点に戻りたい") || cleaned.includes("巡りを整え")) {
+    return "焦りを静めて、巡りと原点を整え直す神社";
+  }
+
+  if (cleaned.includes("集中") || cleaned.includes("目標設定")) {
+    return "気持ちを引き締め、目標に向き直る神社";
+  }
+
+  const normalized = cleaned.replace(/ための$/, "").replace(/ために$/, "").replace(/したい$/, "").trim();
+
+  return normalized.endsWith("神社") ? normalized : `${normalized}神社`;
+}
+
+function resolveHeroMeaningFallbackKey(args: {
+  conciergeExplanationPayload?: ExplanationPayload | null;
+  conciergeBreakdown?: ConciergeBreakdown | null;
+  recommendationRankExplanation?: {
+    primary_axis?: string;
+    primary_label_ja?: string | null;
+  } | null;
+}): NeedTag | null {
+  const labelJa =
+    args.conciergeExplanationPayload?.primary_need_label_ja ??
+    args.conciergeExplanationPayload?.primary_reason?.label_ja ??
+    args.recommendationRankExplanation?.primary_label_ja ??
+    null;
+
+  if (labelJa && HERO_MEANING_BY_LABEL_JA[labelJa]) {
+    const matched = Object.entries(HERO_MEANING_BY_TAG).find(([, value]) => value === HERO_MEANING_BY_LABEL_JA[labelJa]);
+    return (matched?.[0] as NeedTag | undefined) ?? null;
+  }
+
+  return getPrimaryNeedTag(args.conciergeBreakdown);
+}
+
+function buildHeroMeaningCopy(args: {
+  conciergeMode: ConciergeMode | null;
+  conciergeDeepReason: {
+    interpretation?: string | null;
+    shrineMeaning?: string | null;
+    action?: string | null;
+    short?: string | null;
+  } | null;
+  conciergeExplanationPayload?: ExplanationPayload | null;
+  conciergeBreakdown?: ConciergeBreakdown | null;
+  recommendationRankExplanation?: {
+    primary_axis?: string;
+    primary_label_ja?: string | null;
+  } | null;
+  shrineName?: string | null;
+}): string | null {
+  const mode = resolveConciergeMode(args.conciergeMode);
+
+  const fromShrineMeaning = compressShrineMeaning(args.conciergeDeepReason?.shrineMeaning);
+  if (fromShrineMeaning) return fromShrineMeaning;
+
+  const fallbackKey = resolveHeroMeaningFallbackKey({
+    conciergeExplanationPayload: args.conciergeExplanationPayload ?? null,
+    conciergeBreakdown: args.conciergeBreakdown ?? null,
+    recommendationRankExplanation: args.recommendationRankExplanation ?? null,
+  });
+
+  if (fallbackKey && HERO_MEANING_BY_TAG[fallbackKey]) {
+    return HERO_MEANING_BY_TAG[fallbackKey];
+  }
+
+  if (mode === "compat") {
+    return "相性の面から無理なく受け取りやすい神社";
+  }
+
+  return "今の流れを整え、次の見方を作る神社";
+}
+
+
 export function buildShrineDetailModel({
   shrine,
   publicGoshuins,
@@ -1085,6 +1199,15 @@ export function buildShrineDetailModel({
   const recommendationMeta = buildRecommendationMeta({
     rankExplanation: recommendationRankExplanation,
     rankComparison: recommendationRankComparison,
+  });
+
+  const heroMeaningCopy = buildHeroMeaningCopy({
+    conciergeMode: mode,
+    conciergeDeepReason,
+    conciergeExplanationPayload: explanationPayload,
+    conciergeBreakdown,
+    recommendationRankExplanation,
+    shrineName: cardProps.title ?? null,
   });
 
   const primaryNeed = getPrimaryNeedTag(conciergeBreakdown);
@@ -1233,6 +1356,7 @@ export function buildShrineDetailModel({
     shrineId: shrine.id,
     cardProps,
     heroImageUrl,
+    heroMeaningCopy,
     benefitLabels,
     tags,
     judge,

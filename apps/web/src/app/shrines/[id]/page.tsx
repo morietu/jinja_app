@@ -25,6 +25,7 @@ import { ShrineDetailToast } from "@/components/shrine/ShrineDetailToast";
 import ShrineSaveButton from "@/components/shrine/ShrineSaveButton";
 import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
+import ScrollToTopOnMount from "@/components/navigation/ScrollToTopOnMount";
 
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
@@ -363,6 +364,7 @@ export default async function Page({ params, searchParams }: Props) {
   });
   return (
     <>
+      <ScrollToTopOnMount />
       <ShrineDetailToast shrineId={numericId} />
       <ShrineDetailShell
         title={pageTitle}

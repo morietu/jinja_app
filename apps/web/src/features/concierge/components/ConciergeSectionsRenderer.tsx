@@ -248,6 +248,17 @@ export default function ConciergeSectionsRenderer({
                   })
                 : null;
 
+            const registeredItems = items.filter(
+              (x: RegisteredShrineItem | PlaceShrineItem): x is RegisteredShrineItem => x.kind === "registered",
+            );
+
+            const placeItems = items.filter(
+              (x: RegisteredShrineItem | PlaceShrineItem): x is PlaceShrineItem => x.kind === "place",
+            );
+
+            const heroItem = registeredItems[0] ?? null;
+            const otherRegisteredItems = registeredItems.slice(1);
+
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
@@ -311,81 +322,114 @@ export default function ConciergeSectionsRenderer({
                 )}
 
                 <div className="space-y-3">
-                  {(sec as any).items.map((item: RegisteredShrineItem | PlaceShrineItem, idx: number) => {
-                    if (item.kind === "registered") {
-                      const normalizedMode = normalizeConciergeMode(payload?.meta?.mode);
+                  {heroItem
+                    ? (() => {
+                        const reasonVm = buildRecommendationReasonViewModel({
+                          rec: {
+                            display_name: heroItem.title,
+                            name: heroItem.title,
+                            breakdown: heroItem.breakdown ?? null,
+                            reason: heroItem.description ?? null,
+                            fallback_mode: payload?.meta?.resultState?.fallback_mode ?? null,
+                            distance_m: (heroItem as any).distance_m ?? null,
+                            popular_score: (heroItem as any).popular_score ?? null,
+                            astro_elements: (heroItem as any).astro_elements ?? null,
+                            astro_priority: (heroItem as any).astro_priority ?? null,
+                            explanation: (heroItem as any).explanation ?? null,
+                            reason_facts: (heroItem as any).reasonFacts ?? null,
+                          },
+                          index: 0,
+                          mode: normalizedMode,
+                          birthdate: filterState?.birthdate ?? null,
+                          needTags: heroItem.breakdown?.matched_need_tags ?? [],
+                        });
 
-                      const reasonVm = buildRecommendationReasonViewModel({
-                        rec: {
-                          display_name: item.title,
-                          name: item.title,
-                          breakdown: item.breakdown ?? null,
-                          reason: item.description ?? null,
-                          fallback_mode: payload?.meta?.resultState?.fallback_mode ?? null,
-                          distance_m: (item as any).distance_m ?? null,
-                          popular_score: (item as any).popular_score ?? null,
-                          astro_elements: (item as any).astro_elements ?? null,
-                          astro_priority: (item as any).astro_priority ?? null,
-                          explanation: (item as any).explanation ?? null,
-                          reason_facts: (item as any).reasonFacts ?? null,
-                        },
-                        index: idx,
-                        mode: normalizedMode,
-                        birthdate: filterState?.birthdate ?? null,
-                        needTags: item.breakdown?.matched_need_tags ?? [],
-                      });
-
-                      if (idx === 0) {
                         return (
-                          <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
+                          <div key={`rec-${i}-hero-${heroItem.shrineId}`} className="space-y-2">
                             <ConciergeTopRecommendationHero
-                              name={item.title}
-                              href={item.detailHref}
-                              imageUrl={item.imageUrl}
-                              address={item.address}
+                              name={heroItem.title}
+                              href={heroItem.detailHref}
+                              imageUrl={heroItem.imageUrl}
+                              address={null}
                               topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
                               catchCopy={reasonVm.hero.catchCopy}
                               whyTop={reasonVm.rank.whyTop ?? null}
                               primaryReason={reasonVm.why.primaryReason}
                               secondaryReason={reasonVm.why.secondaryReason ?? null}
                               differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
-                              tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 3)}
+                              tags={(heroItem.breakdown?.matched_need_tags ?? []).slice(0, 3)}
                               onRouteClick={() => onAction?.({ type: "open_map" })}
                             />
                           </div>
                         );
-                      }
+                      })()
+                    : null}
 
-                      return (
-                        <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
-                          <ShrineCardCompact
-                            name={item.title}
-                            href={item.detailHref}
-                            imageUrl={item.imageUrl}
+                  {otherRegisteredItems.length > 0 ? (
+                    <div className="pt-8">
+                      <div className="mb-2 text-sm font-semibold text-slate-900">他の候補</div>
+                      <p className="mb-3 text-xs leading-6 text-slate-500">
+                        比較候補として、今回の相談と相性のある神社も紹介します。
+                      </p>
+
+                      <div className="space-y-3">
+                        {otherRegisteredItems.map((item: RegisteredShrineItem, compactIdx: number) => {
+                          const reasonVm = buildRecommendationReasonViewModel({
+                            rec: {
+                              display_name: item.title,
+                              name: item.title,
+                              breakdown: item.breakdown ?? null,
+                              reason: item.description ?? null,
+                              fallback_mode: payload?.meta?.resultState?.fallback_mode ?? null,
+                              distance_m: (item as any).distance_m ?? null,
+                              popular_score: (item as any).popular_score ?? null,
+                              astro_elements: (item as any).astro_elements ?? null,
+                              astro_priority: (item as any).astro_priority ?? null,
+                              explanation: (item as any).explanation ?? null,
+                              reason_facts: (item as any).reasonFacts ?? null,
+                            },
+                            index: compactIdx + 1,
+                            mode: normalizedMode,
+                            birthdate: filterState?.birthdate ?? null,
+                            needTags: item.breakdown?.matched_need_tags ?? [],
+                          });
+
+                          return (
+                            <div key={`rec-${i}-compact-${item.shrineId}`} className="space-y-2">
+                              <ShrineCardCompact
+                                name={item.title}
+                                href={item.detailHref}
+                                imageUrl={item.imageUrl}
+                                address={null}
+                                summary={reasonVm.why.summary}
+                                primaryReason={reasonVm.why.primaryReason}
+                                tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                                distanceM={(item as any).distance_m ?? null}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {placeItems.length > 0 ? (
+                    <div className="space-y-3 pt-4">
+                      {placeItems.map((item: PlaceShrineItem, placeIdx: number) => (
+                        <div key={`rec-${i}-${placeIdx}-place-${item.placeId}`} className="space-y-2">
+                          <PlaceShrineCard
+                            placeId={item.placeId}
+                            title={item.title}
                             address={item.address}
-                            summary={reasonVm.why.summary}
-                            primaryReason={reasonVm.why.primaryReason}
-                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
-                            distanceM={(item as any).distance_m ?? null}
+                            description={item.description}
+                            imageUrl={item.imageUrl}
+                            detailHref={item.detailHref}
+                            detailLabel={item.detailLabel}
                           />
                         </div>
-                      );
-                    }
-
-                    return (
-                      <div key={`rec-${i}-${idx}-place-${item.placeId}`} className="space-y-2">
-                        <PlaceShrineCard
-                          placeId={item.placeId}
-                          title={item.title}
-                          address={item.address}
-                          description={item.description}
-                          imageUrl={item.imageUrl}
-                          detailHref={item.detailHref}
-                          detailLabel={item.detailLabel}
-                        />
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </DetailSection>
             );
