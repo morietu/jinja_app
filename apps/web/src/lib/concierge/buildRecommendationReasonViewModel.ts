@@ -24,6 +24,10 @@ export type RecommendationReasonViewModel = {
     shrineMeaning: string;
     actionMeaning?: string;
   };
+  rank: {
+    whyTop?: string;
+    differenceFromOthers?: string;
+  };
 };
 
 type BreakdownLike = {
@@ -479,6 +483,49 @@ function buildShrineMeaning(params: BuildParams, primary: Candidate): string {
   return buildStateShrineMeaningText(params, primary);
 }
 
+function buildRankReason(
+  params: BuildParams,
+  primary: Candidate,
+  _secondary?: Candidate,
+): { whyTop?: string; differenceFromOthers?: string } {
+  if (params.index !== 0) {
+    return {};
+  }
+
+  if (primary.key === "need_match") {
+    return {
+      whyTop: "今回の候補の中でも、相談内容との一致が最も強く見られる候補です。",
+      differenceFromOthers: "他候補よりも、今優先したいテーマにまっすぐ重なりやすい位置づけです。",
+    };
+  }
+
+  if (primary.key === "element_match" || primary.key === "sign_match") {
+    return {
+      whyTop: "今回の候補の中でも、相性の無理のなさが強く見られる候補です。",
+      differenceFromOthers: "他候補よりも、気質に無理なく馴染みやすい点が上位理由になっています。",
+    };
+  }
+
+  if (primary.key === "distance") {
+    return {
+      whyTop: "今回の候補の中でも、まず実際に動きやすい条件が強い候補です。",
+      differenceFromOthers: "他候補よりも、行けること自体が負担になりにくい点を優先しています。",
+    };
+  }
+
+  if (primary.key === "popular") {
+    return {
+      whyTop: "今回の候補の中でも、選びやすさの安定感が強い候補です。",
+      differenceFromOthers: "他候補よりも、迷いがある段階で選択しやすい点を優先しています。",
+    };
+  }
+
+  return {
+    whyTop: "今回の候補の中でも、今の状態との重なりが最も強く見られる候補です。",
+    differenceFromOthers: "他候補よりも、今優先したい整理軸に沿って受け取りやすい位置づけです。",
+  };
+}
+
 export function buildRecommendationReasonViewModel(params: BuildParams): RecommendationReasonViewModel {
   const inputType = resolveInputType(params);
   const factsCandidates = buildFactsCandidates(params.rec);
@@ -511,6 +558,8 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
     .find((x) => x.key !== primary.key && clean(x.text) !== clean(primary.text));
   const summary = buildSummary(inputType, primary, secondary);
 
+  const rank = buildRankReason(params, primary, secondary);
+
   return {
     inputType,
     hero: {
@@ -532,5 +581,6 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
       shrineMeaning: buildShrineMeaning(params, primary),
       actionMeaning: buildActionMeaning(params, secondary),
     },
+    rank,
   };
 }
