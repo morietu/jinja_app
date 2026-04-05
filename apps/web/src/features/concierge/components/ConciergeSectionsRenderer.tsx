@@ -6,9 +6,9 @@ import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
-import ShrineCard from "@/components/shrines/ShrineCard";
 import ConciergeTopRecommendationHero from "@/features/concierge/components/ConciergeTopRecommendationHero";
-
+import ConciergeConsultationSummary from "@/features/concierge/components/ConciergeConsultationSummary";
+import ShrineCardCompact from "@/components/shrines/ShrineCardCompact";
 
 import type {
   ConciergeSectionsPayload,
@@ -219,11 +219,50 @@ export default function ConciergeSectionsRenderer({
               (typeof rs?.ui_disclaimer_ja === "string" && rs.ui_disclaimer_ja) ||
               (hasDummy ? "条件に合う候補が少ないため、まずは選びやすい候補から表示しています。" : null);
 
+            const topRegisteredItem = items.find(
+              (x: RegisteredShrineItem | PlaceShrineItem) => x.kind === "registered",
+            ) as RegisteredShrineItem | undefined;
+
+            const normalizedMode = normalizeConciergeMode(payload?.meta?.mode);
+
+            const topReasonVm =
+              topRegisteredItem && topRegisteredItem.kind === "registered"
+                ? buildRecommendationReasonViewModel({
+                    rec: {
+                      display_name: topRegisteredItem.title,
+                      name: topRegisteredItem.title,
+                      breakdown: topRegisteredItem.breakdown ?? null,
+                      reason: topRegisteredItem.description ?? null,
+                      fallback_mode: payload?.meta?.resultState?.fallback_mode ?? null,
+                      distance_m: (topRegisteredItem as any).distance_m ?? null,
+                      popular_score: (topRegisteredItem as any).popular_score ?? null,
+                      astro_elements: (topRegisteredItem as any).astro_elements ?? null,
+                      astro_priority: (topRegisteredItem as any).astro_priority ?? null,
+                      explanation: (topRegisteredItem as any).explanation ?? null,
+                      reason_facts: (topRegisteredItem as any).reasonFacts ?? null,
+                    },
+                    index: 0,
+                    mode: normalizedMode,
+                    birthdate: filterState?.birthdate ?? null,
+                    needTags: topRegisteredItem.breakdown?.matched_need_tags ?? [],
+                  })
+                : null;
+
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
+
+                {topReasonVm?.interpretation.consultationSummary ? (
+                  <div className="mb-4">
+                    <ConciergeConsultationSummary
+                      summary={topReasonVm.interpretation.consultationSummary}
+                      modeLabel={normalizedMode === "compat" ? "相性をもとに見ています" : "相談内容をもとに見ています"}
+                      appliedLabel={appliedLabel}
+                    />
+                  </div>
+                ) : null}
 
                 {typeof payload?.meta?.remaining === "number" && payload.meta.remaining > 0 && (
                   <div className="mb-2 text-xs leading-6 text-slate-500">
@@ -319,20 +358,15 @@ export default function ConciergeSectionsRenderer({
 
                       return (
                         <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
-                          <ShrineCard
+                          <ShrineCardCompact
                             name={item.title}
-                            address={item.address}
                             href={item.detailHref}
                             imageUrl={item.imageUrl}
-                            distanceM={(item as any).distance_m ?? null}
-                            rating={(item as any).rating ?? null}
-                            reviewCount={(item as any).reviewCount ?? null}
-                            isTopPick={false}
-                            topReasonLabel={null}
-                            explanationSummary={reasonVm.why.summary}
+                            address={item.address}
+                            summary={reasonVm.why.summary}
                             primaryReason={reasonVm.why.primaryReason}
-                            secondaryReason={reasonVm.why.secondaryReason ?? null}
                             tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                            distanceM={(item as any).distance_m ?? null}
                           />
                         </div>
                       );
