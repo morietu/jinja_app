@@ -31,6 +31,11 @@
     "**/.DS_Store": true
   },
 
+  // ---- 保存まわり ----
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 800,
+  "workbench.editor.enablePreview": false,
+
   // ---- 改行/末尾 ----
   "files.eol": "\n",
   "files.insertFinalNewline": true,
@@ -53,6 +58,7 @@
   // ---- TypeScript / ESLint（monorepoをルートから開く前提）----
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.tsserver.useSeparateSyntaxServer": true,
   "typescript.tsserver.watchOptions": {
     "watchDirectory": "useFsEvents",
     "fallbackPolling": "dynamicPriority"
@@ -77,13 +83,3 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
-
-// ---- TypeScript / ESLint ----
-"typescript.disableAutomaticTypeAcquisition": true,
-"typescript.tsserver.experimental.enableProjectDiagnostics": false,
-"typescript.tsserver.watchOptions": {
-  "watchDirectory": "useFsEvents",
-  "fallbackPolling": "dynamicPriority"
-},
-// 追加候補（任意）：構文用サーバを分離して体感を安定させる
-"typescript.tsserver.useSeparateSyntaxServer": true
