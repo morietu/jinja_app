@@ -357,6 +357,7 @@ export default function ConciergeSectionsRenderer({
                               primaryReason={reasonVm.why.primaryReason}
                               secondaryReason={reasonVm.why.secondaryReason ?? null}
                               differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
+                              nextActionHint="まずは詳細を見て、この神社が今の悩みにどう重なるかを確認してください。"
                               tags={(heroItem.breakdown?.matched_need_tags ?? []).slice(0, 3)}
                               onRouteClick={() => onAction?.({ type: "open_map" })}
                             />
