@@ -94,7 +94,7 @@ export default function ConciergeSectionsRenderer({
   if (!payload || !Array.isArray(payload.sections) || payload.sections.length === 0) return null;
 
   return (
-    <div className="mx-auto w-full max-w-md min-w-0 space-y-4">
+    <div className="mx-auto w-full max-w-md min-w-0 space-y-4 pb-0">
       {payload.sections.map((sec: ConciergeSection, i: number) => {
         switch (sec.type) {
           case "guide":
@@ -265,10 +265,10 @@ export default function ConciergeSectionsRenderer({
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
 
-                {topReasonVm?.interpretation.consultationSummary ? (
+                {topReasonVm?.detail.consultationSummary || topReasonVm?.interpretation.consultationSummary ? (
                   <div className="mb-4">
                     <ConciergeConsultationSummary
-                      summary={topReasonVm.interpretation.consultationSummary}
+                      summary={topReasonVm.detail.consultationSummary ?? topReasonVm.interpretation.consultationSummary}
                       modeLabel={normalizedMode === "compat" ? "相性をもとに見ています" : "相談内容をもとに見ています"}
                       appliedLabel={appliedLabel}
                     />
@@ -354,8 +354,8 @@ export default function ConciergeSectionsRenderer({
                               topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
                               catchCopy={reasonVm.hero.catchCopy}
                               whyTop={reasonVm.rank.whyTop ?? null}
-                              primaryReason={reasonVm.why.primaryReason}
-                              secondaryReason={reasonVm.why.secondaryReason ?? null}
+                              primaryReason={reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason}
+                              secondaryReason={reasonVm.list.secondaryPhrase ?? reasonVm.why.secondaryReason ?? null}
                               differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
                               tags={(heroItem.breakdown?.matched_need_tags ?? []).slice(0, 3)}
                               onRouteClick={() => onAction?.({ type: "open_map" })}
@@ -401,8 +401,8 @@ export default function ConciergeSectionsRenderer({
                                 href={item.detailHref}
                                 imageUrl={item.imageUrl}
                                 address={null}
-                                summary={reasonVm.why.summary}
-                                primaryReason={reasonVm.why.primaryReason}
+                                summary={reasonVm.list.summary ?? reasonVm.why.summary}
+                                primaryReason={reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason}
                                 tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
                                 distanceM={(item as any).distance_m ?? null}
                               />
@@ -449,6 +449,7 @@ export default function ConciergeSectionsRenderer({
             return null;
         }
       })}
+      {/* 下部固定バーを前提にした余白は持たせない。結果セクションはここで閉じる。 */}
     </div>
   );
 }

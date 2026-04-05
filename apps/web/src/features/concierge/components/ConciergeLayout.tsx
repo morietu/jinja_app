@@ -1,7 +1,5 @@
-// apps/web/src/features/concierge/components/ConciergeLayout.tsx
 "use client";
 
-import { useMemo } from "react";
 import ChatPanel from "./ChatPanel";
 import type { ConciergeMessage } from "@/lib/api/concierge";
 import type { ReactNode } from "react";
@@ -38,7 +36,6 @@ export default function ConciergeLayout(props: Props) {
     canSend,
     embedMode = false,
     children,
-    hasCandidates = false,
   } = props;
 
   const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
@@ -47,22 +44,16 @@ export default function ConciergeLayout(props: Props) {
     : `${baseRootClass} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
   const mainClass = embedMode ? "flex flex-col w-full" : "flex flex-col flex-1 min-h-0 w-full h-full";
 
-  const hasUserMessage = useMemo(() => messages.some((m) => m.role === "user" && m.content.trim()), [messages]);
-
-  // ✅ 仕様：
-  // - 候補あり & ユーザー未発話 & 非送信中 → チャットを隠す（候補 + 条件 がデフォ）
-  // - それ以外 → チャット表示（候補なしの時は入口が必要 / 一度話したら会話画面）
-  const isInitialBrowseMode = !hasUserMessage && hasCandidates;
-
-  // ✅ 外から渡された hideChatPanel が最優先。なければ従来ロジックで決める。
-  const shouldHideChatPanel = props.hideChatPanel ?? (!embedMode && isInitialBrowseMode && !sending);
+  // 通常の /concierge では下部チャットバーを出さない。
+  // ChatPanel を使うのは embed 表示の時だけに固定する。
+  const shouldRenderChatPanel = embedMode && props.hideChatPanel !== true;
 
   return (
     <div className={rootClass}>
       <main className={mainClass}>
         {children}
 
-        {shouldHideChatPanel ? null : (
+        {shouldRenderChatPanel ? (
           <ChatPanel
             messages={messages}
             loading={sending}
@@ -72,9 +63,9 @@ export default function ConciergeLayout(props: Props) {
             canSend={canSend}
             onNewThread={onNewThread}
             embedMode={embedMode}
-            hasCandidates={hasCandidates}
+            hasCandidates={false}
           />
-        )}
+        ) : null}
       </main>
     </div>
   );

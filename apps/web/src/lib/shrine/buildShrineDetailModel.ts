@@ -41,6 +41,12 @@ type Args = {
   recommendationRankComparison?: RankComparison | null;
   ctx?: "map" | "concierge" | null;
   tid?: string | null;
+  recommendationReasonDetail?: {
+    heroMeaningCopy?: string | null;
+    consultationSummary?: string | null;
+    shrineMeaning?: string | null;
+    actionMeaning?: string | null;
+  } | null;
   signals?: {
     publicGoshuinsCount?: number;
     views30d?: number;
@@ -413,9 +419,17 @@ function resolveDeepReasonLead(args: {
   ctx?: "map" | "concierge" | null;
   conciergeDeepReason?: DeepReason | null;
   conciergeReason?: string | null;
+  recommendationReasonDetail?: {
+    consultationSummary?: string | null;
+  } | null;
   mode: ConciergeMode;
   explanationPayload?: ExplanationPayload | null;
 }): string {
+  const detailConsultationSummary = args.recommendationReasonDetail?.consultationSummary?.trim();
+  if (args.ctx === "concierge" && detailConsultationSummary) {
+    return detailConsultationSummary;
+  }
+
   if (args.ctx === "concierge" && args.conciergeDeepReason?.interpretation) {
     return args.conciergeDeepReason.interpretation;
   }
@@ -962,12 +976,33 @@ function buildJudgeSectionOrderFromDeepReason(deepReason?: DeepReason | null): J
 function buildMeaningSection(args: {
   lead: string;
   deepReason?: DeepReason | null;
+  recommendationReasonDetail?: {
+    shrineMeaning?: string | null;
+    actionMeaning?: string | null;
+  } | null;
   shrineName?: string | null;
   benefitLabels: string[];
   mode: ConciergeMode;
   breakdown?: ConciergeBreakdown | null;
 }): DetailMeaningSection {
-  const deepItems = buildJudgeSectionOrderFromDeepReason(args.deepReason);
+  const detailItems: DetailMeaningItem[] = [
+    args.recommendationReasonDetail?.shrineMeaning
+      ? {
+          key: "meaning",
+          title: "この神社をすすめる理由",
+          body: args.recommendationReasonDetail.shrineMeaning,
+        }
+      : null,
+    args.recommendationReasonDetail?.actionMeaning
+      ? {
+          key: "action",
+          title: "参拝を置く意味",
+          body: args.recommendationReasonDetail.actionMeaning,
+        }
+      : null,
+  ].filter((item): item is DetailMeaningItem => Boolean(item));
+
+  const deepItems = detailItems.length > 0 ? detailItems : buildJudgeSectionOrderFromDeepReason(args.deepReason);
 
   const fallbackItems: DetailMeaningItem[] = deepItems ?? [
     {
@@ -1107,11 +1142,15 @@ function resolveHeroMeaningFallbackKey(args: {
 
 function buildHeroMeaningCopy(args: {
   conciergeMode: ConciergeMode | null;
+  recommendationReasonDetail?: {
+    heroMeaningCopy?: string | null;
+  } | null;
   conciergeDeepReason: {
     interpretation?: string | null;
     shrineMeaning?: string | null;
     action?: string | null;
     short?: string | null;
+    heroMeaningCopy?: string | null;
   } | null;
   conciergeExplanationPayload?: ExplanationPayload | null;
   conciergeBreakdown?: ConciergeBreakdown | null;
@@ -1123,6 +1162,11 @@ function buildHeroMeaningCopy(args: {
 }): string | null {
   const mode = resolveConciergeMode(args.conciergeMode);
 
+  const detailHeroMeaningCopy = args.recommendationReasonDetail?.heroMeaningCopy?.trim();
+  if (detailHeroMeaningCopy) return detailHeroMeaningCopy;
+
+  const explicitHeroMeaning = args.conciergeDeepReason?.heroMeaningCopy?.trim();
+  if (explicitHeroMeaning) return explicitHeroMeaning;
   const fromShrineMeaning = compressShrineMeaning(args.conciergeDeepReason?.shrineMeaning);
   if (fromShrineMeaning) return fromShrineMeaning;
 
@@ -1154,6 +1198,7 @@ export function buildShrineDetailModel({
   conciergeMode = null,
   recommendationRankExplanation = null,
   recommendationRankComparison = null,
+  recommendationReasonDetail = null,
   ctx = null,
   tid = null,
   signals,
@@ -1203,6 +1248,7 @@ export function buildShrineDetailModel({
 
   const heroMeaningCopy = buildHeroMeaningCopy({
     conciergeMode: mode,
+    recommendationReasonDetail,
     conciergeDeepReason,
     conciergeExplanationPayload: explanationPayload,
     conciergeBreakdown,
@@ -1231,13 +1277,18 @@ export function buildShrineDetailModel({
   });
 
   const consultationSummary = isConciergeContext
-    ? (narrative.meaning.consultationSummary ?? conciergeDeepReason?.consultationSummary ?? null)
+    ? (recommendationReasonDetail?.consultationSummary ??
+      narrative.meaning.consultationSummary ??
+      conciergeDeepReason?.consultationSummary ??
+      null)
     : null;
 
   const hasConciergeNarrative =
     isConciergeContext &&
     Boolean(
-      conciergeDeepReason?.interpretation || (typeof conciergeReason === "string" && conciergeReason.trim().length > 0),
+      recommendationReasonDetail?.consultationSummary ||
+      conciergeDeepReason?.interpretation ||
+      (typeof conciergeReason === "string" && conciergeReason.trim().length > 0),
     );
 
   const proposal = hasConciergeNarrative ? "今回の相談の整理" : fallbackProposal;
@@ -1248,6 +1299,7 @@ export function buildShrineDetailModel({
         ctx,
         conciergeDeepReason,
         conciergeReason,
+        recommendationReasonDetail,
         mode,
         explanationPayload,
       }))
@@ -1255,6 +1307,7 @@ export function buildShrineDetailModel({
         ctx,
         conciergeDeepReason,
         conciergeReason,
+        recommendationReasonDetail,
         mode,
         explanationPayload,
       });
@@ -1331,6 +1384,7 @@ export function buildShrineDetailModel({
   const meaningSection = buildMeaningSection({
     lead: judgeLead,
     deepReason: conciergeDeepReason,
+    recommendationReasonDetail,
     shrineName: cardProps.title ?? null,
     benefitLabels,
     mode,

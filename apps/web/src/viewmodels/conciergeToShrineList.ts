@@ -1,5 +1,5 @@
 import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
-import { buildDeepReason } from "@/lib/concierge/buildDeepReason";
+import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
 
 export type ConciergeResponse = {
   ok: boolean;
@@ -32,24 +32,6 @@ const NEED_LABELS: Record<string, string> = {
 type NeedTag = "money" | "courage" | "career" | "mental" | "rest" | "love" | "study";
 type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
 
-function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommendations"]>[number]) {
-  if (typeof r.shrine_id === "number") return `shrine_${r.shrine_id}`;
-  if (r.place_id) return `place_${r.place_id}`;
-  return `name_${encodeURIComponent(r.name)}`;
-}
-
-function normalizeTagList(tags: string[] | null | undefined): string[] {
-  if (!Array.isArray(tags)) return [];
-  return tags
-    .filter((t): t is string => typeof t === "string")
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
-function toDisplayTag(tag: string): string {
-  return NEED_LABELS[tag] ?? tag;
-}
-
 function normalizeShrineName(name?: string | null): string {
   return (name ?? "").replace(/\s+/g, "").trim();
 }
@@ -68,7 +50,7 @@ function isPrimaryNeedTag(tag: string): tag is NeedTag {
   return ["money", "courage", "career", "mental", "rest", "love", "study"].includes(tag);
 }
 
-function resolveCardPrimaryTag(args: {
+function resolveListPrimaryTag(args: {
   primaryReasonLabel?: string | null;
   fallbackTags?: string[] | null;
 }): NeedTag | null {
@@ -95,7 +77,7 @@ function resolveCardPrimaryTag(args: {
   return tags[0] ?? null;
 }
 
-function buildCardPrimaryReason(
+function buildListPrimaryReason(
   shrineName?: string | null,
   primaryTag?: NeedTag | null,
   fallbackText?: string | null,
@@ -147,9 +129,26 @@ function buildCardPrimaryReason(
   return fallbackText ?? null;
 }
 
+function safeId(r: NonNullable<NonNullable<ConciergeResponse["data"]>["recommendations"]>[number]) {
+  if (typeof r.shrine_id === "number") return `shrine_${r.shrine_id}`;
+  if (r.place_id) return `place_${r.place_id}`;
+  return `name_${encodeURIComponent(r.name)}`;
+}
+
+function normalizeTagList(tags: string[] | null | undefined): string[] {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((t): t is string => typeof t === "string")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function toDisplayTag(tag: string): string {
+  return NEED_LABELS[tag] ?? tag;
+}
+
 export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeResultItem[] {
   if (!resp?.ok) {
-    console.log("[conciergeToShrineListItems] resp not ok", resp);
     return [];
   }
 
@@ -161,12 +160,9 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         ? resp.data.thread_id.trim()
         : null;
 
-  console.log("[conciergeToShrineListItems] recs", recs.length, recs);
-  console.log("[conciergeToShrineListItems] threadId", threadId);
-
   const items = recs
     .filter((r): r is typeof r & { shrine_id: number } => typeof r.shrine_id === "number")
-    .map((r) => {
+    .map((r, index) => {
       const id = safeId(r);
       const name = r.display_name ?? r.name;
 
@@ -174,33 +170,45 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
       const rawTags = matchedTags.length ? matchedTags : normalizeTagList(resp.data?._need?.tags);
       const tags = rawTags.map(toDisplayTag).slice(0, 3);
 
-      const explanationSummary = r.explanation?.summary?.trim() || null;
+      const reasonVm = buildRecommendationReasonViewModel({
+        index,
+        needTags: rawTags,
+        rec: {
+          display_name: name,
+          name,
+          reason: r.reason ?? null,
+          breakdown: r.breakdown ?? null,
+          distance_m: r.distance_m ?? null,
+          popular_score: r.popular_score ?? null,
+          astro_elements: r.astro_elements ?? null,
+          astro_priority: r.astro_priority ?? null,
+          fallback_mode: r.fallback_mode ?? null,
+          explanation: r.explanation ?? null,
+          reason_facts: r.reason_facts ?? r._reason_facts ?? null,
+        },
+      });
+
+      const explanationSummary = r.explanation?.summary?.trim() || reasonVm.list.summary || reasonVm.why.summary;
       const rawReason =
-        r._explanation_payload?.original_reason?.trim() || explanationSummary || r.reason?.trim() || null;
+        r._explanation_payload?.original_reason?.trim() || r.reason?.trim() || explanationSummary || null;
 
-      console.log("primaryReasonLabel", r._explanation_payload?.primary_reason?.label);
       const primaryReasonLabel = r._explanation_payload?.primary_reason?.label?.trim() || null;
-
-      const primaryTag = resolveCardPrimaryTag({
+      const primaryTag = resolveListPrimaryTag({
         primaryReasonLabel,
         fallbackTags: rawTags,
       });
+      const primaryMeaning =
+        buildListPrimaryReason(name, primaryTag, rawReason) ??
+        reasonVm.list.primaryPhrase ??
+        reasonVm.why.primaryReason;
 
-      const fallbackShort = buildCardPrimaryReason(name, primaryTag, rawReason) ?? rawReason;
-
-      const deepReason = buildDeepReason({
-        shrineName: name,
-        primaryTag,
-        rawReason,
-        fallbackShort,
-        shrineTone: getShrineTone(name),
-      });
-
-      const primaryMeaning = deepReason.short ?? fallbackShort ?? rawReason;
-
-      console.log("rec keys", Object.keys(r));
-      console.log("_explanation_payload", r._explanation_payload);
-      console.log("primary_reason", r._explanation_payload?.primary_reason);
+      const deepReason = {
+        interpretation: reasonVm.detail.consultationSummary ?? reasonVm.interpretation.consultationSummary,
+        shrineMeaning: reasonVm.detail.shrineMeaning ?? reasonVm.interpretation.shrineMeaning,
+        action: reasonVm.detail.actionMeaning ?? reasonVm.interpretation.actionMeaning ?? null,
+        short: reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason,
+        heroMeaningCopy: reasonVm.detail.heroMeaningCopy ?? null,
+      };
 
       return {
         id,
@@ -219,6 +227,5 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
       };
     });
 
-  console.log("[conciergeToShrineListItems] items", items.length, items);
   return items;
 }
