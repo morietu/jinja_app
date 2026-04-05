@@ -1,0 +1,55 @@
+// apps/web/src/lib/shrine/tags/symbolTags.ts
+import type { MeaningTag } from "./types";
+
+export const symbolTags: MeaningTag[] = [
+  {
+    id: "dragon",
+    label: "龍",
+    category: "symbol",
+    description: "流れを動かす、突破、勢いの転換に結びつく象徴。",
+    source: "manual",
+    confidence: "high",
+    relatedNeedTags: ["courage", "career", "money"],
+    uiLabel: "流れを動かす",
+  },
+  {
+    id: "water",
+    label: "水",
+    category: "symbol",
+    description: "浄化、巡り、気持ちを静める意味に結びつく象徴。",
+    source: "manual",
+    confidence: "high",
+    relatedNeedTags: ["mental", "recovery", "love"],
+    uiLabel: "巡りを整える",
+  },
+  {
+    id: "mountain",
+    label: "山",
+    category: "symbol",
+    description: "覚悟、修行、姿勢を正すことに結びつく象徴。",
+    source: "manual",
+    confidence: "high",
+    relatedNeedTags: ["career", "study", "courage"],
+    uiLabel: "姿勢を定める",
+  },
+  {
+    id: "sun",
+    label: "太陽",
+    category: "symbol",
+    description: "原点回帰、節目、全体を照らして整える象徴。",
+    source: "manual",
+    confidence: "high",
+    relatedNeedTags: ["mental", "career", "life"],
+    uiLabel: "原点に戻る",
+  },
+  {
+    id: "knot",
+    label: "結び",
+    category: "symbol",
+    description: "縁、関係性、結び直しに関わる象徴。",
+    source: "manual",
+    confidence: "high",
+    relatedNeedTags: ["love", "relationship", "family"],
+    uiLabel: "縁を結び直す",
+  },
+];
