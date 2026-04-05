@@ -248,6 +248,8 @@ export default async function Page({ params, searchParams }: Props) {
 
   let conciergeDeepReason: Parameters<typeof buildShrineDetailModel>[0]["conciergeDeepReason"] = null;
 
+  let recommendationReasonDetail: Parameters<typeof buildShrineDetailModel>[0]["recommendationReasonDetail"] = null;
+
   if (ctx === "concierge") {
     const primaryReasonLabel = conciergeExplanationPayload?.primary_reason?.label ?? null;
     const fallbackTags = conciergeBreakdown?.matched_need_tags ?? [];
@@ -346,6 +348,13 @@ export default async function Page({ params, searchParams }: Props) {
       fallbackShort,
       shrineTone,
     });
+
+    recommendationReasonDetail = {
+      heroMeaningCopy: null,
+      consultationSummary: conciergeDeepReason?.consultationSummary ?? conciergeDeepReason?.interpretation ?? null,
+      shrineMeaning: conciergeDeepReason?.shrineMeaning ?? null,
+      actionMeaning: conciergeDeepReason?.action ?? null,
+    };
   }
 
   const model = buildShrineDetailModel({
@@ -356,6 +365,7 @@ export default async function Page({ params, searchParams }: Props) {
     conciergeDeepReason,
     conciergeExplanationPayload,
     conciergeMode,
+    recommendationReasonDetail,
     recommendationRankExplanation,
     recommendationRankComparison,
     ctx,

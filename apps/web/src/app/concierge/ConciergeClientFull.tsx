@@ -159,16 +159,6 @@ function promoteThread(map: EventsByThread, fromTid: number, toTid: number): Eve
   return next;
 }
 
-function resolveAccessState(u: UnifiedConciergeResponse | null | undefined) {
-  return {
-    reply: typeof u?.reply === "string" ? u.reply : null,
-    plan: u?.plan ?? null,
-    remaining: typeof u?.remaining === "number" ? u.remaining : null,
-    limit: typeof u?.limit === "number" ? u.limit : null,
-    limitReached: u?.limitReached === true,
-  };
-}
-
 function threadDetailToUnified(thread: ConciergeThreadDetail | null): UnifiedConciergeResponse | null {
   if (!thread) return null;
 
@@ -268,55 +258,8 @@ function isRecommendationsPayload(
   );
 }
 
-type ViewerTier = "anonymous" | "free" | "premium";
 
 
-type ConciergeCtaKind = "none" | "auth" | "premium";
-type ConciergeInfoBannerState =
-  | "anonymous_default"
-  | "anonymous_limited"
-  | "free_default"
-  | "free_limited"
-  | "premium_hidden";
-
-type ConciergeInfoBannerConfig = {
-  state: ConciergeInfoBannerState;
-  visible: boolean;
-  showLimitNote: boolean;
-  ctaKind: ConciergeCtaKind;
-};
-
-function resolveConciergeInfoBanner(args: {
-  viewerTier: ViewerTier;
-  isLimitReached: boolean;
-}): ConciergeInfoBannerConfig {
-  const { viewerTier, isLimitReached } = args;
-
-  if (viewerTier === "premium") {
-    return {
-      state: "premium_hidden",
-      visible: false,
-      showLimitNote: false,
-      ctaKind: "none",
-    };
-  }
-
-  if (viewerTier === "anonymous") {
-    return {
-      state: isLimitReached ? "anonymous_limited" : "anonymous_default",
-      visible: true,
-      showLimitNote: isLimitReached,
-      ctaKind: "auth",
-    };
-  }
-
-  return {
-    state: isLimitReached ? "free_limited" : "free_default",
-    visible: true,
-    showLimitNote: isLimitReached,
-    ctaKind: "premium",
-  };
-}
 
 /* ========================================
  * メインコンポーネント
@@ -350,9 +293,7 @@ export default function ConciergeClientFull() {
     [router],
   );
 
-  const [me, setMe] = useState<any | null>(null);
-  const [billingPlan, setBillingPlan] = useState<ViewerTier | null>(null);
-  const [billingStatusChecked, setBillingStatusChecked] = useState(false);
+  const [, setMe] = useState<any | null>(null);
 
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
@@ -407,11 +348,7 @@ export default function ConciergeClientFull() {
   /* ----------------------------------------
    * entryMode（LS）
    * -------------------------------------- */
-  const [entryMode, setEntryMode] = useState<EntryMode>(() => {
-    if (typeof window === "undefined") return "filter";
-    const v = localStorage.getItem(LS_ENTRY_MODE);
-    return v === "feel" ? "feel" : "filter";
-  });
+  const [entryMode, setEntryMode] = useState<EntryMode>("filter");
 
   useEffect(() => {
     try {
@@ -420,6 +357,19 @@ export default function ConciergeClientFull() {
       // ignore
     }
   }, [entryMode]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    try {
+      const v = localStorage.getItem(LS_ENTRY_MODE);
+      if (v === "feel" || v === "filter") {
+        setEntryMode(v);
+      }
+    } catch {
+      // ignore
+    }
+  }, [hydrated]);
 
   // ?mode=feel/filter を直叩き
   useEffect(() => {
@@ -527,49 +477,6 @@ export default function ConciergeClientFull() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetch("/api/billings/status/", {
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setBillingPlan(me ? "free" : "anonymous");
-            setBillingStatusChecked(true);
-          }
-          return;
-        }
-
-        const data = await res.json();
-
-        const nextPlan: ViewerTier =
-          data?.plan === "premium"
-            ? "premium"
-            : me
-              ? "free"
-              : "anonymous";
-
-        if (!cancelled) {
-          setBillingPlan(nextPlan);
-          setBillingStatusChecked(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setBillingPlan(me ? "free" : "anonymous");
-          setBillingStatusChecked(true);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [me]);
 
   /* ----------------------------------------
    * スレッド切り替え（URLパラメータ反応）
@@ -794,29 +701,7 @@ export default function ConciergeClientFull() {
     [displayUnified, filterState],
   );
 
-  const accessState = useMemo(() => resolveAccessState(displayUnified), [displayUnified]);
-  const metaReply = accessState.reply;
-  const isLimitReached = accessState.limitReached;
 
-  const rawViewer = sp.get("viewer");
-
-  const debugViewer: ViewerTier | null =
-    rawViewer === "anonymous" || rawViewer === "free" || rawViewer === "premium" ? rawViewer : null;
-
-  const effectiveViewerTier: ViewerTier =
-    debugViewer ?? billingPlan ?? (billingStatusChecked ? (me ? "free" : "anonymous") : "anonymous");
-
-  const debugLimitReached = sp.get("limit") === "1";
-  const resolvedIsLimitReached = debugLimitReached || isLimitReached;
-
-  const infoBanner = useMemo(
-    () =>
-      resolveConciergeInfoBanner({
-        viewerTier: effectiveViewerTier,
-        isLimitReached: resolvedIsLimitReached,
-      }),
-    [effectiveViewerTier, resolvedIsLimitReached],
-  );
 
 
   const messages = useMemo(
@@ -975,6 +860,7 @@ export default function ConciergeClientFull() {
     isRecommendationsPayload(payload);
 
   const shouldShowEntry = hydrated && isEntryRoute && !hasRestoredCandidates;
+  const shouldShowThreadRenderer = hydrated && !shouldShowEntry;
   const hideChatPanel = !hydrated || (isEntryRoute && !hasRestoredCandidates);
 
   const entryViewedRef = useRef(false);
@@ -1301,60 +1187,9 @@ export default function ConciergeClientFull() {
       ) : null}
 
       {/* ===== 通常（tidあり） ===== */}
-      {!shouldShowEntry ? (
+      {hydrated && shouldShowThreadRenderer ? (
         SHOW_NEW_RENDERER ? (
           <div className="p-4 space-y-3">
-            {/* メタリプライ＋情報バナー */}
-            {infoBanner.visible ? (
-              <div className={conciergeCardClass}>
-                {metaReply ? <p className="text-sm font-semibold text-slate-900">{metaReply}</p> : null}
-
-                {infoBanner.showLimitNote ? (
-                  <p className="mt-1 text-xs text-slate-500">
-                    近くの神社は地図から探せます。条件を変えるか、別の探索を試してください。
-                  </p>
-                ) : null}
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    onClick={() => onRendererAction({ type: "add_condition" })}
-                    disabled={isBusy}
-                  >
-                    条件を追加
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => onRendererAction({ type: "open_map" })}
-                    disabled={isBusy}
-                  >
-                    地図で探す
-                  </button>
-
-                  {infoBanner.ctaKind === "auth" ? (
-                    <Link
-                      href="/auth/login"
-                      className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
-                    >
-                      ログインして続ける
-                    </Link>
-                  ) : null}
-
-                  {infoBanner.ctaKind === "premium" ? (
-                    <Link
-                      href="/billing/upgrade"
-                      className="flex-1 rounded-xl bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white"
-                    >
-                      プレミアムを見る
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-
             <ConciergeSectionsRenderer
               payload={payload}
               onAction={onRendererAction}

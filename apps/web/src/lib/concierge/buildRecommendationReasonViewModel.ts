@@ -21,10 +21,43 @@ export type ReasonKey = "need_match" | "text_match" | "element_match" | "sign_ma
 
 export type RecommendationReasonViewModel = {
   inputType: ReasonInputType;
+
   hero: {
     topReasonLabel?: string;
     catchCopy: string;
   };
+
+  list: {
+    primaryPhrase: string;
+    summary: string;
+    secondaryPhrase?: string;
+  };
+
+  detail: {
+    heroMeaningCopy: string;
+    consultationSummary: string;
+    shrineMeaning: string;
+    actionMeaning?: string;
+  };
+
+  rank: {
+    whyTop?: string;
+    differenceFromOthers?: string;
+  };
+
+  debug?: {
+    reasonKeys: {
+      primary: ReasonKey;
+      secondary?: ReasonKey;
+      summary: ReasonKey;
+    };
+  };
+
+  /**
+   * compatibility:
+   * - 既存UIが why / interpretation を参照している間は残す
+   * - 呼び出し側を list / detail に寄せ終えたら削除する
+   */
   why: {
     summary: string;
     primaryReason: string;
@@ -39,10 +72,6 @@ export type RecommendationReasonViewModel = {
     consultationSummary: string;
     shrineMeaning: string;
     actionMeaning?: string;
-  };
-  rank: {
-    whyTop?: string;
-    differenceFromOthers?: string;
   };
 };
 
@@ -387,6 +416,32 @@ function buildHeroCatchCopy(params: BuildParams, primary: Candidate): string {
   return "今の状態に重ねて見やすい神社";
 }
 
+function buildDetailHeroMeaningCopy(params: BuildParams, primary: Candidate): string {
+  if (params.mode === "compat") {
+    return "相性の無理が少なく、落ち着いて受け取りやすい神社";
+  }
+
+  const need = clean(params.needTags?.[0]);
+
+  if (need === "厄除け") return "気持ちを立て直し、受け取り方を整え直す神社";
+  if (need === "仕事") return "仕事の流れと判断軸を整え直す神社";
+  if (need === "金運") return "止まった流れを整え、立て直しの軸を作る神社";
+  if (need === "転機") return "切り替えの流れを整え、次の見方を作る神社";
+  if (need === "恋愛") return "関係性の受け取り方を整え、気持ちの置き場を作る神社";
+  if (need === "健康") return "心身を整え、回復の順番を取り戻す神社";
+  if (need === "学業") return "集中を整え、目標への向き合い方を立て直す神社";
+
+  if (primary.key === "distance") {
+    return "無理なく行けることから、流れを切り替えるきっかけを作る神社";
+  }
+
+  if (primary.key === "element_match" || primary.key === "sign_match") {
+    return "気質に無理なく馴染み、落ち着いて意味を受け取りやすい神社";
+  }
+
+  return "今の流れを整え、次の見方を作る神社";
+}
+
 
 
 function buildActionMeaning(params: BuildParams, secondary?: Candidate): string | undefined {
@@ -613,6 +668,24 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
     hero: {
       topReasonLabel: buildTopReasonLabel(inputType, primary.key, params.index),
       catchCopy: buildHeroCatchCopy(params, primary),
+    },
+    list: {
+      primaryPhrase: primary.text,
+      summary: summary.text,
+      secondaryPhrase: secondary?.text,
+    },
+    detail: {
+      heroMeaningCopy: buildDetailHeroMeaningCopy(params, primary),
+      consultationSummary: buildConsultationSummary(params, primary, secondary),
+      shrineMeaning: buildShrineMeaning(params, primary),
+      actionMeaning: buildActionMeaning(params, secondary),
+    },
+    debug: {
+      reasonKeys: {
+        primary: primary.key,
+        secondary: secondary?.key,
+        summary: summary.key,
+      },
     },
     why: {
       summary: summary.text,
