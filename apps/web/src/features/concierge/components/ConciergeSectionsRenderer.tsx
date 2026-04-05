@@ -7,6 +7,8 @@ import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilte
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
 import ShrineCard from "@/components/shrines/ShrineCard";
+import ConciergeTopRecommendationHero from "@/features/concierge/components/ConciergeTopRecommendationHero";
+
 
 import type {
   ConciergeSectionsPayload,
@@ -294,6 +296,27 @@ export default function ConciergeSectionsRenderer({
                         needTags: item.breakdown?.matched_need_tags ?? [],
                       });
 
+                      if (idx === 0) {
+                        return (
+                          <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
+                            <ConciergeTopRecommendationHero
+                              name={item.title}
+                              href={item.detailHref}
+                              imageUrl={item.imageUrl}
+                              address={item.address}
+                              topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
+                              catchCopy={reasonVm.hero.catchCopy}
+                              whyTop={reasonVm.rank.whyTop ?? null}
+                              primaryReason={reasonVm.why.primaryReason}
+                              secondaryReason={reasonVm.why.secondaryReason ?? null}
+                              differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
+                              tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 3)}
+                              onRouteClick={() => onAction?.({ type: "open_map" })}
+                            />
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
                           <ShrineCard
@@ -304,12 +327,12 @@ export default function ConciergeSectionsRenderer({
                             distanceM={(item as any).distance_m ?? null}
                             rating={(item as any).rating ?? null}
                             reviewCount={(item as any).reviewCount ?? null}
-                            isTopPick={idx === 0}
-                            topReasonLabel={idx === 0 ? (reasonVm.hero.topReasonLabel ?? null) : null}
-                            explanationSummary={idx === 0 ? reasonVm.hero.catchCopy : reasonVm.why.summary}
+                            isTopPick={false}
+                            topReasonLabel={null}
+                            explanationSummary={reasonVm.why.summary}
                             primaryReason={reasonVm.why.primaryReason}
                             secondaryReason={reasonVm.why.secondaryReason ?? null}
-                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, idx === 0 ? 3 : 1)}
+                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
                           />
                         </div>
                       );
