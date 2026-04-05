@@ -32,6 +32,7 @@ export type ExplanationPayload = {
 
 export type DeepReason = {
   interpretation?: string | null;
+  consultationSummary?: string | null;
   shrineMeaning?: string | null;
   action?: string | null;
   short?: string | null;
@@ -70,6 +71,7 @@ export type RecommendationNarrative = {
   meaning: {
     short: string | null;
     lead: string | null;
+    consultationSummary: string | null;
   };
   match: {
     userState: string | null;

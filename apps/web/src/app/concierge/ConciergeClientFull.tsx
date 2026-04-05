@@ -32,6 +32,7 @@ import Link from "next/link";
 
 import { conciergeLog } from "@/lib/log/concierge";
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
+const conciergeCardClass = "rounded-2xl border border-slate-200 bg-white shadow-sm p-6";
 
 /* ========================================
  * 型定義とデータ設定
@@ -1158,7 +1159,7 @@ export default function ConciergeClientFull() {
       {/* ===== 入口（tidなし） ===== */}
       {shouldShowEntry ? (
         <div className="px-4 pt-4">
-          <div className="relative rounded-2xl border bg-white p-3">
+          <div className={`relative ${conciergeCardClass}`}>
             {/* ロック中のオーバーレイ */}
             {isBusy ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
@@ -1264,7 +1265,7 @@ export default function ConciergeClientFull() {
                     isEntryRoute={isEntryRoute}
                   />
                 ) : (
-                  <div className="rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
+                  <div className={`${conciergeCardClass} bg-slate-50 text-sm text-slate-700`}>
                     この画面は SHOW_NEW_RENDERER 前提です
                   </div>
                 )}
@@ -1273,7 +1274,7 @@ export default function ConciergeClientFull() {
 
             {/* エラー表示 */}
             {!isBusy && error ? (
-              <div className="mt-3 rounded-xl border bg-white p-3">
+              <div className={`mt-3 ${conciergeCardClass}`}>
                 <p className="text-sm font-semibold text-rose-600">うまく取得できませんでした</p>
                 <div className="mt-2 grid gap-2">
                   <Link
@@ -1305,7 +1306,7 @@ export default function ConciergeClientFull() {
           <div className="p-4 space-y-3">
             {/* メタリプライ＋情報バナー */}
             {infoBanner.visible ? (
-              <div className="rounded-2xl border bg-white p-4">
+              <div className={conciergeCardClass}>
                 {metaReply ? <p className="text-sm font-semibold text-slate-900">{metaReply}</p> : null}
 
                 {infoBanner.showLimitNote ? (
@@ -1364,7 +1365,7 @@ export default function ConciergeClientFull() {
           </div>
         ) : (
           <div className="p-4">
-            <div className="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+            <div className={`${conciergeCardClass} text-sm text-slate-600`}>
               SHOW_NEW_RENDERER が false です（この画面は新レンダラー前提）
             </div>
           </div>

@@ -19,6 +19,9 @@ import type {
 
 type MetaMode = NonNullable<ConciergeSectionsPayload["meta"]>["mode"];
 
+const conciergeSoftCardClass = "rounded-2xl border border-slate-200 bg-slate-50 shadow-sm p-4";
+const conciergeNoticeCardClass = "rounded-2xl border border-amber-200 bg-amber-50 shadow-sm p-4";
+
 function normalizeConciergeMode(mode: MetaMode | null | undefined): "need" | "compat" {
   if (!mode) return "need";
 
@@ -38,11 +41,11 @@ function AstroCard(props: { sunSign?: string; element?: string; reason?: string 
   const { sunSign, element, reason } = props;
   return (
     <DetailSection title="占星術による選定">
-      <div className="rounded-xl border bg-amber-50 px-4 py-3">
+      <div className={conciergeNoticeCardClass}>
         <div className="text-sm font-semibold text-slate-900">
           {sunSign || "不明"} / {element || "不明"}
         </div>
-        <div className="mt-1 text-sm text-slate-700">{reason || "（理由なし）"}</div>
+        <div className="mt-2 text-sm leading-7 text-slate-700">{reason || "（理由なし）"}</div>
       </div>
     </DetailSection>
   );
@@ -70,14 +73,12 @@ export default function ConciergeSectionsRenderer({
   threadId: _threadId = null,
   isEntryRoute = false,
 }: Props) {
-  // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
 
-  // ✅ filter state は map の外で1回だけ取る
   const filterState: ConciergeFilterState | null = useMemo(() => {
     const sec = payload.sections.find((s) => s.type === "filter") as any;
     return (sec?.state ?? null) as ConciergeFilterState | null;
@@ -99,7 +100,6 @@ export default function ConciergeSectionsRenderer({
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
 
-            // 閉じ状態（プリセット選択 + 即絞り）
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
 
@@ -142,7 +142,7 @@ export default function ConciergeSectionsRenderer({
                   </div>
 
                   {selectedPresets.length > 0 && (
-                    <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div className={`mb-3 ${conciergeSoftCardClass} text-xs leading-6 text-slate-600`}>
                       追加済み: {selectedPresets.join(" / ")}
                     </div>
                   )}
@@ -178,7 +178,6 @@ export default function ConciergeSectionsRenderer({
               );
             }
 
-            // 開いた状態（既存のフィルタパネル）
             return (
               <DetailSection key={`filter-${i}`} title={title}>
                 <ConciergeFilterPanel
@@ -214,7 +213,6 @@ export default function ConciergeSectionsRenderer({
               (typeof rs?.ui_disclaimer_ja === "string" && rs.ui_disclaimer_ja) ||
               (hasDummy ? "条件に合う候補が少ないため、まずは選びやすい候補から表示しています。" : null);
 
-
             return (
               <DetailSection key={`recs-${i}`} title={(sec as any).title ?? ""}>
                 <div className="mb-2 flex items-center justify-end">
@@ -222,11 +220,15 @@ export default function ConciergeSectionsRenderer({
                 </div>
 
                 {typeof payload?.meta?.remaining === "number" && payload.meta.remaining > 0 && (
-                  <div className="mb-2 text-xs text-slate-500">あと {payload.meta.remaining}回までは無料で試せます</div>
+                  <div className="mb-2 text-xs leading-6 text-slate-500">
+                    あと {payload.meta.remaining}回までは無料で試せます
+                  </div>
                 )}
 
                 {bannerText && (
-                  <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bannerText}</div>
+                  <div className={`mb-3 ${conciergeNoticeCardClass} text-sm leading-6 text-amber-900`}>
+                    {bannerText}
+                  </div>
                 )}
 
                 {(isFallback || hasDummy) && (
@@ -249,7 +251,9 @@ export default function ConciergeSectionsRenderer({
                 )}
 
                 {appliedLabel && (
-                  <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <div
+                    className={`mb-2 ${conciergeSoftCardClass} flex items-center justify-between text-xs leading-6 text-slate-600`}
+                  >
                     <span>{appliedLabel}</span>
                     <button
                       type="button"
@@ -297,11 +301,11 @@ export default function ConciergeSectionsRenderer({
                             rating={(item as any).rating ?? null}
                             reviewCount={(item as any).reviewCount ?? null}
                             isTopPick={idx === 0}
-                            topReasonLabel={idx === 0 ? (reasonVm.topReasonLabel ?? null) : null}
-                            explanationSummary={reasonVm.summary}
-                            primaryReason={reasonVm.primaryReason}
-                            secondaryReason={reasonVm.secondaryReason ?? null}
-                            tags={idx === 0 ? [] : (item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                            topReasonLabel={idx === 0 ? (reasonVm.hero.topReasonLabel ?? null) : null}
+                            explanationSummary={idx === 0 ? reasonVm.hero.catchCopy : reasonVm.why.summary}
+                            primaryReason={reasonVm.why.primaryReason}
+                            secondaryReason={reasonVm.why.secondaryReason ?? null}
+                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, idx === 0 ? 3 : 1)}
                           />
                         </div>
                       );

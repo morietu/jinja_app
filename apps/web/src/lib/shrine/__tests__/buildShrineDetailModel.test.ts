@@ -141,11 +141,6 @@ describe("buildShrineDetailModel", () => {
 
     expect(result.judgeSection.items).toEqual([
       {
-        key: "interpretation",
-        title: "今の状態との重なり",
-        body: "迷いが長い時は、まず流れを切り替える視点が必要です。",
-      },
-      {
         key: "meaning",
         title: "この神社をすすめる理由",
         body: "三峯神社は、停滞を断ち切る節目として置きやすい神社です。",

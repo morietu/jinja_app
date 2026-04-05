@@ -3,40 +3,70 @@
 exports[`buildRecommendationReasonViewModel > reason文の代表パターンを snapshot で固定する 1`] = `
 {
   "birthdate": {
-    "inputType": "birthdate",
-    "primaryReason": "静かに気持ちを整えたい時に馴染みやすい候補です",
-    "reasonKeys": {
-      "primary": "element_match",
-      "secondary": "sign_match",
-      "summary": "element_match",
+    "hero": {
+      "catchCopy": "相性から静かに選びたい時の神社",
+      "topReasonLabel": "相性が最も高い",
     },
-    "secondaryReason": "気質とのなじみも見られる候補です",
-    "summary": "相性を軸に見やすい候補です",
-    "topReasonLabel": "相性が最も高い",
+    "inputType": "birthdate",
+    "interpretation": {
+      "actionMeaning": "複数の観点を重ねながら、今の自分に合う形で受け取りやすい候補です。",
+      "consultationSummary": "今は勢いで答えを出すほど感覚がぶれやすく、合う・合わないを静かに見極めたい状態です。 今は結論を急ぐより、相性として無理がないか、落ち着いて受け取れる場所かを先に整理するのが合っています。 この神社は、気質との無理のなさから身構えずに向き合いやすく、考えすぎた状態をほどきながら整理しやすい候補です。",
+      "shrineMeaning": "この神社は、気質との無理のなさから身構えずに向き合いやすく、考えすぎた状態をほどきながら整理しやすい候補です。",
+    },
+    "why": {
+      "primaryReason": "静かに気持ちを整えたい時に馴染みやすい候補です",
+      "reasonKeys": {
+        "primary": "element_match",
+        "secondary": "sign_match",
+        "summary": "element_match",
+      },
+      "secondaryReason": "気質とのなじみも見られる候補です",
+      "summary": "相性を軸に見やすい候補です",
+    },
   },
   "fallback": {
-    "inputType": "fallback",
-    "primaryReason": "まず選びやすさを優先して見られる候補です",
-    "reasonKeys": {
-      "primary": "popular",
-      "secondary": "distance",
-      "summary": "distance",
+    "hero": {
+      "catchCopy": "今の状態に重ねて見やすい神社",
+      "topReasonLabel": "まず選びやすい",
     },
-    "secondaryReason": "無理なく選びやすい候補です",
-    "summary": "まず動きやすさで見やすい候補です",
-    "topReasonLabel": "まず選びやすい",
+    "inputType": "fallback",
+    "interpretation": {
+      "actionMeaning": "思い切りより、まず行けることを優先する意味があります。",
+      "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。 この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。",
+      "shrineMeaning": "この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。",
+    },
+    "why": {
+      "primaryReason": "まず選びやすさを優先して見られる候補です",
+      "reasonKeys": {
+        "primary": "popular",
+        "secondary": "distance",
+        "summary": "distance",
+      },
+      "secondaryReason": "無理なく選びやすい候補です",
+      "summary": "まず動きやすさで見やすい候補です",
+    },
   },
   "query": {
-    "inputType": "query",
-    "primaryReason": "切り替えたい今に合いやすい候補です",
-    "reasonKeys": {
-      "primary": "need_match",
-      "secondary": "text_match",
-      "summary": "need_match",
+    "hero": {
+      "catchCopy": "今の状態に重ねて見やすい神社",
+      "topReasonLabel": "相談に合う",
     },
-    "secondaryReason": "入力内容に沿って選びやすい候補です",
-    "summary": "今の気持ちに合いやすい候補です",
-    "topReasonLabel": "相談に合う",
+    "inputType": "query",
+    "interpretation": {
+      "actionMeaning": "複数の観点を重ねながら、今の自分に合う形で受け取りやすい候補です。",
+      "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。 この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。",
+      "shrineMeaning": "この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。",
+    },
+    "why": {
+      "primaryReason": "切り替えたい今に合いやすい候補です",
+      "reasonKeys": {
+        "primary": "need_match",
+        "secondary": "text_match",
+        "summary": "need_match",
+      },
+      "secondaryReason": "入力内容に沿って選びやすい候補です",
+      "summary": "今の気持ちに合いやすい候補です",
+    },
   },
 }
 `;

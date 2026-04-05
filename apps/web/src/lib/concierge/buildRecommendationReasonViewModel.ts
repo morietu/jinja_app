@@ -5,14 +5,24 @@ export type ReasonKey = "need_match" | "text_match" | "element_match" | "sign_ma
 
 export type RecommendationReasonViewModel = {
   inputType: ReasonInputType;
-  primaryReason: string;
-  secondaryReason?: string;
-  topReasonLabel?: string;
-  summary: string;
-  reasonKeys: {
-    primary: ReasonKey;
-    secondary?: ReasonKey;
-    summary: ReasonKey;
+  hero: {
+    topReasonLabel?: string;
+    catchCopy: string;
+  };
+  why: {
+    summary: string;
+    primaryReason: string;
+    secondaryReason?: string;
+    reasonKeys: {
+      primary: ReasonKey;
+      secondary?: ReasonKey;
+      summary: ReasonKey;
+    };
+  };
+  interpretation: {
+    consultationSummary: string;
+    shrineMeaning: string;
+    actionMeaning?: string;
   };
 };
 
@@ -323,6 +333,152 @@ function buildTopReasonLabel(inputType: ReasonInputType, primaryKey: ReasonKey, 
   return undefined;
 }
 
+function buildHeroCatchCopy(params: BuildParams, primary: Candidate): string {
+  if (params.mode === "compat") {
+    return "相性から静かに選びたい時の神社";
+  }
+
+  const need = clean(params.needTags?.[0]);
+
+  if (need === "厄除け") return "気持ちを立て直したい時の神社";
+  if (need === "仕事") return "仕事の流れを整えたい時の神社";
+  if (need === "金運") return "流れを切り替えたい時の神社";
+
+  if (primary.key === "distance") return "まず行きやすさを優先したい時の神社";
+  if (primary.key === "element_match") return "相性から無理なく選びたい時の神社";
+
+  return "今の状態に重ねて見やすい神社";
+}
+
+
+
+function buildActionMeaning(params: BuildParams, secondary?: Candidate): string | undefined {
+  if (!secondary) return undefined;
+  if (secondary.key === "distance") return "思い切りより、まず行けることを優先する意味があります。";
+  if (secondary.key === "popular") return "迷いがある時ほど、選びやすさを支えにできる候補です。";
+  return "複数の観点を重ねながら、今の自分に合う形で受け取りやすい候補です。";
+}
+
+function buildStateStuckText(params: BuildParams, primary: Candidate): string {
+  const need = clean(params.needTags?.[0]);
+
+  if (params.mode === "compat") {
+    return "今は勢いで答えを出すほど感覚がぶれやすく、合う・合わないを静かに見極めたい状態です。";
+  }
+
+  if (need === "厄除け") {
+    return "不安や引っかかりが続く時は、考えるほど判断が散って、気持ちの消耗が先に進みやすくなります。";
+  }
+
+  if (need === "仕事") {
+    return "仕事のことを考え続けている時は、動き方より先に優先順位が崩れて、判断が散りやすくなります。";
+  }
+
+  if (need === "金運") {
+    return "流れを変えたい時ほど、焦って手を打つほど空回りしやすく、立て直しの軸がぼやけやすくなります。";
+  }
+
+  if (need === "転機") {
+    return "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。";
+  }
+
+  if (need === "恋愛") {
+    return "関係のことを気にし続けている時は、相手より先に自分の受け取り方が揺れて、気持ちの置き場が散りやすくなります。";
+  }
+
+  if (need === "健康") {
+    return "心身の不調が気になる時は、整えたい気持ちが先走るほど、休むことと立て直すことの順番が崩れやすくなります。";
+  }
+
+  if (need === "学業") {
+    return "結果を意識し続けている時は、やるべきことより不安の処理が先に膨らみ、集中の軸がぶれやすくなります。";
+  }
+
+  if (primary.key === "distance") {
+    return "今は遠くの正解を探すほど動けなくなりやすく、まず無理なく足を運べる選択肢から見た方が流れを切り替えやすい状態です。";
+  }
+
+  if (primary.key === "element_match" || primary.key === "sign_match") {
+    return "今は強い刺激よりも、気質に無理なく馴染む場所の方が受け取りやすく、考えすぎをほどきやすい状態です。";
+  }
+
+  return "今は答えを急ぐほど判断が散りやすく、先に状態を整えられる候補から見た方が意味づけしやすい状態です。";
+}
+
+function buildStatePriorityText(params: BuildParams, primary: Candidate): string {
+  const need = clean(params.needTags?.[0]);
+
+  if (params.mode === "compat") {
+    return "今は結論を急ぐより、相性として無理がないか、落ち着いて受け取れる場所かを先に整理するのが合っています。";
+  }
+
+  if (need === "厄除け") {
+    return "今は解決策を増やすより先に、気持ちを落ち着かせて、何を立て直したいのかを整理できる場を優先するのが合っています。";
+  }
+
+  if (need === "仕事") {
+    return "今は次の一手を増やすより先に、何を進めて何を止めるかを整理できる場を優先するのが合っています。";
+  }
+
+  if (need === "金運") {
+    return "今は一発で変えることより先に、止まった流れを整え直して、立て直しの軸を作れる場を優先するのが合っています。";
+  }
+
+  if (need === "転機") {
+    return "今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。";
+  }
+
+  if (need === "恋愛") {
+    return "今は相手の反応を追うより先に、自分の気持ちの置き場を整えて、関係をどう見たいかを整理できる場を優先するのが合っています。";
+  }
+
+  if (need === "健康") {
+    return "今は無理に立て直そうとするより先に、消耗を増やさず整える順番を取り戻せる場を優先するのが合っています。";
+  }
+
+  if (need === "学業") {
+    return "今は量を増やすより先に、集中を削っている要因を静かに整理できる場を優先するのが合っています。";
+  }
+
+  if (primary.key === "distance") {
+    return "今は理想の候補を探し切るより先に、実際に動ける場所から流れを切り替えることを優先するのが合っています。";
+  }
+
+  if (primary.key === "element_match" || primary.key === "sign_match") {
+    return "今は強く変わることより先に、無理なく受け取れて気持ちを整えやすい場所を優先するのが合っています。";
+  }
+
+  return "今は答えを出すことより先に、状態を整えながら優先順位を見直せる場を優先するのが合っています。";
+}
+
+function buildStateShrineMeaningText(params: BuildParams, primary: Candidate): string {
+  if (primary.key === "distance") {
+    return "この神社は、行けること自体が負担になりにくく、止まった流れを切り替える最初の一歩として置きやすい候補です。";
+  }
+
+  if (primary.key === "element_match" || primary.key === "sign_match") {
+    return "この神社は、気質との無理のなさから身構えずに向き合いやすく、考えすぎた状態をほどきながら整理しやすい候補です。";
+  }
+
+  if (params.mode === "compat") {
+    return "この神社は、相性の無理のなさから落ち着いて受け取りやすく、今の状態を静かに整えながら意味を重ねやすい候補です。";
+  }
+
+  return "この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。";
+}
+
+function buildConsultationSummary(params: BuildParams, primary: Candidate, _secondary?: Candidate): string {
+  const stuck = buildStateStuckText(params, primary);
+  const priority = buildStatePriorityText(params, primary);
+  const shrineMeaning = buildStateShrineMeaningText(params, primary);
+
+  return `${stuck} ${priority} ${shrineMeaning}`;
+}
+
+function buildShrineMeaning(params: BuildParams, primary: Candidate): string {
+  return buildStateShrineMeaningText(params, primary);
+}
+
 export function buildRecommendationReasonViewModel(params: BuildParams): RecommendationReasonViewModel {
   const inputType = resolveInputType(params);
   const factsCandidates = buildFactsCandidates(params.rec);
@@ -357,14 +513,24 @@ export function buildRecommendationReasonViewModel(params: BuildParams): Recomme
 
   return {
     inputType,
-    primaryReason: primary.text,
-    secondaryReason: secondary?.text,
-    topReasonLabel: buildTopReasonLabel(inputType, primary.key, params.index),
-    summary: summary.text,
-    reasonKeys: {
-      primary: primary.key,
-      secondary: secondary?.key,
-      summary: summary.key,
+    hero: {
+      topReasonLabel: buildTopReasonLabel(inputType, primary.key, params.index),
+      catchCopy: buildHeroCatchCopy(params, primary),
+    },
+    why: {
+      summary: summary.text,
+      primaryReason: primary.text,
+      secondaryReason: secondary?.text,
+      reasonKeys: {
+        primary: primary.key,
+        secondary: secondary?.key,
+        summary: summary.key,
+      },
+    },
+    interpretation: {
+      consultationSummary: buildConsultationSummary(params, primary, secondary),
+      shrineMeaning: buildShrineMeaning(params, primary),
+      actionMeaning: buildActionMeaning(params, secondary),
     },
   };
 }

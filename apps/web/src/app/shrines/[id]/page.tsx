@@ -135,16 +135,61 @@ export default async function Page({ params, searchParams }: Props) {
   let conciergeReason: string | null = null;
   let conciergeExplanationPayload: PickedExplanationPayload | null = null;
   let conciergeMode: "need" | "compat" | null = null;
+
+  let recommendationRankExplanation: {
+    version: number;
+    summary?: string;
+    primary_axis?: string;
+    primary_axis_ja?: string;
+    primary_label?: string | null;
+    primary_label_ja?: string | null;
+  } | null = null;
+
+  let recommendationRankComparison: {
+    version: number;
+    rank?: number;
+    is_top?: boolean;
+    top_name?: string | null;
+    gap_from_top?: number;
+    comparison_summary?: string | null;
+  } | null = null;
   
 
   if (ctx === "concierge" && tid) {
     try {
+      console.log("[PAGE_TSX_HIT]", {
+        shrineId: numericId,
+        ctx,
+        tid,
+      });
+      
       const thread = await getConciergeThreadServer(String(tid));
       if (thread) {
         conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
         conciergeReason = pickReasonFromThread(thread, numericId);
         conciergeExplanationPayload = pickExplanationPayloadFromThread(thread, numericId);
         conciergeMode = pickModeFromThread(thread);
+
+        const recommendation = (thread.recommendations ?? []).find((r) => Number(r?.shrine_id ?? r?.id) === numericId);
+
+        serverLog("info", "SHRINE_DETAIL_RECOMMENDATION_PICK", {
+          shrineId: numericId,
+          recommendationCount: thread.recommendations?.length ?? 0,
+          pickedRecommendation: recommendation
+            ? {
+                shrine_id: recommendation.shrine_id,
+                id: recommendation.id,
+                name: recommendation.name,
+                hasRankExplanation: Boolean(recommendation.rank_explanation),
+                hasRankComparison: Boolean(recommendation.rank_comparison),
+              }
+            : null,
+        });
+
+        recommendationRankExplanation = recommendation?.rank_explanation as typeof recommendationRankExplanation;
+
+        recommendationRankComparison = recommendation?.rank_comparison as typeof recommendationRankComparison;
+
         serverLog("info", "SHRINE_DETAIL_CONCIERGE_DEBUG", {
           shrineId: numericId,
           ctx,
@@ -153,6 +198,9 @@ export default async function Page({ params, searchParams }: Props) {
           hasBreakdown: Boolean(conciergeBreakdown),
           hasReason: Boolean(conciergeReason),
           hasExplanationPayload: Boolean(conciergeExplanationPayload),
+          hasRecommendation: Boolean(recommendation),
+          hasRankExplanation: Boolean(recommendationRankExplanation),
+          hasRankComparison: Boolean(recommendationRankComparison),
           conciergeMode,
         });
       }
@@ -166,6 +214,8 @@ export default async function Page({ params, searchParams }: Props) {
       conciergeReason = null;
       conciergeExplanationPayload = null;
       conciergeMode = null;
+      recommendationRankExplanation = null;
+      recommendationRankComparison = null;
     }
   }
 
@@ -305,6 +355,8 @@ export default async function Page({ params, searchParams }: Props) {
     conciergeDeepReason,
     conciergeExplanationPayload,
     conciergeMode,
+    recommendationRankExplanation,
+    recommendationRankComparison,
     ctx,
     tid,
     signals,

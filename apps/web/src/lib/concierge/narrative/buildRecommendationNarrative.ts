@@ -400,6 +400,128 @@ function buildActionMeaningText(args: {
   return `${shrineText}は、${secondary.map(needLabelJa).join("、")}も視野に入れながら、優先順位を落ち着いて整理したい段階で向いています。`;
 }
 
+function buildStateStuckText(args: { mode: ConciergeMode; primaryNeed?: NeedTag | null }): string {
+  const primary = args.primaryNeed ?? null;
+
+  if (args.mode === "compat") {
+    return "今は勢いで答えを出すほど感覚がぶれやすく、合う・合わないを静かに見極めたい状態です。";
+  }
+
+  if (primary === "mental") {
+    return "不安や引っかかりが続く時は、考えるほど判断が散って、気持ちの消耗が先に進みやすくなります。";
+  }
+
+  if (primary === "career") {
+    return "仕事のことを考え続けている時は、動き方より先に優先順位が崩れて、判断が散りやすくなります。";
+  }
+
+  if (primary === "money") {
+    return "流れを変えたい時ほど、焦って手を打つほど空回りしやすく、立て直しの軸がぼやけやすくなります。";
+  }
+
+  if (primary === "courage") {
+    return "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。";
+  }
+
+  if (primary === "love") {
+    return "関係のことを気にし続けている時は、相手より先に自分の受け取り方が揺れて、気持ちの置き場が散りやすくなります。";
+  }
+
+  if (primary === "rest") {
+    return "消耗が続いている時は、休むことにも判断が要りはじめて、止まるべき場面でも気持ちが落ち着きにくくなります。";
+  }
+
+  if (primary === "study") {
+    return "結果を意識し続けている時は、やるべきことより不安の処理が先に膨らみ、集中の軸がぶれやすくなります。";
+  }
+
+  return "今は答えを急ぐほど判断が散りやすく、先に状態を整えられる候補から見た方が意味づけしやすい状態です。";
+}
+
+function buildStatePriorityText(args: { mode: ConciergeMode; primaryNeed?: NeedTag | null }): string {
+  const primary = args.primaryNeed ?? null;
+
+  if (args.mode === "compat") {
+    return "今は結論を急ぐより、相性として無理がないか、落ち着いて受け取れる場所かを先に整理するのが合っています。";
+  }
+
+  if (primary === "mental") {
+    return "今は解決策を増やすより先に、気持ちを落ち着かせて、何を立て直したいのかを整理できる場を優先するのが合っています。";
+  }
+
+  if (primary === "career") {
+    return "今は次の一手を増やすより先に、何を進めて何を止めるかを整理できる場を優先するのが合っています。";
+  }
+
+  if (primary === "money") {
+    return "今は一発で変えることより先に、止まった流れを整え直して、立て直しの軸を作れる場を優先するのが合っています。";
+  }
+
+  if (primary === "courage") {
+    return "今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。";
+  }
+
+  if (primary === "love") {
+    return "今は相手の反応を追うより先に、自分の気持ちの置き場を整えて、関係をどう見たいかを整理できる場を優先するのが合っています。";
+  }
+
+  if (primary === "rest") {
+    return "今は無理に立て直そうとするより先に、消耗を増やさず整える順番を取り戻せる場を優先するのが合っています。";
+  }
+
+  if (primary === "study") {
+    return "今は量を増やすより先に、集中を削っている要因を静かに整理できる場を優先するのが合っています。";
+  }
+
+  return "今は答えを出すことより先に、状態を整えながら優先順位を見直せる場を優先するのが合っています。";
+}
+
+function buildStateShrineMeaningText(args: {
+  mode: ConciergeMode;
+  primaryNeed?: NeedTag | null;
+  shrineName?: string | null;
+  shrineTone?: ShrineTone;
+  benefitLabels?: string[];
+}): string {
+  const primaryNeed = args.primaryNeed ?? null;
+  const shrineTone = args.shrineTone ?? "neutral";
+
+  return buildShrineBenefitText({
+    shrineName: args.shrineName,
+    benefitLabels: args.benefitLabels,
+    primaryNeed,
+    shrineTone,
+  });
+}
+
+function buildConsultationSummary(args: {
+  mode: ConciergeMode;
+  primaryNeed?: NeedTag | null;
+  shrineName?: string | null;
+  shrineTone?: ShrineTone;
+  benefitLabels?: string[];
+}): string {
+  const stuck = buildStateStuckText({
+    mode: args.mode,
+    primaryNeed: args.primaryNeed,
+  });
+
+  const priority = buildStatePriorityText({
+    mode: args.mode,
+    primaryNeed: args.primaryNeed,
+  });
+
+  const shrineMeaning = buildStateShrineMeaningText({
+    mode: args.mode,
+    primaryNeed: args.primaryNeed,
+    shrineName: args.shrineName,
+    shrineTone: args.shrineTone,
+    benefitLabels: args.benefitLabels,
+  });
+
+  return `${stuck} ${priority} ${shrineMeaning}`;
+}
+
 function buildMeaningSentence(args: {
   primaryNeed?: NeedTag | null;
   secondaryNeedTags?: NeedTag[];
@@ -463,6 +585,14 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     ctx: "concierge",
   });
 
+  const consultationSummary = buildConsultationSummary({
+    mode,
+    primaryNeed,
+    shrineName: args.shrineName,
+    shrineTone,
+    benefitLabels: args.benefitLabels,
+  });
+
 
 
   const meaningSentence = buildMeaningSentence({
@@ -524,6 +654,7 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     meaning: {
       short: sanitizeCopyText(meaningSentence),
       lead: sanitizeCopyText(stateSentence),
+      consultationSummary: sanitizeCopyText(consultationSummary),
     },
     match: {
       userState: sanitizeCopyText(userState),
