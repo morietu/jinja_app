@@ -6,9 +6,9 @@ import PlaceShrineCard from "@/components/shrine/PlaceShrineCard";
 import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilterPanel";
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
-import ShrineCard from "@/components/shrines/ShrineCard";
 import ConciergeTopRecommendationHero from "@/features/concierge/components/ConciergeTopRecommendationHero";
 import ConciergeConsultationSummary from "@/features/concierge/components/ConciergeConsultationSummary";
+import ShrineCardCompact from "@/components/shrines/ShrineCardCompact";
 
 import type {
   ConciergeSectionsPayload,
@@ -358,20 +358,15 @@ export default function ConciergeSectionsRenderer({
 
                       return (
                         <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
-                          <ShrineCard
+                          <ShrineCardCompact
                             name={item.title}
-                            address={item.address}
                             href={item.detailHref}
                             imageUrl={item.imageUrl}
-                            distanceM={(item as any).distance_m ?? null}
-                            rating={(item as any).rating ?? null}
-                            reviewCount={(item as any).reviewCount ?? null}
-                            isTopPick={false}
-                            topReasonLabel={null}
-                            explanationSummary={reasonVm.why.summary}
+                            address={item.address}
+                            summary={reasonVm.why.summary}
                             primaryReason={reasonVm.why.primaryReason}
-                            secondaryReason={null}
                             tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                            distanceM={(item as any).distance_m ?? null}
                           />
                         </div>
                       );

@@ -180,6 +180,39 @@ ConciergeResultPage
 └─ ConciergeCTA
 ---
 
+## 4.1 ShrineCardCompact 方針
+
+ShrineCardCompact は、推薦結果画面の 2位以下候補を
+比較候補として表示するための専用コンポーネントである。
+
+### 目的
+- TOP候補以外の候補を補助的に見せる
+- 候補ごとの差分を短く伝える
+- 詳細画面への軽い導線を置く
+
+### 表示要素
+- 神社名
+- 短い理由（primaryReason 優先）
+- 住所または距離
+- タグ1個まで
+- 軽い導線（→ 詳細）
+
+### 表示しないもの
+- whyTop
+- differenceFromOthers
+- secondaryReason
+- rating / reviewCount
+- 強いCTAボタン
+- TOP候補と同等の情報量
+
+### UI方針
+- Heroより明確に小さい
+- 余白は控えめ
+- 画像は小さく補助的に扱う
+- CTAはリンク調で軽く見せる
+
+ShrineCardCompact は Hero の代替ではなく、比較補助UIである。
+
 # 5. UX演出
 
 AppleレベルのUXでは
@@ -295,5 +328,3 @@ ConciergeCTA.tsx
 検索結果を見せることではない
 目的は
 この神社に行こうと思わせることである。
-
-
