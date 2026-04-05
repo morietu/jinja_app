@@ -7,7 +7,6 @@ import ConciergeFilterPanel from "@/features/concierge/components/ConciergeFilte
 import ModeBadge from "@/features/concierge/components/ModeBadge";
 import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
 import ShrineCard from "@/components/shrines/ShrineCard";
-import ShrineHero from "@/components/shrine/ShrineHero";
 
 import type {
   ConciergeSectionsPayload,
@@ -74,14 +73,12 @@ export default function ConciergeSectionsRenderer({
   threadId: _threadId = null,
   isEntryRoute = false,
 }: Props) {
-  // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
 
-  // ✅ filter state は map の外で1回だけ取る
   const filterState: ConciergeFilterState | null = useMemo(() => {
     const sec = payload.sections.find((s) => s.type === "filter") as any;
     return (sec?.state ?? null) as ConciergeFilterState | null;
@@ -103,7 +100,6 @@ export default function ConciergeSectionsRenderer({
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
 
-            // 閉じ状態（プリセット選択 + 即絞り）
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
 
@@ -182,7 +178,6 @@ export default function ConciergeSectionsRenderer({
               );
             }
 
-            // 開いた状態（既存のフィルタパネル）
             return (
               <DetailSection key={`filter-${i}`} title={title}>
                 <ConciergeFilterPanel
@@ -295,20 +290,7 @@ export default function ConciergeSectionsRenderer({
                         needTags: item.breakdown?.matched_need_tags ?? [],
                       });
 
-                      return idx === 0 ? (
-                        <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
-                          <ShrineHero
-                            name={item.title}
-                            imageUrl={item.imageUrl}
-                            href={item.detailHref}
-                            address={item.address}
-                            distanceLabel={(item as any).distance_m ? `${Math.round((item as any).distance_m)}m` : null}
-                            topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
-                            catchCopy={reasonVm.hero.catchCopy}
-                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 3)}
-                          />
-                        </div>
-                      ) : (
+                      return (
                         <div key={`rec-${i}-${idx}-registered-${item.shrineId}`} className="space-y-2">
                           <ShrineCard
                             name={item.title}
@@ -318,12 +300,12 @@ export default function ConciergeSectionsRenderer({
                             distanceM={(item as any).distance_m ?? null}
                             rating={(item as any).rating ?? null}
                             reviewCount={(item as any).reviewCount ?? null}
-                            isTopPick={false}
-                            topReasonLabel={null}
-                            explanationSummary={reasonVm.why.summary}
+                            isTopPick={idx === 0}
+                            topReasonLabel={idx === 0 ? (reasonVm.hero.topReasonLabel ?? null) : null}
+                            explanationSummary={idx === 0 ? reasonVm.hero.catchCopy : reasonVm.why.summary}
                             primaryReason={reasonVm.why.primaryReason}
                             secondaryReason={reasonVm.why.secondaryReason ?? null}
-                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
+                            tags={(item.breakdown?.matched_need_tags ?? []).slice(0, idx === 0 ? 3 : 1)}
                           />
                         </div>
                       );
