@@ -4,6 +4,7 @@ import { useState } from "react";
 import { resolvePlace } from "@/lib/api/places";
 import { createFavoriteByShrineId } from "@/lib/api/favorites";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildLoginHref } from "@/lib/nav/login";
 
 export default function PlaceCardClientActions({
   placeId,
@@ -36,7 +37,7 @@ export default function PlaceCardClientActions({
 
       if (status === 401) {
         const current = `${window.location.pathname}${window.location.search}`;
-        window.location.assign(`/login?next=${encodeURIComponent(current)}`);
+        window.location.assign(buildLoginHref(current));
         return;
       }
 

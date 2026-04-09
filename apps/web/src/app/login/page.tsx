@@ -1,4 +1,4 @@
-import LoginForm from "./LoginForm";
+import { redirect } from "next/navigation";
 import { sanitizeNext } from "@/lib/nav/login";
 
 function stripRscParam(next: string): string {
@@ -21,7 +21,11 @@ export default async function Page({
   const nextRaw = Array.isArray(raw) ? raw[0] : raw;
 
   const cleaned = typeof nextRaw === "string" ? stripRscParam(nextRaw) : null;
-  const next = sanitizeNext(cleaned); // ✅ここで確定
+  const next = sanitizeNext(cleaned);
 
-  return <LoginForm next={next} />;
+  if (next) {
+    redirect(`/auth/login?returnTo=${encodeURIComponent(next)}`);
+  }
+
+  redirect("/auth/login");
 }

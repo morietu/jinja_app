@@ -1,33 +1,26 @@
 "use client";
 
 import { ComponentType, FC, ReactNode, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import { buildLoginHrefFromCurrent } from "@/lib/nav/login";
 
-export function withAuth<P extends Record<string, unknown>>(
-  Comp: ComponentType<P>
-): FC<P> {
+export function withAuth<P extends Record<string, unknown>>(Comp: ComponentType<P>): FC<P> {
   const Guard: FC<P> = (props) => {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const sp = useSearchParams();
 
     useEffect(() => {
       if (!loading && !user) {
-        const next = encodeURIComponent(
-          window.location.pathname + (window.location.search || "")
-        );
-        router.replace(`/login?next=${next}`);
+        router.replace(buildLoginHrefFromCurrent(window.location.pathname, window.location.search || ""));
       }
-    }, [user, loading, router, sp]);
+    }, [user, loading, router]);
 
     if (!user) return null;
     return <Comp {...(props as P)} />;
   };
 
-  Guard.displayName = `WithAuth(${
-    Comp.displayName || (Comp as any).name || "Component"
-  })`;
+  Guard.displayName = `WithAuth(${Comp.displayName || (Comp as any).name || "Component"})`;
   return Guard;
 }
 
@@ -37,9 +30,13 @@ export function withAuth<P extends Record<string, unknown>>(
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (!loading && !user) {
+      router.replace(buildLoginHrefFromCurrent(window.location.pathname, window.location.search || ""));
+    }
   }, [loading, user, router]);
+
   if (!user) return null;
   return <>{children}</>;
 }

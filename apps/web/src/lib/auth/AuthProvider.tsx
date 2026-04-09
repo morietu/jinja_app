@@ -1,13 +1,13 @@
 "use client";
 // apps/web/src/lib/auth/AuthProvider.tsx
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getCurrentUser } from "@/lib/api/users";
-
-type User = { id: number; email?: string; name?: string; username?: string } | null;
+import type { AuthState, AuthUser } from "@/lib/auth/types";
 
 type AuthCtx = {
-  user: User;
+  user: AuthUser | null;
   loading: boolean;
   isLoggedIn: boolean;
   login: (username: string, password: string) => Promise<void>;
@@ -53,7 +53,7 @@ function maybeLoggedIn(): boolean {
   }
 }
 
-async function fetchMe(): Promise<User> {
+async function fetchMe(): Promise<AuthUser | null> {
   const me = await getCurrentUser();
 
   if (!me) {
@@ -67,10 +67,12 @@ async function fetchMe(): Promise<User> {
 function shouldAutoFetchMe(pathname: string | null): boolean {
   if (!pathname) return true;
 
-  // ✅ ログイン画面は未ログインが前提なので叩かない
-  if (pathname === "/login" || pathname === "/signup") return false;
+  // ログイン画面は未ログインが前提なので叩かない
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/auth/login" || pathname === "/auth/register") {
+    return false;
+  }
 
-  // ✅ concierge(Simple) でも叩かない（ノイズ消し）
+  // concierge(Simple) では基本叩かない
   if (pathname === "/concierge") return false;
 
   // 実験場はOK
@@ -82,15 +84,27 @@ function shouldAutoFetchMe(pathname: string | null): boolean {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>({
+    status: "unknown",
+    user: null,
+    isHydrating: true,
+  });
 
   const refreshMe = async () => {
     try {
       const me = await fetchMe();
-      setUser(me);
+
+      setAuthState({
+        status: me ? "authenticated" : "guest",
+        user: me,
+        isHydrating: false,
+      });
     } catch {
-      setUser(null);
+      setAuthState({
+        status: "guest",
+        user: null,
+        isHydrating: false,
+      });
     }
   };
 
@@ -99,17 +113,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        if (shouldAutoFetchMe(pathname)) {
-          await refreshMe();
-        } else {
-          // /concierge: 基本は叩かない
-          // ただし「ログイン済みフラグ」があるなら復元のために叩く（ログインボタンを消すため）
-          if (maybeLoggedIn()) {
-            await refreshMe();
+        const shouldFetch = shouldAutoFetchMe(pathname) || maybeLoggedIn();
+
+        if (!shouldFetch) {
+          if (!cancelled) {
+            setAuthState({
+              status: "guest",
+              user: null,
+              isHydrating: false,
+            });
           }
+          return;
         }
-      } finally {
-        if (!cancelled) setLoading(false);
+
+        const me = await fetchMe();
+
+        if (!cancelled) {
+          setAuthState({
+            status: me ? "authenticated" : "guest",
+            user: me,
+            isHydrating: false,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthState({
+            status: "guest",
+            user: null,
+            isHydrating: false,
+          });
+        }
       }
     })();
 
@@ -125,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
+
     if (!r.ok) throw new Error("login failed");
 
     markLoggedIn();
@@ -132,12 +166,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+
     markLoggedOut();
-    setUser(null);
+
+    setAuthState({
+      status: "guest",
+      user: null,
+      isHydrating: false,
+    });
   };
 
-  const isLoggedIn = !!user;
+  const user = authState.user;
+  const loading = authState.isHydrating;
+  const isLoggedIn = authState.status === "authenticated" && !!authState.user;
 
-  return <Ctx.Provider value={{ user, loading, isLoggedIn, login, logout, refreshMe }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider
+      value={{
+        user,
+        loading,
+        isLoggedIn,
+        login,
+        logout,
+        refreshMe,
+      }}
+    >
+      {children}
+    </Ctx.Provider>
+  );
 }

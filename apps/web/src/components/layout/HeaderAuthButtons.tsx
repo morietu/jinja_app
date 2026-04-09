@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { buildLoginHref } from "@/lib/nav/login";
 
 export function HeaderAuthButtons() {
   const { isLoggedIn, loading } = useAuth();
@@ -13,7 +14,7 @@ export function HeaderAuthButtons() {
 
   const loginHref = useMemo(() => {
     const current = pathname + (sp?.toString() ? `?${sp.toString()}` : "");
-    return `/login?next=${encodeURIComponent(current)}`;
+    return buildLoginHref(current);
   }, [pathname, sp]);
 
   const goshuinBookHref = "/mypage?tab=goshuin";
