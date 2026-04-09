@@ -417,8 +417,6 @@ export default async function Page({ params, searchParams }: Props) {
   let conciergeDeepReason: NarrativeFallback | null = null;
   let recommendationReasonDetail: Parameters<typeof buildShrineDetailModel>[0]["recommendationReasonDetail"] = null;
 
-  let recommendationReasonDetail: Parameters<typeof buildShrineDetailModel>[0]["recommendationReasonDetail"] = null;
-
   if (ctx === "concierge") {
     // detail を主、NarrativeFallback を従にするため、詳細表示用の輸送元をここに集約する。
     const shrineName = (s.name_jp ?? "").trim() || pageTitle;
@@ -444,12 +442,6 @@ export default async function Page({ params, searchParams }: Props) {
       hasConciergeDeepReason: Boolean(conciergeDeepReason),
     });
 
-    recommendationReasonDetail = {
-      heroMeaningCopy: null,
-      consultationSummary: conciergeDeepReason?.consultationSummary ?? conciergeDeepReason?.interpretation ?? null,
-      shrineMeaning: conciergeDeepReason?.shrineMeaning ?? null,
-      actionMeaning: conciergeDeepReason?.action ?? null,
-    };
   }
 
   const model = buildShrineDetailModel({
