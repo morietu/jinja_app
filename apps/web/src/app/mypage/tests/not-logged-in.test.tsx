@@ -7,8 +7,18 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: (k: string) => (k === "tab" ? "goshuin" : null) }),
 }));
 
+vi.mock("@/lib/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    isLoggedIn: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refreshMe: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/api/users", () => ({
-  getCurrentUser: vi.fn(async () => null),
   updateUser: vi.fn(),
 }));
 

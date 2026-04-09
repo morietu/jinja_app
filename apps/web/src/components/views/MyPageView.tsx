@@ -3,7 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getCurrentUser, updateUser, type UserMe } from "@/lib/api/users";
+import { updateUser, type UserMe } from "@/lib/api/users";
+import { useAuth as useAuthContext } from "@/lib/auth/AuthProvider";
 import type { Favorite } from "@/lib/api/favorites";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
 import FavoritesSection from "@/features/mypage/components/FavoritesSection";
@@ -20,29 +21,27 @@ function TabLink({ href, active, children }: { href: string; active: boolean; ch
 }
 
 export default function MyPageView({ initialFavorites }: Props) {
-
   const sp = useSearchParams();
   const tab = sp.get("tab") ?? "profile";
+  const { user: authUser, loading } = useAuthContext();
 
   const [user, setUser] = useState<UserMe | null>(null);
   const [form, setForm] = useState({ nickname: "", is_public: true });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const me = await getCurrentUser();
-      if (me) {
-        setUser(me);
-        setForm({
-          nickname: (me.profile?.nickname ?? "").trim(),
-          is_public: !!me.profile?.is_public,
-        });
-      }
-      setLoading(false);
-    })();
-  }, []);
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+
+    const me = authUser as UserMe;
+    setUser(me);
+    setForm({
+      nickname: (me.profile?.nickname ?? "").trim(),
+      is_public: !!me.profile?.is_public,
+    });
+  }, [authUser]);
 
   useEffect(() => {
     if (tab !== "goshuin") return;
@@ -85,9 +84,6 @@ export default function MyPageView({ initialFavorites }: Props) {
     if (!user) return;
     setForm({ nickname: user.profile?.nickname ?? "", is_public: !!user.profile?.is_public });
   };
-
-
-
 
   if (loading) {
     return (
@@ -137,7 +133,6 @@ export default function MyPageView({ initialFavorites }: Props) {
         <FavoritesSection initialFavorites={initialFavorites} />
       ) : (
         <div className="space-y-6">
-          {/* profile */}
           <div>
             <label className="block text-sm font-medium mb-1">ニックネーム</label>
             <input
