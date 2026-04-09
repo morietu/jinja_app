@@ -430,6 +430,19 @@ export default function ConciergeSectionsRenderer({
                       ))}
                     </div>
                   ) : null}
+
+                  {!isEntryRoute ? (
+                    <div className="pt-4">
+                      <button
+                        type="button"
+                        className="w-full rounded-xl border px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => onAction?.({ type: "save_concierge_thread" })}
+                        disabled={sending}
+                      >
+                        この相談を保存する
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </DetailSection>
             );

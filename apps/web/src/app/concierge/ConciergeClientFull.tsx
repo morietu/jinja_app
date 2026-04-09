@@ -29,6 +29,13 @@ import type {
 } from "@/features/concierge/sections/types";
 import { getGoriyakuTags } from "@/lib/api/tags";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { isAuthRequiredForAction } from "@/lib/auth/actionGuards";
+import {
+  initialConciergeSessionState,
+  type ConciergeSessionState,
+} from "@/features/concierge/types";
+import { resolveDisplayLabel, resolveDisplayName } from "@/lib/profile/resolveDisplayName";
 
 import { conciergeLog } from "@/lib/log/concierge";
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
@@ -44,7 +51,7 @@ type AssistantStateEvent = { type: "assistant_state"; unified: UnifiedConciergeR
 type LocalEvent = ChatEvent | AssistantStateEvent;
 
 type EventsByThread = Record<number, LocalEvent[]>;
-type EntryMode = "feel" | "filter";
+type EntryMode = "need" | "compat";
 
 const STORAGE_KEY = "concierge:eventsByThread";
 const LS_ENTRY_MODE = "concierge:entryMode";
@@ -57,6 +64,10 @@ type AnonymousConciergeSnapshot = {
   filters: {
     selectedTagIds: number[];
     extraCondition: string;
+  };
+  session: {
+    sessionNickname: string | null;
+    temporaryBirthdate: string | null;
   };
 };
 
@@ -293,7 +304,22 @@ export default function ConciergeClientFull() {
     [router],
   );
 
-  const [, setMe] = useState<any | null>(null);
+  const redirectToAuth = useCallback(
+    (kind: "login" | "register") => {
+      const returnTo = "/concierge";
+      navPush(`/auth/${kind}?returnTo=${encodeURIComponent(returnTo)}`, {
+        reason: "auth_required",
+        kind,
+        returnTo,
+      });
+    },
+    [navPush],
+  );
+
+  const { user, isLoggedIn } = useAuth();
+
+  const canSaveConciergeThread =
+    !isAuthRequiredForAction("save_concierge_thread") || isLoggedIn;
 
   const [eventsByThread, setEventsByThread] = useState<EventsByThread>({});
   const [hydrated, setHydrated] = useState(false);
@@ -307,11 +333,29 @@ export default function ConciergeClientFull() {
   const [goriyakuTags, setGoriyakuTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
-  const [birthdate, setBirthdate] = useState("");
+  const [sessionState, setSessionState] = useState<ConciergeSessionState>(initialConciergeSessionState);
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [tagsLoading, setTagsLoading] = useState(false);
 
   const [entrySubmitting, setEntrySubmitting] = useState(false);
+
+  const displayName = useMemo(
+    () =>
+      resolveDisplayName({
+        sessionNickname: sessionState.sessionNickname,
+        profileNickname: user?.nickname ?? null,
+      }),
+    [sessionState.sessionNickname, user?.nickname],
+  );
+
+  const displayLabel = useMemo(
+    () =>
+      resolveDisplayLabel({
+        sessionNickname: sessionState.sessionNickname,
+        profileNickname: user?.nickname ?? null,
+      }),
+    [sessionState.sessionNickname, user?.nickname],
+  );
 
   const [liveUnified, setLiveUnified] = useState<UnifiedConciergeResponse | null>(null);
   const [liveRecs, setLiveRecs] = useState<ConciergeRecommendation[]>([]);
@@ -348,7 +392,7 @@ export default function ConciergeClientFull() {
   /* ----------------------------------------
    * entryMode（LS）
    * -------------------------------------- */
-  const [entryMode, setEntryMode] = useState<EntryMode>("filter");
+  const [entryMode, setEntryMode] = useState<EntryMode>("compat");
 
   useEffect(() => {
     try {
@@ -363,8 +407,12 @@ export default function ConciergeClientFull() {
 
     try {
       const v = localStorage.getItem(LS_ENTRY_MODE);
-      if (v === "feel" || v === "filter") {
+      if (v === "need" || v === "compat") {
         setEntryMode(v);
+      } else if (v === "feel") {
+        setEntryMode("need");
+      } else if (v === "filter") {
+        setEntryMode("compat");
       }
     } catch {
       // ignore
@@ -376,7 +424,7 @@ export default function ConciergeClientFull() {
     snap("url:mode_effect", { rawMode, isEntryRoute });
     if (!isEntryRoute) return;
     if (!rawMode) return;
-    setEntryMode(rawMode === "feel" ? "feel" : "filter");
+    setEntryMode(rawMode === "need" || rawMode === "feel" ? "need" : "compat");
     snap("nav:replace", { to: "/concierge", reason: "mode_cleanup" });
     router.replace("/concierge");
   }, [rawMode, isEntryRoute, router]);
@@ -450,32 +498,7 @@ export default function ConciergeClientFull() {
     return () => window.clearTimeout(id);
   }, [eventsByThread, hydrated]);
 
-  useEffect(() => {
-    let cancelled = false;
 
-    (async () => {
-      try {
-        const res = await fetch("/api/users/me/", {
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          if (!cancelled) setMe(null);
-          return;
-        }
-
-        const data = await res.json();
-        if (!cancelled) setMe(data);
-      } catch {
-        if (!cancelled) setMe(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
 
   /* ----------------------------------------
@@ -513,9 +536,14 @@ export default function ConciergeClientFull() {
     const snapshot = loadAnonymousSnapshot();
     if (!snapshot) return;
 
-    setEntryMode(snapshot.entryMode ?? "filter");
+    setEntryMode(snapshot.entryMode ?? "compat");
     setSelectedTagIds(Array.isArray(snapshot.filters.selectedTagIds) ? snapshot.filters.selectedTagIds : []);
     setExtraCondition(snapshot.filters.extraCondition ?? "");
+    setSessionState((prev) => ({
+      ...prev,
+      sessionNickname: snapshot.session?.sessionNickname ?? null,
+      temporaryBirthdate: snapshot.session?.temporaryBirthdate ?? null,
+    }));
     setLiveUnified(snapshot.unified);
     setLiveRecs(
       Array.isArray(snapshot.unified?.data?.recommendations)
@@ -628,7 +656,13 @@ export default function ConciergeClientFull() {
   const chatThreadId =
     activeThreadId !== 0 ? String(activeThreadId) : typeof thread?.id === "number" ? String(thread.id) : null;
 
-  const element4 = useMemo(() => (birthdate ? birthdateToElement4(birthdate) : null), [birthdate]);
+  const element4 = useMemo(
+    () =>
+      sessionState.temporaryBirthdate
+        ? birthdateToElement4(sessionState.temporaryBirthdate)
+        : null,
+    [sessionState.temporaryBirthdate],
+  );
 
   const suggestedTags = useMemo(() => {
     if (!element4) return [];
@@ -643,7 +677,7 @@ export default function ConciergeClientFull() {
   const canSend = stopReason === null || (process.env.NODE_ENV !== "production" && !!forced);
 
   const baseFilters: ConciergeChatFilters = useMemo(() => {
-    const bd = normalizeISODate(birthdate) ?? undefined;
+    const bd = normalizeISODate(sessionState.temporaryBirthdate ?? "") ?? undefined;
     const extra = extraCondition.trim() || undefined;
 
     const crowd: ConciergeChatFilters["crowd"] = [];
@@ -660,7 +694,7 @@ export default function ConciergeClientFull() {
       duration_max_min,
       free_text: extra,
     };
-  }, [birthdate, selectedTagIds, extraCondition]);
+  }, [sessionState.temporaryBirthdate, selectedTagIds, extraCondition]);
 
   const hasFilter =
     (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
@@ -674,7 +708,7 @@ export default function ConciergeClientFull() {
   const filterState = useMemo(
     () => ({
       isOpen: isFilterOpen,
-      birthdate,
+      birthdate: sessionState.temporaryBirthdate ?? "",
       element4,
       goriyakuTags,
       suggestedTags,
@@ -685,7 +719,7 @@ export default function ConciergeClientFull() {
     }),
     [
       isFilterOpen,
-      birthdate,
+      sessionState.temporaryBirthdate,
       element4,
       goriyakuTags,
       suggestedTags,
@@ -755,6 +789,10 @@ export default function ConciergeClientFull() {
           filters: {
             selectedTagIds,
             extraCondition,
+          },
+          session: {
+            sessionNickname: sessionState.sessionNickname,
+            temporaryBirthdate: sessionState.temporaryBirthdate,
           },
         });
       }
@@ -878,7 +916,7 @@ export default function ConciergeClientFull() {
 
   useEffect(() => {
     if (!shouldShowEntry) return;
-    if (entryMode === "filter") setIsFilterOpen(true);
+    if (entryMode === "compat") setIsFilterOpen(true);
   }, [entryMode, shouldShowEntry]);
 
   useEffect(() => {
@@ -942,6 +980,31 @@ export default function ConciergeClientFull() {
         navPush("/map", { reason: "open_map" });
         return;
 
+      case "save_concierge_thread":
+        snap("action:save_concierge_thread", {
+          tid: activeThreadIdRef.current,
+          canSaveConciergeThread,
+          isLoggedIn,
+        });
+
+        conciergeLog("save_concierge_thread_click", {
+          tid: activeThreadIdRef.current,
+          meta: {
+            canSaveConciergeThread,
+            isLoggedIn,
+            path: window.location.pathname + window.location.search,
+          },
+        });
+
+        if (!canSaveConciergeThread) {
+          redirectToAuth("login");
+          return;
+        }
+
+        // 現時点では server 保存API未接続。
+        // 認証済みユーザーは、thread URL がある状態自体を保存済み導線とみなす。
+        return;
+
       case "back_to_entry":
         snap("action:back_to_entry", { fromTid: activeThreadIdRef.current, entryMode });
         conciergeLog("back_to_entry", {
@@ -953,6 +1016,11 @@ export default function ConciergeClientFull() {
         setEntrySubmitting(false);
         setActiveTid(0);
         clearAnonymousSnapshot();
+        setSessionState((prev) => ({
+          ...prev,
+          sessionNickname: null,
+          temporaryBirthdate: null,
+        }));
         snap("nav:push", { to: "/concierge", reason: "back_to_entry" });
         router.push("/concierge");
         return;
@@ -986,7 +1054,10 @@ export default function ConciergeClientFull() {
       }
 
       case "filter_set_birthdate":
-        setBirthdate(a.birthdate);
+        setSessionState((prev) => ({
+          ...prev,
+          temporaryBirthdate: a.birthdate,
+        }));
         return;
 
       case "filter_toggle_tag":
@@ -1007,7 +1078,11 @@ export default function ConciergeClientFull() {
         conciergeLog("filter_clear", { tid: activeThreadIdRef.current });
         setExtraCondition("");
         setSelectedTagIds([]);
-        setBirthdate("");
+        setSessionState((prev) => ({
+          ...prev,
+          temporaryBirthdate: null,
+          sessionNickname: null,
+        }));
         clearAnonymousSnapshot();
         return;
     }
@@ -1059,11 +1134,11 @@ export default function ConciergeClientFull() {
                 type="button"
                 className={[
                   "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
-                  entryMode === "feel" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
+                  entryMode === "need" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => {
-                  snap("action:entryMode_feel", {});
-                  setEntryMode("feel");
+                  snap("action:entryMode_need", {});
+                  setEntryMode("need");
                   setIsFilterOpen(false);
                 }}
                 disabled={isBusy}
@@ -1075,11 +1150,11 @@ export default function ConciergeClientFull() {
                 type="button"
                 className={[
                   "flex-1 rounded-xl px-3 py-2 text-sm font-semibold border",
-                  entryMode === "filter" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
+                  entryMode === "compat" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700",
                 ].join(" ")}
                 onClick={() => {
-                  snap("action:entryMode_filter", {});
-                  setEntryMode("filter");
+                  snap("action:entryMode_compat", {});
+                  setEntryMode("compat");
                   setIsFilterOpen(true);
                 }}
                 disabled={isBusy}
@@ -1119,8 +1194,50 @@ export default function ConciergeClientFull() {
               </div>
             ) : null}
 
+            <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {displayName
+                ? `${displayLabel}さん向けに、今の状態に合う神社を探します。`
+                : "今の状態に合う神社を探します。"}
+            </div>
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-semibold text-slate-600">呼び名（任意）</label>
+              <input
+                type="text"
+                value={sessionState.sessionNickname ?? ""}
+                onChange={(e) =>
+                  setSessionState((prev) => ({
+                    ...prev,
+                    sessionNickname: e.target.value,
+                  }))
+                }
+                placeholder="例: えつこ"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                maxLength={20}
+              />
+            </div>
+            {!canSaveConciergeThread ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p>相談はそのまま使えます。履歴の保存にはログインが必要です。</p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                    onClick={() => redirectToAuth("login")}
+                  >
+                    ログイン
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                    onClick={() => redirectToAuth("register")}
+                  >
+                    新規登録
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {/* コンテンツ */}
-            {entryMode === "feel" ? (
+            {entryMode === "need" ? (
               <div className="mt-3">
                 <p className="text-xs font-semibold text-slate-600">例（タップで送信）</p>
                 <div className="mt-2 grid gap-2">
@@ -1174,7 +1291,7 @@ export default function ConciergeClientFull() {
                     className="w-full rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     onClick={() => {
                       snap("action:error_retry_filter", {});
-                      setEntryMode("filter");
+                      setEntryMode("compat");
                     }}
                   >
                     条件で絞って再挑戦
