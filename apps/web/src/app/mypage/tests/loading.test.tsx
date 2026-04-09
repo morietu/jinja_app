@@ -7,8 +7,18 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: (k: string) => (k === "tab" ? "profile" : null) }),
 }));
 
+vi.mock("@/lib/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: null,
+    loading: true,
+    isLoggedIn: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refreshMe: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/api/users", () => ({
-  getCurrentUser: vi.fn(() => new Promise(() => {})), // 永遠にresolveしない=loading固定
   updateUser: vi.fn(),
 }));
 

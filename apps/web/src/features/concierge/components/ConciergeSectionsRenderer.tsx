@@ -265,10 +265,10 @@ export default function ConciergeSectionsRenderer({
                   <ModeBadge mode={payload?.meta?.mode} />
                 </div>
 
-                {topReasonVm?.detail.consultationSummary || topReasonVm?.interpretation.consultationSummary ? (
+                {topReasonVm?.detail.consultationSummary ? (
                   <div className="mb-4">
                     <ConciergeConsultationSummary
-                      summary={topReasonVm.detail.consultationSummary ?? topReasonVm.interpretation.consultationSummary}
+                      summary={topReasonVm.detail.consultationSummary}
                       modeLabel={normalizedMode === "compat" ? "相性をもとに見ています" : "相談内容をもとに見ています"}
                       appliedLabel={appliedLabel}
                     />
@@ -354,8 +354,8 @@ export default function ConciergeSectionsRenderer({
                               topReasonLabel={reasonVm.hero.topReasonLabel ?? null}
                               catchCopy={reasonVm.hero.catchCopy}
                               whyTop={reasonVm.rank.whyTop ?? null}
-                              primaryReason={reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason}
-                              secondaryReason={reasonVm.list.secondaryPhrase ?? reasonVm.why.secondaryReason ?? null}
+                              primaryReason={reasonVm.list.primaryPhrase}
+                              secondaryReason={reasonVm.list.secondaryPhrase ?? null}
                               differenceFromOthers={reasonVm.rank.differenceFromOthers ?? null}
                               tags={(heroItem.breakdown?.matched_need_tags ?? []).slice(0, 3)}
                               onRouteClick={() => onAction?.({ type: "open_map" })}
@@ -401,8 +401,8 @@ export default function ConciergeSectionsRenderer({
                                 href={item.detailHref}
                                 imageUrl={item.imageUrl}
                                 address={null}
-                                summary={reasonVm.list.summary ?? reasonVm.why.summary}
-                                primaryReason={reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason}
+                                summary={reasonVm.list.summary}
+                                primaryReason={reasonVm.list.primaryPhrase}
                                 tags={(item.breakdown?.matched_need_tags ?? []).slice(0, 1)}
                                 distanceM={(item as any).distance_m ?? null}
                               />

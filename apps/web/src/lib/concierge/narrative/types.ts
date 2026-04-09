@@ -30,13 +30,16 @@ export type ExplanationPayload = {
   } | null;
 };
 
-export type DeepReason = {
+export type NarrativeFallback = {
   interpretation?: string | null;
   consultationSummary?: string | null;
   shrineMeaning?: string | null;
   action?: string | null;
   short?: string | null;
+  heroMeaningCopy?: string | null;
 };
+
+export type DeepReason = NarrativeFallback;
 
 export type BuildNarrativeBaseArgs = {
   mode: ConciergeMode;
@@ -49,7 +52,7 @@ export type BuildNarrativeBaseArgs = {
   userElementLabel?: string | null;
   breakdown?: ConciergeBreakdown | null;
   explanationPayload?: ExplanationPayload | null;
-  deepReason?: DeepReason | null;
+  deepReason?: NarrativeFallback | null;
   conciergeReason?: string | null;
   shrineSymbolTags?: SymbolTag[] | null;
 };

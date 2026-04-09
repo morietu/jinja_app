@@ -1,8 +1,8 @@
-// apps/web/src/lib/auth/AuthProvider.tsx
 "use client";
-
+// apps/web/src/lib/auth/AuthProvider.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { getCurrentUser } from "@/lib/api/users";
 
 type User = { id: number; email?: string; name?: string; username?: string } | null;
 
@@ -54,31 +54,14 @@ function maybeLoggedIn(): boolean {
 }
 
 async function fetchMe(): Promise<User> {
-  const r = await fetch("/api/users/me/", {
-    credentials: "include",
-    cache: "no-store",
-  });
+  const me = await getCurrentUser();
 
-  if (r.status === 401) {
+  if (!me) {
     markLoggedOut();
     return null;
   }
 
-  if (!r.ok) {
-    throw new Error("failed to fetch user");
-  }
-
-  const data = await r.json();
-
-  // raw user でも { user } でも吸収
-  const normalized = data?.user ?? data ?? null;
-
-  // id がない変なオブジェクトは未ログイン扱い
-  if (!normalized || typeof normalized !== "object" || typeof normalized.id !== "number") {
-    return null;
-  }
-
-  return normalized;
+  return me;
 }
 
 function shouldAutoFetchMe(pathname: string | null): boolean {

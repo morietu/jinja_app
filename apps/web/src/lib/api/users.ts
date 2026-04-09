@@ -53,6 +53,9 @@ export type UserMe = {
   } | null;
 };
 
+// users/me read の共通入口。
+// グローバル認証確認でもページ固有の current user 取得でもここを使う。
+// 401 は未ログインとして `null` を返し、それ以外の異常系だけ throw する。
 export async function getCurrentUser(signal?: AbortSignal): Promise<UserMe | null> {
   return fetchOnce("GET:/api/users/me/", async () => {
     const res = await fetch("/api/users/me/", {

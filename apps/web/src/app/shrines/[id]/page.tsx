@@ -11,7 +11,9 @@ import { gmapsDirUrl } from "@/lib/maps";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { buildShrineClose } from "@/lib/navigation/shrineClose";
 import { buildDeepReason } from "@/lib/concierge/buildDeepReason";
+import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
 import { buildShrineDetailModel } from "@/lib/shrine/buildShrineDetailModel";
+import type { NarrativeFallback } from "@/lib/concierge/narrative/types";
 import {
   pickExplanationPayloadFromThread,
   type PickedExplanationPayload,
@@ -35,6 +37,170 @@ type Props = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ ctx?: string; tid?: string }>;
 };
+
+type RecommendationReasonDetailInput = NonNullable<
+  Parameters<typeof buildShrineDetailModel>[0]["recommendationReasonDetail"]
+>;
+
+type RecommendationReasonDetailBuildArgs = {
+  shrineName: string;
+  conciergeBreakdown: ConciergeBreakdown | null;
+  conciergeReason: string | null;
+  conciergeExplanationPayload: PickedExplanationPayload | null;
+  conciergeMode: "need" | "compat" | null;
+  recommendation: Record<string, any> | null;
+};
+
+function resolvePrimaryTagFromConcierge(args: {
+  primaryReasonLabel?: string | null;
+  fallbackTags?: string[] | null;
+}): "money" | "courage" | "career" | "mental" | "rest" | "love" | "study" | null {
+  const primaryReasonLabel = args.primaryReasonLabel ?? null;
+  const fallbackTags = Array.isArray(args.fallbackTags) ? args.fallbackTags : [];
+
+  if (
+    primaryReasonLabel === "money" ||
+    primaryReasonLabel === "courage" ||
+    primaryReasonLabel === "career" ||
+    primaryReasonLabel === "mental" ||
+    primaryReasonLabel === "rest" ||
+    primaryReasonLabel === "love" ||
+    primaryReasonLabel === "study"
+  ) {
+    return primaryReasonLabel;
+  }
+
+  if (fallbackTags.includes("courage")) return "courage";
+  if (fallbackTags.includes("money")) return "money";
+  if (fallbackTags.includes("career")) return "career";
+  if (fallbackTags.includes("mental")) return "mental";
+  if (fallbackTags.includes("rest")) return "rest";
+  if (fallbackTags.includes("love")) return "love";
+  if (fallbackTags.includes("study")) return "study";
+
+  return null;
+}
+
+function resolveShrineToneForNarrativeFallback(shrineName: string): "strong" | "quiet" | "tight" | "neutral" {
+  const normalizedName = shrineName.replace(/\s+/g, "").trim();
+
+  if (normalizedName.includes("三峯")) return "strong";
+  if (normalizedName.includes("伊勢神宮") || normalizedName.includes("内宮")) return "quiet";
+  if (normalizedName.includes("乃木")) return "tight";
+
+  return "neutral";
+}
+
+function buildFallbackShortFromPrimaryTag(args: {
+  primaryTag: "money" | "courage" | "career" | "mental" | "rest" | "love" | "study" | null;
+  shrineTone: "strong" | "quiet" | "tight" | "neutral";
+  rawReason: string | null;
+}): string | null {
+  const { primaryTag, shrineTone, rawReason } = args;
+
+  return primaryTag === "courage"
+    ? shrineTone === "strong"
+      ? "止まった流れを動かす"
+      : shrineTone === "tight"
+        ? "次の一歩を定める"
+        : shrineTone === "quiet"
+          ? "気持ちを整えて一歩を決める"
+          : "次の一歩を後押しする"
+    : primaryTag === "mental"
+      ? shrineTone === "strong"
+        ? "気持ちを切り替える"
+        : shrineTone === "tight"
+          ? "気持ちを引き締めて整える"
+          : "不安や気持ちを整える"
+      : primaryTag === "career"
+        ? shrineTone === "strong"
+          ? "仕事の停滞を動かす"
+          : shrineTone === "tight"
+            ? "仕事や転機の判断を定める"
+            : "仕事や転機を整える"
+        : primaryTag === "money"
+          ? shrineTone === "strong"
+            ? "金運や流れを動かす"
+            : shrineTone === "quiet"
+              ? "金運や巡りを整える"
+              : "金運や流れを立て直す"
+          : primaryTag === "rest"
+            ? shrineTone === "quiet"
+              ? "心身を休める"
+              : "心身を整える"
+            : primaryTag === "love"
+              ? shrineTone === "quiet"
+                ? "関係性を見直す"
+                : "良縁や関係性を進める"
+              : primaryTag === "study"
+                ? shrineTone === "tight"
+                  ? "集中や目標を定める"
+                  : "集中や学業の流れを整える"
+                : rawReason;
+}
+
+function buildRecommendationReasonDetailInput(
+  args: RecommendationReasonDetailBuildArgs,
+): {
+  recommendationReasonDetail: RecommendationReasonDetailInput | null;
+  conciergeDeepReason: NarrativeFallback | null;
+} {
+  const primaryReasonLabel = args.conciergeExplanationPayload?.primary_reason?.label ?? null;
+  const fallbackTags = args.conciergeBreakdown?.matched_need_tags ?? [];
+  const primaryTag = resolvePrimaryTagFromConcierge({
+    primaryReasonLabel,
+    fallbackTags,
+  });
+  const rawReason = args.conciergeExplanationPayload?.original_reason?.trim() || args.conciergeReason?.trim() || null;
+  const shrineTone = resolveShrineToneForNarrativeFallback(args.shrineName);
+  const fallbackShort = buildFallbackShortFromPrimaryTag({
+    primaryTag,
+    shrineTone,
+    rawReason,
+  });
+
+  const reasonVm = buildRecommendationReasonViewModel({
+    rec: {
+      display_name: args.shrineName,
+      name: args.shrineName,
+      reason: args.conciergeReason ?? null,
+      breakdown: args.conciergeBreakdown ?? null,
+      fallback_mode: args.recommendation?.fallback_mode ?? null,
+      distance_m: args.recommendation?.distance_m ?? null,
+      popular_score: args.recommendation?.popular_score ?? null,
+      astro_elements: args.recommendation?.astro_elements ?? null,
+      astro_priority: args.recommendation?.astro_priority ?? null,
+      explanation: args.recommendation?.explanation ?? null,
+      reason_facts: args.recommendation?.reason_facts ?? args.recommendation?._reason_facts ?? null,
+    },
+    index: typeof args.recommendation?.rank === "number" ? Math.max(args.recommendation.rank - 1, 0) : 0,
+    mode: args.conciergeMode ?? undefined,
+    needTags: fallbackTags,
+  });
+
+  // conciergeDeepReason is a NarrativeFallback for missing detail fields only.
+  // Primary source is recommendationReasonDetail from reasonVm.detail.
+  // Use this fallback only when detail values are absent.
+  const conciergeDeepReason = buildDeepReason({
+    shrineName: args.shrineName,
+    primaryTag,
+    rawReason,
+    fallbackShort,
+    shrineTone,
+  });
+
+  const recommendationReasonDetail: RecommendationReasonDetailInput = {
+    heroMeaningCopy: reasonVm.detail.heroMeaningCopy ?? null,
+    consultationSummary: reasonVm.detail.consultationSummary ?? conciergeDeepReason?.interpretation ?? null,
+    shrineMeaning: reasonVm.detail.shrineMeaning ?? conciergeDeepReason?.shrineMeaning ?? null,
+    actionMeaning: reasonVm.detail.actionMeaning ?? conciergeDeepReason?.action ?? null,
+  };
+
+  return {
+    recommendationReasonDetail,
+    conciergeDeepReason,
+  };
+}
 
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
@@ -155,6 +321,7 @@ export default async function Page({ params, searchParams }: Props) {
     comparison_summary?: string | null;
   } | null = null;
   
+  let selectedRecommendation: Record<string, any> | null = null;
 
   if (ctx === "concierge" && tid) {
     try {
@@ -172,6 +339,7 @@ export default async function Page({ params, searchParams }: Props) {
         conciergeMode = pickModeFromThread(thread);
 
         const recommendation = (thread.recommendations ?? []).find((r) => Number(r?.shrine_id ?? r?.id) === numericId);
+        selectedRecommendation = recommendation ?? null;
 
         serverLog("info", "SHRINE_DETAIL_RECOMMENDATION_PICK", {
           shrineId: numericId,
@@ -246,115 +414,34 @@ export default async function Page({ params, searchParams }: Props) {
     };
   }
 
-  let conciergeDeepReason: Parameters<typeof buildShrineDetailModel>[0]["conciergeDeepReason"] = null;
-
+  let conciergeDeepReason: NarrativeFallback | null = null;
   let recommendationReasonDetail: Parameters<typeof buildShrineDetailModel>[0]["recommendationReasonDetail"] = null;
 
   if (ctx === "concierge") {
-    const primaryReasonLabel = conciergeExplanationPayload?.primary_reason?.label ?? null;
-    const fallbackTags = conciergeBreakdown?.matched_need_tags ?? [];
-
-    const primaryTag =
-      primaryReasonLabel === "money" ||
-      primaryReasonLabel === "courage" ||
-      primaryReasonLabel === "career" ||
-      primaryReasonLabel === "mental" ||
-      primaryReasonLabel === "rest" ||
-      primaryReasonLabel === "love" ||
-      primaryReasonLabel === "study"
-        ? primaryReasonLabel
-        : fallbackTags.includes("courage")
-          ? "courage"
-          : fallbackTags.includes("money")
-            ? "money"
-            : fallbackTags.includes("career")
-              ? "career"
-              : fallbackTags.includes("mental")
-                ? "mental"
-                : fallbackTags.includes("rest")
-                  ? "rest"
-                  : fallbackTags.includes("love")
-                    ? "love"
-                    : fallbackTags.includes("study")
-                      ? "study"
-                      : null;
-
+    // detail を主、NarrativeFallback を従にするため、詳細表示用の輸送元をここに集約する。
     const shrineName = (s.name_jp ?? "").trim() || pageTitle;
-    const rawReason = conciergeExplanationPayload?.original_reason?.trim() || conciergeReason?.trim() || null;
+    const builtReasonDetail = buildRecommendationReasonDetailInput({
+      shrineName,
+      conciergeBreakdown,
+      conciergeReason,
+      conciergeExplanationPayload,
+      conciergeMode,
+      recommendation: selectedRecommendation,
+    });
+
+    recommendationReasonDetail = builtReasonDetail.recommendationReasonDetail;
+    conciergeDeepReason = builtReasonDetail.conciergeDeepReason;
+
     serverLog("info", "SHRINE_DETAIL_DEEP_REASON_INPUT", {
       shrineId: numericId,
-      primaryReasonLabel,
-      fallbackTags,
-      rawReason,
+      primaryReasonLabel: conciergeExplanationPayload?.primary_reason?.label ?? null,
+      fallbackTags: conciergeBreakdown?.matched_need_tags ?? [],
+      rawReason: conciergeExplanationPayload?.original_reason?.trim() || conciergeReason?.trim() || null,
       shrineName,
+      hasRecommendationReasonDetail: Boolean(recommendationReasonDetail),
+      hasConciergeDeepReason: Boolean(conciergeDeepReason),
     });
 
-    const normalizeShrineName = (name?: string | null) => (name ?? "").replace(/\s+/g, "").trim();
-    const normalizedName = normalizeShrineName(shrineName);
-
-    const shrineTone = normalizedName.includes("三峯")
-      ? "strong"
-      : normalizedName.includes("伊勢神宮") || normalizedName.includes("内宮")
-        ? "quiet"
-        : normalizedName.includes("乃木")
-          ? "tight"
-          : "neutral";
-
-    const fallbackShort =
-      primaryTag === "courage"
-        ? shrineTone === "strong"
-          ? "止まった流れを動かす"
-          : shrineTone === "tight"
-            ? "次の一歩を定める"
-            : shrineTone === "quiet"
-              ? "気持ちを整えて一歩を決める"
-              : "次の一歩を後押しする"
-        : primaryTag === "mental"
-          ? shrineTone === "strong"
-            ? "気持ちを切り替える"
-            : shrineTone === "tight"
-              ? "気持ちを引き締めて整える"
-              : "不安や気持ちを整える"
-          : primaryTag === "career"
-            ? shrineTone === "strong"
-              ? "仕事の停滞を動かす"
-              : shrineTone === "tight"
-                ? "仕事や転機の判断を定める"
-                : "仕事や転機を整える"
-            : primaryTag === "money"
-              ? shrineTone === "strong"
-                ? "金運や流れを動かす"
-                : shrineTone === "quiet"
-                  ? "金運や巡りを整える"
-                  : "金運や流れを立て直す"
-              : primaryTag === "rest"
-                ? shrineTone === "quiet"
-                  ? "心身を休める"
-                  : "心身を整える"
-                : primaryTag === "love"
-                  ? shrineTone === "quiet"
-                    ? "関係性を見直す"
-                    : "良縁や関係性を進める"
-                  : primaryTag === "study"
-                    ? shrineTone === "tight"
-                      ? "集中や目標を定める"
-                      : "集中や学業の流れを整える"
-                    : rawReason;
-
-    conciergeDeepReason = buildDeepReason({
-      shrineName,
-      primaryTag,
-      rawReason,
-      fallbackShort,
-      shrineTone,
-    });
-
-    recommendationReasonDetail = {
-      heroMeaningCopy: null,
-      consultationSummary: conciergeDeepReason?.consultationSummary ?? conciergeDeepReason?.interpretation ?? null,
-      shrineMeaning: conciergeDeepReason?.shrineMeaning ?? null,
-      actionMeaning: conciergeDeepReason?.action ?? null,
-    };
   }
 
   const model = buildShrineDetailModel({

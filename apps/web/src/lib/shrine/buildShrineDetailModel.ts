@@ -23,7 +23,7 @@ import {
   type NeedTag,
   type ShrineTone,
   type ExplanationPayload,
-  type DeepReason,
+  type NarrativeFallback,
 } from "@/lib/concierge/narrative/types";
 import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonText";
 import { buildRecommendationNarrative } from "@/lib/concierge/narrative/buildRecommendationNarrative";
@@ -34,7 +34,7 @@ type Args = {
   publicGoshuins: PublicGoshuinItem[];
   conciergeBreakdown?: ConciergeBreakdown | null;
   conciergeReason?: string | null;
-  conciergeDeepReason?: DeepReason | null;
+  conciergeDeepReason?: NarrativeFallback | null;
   conciergeExplanationPayload?: ExplanationPayload | null;
   conciergeMode?: ConciergeMode | null;
   recommendationRankExplanation?: RankExplanation | null;
@@ -415,33 +415,27 @@ function buildProposalLead(args: { mode: ConciergeMode; explanationPayload?: Exp
     : "今の状態を整理すると、まず向き合うべきテーマがあります。";
 }
 
-function resolveDeepReasonLead(args: {
+function resolveDetailLead(args: {
   ctx?: "map" | "concierge" | null;
-  conciergeDeepReason?: DeepReason | null;
-  conciergeReason?: string | null;
   recommendationReasonDetail?: {
     consultationSummary?: string | null;
   } | null;
-  mode: ConciergeMode;
-  explanationPayload?: ExplanationPayload | null;
+  conciergeDeepReason?: NarrativeFallback | null;
+  conciergeReason?: string | null;
+  generatedLead?: string | null;
 }): string {
-  const detailConsultationSummary = args.recommendationReasonDetail?.consultationSummary?.trim();
-  if (args.ctx === "concierge" && detailConsultationSummary) {
-    return detailConsultationSummary;
+  if (args.ctx === "concierge") {
+    const detailLead = args.recommendationReasonDetail?.consultationSummary?.trim();
+    if (detailLead) return detailLead;
+
+    const deepReasonLead = args.conciergeDeepReason?.interpretation?.trim();
+    if (deepReasonLead) return deepReasonLead;
+
+    const conciergeReason = args.conciergeReason?.trim();
+    if (conciergeReason) return conciergeReason;
   }
 
-  if (args.ctx === "concierge" && args.conciergeDeepReason?.interpretation) {
-    return args.conciergeDeepReason.interpretation;
-  }
-
-  if (args.ctx === "concierge" && typeof args.conciergeReason === "string" && args.conciergeReason.trim().length > 0) {
-    return args.conciergeReason.trim();
-  }
-
-  return buildProposalLead({
-    mode: args.mode,
-    explanationPayload: args.explanationPayload ?? null,
-  });
+  return args.generatedLead?.trim() || "";
 }
 
 function buildBenefitText(
@@ -805,47 +799,65 @@ function buildProposalWhyFromBreakdown(args: {
   ];
 }
 
-function buildProposalWhyFromDeepReason(
-  deepReason?: DeepReason | null,
-  rankReason?: string | null,
-  comparisonText?: string | null,
-): RecommendationWhySection[] | null {
-  if (!deepReason) return null;
-
+function buildProposalWhyFromNarrativeSources(args: {
+  recommendationReasonDetail?: {
+    consultationSummary?: string | null;
+    shrineMeaning?: string | null;
+    actionMeaning?: string | null;
+  } | null;
+  deepReason?: NarrativeFallback | null;
+  rankReason?: string | null;
+  comparisonText?: string | null;
+}): RecommendationWhySection[] | null {
   const items: RecommendationWhySection[] = [];
 
-  if (deepReason.interpretation) {
+  // fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. no value here; caller must fall back to generated proposalWhy
+  const consultationText =
+    args.recommendationReasonDetail?.consultationSummary?.trim() || args.deepReason?.interpretation?.trim() || "";
+  const shrineMeaningText =
+    args.recommendationReasonDetail?.shrineMeaning?.trim() || args.deepReason?.shrineMeaning?.trim() || "";
+  const actionText = args.recommendationReasonDetail?.actionMeaning?.trim() || args.deepReason?.action?.trim() || "";
+
+  const hasNarrativeSource = Boolean(consultationText || shrineMeaningText || actionText);
+  if (!hasNarrativeSource) {
+    return null;
+  }
+
+  if (consultationText) {
     items.push({
       label: "相談との一致",
-      text: deepReason.interpretation,
+      text: consultationText,
     });
   }
 
-  if (deepReason.shrineMeaning) {
+  if (shrineMeaningText) {
     items.push({
       label: "神社のご利益",
-      text: deepReason.shrineMeaning,
+      text: shrineMeaningText,
     });
   }
 
-  if (deepReason.action) {
+  if (actionText) {
     items.push({
       label: "補助的な一致",
-      text: deepReason.action,
+      text: actionText,
     });
   }
 
-  if (rankReason) {
+  if (args.rankReason) {
     items.push({
       label: "上位になった理由",
-      text: rankReason,
+      text: args.rankReason,
     });
   }
 
-  if (comparisonText) {
+  if (args.comparisonText) {
     items.push({
       label: "他候補との差",
-      text: comparisonText,
+      text: args.comparisonText,
     });
   }
 
@@ -949,24 +961,36 @@ function buildJudgeSectionOrder(args: {
   return mode === "compat" ? sectionsForCompat : sectionsForNeed;
 }
 
-function buildJudgeSectionOrderFromDeepReason(deepReason?: DeepReason | null): JudgeSectionItem[] | null {
-  if (!deepReason) return null;
-
+function buildJudgeItemsFromNarrativeSources(args: {
+  recommendationReasonDetail?: {
+    shrineMeaning?: string | null;
+    actionMeaning?: string | null;
+  } | null;
+  deepReason?: NarrativeFallback | null;
+}): JudgeSectionItem[] | null {
   const items: JudgeSectionItem[] = [];
 
-  if (deepReason.shrineMeaning) {
+  // fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. no value here; caller must fall back to generated judge items
+  const shrineMeaningText =
+    args.recommendationReasonDetail?.shrineMeaning?.trim() || args.deepReason?.shrineMeaning?.trim() || "";
+  const actionText = args.recommendationReasonDetail?.actionMeaning?.trim() || args.deepReason?.action?.trim() || "";
+
+  if (shrineMeaningText) {
     items.push({
       key: "meaning",
       title: "この神社をすすめる理由",
-      body: deepReason.shrineMeaning,
+      body: shrineMeaningText,
     });
   }
 
-  if (deepReason.action) {
+  if (actionText) {
     items.push({
       key: "action",
       title: "参拝を置く意味",
-      body: deepReason.action,
+      body: actionText,
     });
   }
 
@@ -975,7 +999,7 @@ function buildJudgeSectionOrderFromDeepReason(deepReason?: DeepReason | null): J
 
 function buildMeaningSection(args: {
   lead: string;
-  deepReason?: DeepReason | null;
+  deepReason?: NarrativeFallback | null;
   recommendationReasonDetail?: {
     shrineMeaning?: string | null;
     actionMeaning?: string | null;
@@ -985,6 +1009,10 @@ function buildMeaningSection(args: {
   mode: ConciergeMode;
   breakdown?: ConciergeBreakdown | null;
 }): DetailMeaningSection {
+  // fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. generated fallback from shrine/breakdown data
   const detailItems: DetailMeaningItem[] = [
     args.recommendationReasonDetail?.shrineMeaning
       ? {
@@ -1002,9 +1030,15 @@ function buildMeaningSection(args: {
       : null,
   ].filter((item): item is DetailMeaningItem => Boolean(item));
 
-  const deepItems = detailItems.length > 0 ? detailItems : buildJudgeSectionOrderFromDeepReason(args.deepReason);
+  const narrativeItems =
+    detailItems.length > 0
+      ? detailItems
+      : buildJudgeItemsFromNarrativeSources({
+          recommendationReasonDetail: args.recommendationReasonDetail,
+          deepReason: args.deepReason,
+        });
 
-  const fallbackItems: DetailMeaningItem[] = deepItems ?? [
+  const fallbackItems: DetailMeaningItem[] = narrativeItems ?? [
     {
       key: "meaning",
       title: "この神社をすすめる理由",
@@ -1145,13 +1179,7 @@ function buildHeroMeaningCopy(args: {
   recommendationReasonDetail?: {
     heroMeaningCopy?: string | null;
   } | null;
-  conciergeDeepReason: {
-    interpretation?: string | null;
-    shrineMeaning?: string | null;
-    action?: string | null;
-    short?: string | null;
-    heroMeaningCopy?: string | null;
-  } | null;
+  conciergeDeepReason: NarrativeFallback | null;
   conciergeExplanationPayload?: ExplanationPayload | null;
   conciergeBreakdown?: ConciergeBreakdown | null;
   recommendationRankExplanation?: {
@@ -1162,6 +1190,10 @@ function buildHeroMeaningCopy(args: {
 }): string | null {
   const mode = resolveConciergeMode(args.conciergeMode);
 
+  // fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. generated fallback from explanation/breakdown/mode
   const detailHeroMeaningCopy = args.recommendationReasonDetail?.heroMeaningCopy?.trim();
   if (detailHeroMeaningCopy) return detailHeroMeaningCopy;
 
@@ -1276,41 +1308,46 @@ export function buildShrineDetailModel({
     shrineSymbolTags: null,
   });
 
-  const consultationSummary = isConciergeContext
-    ? (recommendationReasonDetail?.consultationSummary ??
-      narrative.meaning.consultationSummary ??
-      conciergeDeepReason?.consultationSummary ??
-      null)
-    : null;
+  const consultationSummary = isConciergeContext ? (recommendationReasonDetail?.consultationSummary ?? null) : null;
 
+  // concierge narrative existence check follows the same order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. conciergeReason text
   const hasConciergeNarrative =
     isConciergeContext &&
     Boolean(
       recommendationReasonDetail?.consultationSummary ||
+      recommendationReasonDetail?.shrineMeaning ||
+      recommendationReasonDetail?.actionMeaning ||
       conciergeDeepReason?.interpretation ||
+      conciergeDeepReason?.shrineMeaning ||
+      conciergeDeepReason?.action ||
       (typeof conciergeReason === "string" && conciergeReason.trim().length > 0),
     );
 
   const proposal = hasConciergeNarrative ? "今回の相談の整理" : fallbackProposal;
 
-  const proposalLead = isConciergeContext
-    ? (narrative.meaning.lead ??
-      resolveDeepReasonLead({
-        ctx,
-        conciergeDeepReason,
-        conciergeReason,
-        recommendationReasonDetail,
-        mode,
-        explanationPayload,
-      }))
-    : resolveDeepReasonLead({
-        ctx,
-        conciergeDeepReason,
-        conciergeReason,
-        recommendationReasonDetail,
-        mode,
-        explanationPayload,
-      });
+  // lead fallback order:
+  // 1. recommendationReasonDetail.consultationSummary
+  // 2. conciergeDeepReason.interpretation / conciergeReason
+  // 3. generated lead
+  const proposalLead = resolveDetailLead({
+    ctx,
+    recommendationReasonDetail,
+    conciergeDeepReason,
+    conciergeReason,
+    generatedLead: isConciergeContext
+      ? (narrative.meaning.lead ??
+        buildProposalLead({
+          mode,
+          explanationPayload,
+        }))
+      : buildProposalLead({
+          mode,
+          explanationPayload,
+        }),
+  });
 
   const rankReason = narrative.ranking.rankReason;
 
@@ -1324,15 +1361,38 @@ export function buildShrineDetailModel({
     explanationPayload,
   });
 
-  const deepProposalWhy = buildProposalWhyFromDeepReason(conciergeDeepReason, rankReason, comparisonText);
-  const proposalWhy = isConciergeContext && deepProposalWhy ? deepProposalWhy : fallbackProposalWhy;
+  // proposalWhy fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. generated breakdown-based fallback
+  const narrativeProposalWhy = buildProposalWhyFromNarrativeSources({
+    recommendationReasonDetail,
+    deepReason: conciergeDeepReason,
+    rankReason,
+    comparisonText,
+  });
 
-  const judgeLead = resolveDeepReasonLead({
+  const proposalWhy = isConciergeContext && narrativeProposalWhy ? narrativeProposalWhy : fallbackProposalWhy;
+
+  // lead fallback order:
+  // 1. recommendationReasonDetail.consultationSummary
+  // 2. conciergeDeepReason.interpretation / conciergeReason
+  // 3. generated lead
+  const judgeLead = resolveDetailLead({
     ctx,
+    recommendationReasonDetail,
     conciergeDeepReason,
     conciergeReason,
-    mode,
-    explanationPayload,
+    generatedLead: isConciergeContext
+      ? (narrative.meaning.lead ??
+        buildProposalLead({
+          mode,
+          explanationPayload,
+        }))
+      : buildProposalLead({
+          mode,
+          explanationPayload,
+        }),
   });
 
   const goriyakuText =
@@ -1340,11 +1400,18 @@ export function buildShrineDetailModel({
       ? `${benefitLabels.slice(0, 3).join("・")}のご利益が、今回の相談内容に近い方向です。`
       : "この神社のご利益が、今回の相談内容に近い方向です。";
 
-  const deepJudgeItems = buildJudgeSectionOrderFromDeepReason(conciergeDeepReason);
+  // judgeItems fallback order:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. generated judge items
+  const narrativeJudgeItems = buildJudgeItemsFromNarrativeSources({
+    recommendationReasonDetail,
+    deepReason: conciergeDeepReason,
+  });
 
   const judgeItems =
-    isConciergeContext && deepJudgeItems
-      ? deepJudgeItems
+    isConciergeContext && narrativeJudgeItems
+      ? narrativeJudgeItems
       : buildJudgeSectionOrder({
           mode,
           explanationPayload,
@@ -1381,6 +1448,10 @@ export function buildShrineDetailModel({
     ctx,
   });
 
+  // meaningSection fallback order is handled inside buildMeaningSection:
+  // 1. recommendationReasonDetail
+  // 2. conciergeDeepReason
+  // 3. generated fallback
   const meaningSection = buildMeaningSection({
     lead: judgeLead,
     deepReason: conciergeDeepReason,
