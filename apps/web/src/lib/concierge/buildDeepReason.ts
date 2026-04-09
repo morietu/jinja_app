@@ -1,14 +1,10 @@
 // apps/web/src/lib/concierge/buildDeepReason.ts
 import { sanitizeCopyText, normalizeCopyText } from "@/lib/concierge/conciergeCopyRules";
+import type { NarrativeFallback } from "@/lib/concierge/narrative/types";
 import { findShrineMeaning } from "./findShrineMeaning";
 import { buildInterpretation, type ReasonNeedTag } from "./buildInterpretation";
 
-export type DeepReason = {
-  interpretation: string | null;
-  shrineMeaning: string | null;
-  action: string | null;
-  short: string | null;
-};
+export type DeepReason = NarrativeFallback;
 
 type ShrineTone = "strong" | "quiet" | "tight" | "neutral";
 
@@ -20,7 +16,7 @@ type Args = {
   shrineTone?: ShrineTone | null;
 };
 
-export function buildDeepReason(args: Args): DeepReason {
+export function buildDeepReason(args: Args): NarrativeFallback {
   const found = findShrineMeaning(args.shrineName);
   const tone = found?.tone ?? args.shrineTone ?? "neutral";
 

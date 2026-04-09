@@ -29,7 +29,7 @@ export default function PrimaryRecommendationCard({
     needTags,
   });
 
-  const description = [vm.why.primaryReason, vm.why.secondaryReason, vm.why.summary].filter(Boolean).join(" ");
+  const description = [vm.list.primaryPhrase, vm.list.secondaryPhrase, vm.list.summary].filter(Boolean).join(" ");
 
   const chips = [...(vm.hero.topReasonLabel ? [vm.hero.topReasonLabel] : [])];
 

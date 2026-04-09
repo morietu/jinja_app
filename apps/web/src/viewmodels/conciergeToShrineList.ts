@@ -188,7 +188,7 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         },
       });
 
-      const explanationSummary = r.explanation?.summary?.trim() || reasonVm.list.summary || reasonVm.why.summary;
+      const explanationSummary = r.explanation?.summary?.trim() || reasonVm.list.summary;
       const rawReason =
         r._explanation_payload?.original_reason?.trim() || r.reason?.trim() || explanationSummary || null;
 
@@ -197,17 +197,14 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         primaryReasonLabel,
         fallbackTags: rawTags,
       });
-      const primaryMeaning =
-        buildListPrimaryReason(name, primaryTag, rawReason) ??
-        reasonVm.list.primaryPhrase ??
-        reasonVm.why.primaryReason;
+      const primaryMeaning = buildListPrimaryReason(name, primaryTag, rawReason) ?? reasonVm.list.primaryPhrase;
 
       const deepReason = {
-        interpretation: reasonVm.detail.consultationSummary ?? reasonVm.interpretation.consultationSummary,
-        shrineMeaning: reasonVm.detail.shrineMeaning ?? reasonVm.interpretation.shrineMeaning,
-        action: reasonVm.detail.actionMeaning ?? reasonVm.interpretation.actionMeaning ?? null,
-        short: reasonVm.list.primaryPhrase ?? reasonVm.why.primaryReason,
-        heroMeaningCopy: reasonVm.detail.heroMeaningCopy ?? null,
+        interpretation: reasonVm.detail.consultationSummary,
+        shrineMeaning: reasonVm.detail.shrineMeaning,
+        action: reasonVm.detail.actionMeaning ?? null,
+        short: reasonVm.list.primaryPhrase,
+        heroMeaningCopy: reasonVm.detail.heroMeaningCopy,
       };
 
       return {
