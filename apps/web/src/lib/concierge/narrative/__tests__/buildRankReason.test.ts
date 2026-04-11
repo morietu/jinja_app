@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ConciergeBreakdown } from "@/lib/api/concierge";
 import { buildRankReason } from "@/lib/concierge/narrative/buildRankReason";
 
 describe("buildRankReason", () => {
@@ -23,7 +24,15 @@ describe("buildRankReason", () => {
       breakdown: {
         score_total: 1,
         score_element: 2,
-      },
+        score_need: 0,
+        score_popular: 0,
+        weights: {
+          element: 1,
+          need: 1,
+          popular: 1,
+        },
+        matched_need_tags: [],
+      } satisfies ConciergeBreakdown,
     });
 
     expect(text).toContain("相性軸で他候補より上位");
