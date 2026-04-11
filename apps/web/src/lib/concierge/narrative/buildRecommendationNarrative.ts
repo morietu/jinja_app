@@ -391,23 +391,7 @@ function buildStatePriorityText(args: { mode: ConciergeMode; primaryNeed?: NeedT
   return "今は答えを出すことより先に、状態を整えながら優先順位を見直せる場を優先するのが合っています。";
 }
 
-function buildStateShrineMeaningText(args: {
-  mode: ConciergeMode;
-  primaryNeed?: NeedTag | null;
-  shrineName?: string | null;
-  shrineTone?: ShrineTone;
-  benefitLabels?: string[];
-}): string {
-  const primaryNeed = args.primaryNeed ?? null;
-  const shrineTone = args.shrineTone ?? "neutral";
 
-  return buildShrineBenefitText({
-    shrineName: args.shrineName,
-    benefitLabels: args.benefitLabels,
-    primaryNeed,
-    shrineTone,
-  });
-}
 
 function buildConsultationSummary(args: {
   mode: ConciergeMode;
