@@ -9,7 +9,8 @@ export type ConciergeLogEvent =
   | "filter_clear"
   | "close"
   | "back_to_entry"
-  | "filter_close";
+  | "filter_close"
+  | "save_concierge_thread_click";
 
 type LogItem = {
   at: string;

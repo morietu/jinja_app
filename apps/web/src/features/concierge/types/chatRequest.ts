@@ -13,9 +13,15 @@ export type ConciergeChatFilters = {
   free_text?: string; // extra_condition を最終的にここに寄せる
 };
 
+export type ConciergeMode = "need" | "compat";
+
 export type ConciergeChatRequestV1 = {
   version: 1;
   query: string;
+  mode?: ConciergeMode;
   thread_id?: string;
   filters?: ConciergeChatFilters;
+  birthdate?: string;
+  goriyaku_tag_ids?: number[];
+  extra_condition?: string;
 };

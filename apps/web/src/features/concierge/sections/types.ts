@@ -136,4 +136,5 @@ export type RendererAction =
   | { type: "filter_set_birthdate"; birthdate: string }
   | { type: "filter_toggle_tag"; tagId: number }
   | { type: "filter_set_extra"; extraCondition: string }
-  | { type: "filter_clear" };
+  | { type: "filter_clear" }
+  | { type: "save_concierge_thread" };

@@ -63,7 +63,7 @@ describe("MyPageScreen", () => {
     render(<MyPageScreen />);
     const link = screen.getByRole("link", { name: "ログインへ" });
     const href = link.getAttribute("href")!;
-    expect(decodeURIComponent(href)).toBe("/login?next=/mypage?tab=goshuin");
+    expect(decodeURIComponent(href)).toBe("/auth/login?returnTo=/mypage?tab=goshuin");
   });
 
   it("ログイン時は アップロードと一覧を表示する", () => {

@@ -28,6 +28,6 @@ describe("MyPage 未ログイン", () => {
 
     // MyPageView は初回 loading を経由するので findByRole にする
     const link = await screen.findByRole("link", { name: "ログインへ" });
-    expect(link).toHaveAttribute("href", "/login?next=%2Fmypage%3Ftab%3Dgoshuin");
+    expect(link).toHaveAttribute("href", "/auth/login?returnTo=%2Fmypage%3Ftab%3Dgoshuin");
   });
 });

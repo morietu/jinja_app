@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFavorite } from "@/hooks/useFavorite";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
+import { buildLoginHref } from "@/lib/nav/login";
 
 type Props = {
   shrineId: number;
@@ -26,7 +27,7 @@ export default function ShrineSaveButton({ shrineId, nextPath }: Props) {
       const status = e?.response?.status ?? e?.status;
       if (status === 401) {
         const next = nextPath ?? buildShrineHref(shrineId);
-        router.push(`/login?next=${encodeURIComponent(next)}`);
+        router.push(buildLoginHref(next));
         return;
       }
       setErr("保存の更新に失敗しました");

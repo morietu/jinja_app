@@ -24,6 +24,17 @@
 ---
 
 ## 🗂 マイルストーン（チェックリスト）
+### 完了: auth-state-boundary の整理
+
+- [x] `AuthProvider + /api/users/me/` を認証状態の source of truth に固定
+- [x] `AuthState / ProfileState / ConciergeSessionState` を分離
+- [x] 表示名優先順位を `sessionNickname > profile.nickname > あなた` に固定
+- [x] `/auth/login?returnTo=...` `/auth/register?returnTo=...` を正規認証導線に統一
+- [x] `/login` `/signup` を互換リダイレクトへ変更
+- [x] `/concierge` は guest 利用可、保存系のみ auth required に整理
+- [x] `/mypage` の未ログイン時表示を `AuthProvider` 起点に統一
+- [x] 旧 `/login?next=` 参照を解消
+- [x] `/mypage` 未ログイン時の `/api/users/me/` 発火を AuthProvider 由来の1回に抑制
 
 ### M0: 事故再発防止（今すぐ）
 

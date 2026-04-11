@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 import { useRouter } from "next/navigation";
 
+import { buildLoginHref } from "@/lib/nav/login";
+
 
 export default function MyPageScreen() {
   const router = useRouter();
@@ -50,7 +52,7 @@ export default function MyPageScreen() {
           <p className="mb-3">御朱印帳を利用するにはログインしてください。</p>
           <Link
             className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            href={`/login?next=${encodeURIComponent(hasShrine ? `/mypage?tab=goshuin&shrine=${shrineId}` : `/mypage?tab=goshuin`)}`}
+            href={buildLoginHref(hasShrine ? `/mypage?tab=goshuin&shrine=${shrineId}` : `/mypage?tab=goshuin`)}
           >
             ログインへ
           </Link>

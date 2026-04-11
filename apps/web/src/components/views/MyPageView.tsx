@@ -9,6 +9,7 @@ import type { Favorite } from "@/lib/api/favorites";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
 import FavoritesSection from "@/features/mypage/components/FavoritesSection";
 import Link from "next/link";
+import { buildLoginHref } from "@/lib/nav/login";
 
 type Props = { initialFavorites: Favorite[] };
 
@@ -101,7 +102,7 @@ export default function MyPageView({ initialFavorites }: Props) {
         <div className="rounded-lg border bg-white p-6">
           <p className="mb-3">利用するにはログインしてください。</p>
           <Link
-            href={`/login?next=${encodeURIComponent(next)}`}
+            href={buildLoginHref(next)}
             className="inline-block rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             ログインへ
