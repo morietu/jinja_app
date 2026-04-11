@@ -2,16 +2,16 @@
 "use client";
 
 import * as React from "react";
-import type { SignalLevel } from "@/lib/shrine/buildShrineExplanation";
 
-type LevelLike = SignalLevel | "low";
+
+type SignalLevel = "strong" | "mid" | "soft";
 
 type Props = {
   title: string;
   summary: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
-  level?: LevelLike;
+  level?: "strong" | "mid" | "soft";
   hint?: string | null;
   materials?: Array<{ label: string; value: string }>;
 };
@@ -20,12 +20,11 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function levelLabel(level?: LevelLike) {
-  if (!level) return null;
-  if (level === "low") return "低";
+function levelLabel(level?: SignalLevel) {
   if (level === "strong") return "高";
-  if (level === "medium") return "中";
-  return "低"; // weak
+  if (level === "soft") return "低";
+  if (level === "mid") return "中";
+  return "中";
 }
 
 export default function DetailDisclosureBlock({
