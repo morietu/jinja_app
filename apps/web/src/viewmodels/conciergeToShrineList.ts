@@ -1,5 +1,6 @@
 import type { ConciergeResultItem } from "@/viewmodels/conciergeResultItem";
 import { buildRecommendationReasonViewModel } from "@/lib/concierge/buildRecommendationReasonViewModel";
+import { buildShrineHref } from "@/lib/nav/buildShrineHref";
 
 export type ConciergeResponse = {
   ok: boolean;
@@ -207,9 +208,21 @@ export function conciergeToShrineListItems(resp: ConciergeResponse): ConciergeRe
         heroMeaningCopy: reasonVm.detail.heroMeaningCopy,
       };
 
+      const detailHref = buildShrineHref(r.shrine_id, {
+        query: threadId
+          ? {
+              ctx: "concierge",
+              tid: threadId,
+            }
+          : {
+              ctx: "concierge",
+            },
+      });
+
       return {
         id,
         tid: threadId,
+        detailHref,
         cardProps: {
           shrineId: r.shrine_id,
           title: name,
