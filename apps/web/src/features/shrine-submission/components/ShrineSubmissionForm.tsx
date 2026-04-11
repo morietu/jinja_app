@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
 
 import { getGoriyakuTags } from "@/lib/api/tags";
@@ -19,6 +20,8 @@ type Props = {
 };
 
 export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
+  const router = useRouter();
+
   const [form, setForm] = useState<ShrineSubmissionFormValues>({
     name: "",
     address: "",
@@ -28,6 +31,7 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
   const [tags, setTags] = useState<ShrineSubmissionTag[]>([]);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateQuery, setDuplicateQuery] = useState<string | null>(null);
 
   useEffect(() => {
     getGoriyakuTags()
@@ -55,10 +59,16 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
     });
   };
 
+  const isDuplicateMessage = (message?: string) => {
+    if (!message) return false;
+    return message.includes("重複") || message.includes("既に存在");
+  };
+
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.currentTarget;
     setForm((prev) => ({ ...prev, [name]: value }));
     clearErrors(name, "non_field_errors", "general");
+    setDuplicateQuery(null);
   };
 
   const toggleTag = (id: number) => {
@@ -66,6 +76,7 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
 
     setSelectedTags((prev) => (prev.includes(id) ? prev.filter((tagId) => tagId !== id) : [...prev, id]));
     clearErrors("tags", "non_field_errors", "general");
+    setDuplicateQuery(null);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -88,6 +99,7 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
     }
 
     setIsSubmitting(true);
+    setDuplicateQuery(null);
     clearErrors("name", "address", "tags", "note", "general");
 
     try {
@@ -113,10 +125,19 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
             }
           }
 
+          const backendMessage = next.non_field_errors ?? next.general ?? "入力内容を確認してください。";
+
+          const duplicate = isDuplicateMessage(backendMessage);
+
           setErrors({
             ...next,
-            general: next.non_field_errors ?? "入力内容を確認してください。",
+            general: duplicate ? "この神社はすでに登録されている可能性があります。" : backendMessage,
           });
+
+          if (duplicate) {
+            setDuplicateQuery(name);
+          }
+
           return;
         }
 
@@ -137,7 +158,26 @@ export function ShrineSubmissionForm({ onSubmitted, onRequireAuth }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      {errors.general && <p className="text-sm text-red-600">{errors.general}</p>}
+      {errors.general && (
+        <div className="space-y-3">
+          <p className="text-sm text-red-600">{errors.general}</p>
+
+          {duplicateQuery && (
+            <>
+              <p className="text-sm text-slate-700">既存の神社をご確認ください。</p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700"
+                  onClick={() => router.push(`/shrines?q=${encodeURIComponent(duplicateQuery)}`)}
+                >
+                  既存神社を見る
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <label htmlFor="name" className="text-sm font-medium text-slate-900">
