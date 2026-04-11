@@ -607,6 +607,10 @@ class ConciergeChatView(APIView):
                 query=query,
             )
 
+            # 念のための安全柵
+            if public_mode not in {"need", "compat"}:
+                public_mode = "compat" if birthdate and not query else "need"
+
             flow = (
                 str(data.get("flow")).upper()
                 if str(data.get("flow")).upper() in {"A", "B"}

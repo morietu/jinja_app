@@ -754,17 +754,13 @@ def _diversify_by_need(
 
 def _resolve_public_mode(
     *,
-    mode: Optional[str],
-    birthdate: Optional[str],
-    query: Optional[str],
-) -> PublicMode:
-    mode_norm = str(mode or "").strip().lower()
-
-    if mode_norm == "compat":
-        return "compat"
-
-    if mode_norm == "need":
-        return "need"
+    mode: str | None,
+    birthdate: str | None,
+    query: str | None,
+) -> str:
+    explicit = str(mode or "").strip().lower()
+    if explicit in {"need", "compat"}:
+        return explicit
 
     has_birthdate = bool(str(birthdate or "").strip())
     has_query = bool(str(query or "").strip())
@@ -839,39 +835,6 @@ def build_recommendation_reason(
             public_mode,
             matched_tags,
             primary_label,
-            (rec.get("breakdown") or {}).get("score_need"),
-        )
-    except Exception:
-        pass
-
-    name = str(rec.get("name") or "").strip()
-    goriyaku = str(rec.get("goriyaku") or "").strip()
-
-    if primary_label:
-        return _build_need_reason_text(
-            primary_label,
-            name=name,
-            goriyaku=goriyaku,
-        )
-
-    if matched_tags:
-        return _build_need_reason_text(
-            matched_tags[0],
-            name=name,
-            goriyaku=goriyaku,
-        )
-
-    matched_tags = [
-        str(tag).strip() for tag in matched if isinstance(tag, str) and str(tag).strip()
-    ]
-
-    try:
-        log.info(
-            "[dbg] build_reason shrine_id=%r name=%r public_mode=%r matched_need_tags=%r score_need=%r",
-            rec.get("shrine_id"),
-            rec.get("name"),
-            public_mode,
-            matched_tags,
             (rec.get("breakdown") or {}).get("score_need"),
         )
     except Exception:
