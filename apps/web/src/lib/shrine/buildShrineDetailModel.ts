@@ -673,7 +673,7 @@ function buildRankReasonText(args: {
   }
 
   if (args.mode === "need" && args.primaryNeed === "courage") {
-    return "今回は「前進」のテーマとの一致が強く、他候補より行動のきっかけを持ちやすい候補として上位に入りました。";
+    return "今回は『前進』のテーマとの一致が強く、他候補と比べても行動のきっかけを持ちやすい候補として上位に入りました。";
   }
 
   if (args.mode === "need" && args.primaryNeed === "mental") {
