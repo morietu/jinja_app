@@ -998,7 +998,7 @@ function buildJudgeItemsFromNarrativeSources(args: {
 }
 
 function buildMeaningSection(args: {
-  lead: string;
+  lead?: string | null;
   deepReason?: NarrativeFallback | null;
   recommendationReasonDetail?: {
     shrineMeaning?: string | null;
@@ -1063,7 +1063,7 @@ function buildMeaningSection(args: {
   return {
     kind: "meaning",
     heading: "③ 神社との意味の接続",
-    lead: args.lead,
+    lead: args.lead?.trim() || undefined,
     items: fallbackItems,
   };
 }
@@ -1453,7 +1453,7 @@ export function buildShrineDetailModel({
   // 2. conciergeDeepReason
   // 3. generated fallback
   const meaningSection = buildMeaningSection({
-    lead: judgeLead,
+    lead: undefined,
     deepReason: conciergeDeepReason,
     recommendationReasonDetail,
     shrineName: cardProps.title ?? null,
