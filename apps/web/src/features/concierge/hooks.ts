@@ -1,4 +1,3 @@
-// apps/web/src/features/concierge/hooks.ts
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +16,7 @@ import {
 } from "@/lib/api/concierge";
 
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
+import { normalizeBirthdateInput } from "@/lib/date/normalizeBirthdateInput";
 
 /* ====== スレッド一覧 ====== */
 
@@ -170,16 +170,39 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
     async (input: SendInput) => {
       const baseFilters = options?.filters;
 
+      const inputBirthdate =
+        typeof input === "string"
+          ? undefined
+          : typeof input.birthdate === "string" && input.birthdate.trim()
+            ? normalizeBirthdateInput(input.birthdate.trim()) ?? undefined
+            : undefined;
+
       const req: ConciergeChatRequestV1 =
         typeof input === "string"
           ? { version: 1, query: input.trim(), thread_id: threadId ?? undefined }
           : { ...input, version: 1, thread_id: threadId ?? undefined };
+
+      const normalizedQuery = typeof req.query === "string" ? req.query.trim() : "";
+      const rescuedBirthdate = !inputBirthdate && req.mode === "compat" ? normalizeBirthdateInput(normalizedQuery) ?? undefined : undefined;
+
+      if (rescuedBirthdate) {
+        req.query = "";
+      } else {
+        req.query = normalizedQuery;
+      }
 
       // ✅ filters を必ず合成（input 側が優先、無ければ base）
       const mergedFiltersRaw: Record<string, any> = {
         ...(baseFilters ?? {}),
         ...((req as any).filters ?? {}),
       };
+
+      if (!mergedFiltersRaw.birthdate && inputBirthdate) {
+        mergedFiltersRaw.birthdate = inputBirthdate;
+      }
+      if (!mergedFiltersRaw.birthdate && rescuedBirthdate) {
+        mergedFiltersRaw.birthdate = rescuedBirthdate;
+      }
 
       // ✅ undefined / null / 空文字 / 空配列 を落とす
       const mergedFiltersClean = Object.fromEntries(
@@ -222,47 +245,39 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       if (Array.isArray(compat.goriyaku_tag_ids) && compat.goriyaku_tag_ids.length > 0) {
         (req as any).goriyaku_tag_ids = compat.goriyaku_tag_ids;
       }
-      if (typeof compat.birthdate === "string" && compat.birthdate.trim()) {
+      if (inputBirthdate) {
+        (req as any).birthdate = inputBirthdate;
+      } else if (rescuedBirthdate) {
+        (req as any).birthdate = rescuedBirthdate;
+      } else if (typeof compat.birthdate === "string" && compat.birthdate.trim()) {
         (req as any).birthdate = compat.birthdate.trim();
       }
 
-      // query は必須（空なら送らない）
-      if (!req.query?.trim()) return;
+      const mode = req.mode;
+      const hasBirthdate = typeof (req as any).birthdate === "string" && (req as any).birthdate.trim().length > 0;
+
+      const hasUsableFilters =
+        (Array.isArray((req as any).goriyaku_tag_ids) && (req as any).goriyaku_tag_ids.length > 0) ||
+        (typeof (req as any).extra_condition === "string" && (req as any).extra_condition.trim().length > 0) ||
+        (typeof (req as any).filters?.birthdate === "string" && (req as any).filters.birthdate.trim().length > 0) ||
+        (Array.isArray((req as any).filters?.goriyaku_tag_ids) && (req as any).filters.goriyaku_tag_ids.length > 0) ||
+        (typeof (req as any).filters?.extra_condition === "string" &&
+          (req as any).filters.extra_condition.trim().length > 0);
+
+      if (mode === "compat") {
+        if (!req.query?.trim() && !hasBirthdate && !hasUsableFilters) {
+          return;
+        }
+      } else {
+        if (!req.query?.trim() && !hasUsableFilters) {
+          return;
+        }
+      }
 
       setSending(true);
       setError(null);
 
       const label = options?.debugLabel ?? "useConciergeChat";
-
-      console.log(`[concierge] ${label} filters-build`, {
-        threadId,
-        baseFilters,
-        mergedFiltersRaw,
-        mergedFiltersClean,
-        compat,
-        finalReq: req, // ← これが一番大事
-        finalReqFilters: (req as any).filters,
-        topLevelCompat: {
-          birthdate: (req as any).birthdate,
-          goriyaku_tag_ids: (req as any).goriyaku_tag_ids,
-          extra_condition: (req as any).extra_condition,
-        },
-      });
-
-      console.debug(`[concierge] ${label} POST /chat`, {
-        threadId,
-        query: req.query,
-        filters: (req as any).filters,
-        req, // ✅ 最終形（version/query/thread_id/filters）を丸ごと出す
-      });
-
-      console.log("[concierge] filters-build", {
-        baseFilters,
-        mergedFiltersRaw,
-        mergedFiltersClean,
-        compat,
-        finalReq: { ...req, filters: (req as any).filters },
-      });
 
       try {
         const res = await postConciergeChat(req);

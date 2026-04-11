@@ -24,6 +24,8 @@ type Props = {
 
   extraCondition: string;
   onExtraConditionChange: (v: string) => void;
+
+  canApply?: boolean;
 };
 
 const QUICK_PRESETS: readonly { label: string; value: string }[] = [
@@ -34,19 +36,20 @@ const QUICK_PRESETS: readonly { label: string; value: string }[] = [
   { label: "近場優先", value: "できるだけ近い場所を優先して" },
 ];
 
+const INITIAL_VISIBLE_GORIYAKU_COUNT = 4;
+
 function mergeExtra(prev: string, add: string) {
   const p = (prev || "").trim();
   const a = (add || "").trim();
   if (!a) return p;
   if (!p) return a;
-  // 既に含まれてたら重ねない（雑に効く）
   if (p.includes(a)) return p;
   return `${p}\n${a}`;
 }
 
 export default function ConciergeFilterPanel({
   isOpen,
-  title = "条件を追加して絞る",
+  title = "希望を補足する",
   onClose,
   onApply,
   birthdate,
@@ -60,70 +63,65 @@ export default function ConciergeFilterPanel({
   tagsError,
   extraCondition,
   onExtraConditionChange,
+  canApply = false,
 }: Props) {
   if (!isOpen) return null;
 
+
   const selected = new Set(selectedTagIds);
+  const visibleGoriyakuTags = goriyakuTags.slice(0, INITIAL_VISIBLE_GORIYAKU_COUNT);
+  const hiddenGoriyakuCount = Math.max(goriyakuTags.length - INITIAL_VISIBLE_GORIYAKU_COUNT, 0);
 
   return (
-    <section className="mx-auto w-full max-w-md min-w-0 space-y-3 rounded-xl border bg-white p-3">
+    <section
+      className="mx-auto w-full max-w-md min-w-0 space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-2 sm:max-h-none"
+    >
       <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold text-slate-700">{title}</div>
+        <div className="text-[10px] font-semibold text-slate-600">{title}</div>
         <button type="button" className="text-[11px] font-semibold text-slate-600 hover:underline" onClick={onClose}>
           閉じる
         </button>
       </div>
 
-      {/* 相性のヒント */}
-      <div className="space-y-2">
-        <div className="text-xs font-semibold text-slate-700">相性のヒント（任意）</div>
-
-        <div className="grid gap-2">
+      <div className="grid gap-0.5 rounded-xl border border-slate-200 bg-white p-2">
+        <div className="space-y-0.5">
+          <div className="text-[10px] font-semibold text-slate-500">誕生日（任意）</div>
+          <div className="text-[10px] text-slate-400">相性の参考にします</div>
           <input
             type="date"
             value={birthdate}
             onChange={(e) => onBirthdateChange(e.target.value)}
-            className="w-full rounded-xl border px-3 py-2 text-sm"
+            className="w-full rounded-xl border px-3 py-1.5 text-sm"
           />
+        </div>
 
-          {element4 ? (
-            <div className="text-xs text-slate-600">
-              あなたの傾向：<span className="font-semibold">{element4}</span>（参考）
-            </div>
-          ) : null}
-
-          {/* ✅ 誕生日なしでも押せる入口（気分プリセット） */}
-          <div className="space-y-1">
-              <div className="text-[11px] font-semibold text-slate-600">気分チップ（誕生日なしでもOK）</div>
-              <div className="text-[11px] text-slate-500">タップで「補足条件」に追加されます</div>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
-                  onClick={() => onExtraConditionChange(mergeExtra(extraCondition, p.value))}
-                  title={p.value}
-                >
-                  {p.label}
-                </button>
-              ))}
-
-              {/* 便利ボタン：一発で空にする */}
-              {extraCondition.trim() ? (
-                <button
-                  type="button"
-                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
-                  onClick={() => onExtraConditionChange("")}
-                >
-                  クリア
-                </button>
-              ) : null}
-            </div>
+        {element4 ? (
+          <div className="text-[11px] text-slate-500">
+            あなたの傾向: <span className="font-semibold text-slate-700">{element4}</span>
           </div>
+        ) : null}
 
-          {element4 && suggestedTags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+        <div className="space-y-0">
+          <div className="text-[10px] font-semibold text-slate-500">今の気分に近いもの</div>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                onClick={() => onExtraConditionChange(mergeExtra(extraCondition, p.value))}
+                title={p.value}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {element4 && suggestedTags.length > 0 ? (
+          <div className="space-y-0.5">
+            <div className="text-[10px] font-semibold text-slate-500">おすすめ</div>
+            <div className="flex flex-wrap gap-1.5">
               {suggestedTags.map((t) => {
                 const on = selected.has(t.id);
                 return (
@@ -135,63 +133,74 @@ export default function ConciergeFilterPanel({
                     }`}
                     onClick={() => onToggleTag(t.id)}
                   >
-                    おすすめ {t.name}
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {tagsLoading || tagsError || visibleGoriyakuTags.length > 0 || hiddenGoriyakuCount > 0 ? (
+        <div className="space-y-1 rounded-xl border border-slate-200 bg-white p-2">
+          {tagsError ? <div className="text-xs text-red-600">{tagsError}</div> : null}
+          {tagsLoading ? <div className="text-xs text-slate-500">読み込み中…</div> : null}
+
+          {visibleGoriyakuTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {visibleGoriyakuTags.map((t) => {
+                const on = selected.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      on ? "border-emerald-600 bg-emerald-50" : "bg-white"
+                    }`}
+                    onClick={() => onToggleTag(t.id)}
+                  >
+                    {t.name}
                   </button>
                 );
               })}
             </div>
           ) : null}
+
+          {hiddenGoriyakuCount > 0 ? <div className="text-[11px] text-slate-500">他{hiddenGoriyakuCount}件</div> : null}
         </div>
-      </div>
+      ) : null}
 
-      {/* ご利益 */}
-      <div className="space-y-2">
-        <div className="text-xs font-semibold text-slate-700">ご利益</div>
-        {tagsError ? <div className="text-xs text-red-600">{tagsError}</div> : null}
-        {tagsLoading ? <div className="text-xs text-slate-500">読み込み中…</div> : null}
-
-        <div className="flex flex-wrap gap-2">
-          {goriyakuTags.map((t) => {
-            const on = selected.has(t.id);
-            return (
-              <button
-                key={t.id}
-                type="button"
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  on ? "border-emerald-600 bg-emerald-50" : "bg-white"
-                }`}
-                onClick={() => onToggleTag(t.id)}
-              >
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 補足条件 */}
-      <div className="space-y-2">
-        <div className="text-xs font-semibold text-slate-700">補足条件</div>
+      <div className="space-y-0.5 rounded-xl border border-slate-200 bg-white p-2">
         <textarea
           value={extraCondition}
           onChange={(e) => onExtraConditionChange(e.target.value)}
-          placeholder="例：静かな雰囲気、階段が少ない、など"
-          className="w-full rounded-xl border p-3 text-sm"
-          rows={3}
+          placeholder="例：静かな雰囲気がいい、階段は少なめがいい、など"
+          className="w-full rounded-xl border p-1.5 text-sm"
+          rows={1}
         />
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button type="button" className="rounded-xl border px-4 py-2 text-sm font-semibold" onClick={onClose}>
+      <div
+        className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50/95 pt-1.5 pb-0.5"
+      >
+        <button type="button" className="rounded-xl border px-3 py-1.5 text-sm font-semibold" onClick={onClose}>
           キャンセル
         </button>
 
         <button
           type="button"
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
           onClick={onApply}
+          disabled={false}
+          style={{ pointerEvents: "auto" }}
+          className={[
+            "relative z-20 rounded-xl px-3 py-1.5 text-sm font-semibold transition",
+            canApply
+              ? "bg-emerald-600 text-white hover:bg-emerald-700"
+              : "bg-slate-200 text-slate-400 cursor-not-allowed",
+          ].join(" ")}
         >
-          この条件で絞る
+          この内容に反映する
         </button>
       </div>
     </section>

@@ -75,14 +75,12 @@ export default function ConciergeSectionsRenderer({
   threadId: _threadId = null,
   isEntryRoute = false,
 }: Props) {
-  // ✅ hooks は必ず同じ順序
   useEffect(() => {
     const onOpen = () => onAction?.({ type: "add_condition" });
     window.addEventListener("concierge:open-filter", onOpen);
     return () => window.removeEventListener("concierge:open-filter", onOpen);
   }, [onAction]);
 
-  // ✅ filter state は map の外で1回だけ取る
   const filterState: ConciergeFilterState | null = useMemo(() => {
     const sec = payload.sections.find((s) => s.type === "filter") as any;
     return (sec?.state ?? null) as ConciergeFilterState | null;
@@ -104,6 +102,11 @@ export default function ConciergeSectionsRenderer({
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
 
+            const canApplyCompatFilter =
+              !!state.birthdate?.trim() ||
+              (state.selectedTagIds?.length ?? 0) > 0 ||
+              !!state.extraCondition?.trim();
+
             // 閉じ状態（プリセット選択 + 即絞り）
             if (!state.isOpen) {
               const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
@@ -119,93 +122,106 @@ export default function ConciergeSectionsRenderer({
               };
 
               const selectedPresets = presets.filter((p) => set.has(p));
-              const hasAny = selectedPresets.length > 0;
 
               return (
-                <DetailSection key={`filter-${i}`} title="条件で絞る">
-                  <p className="mb-2 text-xs text-slate-500">まずは条件を追加</p>
+                <div key={`filter-${i}-closed`}>
+                  <DetailSection title="条件で絞る">
+                    <p className="mb-2 text-xs text-slate-500">まずは条件を追加</p>
 
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {presets.map((p) => {
-                      const active = set.has(p);
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          className={[
-                            "rounded-full border px-3 py-1 text-xs font-semibold transition",
-                            active
-                              ? "bg-emerald-600 text-white border-emerald-600"
-                              : "bg-white text-slate-700 hover:bg-slate-50",
-                          ].join(" ")}
-                          onClick={() => togglePreset(p)}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedPresets.length > 0 && (
-                    <div className={`mb-3 ${conciergeSoftCardClass} text-xs leading-6 text-slate-600`}>
-                      追加済み: {selectedPresets.join(" / ")}
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {presets.map((p) => {
+                        const active = set.has(p);
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            className={[
+                              "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                              active
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-white text-slate-700 hover:bg-slate-50",
+                            ].join(" ")}
+                            onClick={() => togglePreset(p)}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
 
-                  {!isEntryRoute && (
+                    {selectedPresets.length > 0 && (
+                      <div className={`mb-3 ${conciergeSoftCardClass} text-xs leading-6 text-slate-600`}>
+                        追加済み: {selectedPresets.join(" / ")}
+                      </div>
+                    )}
+
+                    {!isEntryRoute && (
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
+                        onClick={() => onAction?.({ type: "back_to_entry" })}
+                        disabled={sending}
+                      >
+                        入口に戻る
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                      disabled={!canApplyCompatFilter || sending}
+                      onClick={() => {
+                        onAction?.({ type: "filter_apply" });
+                      }}
+                    >
+                      {sending ? "絞り込み中…" : "この条件で絞り込む"}
+                    </button>
+
                     <button
                       type="button"
                       className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
-                      onClick={() => onAction?.({ type: "back_to_entry" })}
-                      disabled={sending}
+                      onClick={() => onAction?.({ type: "add_condition" })}
                     >
-                      入口に戻る
+                      詳細条件を設定する
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                    disabled={!hasAny || sending}
-                    onClick={() => onAction?.({ type: "filter_apply" })}
-                  >
-                    {sending ? "絞り込み中…" : "この条件で絞り込む"}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold"
-                    onClick={() => onAction?.({ type: "add_condition" })}
-                  >
-                    詳細条件を設定する
-                  </button>
-                </DetailSection>
+                  </DetailSection>
+                </div>
               );
             }
 
-            // 開いた状態（既存のフィルタパネル）
             return (
-              <DetailSection key={`filter-${i}`} title={title}>
-                <ConciergeFilterPanel
-                  isOpen
-                  title={title}
-                  onClose={() => onAction?.({ type: "filter_close" })}
-                  onApply={() => onAction?.({ type: "filter_apply" })}
-                  birthdate={state.birthdate}
-                  onBirthdateChange={(v: string) => onAction?.({ type: "filter_set_birthdate", birthdate: v })}
-                  element4={state.element4}
-                  goriyakuTags={state.goriyakuTags}
-                  suggestedTags={state.suggestedTags}
-                  selectedTagIds={state.selectedTagIds}
-                  onToggleTag={(tagId: number) => onAction?.({ type: "filter_toggle_tag", tagId })}
-                  tagsLoading={state.tagsLoading}
-                  tagsError={state.tagsError}
-                  extraCondition={state.extraCondition}
-                  onExtraConditionChange={(v: string) => onAction?.({ type: "filter_set_extra", extraCondition: v })}
-                />
-              </DetailSection>
+              <div key={`filter-${i}-open`}>
+                <DetailSection title={title}>
+                  <div>
+                    <ConciergeFilterPanel
+                      isOpen
+                      title={title}
+                      onClose={() => onAction?.({ type: "filter_close" })}
+                      onApply={() => {
+                        onAction?.({ type: "filter_apply" });
+                      }}
+                      canApply={canApplyCompatFilter}
+                      birthdate={state.birthdate}
+                      onBirthdateChange={(v: string) => onAction?.({ type: "filter_set_birthdate", birthdate: v })}
+                      element4={state.element4}
+                      goriyakuTags={state.goriyakuTags}
+                      suggestedTags={state.suggestedTags}
+                      selectedTagIds={state.selectedTagIds}
+                      onToggleTag={(tagId: number) => onAction?.({ type: "filter_toggle_tag", tagId })}
+                      tagsLoading={state.tagsLoading}
+                      tagsError={state.tagsError}
+                      extraCondition={state.extraCondition}
+                      onExtraConditionChange={(v: string) =>
+                        onAction?.({ type: "filter_set_extra", extraCondition: v })
+                      }
+                    />
+                  </div>
+                </DetailSection>
+              </div>
             );
           }
+
+            
 
           case "recommendations": {
             const items = (sec as any).items ?? [];
