@@ -93,13 +93,21 @@ function buildRankReason(args: BuildShrineExplanationArgs): string {
 }
 
 function buildConsultationSummary(args: BuildShrineExplanationArgs): string {
-  const description = trimText((args.shrine as any)?.description);
+  const shrine = args.shrine;
+  const description = trimText((shrine as any)?.description);
+  const goriyaku = trimText((shrine as any)?.goriyaku);
+  const sajin = trimText((shrine as any)?.sajin);
+  const element = trimText((shrine as any)?.element);
 
   if (description) {
-    return "今は答えを急ぐより、状況や気持ちを整理しながら次の見方をつくる段階として読むのが自然です。";
+    return "今回の相談は、いま何を優先して見直すべきかを整理しながら、次の判断軸を整えていく文脈として受け取れます。";
   }
 
-  return "今の相談は、すぐに結論を出すよりも、状態を整えながら優先順位を見直す文脈として整理できます。";
+  if (goriyaku || sajin || element) {
+    return "今回の相談は、願いそのものを急いで決めるよりも、今の状態や優先順位を整理しながら向き合う文脈としてまとめられます。";
+  }
+
+  return "今回の相談は、いま抱えているテーマを一度ほどき、何を先に見直すかを整理する段階として読むのが自然です。";
 }
 
 function buildShrineMeaning(args: BuildShrineExplanationArgs): string {
@@ -109,18 +117,18 @@ function buildShrineMeaning(args: BuildShrineExplanationArgs): string {
   const sajin = trimText((shrine as any)?.sajin);
 
   if (description) {
-    return `この神社は「${clip(description, 56)}」という特徴を持ち、今回の相談に対して意味づけしやすい接点があります。`;
+    return `この神社は「${clip(description, 56)}」という特徴を持ち、今回の相談で主題になっている整理や見直しのテーマと接続しやすい神社です。`;
   }
 
   if (goriyaku) {
-    return `ご利益として「${clip(goriyaku, 56)}」が見られ、今回の相談テーマとの接続を作りやすい神社です。`;
+    return `ご利益として「${clip(goriyaku, 56)}」が見られ、今回の相談で求めている方向と結びつけて受け取りやすい神社です。`;
   }
 
   if (sajin) {
-    return `祭神や由緒の観点では「${clip(sajin, 56)}」が手がかりになり、今の相談を象徴的に受け止めやすい神社です。`;
+    return `祭神や由緒の観点では「${clip(sajin, 56)}」が手がかりになり、今回の相談テーマと象徴的に接続しやすい神社です。`;
   }
 
-  return "この神社は、今の状態に対して無理なく意味を重ねやすく、次の見方を作る場として受け取りやすい候補です。";
+  return "この神社は、今回の相談で主題になっている整理や立て直しのテーマと接続しやすく、意味を重ねて受け取りやすい候補です。";
 }
 
 function buildSupplement(args: BuildShrineExplanationArgs): string {

@@ -494,7 +494,7 @@ function buildStateStuckText(params: BuildParams, primary: Candidate): string {
     return "今は強い刺激よりも、気質に無理なく馴染む場所の方が受け取りやすく、考えすぎをほどきやすい状態です。";
   }
 
-  return "今は答えを急ぐほど判断が散りやすく、先に状態を整えられる候補から見た方が意味づけしやすい状態です。";
+  return "今は答えを急ぐほど判断が散りやすく、まず状態や優先順位を整えながら見直した方が受け取りやすい状態です。";
 }
 
 function buildStatePriorityText(params: BuildParams, primary: Candidate): string {
@@ -556,15 +556,14 @@ function buildStateShrineMeaningText(params: BuildParams, primary: Candidate): s
     return "この神社は、相性の無理のなさから落ち着いて受け取りやすく、今の状態を静かに整えながら意味を重ねやすい候補です。";
   }
 
-  return "この神社は、今の詰まり方に対して無理なく重ねやすく、気持ちと流れを整えながら次の見方を作りやすい候補です。";
+  return "この神社は、今の相談で主題になっている整理や立て直しのテーマと接続しやすく、意味を重ねて受け取りやすい候補です。";
 }
 
 function buildConsultationSummary(params: BuildParams, primary: Candidate, _secondary?: Candidate): string {
   const stuck = buildStateStuckText(params, primary);
   const priority = buildStatePriorityText(params, primary);
-  const shrineMeaning = buildStateShrineMeaningText(params, primary);
 
-  return `${stuck} ${priority} ${shrineMeaning}`;
+  return `${stuck} ${priority}`;
 }
 
 function buildShrineMeaning(params: BuildParams, primary: Candidate): string {

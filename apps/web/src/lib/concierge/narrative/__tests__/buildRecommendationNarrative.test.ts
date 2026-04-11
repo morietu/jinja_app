@@ -165,7 +165,7 @@ describe("buildRecommendationNarrative", () => {
     expect(result.match.userState).toContain("良縁");
   });
 
-  it("deepReason.interpretation があると lead に優先して使う", () => {
+  it("lead は consultationSummary の alias を返す", () => {
     const result = buildRecommendationNarrative({
       mode: "need",
       primaryNeed: "mental",
@@ -182,10 +182,12 @@ describe("buildRecommendationNarrative", () => {
       conciergeReason: "これは使われない",
     });
 
-    expect(result.meaning.lead).toBe("解決より先に気持ちを落ち着かせる段階です。");
+    expect(result.meaning.lead).toBe(result.meaning.consultationSummary);
+    expect(result.meaning.lead).toContain("不安や引っかかりが続く時は");
+    expect(result.meaning.lead).toContain("何を立て直したいのかを整理でき");
   });
 
-  it("deepReason がなく conciergeReason があると lead に fallback する", () => {
+  it("lead は consultationSummary と同じ内容を返す", () => {
     const result = buildRecommendationNarrative({
       mode: "need",
       primaryNeed: "rest",
@@ -196,7 +198,9 @@ describe("buildRecommendationNarrative", () => {
       conciergeReason: "少し立ち止まって整えるタイミングです。",
     });
 
-    expect(result.meaning.lead).toBe("少し立ち止まって整えるタイミングです。");
+    expect(result.meaning.lead).toBe(result.meaning.consultationSummary);
+    expect(result.meaning.lead).toContain("消耗が続いている時は");
+    expect(result.meaning.lead).toContain("消耗を増やさず整える順番を取り戻せる場");
   });
 
   it("benefitLabels が空でも shrineBenefit は fallback 文言を返す", () => {
