@@ -277,7 +277,6 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setSending(true);
       setError(null);
 
-      const label = options?.debugLabel ?? "useConciergeChat";
 
       try {
         const res = await postConciergeChat(req);

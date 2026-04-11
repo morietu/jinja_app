@@ -19,19 +19,19 @@ type Props = {
 
 export default function ConciergeTopRecommendationHero({
   name,
-  href,
-  imageUrl = null,
-  address = null,
-  topReasonLabel = null,
+  href: _href,
+  imageUrl: _imageUrl = null,
+  address: _address = null,
+  topReasonLabel: _topReasonLabel = null,
   catchCopy,
-  whyTop = null,
-  primaryReason,
-  secondaryReason = null,
-  differenceFromOthers = null,
-  nextActionHint = null,
-  tags = [],
-  routeLabel = "経路案内",
-  onRouteClick,
+  whyTop: _whyTop = null,
+  primaryReason: _primaryReason,
+  secondaryReason: _secondaryReason = null,
+  differenceFromOthers: _differenceFromOthers = null,
+  nextActionHint: _nextActionHint = null,
+  tags: _tags = [],
+  routeLabel: _routeLabel = "経路案内",
+  onRouteClick: _onRouteClick,
 }: Props) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">

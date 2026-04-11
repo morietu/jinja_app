@@ -68,7 +68,6 @@ type AnonymousConciergeSnapshot = {
   };
   session: {
     sessionNickname: string | null;
-    temporaryBirthdate: string | null;
   };
 };
 
@@ -485,7 +484,6 @@ export default function ConciergeClientFull() {
     setSessionState((prev) => ({
       ...prev,
       sessionNickname: snapshot.session?.sessionNickname ?? null,
-      temporaryBirthdate: snapshot.session?.temporaryBirthdate ?? null,
     }));
     setLiveUnified(snapshot.unified);
     setLiveRecs(
@@ -801,7 +799,6 @@ export default function ConciergeClientFull() {
           },
           session: {
             sessionNickname: sessionState.sessionNickname,
-            temporaryBirthdate: sessionState.temporaryBirthdate,
           },
         });
       }
