@@ -442,14 +442,18 @@ function buildDetailHeroMeaningCopy(params: BuildParams, primary: Candidate): st
   return "今の流れを整え、次の見方を作る神社";
 }
 
+function buildActionMeaning(_params: BuildParams, secondary?: Candidate): string | undefined {
+  if (secondary?.key === "distance") {
+    return "まず無理なく足を運べること自体が、参拝の入口になります。";
+  }
 
+  if (secondary?.key === "popular") {
+    return "迷いがある時でも、参拝先として思い描きやすい安定感があります。";
+  }
 
-function buildActionMeaning(params: BuildParams, secondary?: Candidate): string | undefined {
-  if (!secondary) return undefined;
-  if (secondary.key === "distance") return "思い切りより、まず行けることを優先する意味があります。";
-  if (secondary.key === "popular") return "迷いがある時ほど、選びやすさを支えにできる候補です。";
-  return "複数の観点を重ねながら、今の自分に合う形で受け取りやすい候補です。";
+  return undefined;
 }
+
 
 function buildStateStuckText(params: BuildParams, primary: Candidate): string {
   const need = clean(params.needTags?.[0]);
@@ -543,20 +547,63 @@ function buildStatePriorityText(params: BuildParams, primary: Candidate): string
   return "今は答えを出すことより先に、状態を整えながら優先順位を見直せる場を優先するのが合っています。";
 }
 
+function getPrimaryNeedBenefitLabel(rec: RecommendationLike): string | null {
+  const shrineBenefit = clean(rec.reason_facts?.shrine_benefit);
+  if (shrineBenefit) return shrineBenefit;
+
+  const matchedBenefit = clean(rec.reason_facts?.matched_benefits?.[0]);
+  if (matchedBenefit) return matchedBenefit;
+
+  return null;
+}
+
+function getShrineFeatureLabel(rec: RecommendationLike): string | null {
+  const feature = clean(rec.reason_facts?.shrine_feature);
+  if (feature) return feature;
+
+  const visitFit = clean(rec.reason_facts?.visit_fit);
+  if (visitFit) return visitFit;
+
+  return null;
+}
+
+function buildWishClause(args: { need: string | null; benefit: string | null; feature: string | null }): string {
+  const { need, benefit, feature } = args;
+
+  if (benefit) return `${benefit}の願い`;
+
+  if (feature) return `${feature}を手がかりにした願い`;
+
+  if (need === "厄除け") return "不安や引っかかりをほどきたい願い";
+  if (need === "仕事") return "仕事や転機に向き合いたい願い";
+  if (need === "金運") return "巡りや金運を整えたい願い";
+  if (need === "転機") return "切り替えを願う思い";
+  if (need === "恋愛") return "縁や関係性を見つめたい願い";
+  if (need === "健康") return "心身の回復を願う思い";
+  if (need === "学業") return "集中や学びに向かいたい願い";
+
+  return "願い";
+}
+
 function buildStateShrineMeaningText(params: BuildParams, primary: Candidate): string {
+  const need = clean(params.needTags?.[0]);
+  const benefit = getPrimaryNeedBenefitLabel(params.rec);
+  const feature = getShrineFeatureLabel(params.rec);
+  const wish = buildWishClause({ need, benefit, feature });
+
   if (primary.key === "distance") {
-    return "この神社は、行けること自体が負担になりにくく、止まった流れを切り替える最初の一歩として置きやすい候補です。";
+    return `この神社は、${wish}を気負わず預けやすく、まず足を運ぶことから静かに向き合いたい時に向いている候補です。`;
   }
 
   if (primary.key === "element_match" || primary.key === "sign_match") {
-    return "この神社は、気質との無理のなさから身構えずに向き合いやすく、考えすぎた状態をほどきながら整理しやすい候補です。";
+    return `この神社は、${wish}を身構えず受け止めやすく、無理のない相性の中で落ち着いて向き合いたい時に向いている候補です。`;
   }
 
   if (params.mode === "compat") {
-    return "この神社は、相性の無理のなさから落ち着いて受け取りやすく、今の状態を静かに整えながら意味を重ねやすい候補です。";
+    return `この神社は、${wish}を静かに受け止めやすく、答えを急がず落ち着いて向き合いたい時に向いている候補です。`;
   }
 
-  return "この神社は、今の相談で主題になっている整理や立て直しのテーマと接続しやすく、意味を重ねて受け取りやすい候補です。";
+  return `この神社は、${wish}を静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。`;
 }
 
 function buildConsultationSummary(params: BuildParams, primary: Candidate, _secondary?: Candidate): string {

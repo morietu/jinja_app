@@ -203,6 +203,7 @@ function buildRecommendationReasonDetailInput(
 }
 
 export default async function Page({ params, searchParams }: Props) {
+
   const { id } = await params;
   const sp = (await searchParams) ?? {};
   const ctx = normalizeCtx(sp.ctx ?? null);
@@ -325,12 +326,6 @@ export default async function Page({ params, searchParams }: Props) {
 
   if (ctx === "concierge" && tid) {
     try {
-      console.log("[PAGE_TSX_HIT]", {
-        shrineId: numericId,
-        ctx,
-        tid,
-      });
-      
       const thread = await getConciergeThreadServer(String(tid));
       if (thread) {
         conciergeBreakdown = pickBreakdownFromThread(thread, numericId);
@@ -341,37 +336,11 @@ export default async function Page({ params, searchParams }: Props) {
         const recommendation = (thread.recommendations ?? []).find((r) => Number(r?.shrine_id ?? r?.id) === numericId);
         selectedRecommendation = recommendation ?? null;
 
-        serverLog("info", "SHRINE_DETAIL_RECOMMENDATION_PICK", {
-          shrineId: numericId,
-          recommendationCount: thread.recommendations?.length ?? 0,
-          pickedRecommendation: recommendation
-            ? {
-                shrine_id: recommendation.shrine_id,
-                id: recommendation.id,
-                name: recommendation.name,
-                hasRankExplanation: Boolean(recommendation.rank_explanation),
-                hasRankComparison: Boolean(recommendation.rank_comparison),
-              }
-            : null,
-        });
 
         recommendationRankExplanation = recommendation?.rank_explanation as typeof recommendationRankExplanation;
 
         recommendationRankComparison = recommendation?.rank_comparison as typeof recommendationRankComparison;
 
-        serverLog("info", "SHRINE_DETAIL_CONCIERGE_DEBUG", {
-          shrineId: numericId,
-          ctx,
-          tid,
-          hasThread: Boolean(thread),
-          hasBreakdown: Boolean(conciergeBreakdown),
-          hasReason: Boolean(conciergeReason),
-          hasExplanationPayload: Boolean(conciergeExplanationPayload),
-          hasRecommendation: Boolean(recommendation),
-          hasRankExplanation: Boolean(recommendationRankExplanation),
-          hasRankComparison: Boolean(recommendationRankComparison),
-          conciergeMode,
-        });
       }
     } catch (e) {
       serverLog("warn", "GET_CONCIERGE_THREAD_FAILED", {
@@ -428,20 +397,8 @@ export default async function Page({ params, searchParams }: Props) {
       conciergeMode,
       recommendation: selectedRecommendation,
     });
-
     recommendationReasonDetail = builtReasonDetail.recommendationReasonDetail;
     conciergeDeepReason = builtReasonDetail.conciergeDeepReason;
-
-    serverLog("info", "SHRINE_DETAIL_DEEP_REASON_INPUT", {
-      shrineId: numericId,
-      primaryReasonLabel: conciergeExplanationPayload?.primary_reason?.label ?? null,
-      fallbackTags: conciergeBreakdown?.matched_need_tags ?? [],
-      rawReason: conciergeExplanationPayload?.original_reason?.trim() || conciergeReason?.trim() || null,
-      shrineName,
-      hasRecommendationReasonDetail: Boolean(recommendationReasonDetail),
-      hasConciergeDeepReason: Boolean(conciergeDeepReason),
-    });
-
   }
 
   const model = buildShrineDetailModel({
