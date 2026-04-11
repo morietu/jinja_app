@@ -4,7 +4,14 @@ from __future__ import annotations
 from django.apps import apps
 from django.contrib import admin
 
-from .models import Goshuin, GoshuinImage, ShrineCandidate
+from .models import Goshuin, GoshuinImage, ShrineCandidate, ShrineSubmission
+from django.utils import timezone
+from django.contrib import messages
+from temples.services.shrine_submission import (
+    ShrineSubmissionDuplicateError,
+    ShrineSubmissionInvalidStateError,
+    approve_shrine_submission,
+)
 
 
 @admin.register(Goshuin)
@@ -20,22 +27,71 @@ class GoshuinImageAdmin(admin.ModelAdmin):
     list_filter = ("order",)
 
 
-@admin.register(ShrineCandidate)
-class ShrineCandidateAdmin(admin.ModelAdmin):
-    list_display = ("id", "status", "name_jp", "address", "place_id", "source", "created_at")
-    list_filter = ("status", "source")
-    search_fields = ("name_jp", "address", "place_id")
+@admin.register(ShrineSubmission)
+class ShrineSubmissionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "status",
+        "name",
+        "address",
+        "user",
+        "reviewed_by",
+        "created_at",
+    )
+    list_filter = ("status", "created_at", "reviewed_at")
+    search_fields = ("name", "address", "user__username", "user__email")
     ordering = ("-created_at",)
+    readonly_fields = ("created_at", "updated_at", "reviewed_at")
 
     actions = ["mark_approved", "mark_rejected"]
 
+
     @admin.action(description="Mark as approved")
     def mark_approved(self, request, queryset):
-        queryset.update(status=ShrineCandidate.Status.APPROVED)
+        success_count = 0
+        fail_count = 0
+
+        for submission in queryset:
+            try:
+                approve_shrine_submission(
+                    submission_id=submission.id,
+                    reviewer=request.user,
+                )
+                success_count += 1
+            except (ShrineSubmissionDuplicateError, ShrineSubmissionInvalidStateError) as exc:
+                fail_count += 1
+                self.message_user(
+                    request,
+                    f"id={submission.id} の承認に失敗: {exc}",
+                    level=messages.WARNING,
+                )
+
+        if success_count:
+            self.message_user(
+                request,
+                f"{success_count}件を承認し、Shrine へ反映しました。",
+                level=messages.SUCCESS,
+            )
+
+        if fail_count:
+            self.message_user(
+                request,
+                f"{fail_count}件は承認できませんでした。",
+                level=messages.WARNING,
+            )
 
     @admin.action(description="Mark as rejected")
     def mark_rejected(self, request, queryset):
-        queryset.update(status=ShrineCandidate.Status.REJECTED)
+        updated = queryset.update(
+            status=ShrineSubmission.Status.REJECTED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(
+            request,
+            f"{updated}件を rejected に更新しました。",
+            level=messages.SUCCESS,
+        )
 
 
 def _maybe_register(model_name: str, admin_cls: type[admin.ModelAdmin]) -> None:

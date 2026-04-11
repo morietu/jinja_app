@@ -591,7 +591,73 @@ class ConciergeUsage(models.Model):
 
 # Shrine に ManyToMany を追加（既存 Shrine クラス内）
 # deities = models.ManyToManyField("Deity", related_name="shrines", blank=True)
+class ShrineSubmission(dj_models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shrine_submissions",
+    )
+
+    name = models.CharField(max_length=255)
+    address = models.CharField(max_length=512)
+
+    lat = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)],
+    )
+    lng = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)],
+    )
+
+    goriyaku_tags = models.JSONField(default=list, blank=True)
+    note = models.TextField(blank=True, default="")
+
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_shrine_submissions",
+    )
+    review_comment = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "created_at"], name="idx_submission_status_created"),
+            models.Index(fields=["user", "created_at"], name="idx_submission_user_created"),
+        ]
+        constraints = [
+            CheckConstraint(
+                condition=(
+                    Q(lat__isnull=True, lng__isnull=True)
+                    | Q(lat__isnull=False, lng__isnull=False)
+                ),
+                name="chk_submission_lat_lng_both_or_none",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.status}] {self.name}"
 
 class ShrineCandidate(dj_models.Model):
     class Status(models.TextChoices):
