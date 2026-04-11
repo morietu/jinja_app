@@ -123,6 +123,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ConciergeChatResponse"
 
+  /api/shrine-submissions/:
+    post:
+      summary: 神社投稿submissionを作成
+      description: ログインユーザーが神社登録候補を pending 状態で投稿する
+      tags: [Shrines]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShrineSubmissionCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShrineSubmissionResponse"
+        "400":
+          description: Validation Error
+        "401":
+          description: Unauthorized
+
 
   /api/directions/:
     get:
@@ -158,6 +181,39 @@ paths:
 
 components:
   schemas:
+    ShrineSubmissionCreateRequest:
+      type: object
+      required: [name, address]
+      properties:
+        name: { type: string }
+        address: { type: string }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        goriyaku_tags:
+          type: array
+          items: { type: string }
+        note: { type: string }
+
+    ShrineSubmissionResponse:
+      type: object
+      required: [id, name, address, goriyaku_tags, note, status, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        address: { type: string }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        goriyaku_tags:
+          type: array
+          items: { type: string }
+        note: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        created_at:
+          type: string
+          format: date-time
+
     ShrineLite:
       type: object
       required: [id, name, lat, lng]

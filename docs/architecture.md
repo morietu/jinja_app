@@ -224,7 +224,7 @@ anonymous 投稿は採用しない。
 
 ---
 
-## データモデル（予定）
+## データモデル（実装済み）
 
 ```sql
 shrine_submissions
@@ -289,3 +289,31 @@ shrine table insert
 - 即公開
 
 投稿データは最小構成のみ扱う。
+
+## Shrine Submission Review Flow（実装済み）
+- `POST /api/shrine-submissions/` を実装済み
+- ログインユーザーのみ投稿可能
+- 成功時は `ShrineSubmission(status=pending)` を作成して返す
+- 投稿時に以下の重複を検査する
+  - 既存 `Shrine(name + address)`
+  - 既存 `pending ShrineSubmission(name + address)`
+- 投稿時点では `Shrine` 本体は作成しない
+
+`ShrineSubmission` は Django model として実装済み。
+
+### approve
+- `approve_shrine_submission()` を経由して承認する
+- `pending` のみ承認可能
+- 既存 `Shrine(name + address)` と重複する場合は承認しない
+- 承認成功時は `Shrine` を新規作成する
+- `reviewed_at` / `reviewed_by` を保存する
+
+### reject
+- `reject_shrine_submission()` を経由して却下する
+- `status=rejected`
+- `reviewed_at` / `reviewed_by` / `review_comment` を保存する
+
+### admin
+- Django admin の action から approve / reject を実行できる
+- approve は service 経由で Shrine 本体へ反映する
+- reject は review 情報を保存し、Shrine 本体は作成しない

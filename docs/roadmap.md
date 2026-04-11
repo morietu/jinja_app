@@ -143,12 +143,11 @@
 
 
 ## Shrine Submission
-
-実装順
-
-1. docs で submission pipeline を固定
-2. ShrineSubmission モデル作成
-3. submission API 作成
-4. frontend 投稿画面作成
-5. admin review 導線
-6. shrine 反映処理
+- [x] docs で submission pipeline を固定
+- [x] ShrineSubmission モデル作成
+- [x] migration 作成・適用
+- [x] review service 作成
+- [x] approve / duplicate / reject の service 動作確認
+- [x] Django admin 経由の approve / reject 確認
+- [x] submission API 作成
+- [ ] frontend 投稿画面作成
