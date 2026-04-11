@@ -32,13 +32,7 @@ export default function ConciergeConsultationSummary({ summary, modeLabel = null
           ) : null}
         </div>
 
-        <div className="space-y-2">
-          <p className="text-base font-semibold leading-8 text-slate-900">
-            今は答えを急ぐより、先に状態を整理して見た方が合っています。
-          </p>
-
-          <p className="text-sm leading-7 text-slate-700">{cleanedSummary}</p>
-        </div>
+        <p className="text-base font-semibold leading-8 text-slate-900">{cleanedSummary}</p>
       </div>
     </section>
   );

@@ -13,91 +13,6 @@ import { buildComparisonText } from "@/lib/concierge/narrative/buildComparisonTe
 import { sanitizeCopyText } from "@/lib/concierge/conciergeCopyRules";
 import { resolveTurningPoint } from "@/lib/concierge/turningPoint/resolveTurningPoint";
 import { buildTurningPointSentence } from "@/lib/concierge/turningPoint/buildTurningPointSentence";
-/**
- * 主
- * 今の状態や、今回の相談の中心テーマを短く出す
- */
-function buildStateSentence(args: {
-  mode: ConciergeMode;
-  primaryNeed?: NeedTag | null;
-  secondaryNeedTags?: NeedTag[];
-  userElementLabel?: string | null;
-  shrineElementLabels?: string[] | null;
-  primaryReasonLabel?: string | null;
-  explanationPayload?: { primary_need_label_ja?: string | null } | null;
-  deepReason?: { interpretation?: string | null } | null;
-  conciergeReason?: string | null;
-  ctx?: "map" | "concierge" | null;
-}): string {
-  const mode = args.mode;
-  const primary = args.primaryNeed ?? null;
-  const secondary = args.secondaryNeedTags ?? [];
-
-  if (args.ctx === "concierge" && args.deepReason?.interpretation) {
-    return args.deepReason.interpretation;
-  }
-
-  if (args.ctx === "concierge" && args.conciergeReason?.trim()) {
-    return args.conciergeReason.trim();
-  }
-
-  if (mode === "compat") {
-    const user = args.userElementLabel ?? "今回の生年月日傾向";
-    const shrine = (args.shrineElementLabels ?? []).filter(Boolean).slice(0, 2).join("・");
-
-    if (shrine) {
-      return `${user}から見ると、この神社は相性を見やすいです。`;
-    }
-
-    if (args.primaryReasonLabel) {
-      return `${user}を主軸に見ると、今回の相談とも重なります。`;
-    }
-
-    return `${user}から見ると、この神社は合いやすいです。`;
-  }
-
-  if (primary === "courage") {
-    return secondary.includes("money")
-      ? "動き出すきっかけと、流れの立て直しが中心です。"
-      : "動き出すきっかけを整えるのが中心です。";
-  }
-
-  if (primary === "money") {
-    return secondary.includes("courage")
-      ? "巡りを整えながら、動き出す流れも見ています。"
-      : "金運や巡りを整え直すことが中心です。";
-  }
-
-  if (primary === "career") {
-    return secondary.includes("courage")
-      ? "仕事や転機を見直しながら、前進も見ています。"
-      : "仕事や転機への向き合い方を整えるのが中心です。";
-  }
-
-  if (primary === "mental") {
-    return secondary.includes("rest")
-      ? "気持ちを整えながら、休める形に戻すことが中心です。"
-      : "不安や気持ちの揺れを整えるのが中心です。";
-  }
-
-  if (primary === "rest") {
-    return secondary.includes("mental")
-      ? "休みながら、気持ちも整え直すことが中心です。"
-      : "無理を止めて、休める形に戻すのが中心です。";
-  }
-
-  if (primary === "love") {
-    return "良縁や関係の流れを整えることが中心です。";
-  }
-
-  if (primary === "study") {
-    return "集中や目標の定め直しが中心です。";
-  }
-
-  return args.explanationPayload?.primary_need_label_ja
-    ? `${args.explanationPayload.primary_need_label_ja}を整えることが中心です。`
-    : "今の状態を整え直すことが中心です。";
-}
 
 function buildNeedMatchText(primary: NeedTag | null, secondary: NeedTag[]): string {
   if (primary === "courage") {
@@ -511,15 +426,7 @@ function buildConsultationSummary(args: {
     primaryNeed: args.primaryNeed,
   });
 
-  const shrineMeaning = buildStateShrineMeaningText({
-    mode: args.mode,
-    primaryNeed: args.primaryNeed,
-    shrineName: args.shrineName,
-    shrineTone: args.shrineTone,
-    benefitLabels: args.benefitLabels,
-  });
-
-  return `${stuck} ${priority} ${shrineMeaning}`;
+  return `${stuck} ${priority}`;
 }
 
 function buildMeaningSentence(args: {
@@ -572,19 +479,6 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     shrineTone,
   });
 
-  const stateSentence = buildStateSentence({
-    mode,
-    primaryNeed,
-    secondaryNeedTags: secondaryNeeds,
-    userElementLabel: args.userElementLabel,
-    shrineElementLabels: args.benefitLabels,
-    primaryReasonLabel: args.primaryReasonLabel,
-    explanationPayload: args.explanationPayload ?? null,
-    deepReason: args.deepReason ?? null,
-    conciergeReason: args.conciergeReason ?? null,
-    ctx: "concierge",
-  });
-
   const consultationSummary = buildConsultationSummary({
     mode,
     primaryNeed,
@@ -593,8 +487,6 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     benefitLabels: args.benefitLabels,
   });
 
-
-
   const meaningSentence = buildMeaningSentence({
     primaryNeed,
     secondaryNeedTags: secondaryNeeds,
@@ -602,6 +494,8 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
     shrineTone,
     conciergeReason: args.conciergeReason ?? null,
   });
+
+  const shrineMeaning = sanitizeCopyText(args.deepReason?.shrineMeaning ?? meaningSentence);
 
   const rankReason = buildRankReason({
     mode,
@@ -652,8 +546,8 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
       sentence: sanitizeCopyText(turningPointSentence),
     },
     meaning: {
-      short: sanitizeCopyText(meaningSentence),
-      lead: sanitizeCopyText(stateSentence),
+      short: shrineMeaning,
+      lead: sanitizeCopyText(consultationSummary),
       consultationSummary: sanitizeCopyText(consultationSummary),
     },
     match: {
@@ -666,7 +560,7 @@ export function buildRecommendationNarrative(args: BuildNarrativeBaseArgs): Reco
       comparisonText,
     },
     shrine: {
-      shrineMeaning: sanitizeCopyText(args.deepReason?.shrineMeaning ?? shrineBenefit),
+      shrineMeaning,
     },
   };
 }
