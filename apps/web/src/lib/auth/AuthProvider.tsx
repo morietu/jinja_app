@@ -54,14 +54,19 @@ function maybeLoggedIn(): boolean {
 }
 
 async function fetchMe(): Promise<AuthUser | null> {
-  const me = await getCurrentUser();
+  try {
+    const me = await getCurrentUser();
 
-  if (!me) {
+    if (!me) {
+      markLoggedOut();
+      return null;
+    }
+
+    return me;
+  } catch {
     markLoggedOut();
     return null;
   }
-
-  return me;
 }
 
 function shouldAutoFetchMe(pathname: string | null): boolean {
@@ -72,8 +77,10 @@ function shouldAutoFetchMe(pathname: string | null): boolean {
     return false;
   }
 
-  // concierge(Simple) では基本叩かない
-  if (pathname === "/concierge") return false;
+  // concierge 系は localStorage の復元フラグがある時だけに寄せる
+  if (pathname === "/concierge" || pathname.startsWith("/concierge/")) {
+    return false;
+  }
 
   // 実験場はOK
   if (pathname.startsWith("/concierge/full")) return true;
@@ -91,51 +98,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const refreshMe = async () => {
-    try {
-      const me = await fetchMe();
+    const me = await fetchMe();
 
-      setAuthState({
-        status: me ? "authenticated" : "guest",
-        user: me,
-        isHydrating: false,
-      });
-    } catch {
-      setAuthState({
-        status: "guest",
-        user: null,
-        isHydrating: false,
-      });
-    }
+    setAuthState({
+      status: me ? "authenticated" : "guest",
+      user: me,
+      isHydrating: false,
+    });
   };
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      try {
-        const shouldFetch = shouldAutoFetchMe(pathname) || maybeLoggedIn();
+      const shouldFetch = shouldAutoFetchMe(pathname) || maybeLoggedIn();
 
-        if (!shouldFetch) {
-          if (!cancelled) {
-            setAuthState({
-              status: "guest",
-              user: null,
-              isHydrating: false,
-            });
-          }
-          return;
-        }
-
-        const me = await fetchMe();
-
-        if (!cancelled) {
-          setAuthState({
-            status: me ? "authenticated" : "guest",
-            user: me,
-            isHydrating: false,
-          });
-        }
-      } catch {
+      if (!shouldFetch) {
         if (!cancelled) {
           setAuthState({
             status: "guest",
@@ -143,6 +121,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isHydrating: false,
           });
         }
+        return;
+      }
+
+      const me = await fetchMe();
+
+      if (!cancelled) {
+        setAuthState({
+          status: me ? "authenticated" : "guest",
+          user: me,
+          isHydrating: false,
+        });
       }
     })();
 

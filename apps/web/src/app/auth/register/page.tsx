@@ -1,4 +1,5 @@
-import RegisterForm from "../../signup/RegisterForm";
+// apps/web/src/app/auth/register/page.tsx
+import SignupForm from "../../signup/SignupForm";
 import { sanitizeReturnTo } from "@/lib/nav/login";
 
 function stripRscParam(returnTo: string): string {
@@ -23,5 +24,5 @@ export default async function Page({
   const cleaned = typeof returnToRaw === "string" ? stripRscParam(returnToRaw) : null;
   const returnTo = sanitizeReturnTo(cleaned);
 
-  return <RegisterForm next={returnTo} />;
+  return <SignupForm returnTo={returnTo} />;
 }

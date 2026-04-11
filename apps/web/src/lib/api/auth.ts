@@ -17,11 +17,8 @@ export async function login(body: LoginInput): Promise<void> {
   }
 }
 
-/** 互換ラッパ（既存の login(username, password) 呼び出し用） */
-export async function loginApi(
-  username: string,
-  password: string
-): Promise<void> {
+/** 互換ラッパ */
+export async function loginApi(username: string, password: string): Promise<void> {
   return login({ username, password });
 }
 
@@ -32,12 +29,18 @@ export async function logout(): Promise<void> {
   }).catch(() => {});
 }
 
-/** サインアップは DRF を直叩き */
-export async function signup(payload: {
-  username: string;
-  password: string;
-  email?: string;
-}) {
-  const r = await api.post("/auth/users/", payload);
-  return r.data;
+export async function signup(payload: { username: string; password: string; email?: string }) {
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    throw new Error(msg || `signup failed: ${res.status}`);
+  }
+
+  return res.json().catch(() => ({}));
 }
