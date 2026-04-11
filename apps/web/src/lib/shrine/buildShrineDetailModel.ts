@@ -320,7 +320,7 @@ function buildReasonSection(args: {
     return groups.length > 0
       ? {
           kind: "reason",
-          heading: "この神社が出てきた理由",
+          heading: "① この神社が出てきた理由",
           groups,
         }
       : null;
@@ -347,7 +347,7 @@ function buildReasonSection(args: {
   return groups.length > 0
     ? {
         kind: "reason",
-        heading: "この神社が出てきた理由",
+        heading: "① この神社が出てきた理由",
         groups,
       }
     : null;
@@ -363,7 +363,7 @@ function buildProposalSection(args: {
 
   return {
     kind: "proposal",
-    heading: "今回の相談の整理",
+    heading: "② 今回の相談の整理",
     lead: args.consultationSummary ?? args.lead ?? "",
     body: args.proposal ?? null,
   };
@@ -1062,7 +1062,7 @@ function buildMeaningSection(args: {
 
   return {
     kind: "meaning",
-    heading: "この神社を今どう読むか",
+    heading: "③ 神社との意味の接続",
     lead: args.lead,
     items: fallbackItems,
   };
@@ -1093,7 +1093,7 @@ function buildSupplementSection(args: {
   return groups.length > 0
     ? {
         kind: "supplement",
-        heading: "補足",
+        heading: "④ 補足（象徴・ご利益）",
         groups,
       }
     : null;
