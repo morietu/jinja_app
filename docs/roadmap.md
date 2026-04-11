@@ -140,3 +140,15 @@
 - お気に入りカードに「＋DBへ取り込む」実装
 - マイページの未保存お気に入り → 一括取込
 - Places Details のキャッシュ/レート制御（※今後Google使用時のみ）
+
+
+## Shrine Submission
+
+実装順
+
+1. docs で submission pipeline を固定
+2. ShrineSubmission モデル作成
+3. submission API 作成
+4. frontend 投稿画面作成
+5. admin review 導線
+6. shrine 反映処理

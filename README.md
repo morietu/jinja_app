@@ -352,6 +352,23 @@ export async function GET(req: NextRequest) {
 - 保存した神社の一覧
 - お気に入り解除機能
 
+## 神社登録（Shrine Submission）の責務境界
+	•	神社登録は shrine 本体への直接追加ではない
+	•	submission を別責務として扱う
+	•	投稿主体はログインユーザーのみ
+	•	状態は pending / approved / rejected
+	•	approved 後に shrine 本体へ反映
+	•	画像アップロード、即公開、御朱印同時実装はスコープ外
+	•	duplication detection は name + address を基本に扱う
+
+
+## Billing State と Premium UI 制御
+	•	premium 判定の正本は backend billing state
+	•	フロントは billing 状態を表示・再取得するだけ
+	•	checkout 後は success / cancel / refetch を必須にする
+	•	premium UI の対象を明文化する
+	•	投稿機能は現時点では premium 条件と結びつけない
+
 ---
 
 ## 開発Tips
