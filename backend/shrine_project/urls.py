@@ -28,6 +28,7 @@ from temples import api_views_concierge as concierge
 from temples.api.views.create_superuser import create_superuser
 from users.api.views import MeView as ApiMeView
 from .views import favicon, index
+from temples.api.views.shrine_submission import ShrineSubmissionCreateView
 
 
 @extend_schema(
@@ -410,6 +411,7 @@ urlpatterns = [
     ),
     path("healthz/", healthz, name="healthz"),
     path("robots.txt", robots_txt, name="robots_txt"),
+    path("api/shrine-submissions/", ShrineSubmissionCreateView.as_view(), name="shrine-submission-create"),
 ]
 
 if settings.DEBUG:

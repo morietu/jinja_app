@@ -95,6 +95,24 @@
 - お気に入り保存 / 相談保存 / プロフィール保存
   - ログイン必須
 
+## 神社登録導線（Web実装ルール）
+
+- 神社登録は `shrine` 本体APIへの直接追加ではなく、`submission API` を使う
+- Web は shrine 本体を直接作成・更新する前提を持たない
+- 登録入口は以下のいずれかに統一する
+  - `/shrines/new`
+  - `/mypage/shrine-submissions/new`
+- 投稿はログインユーザーのみを前提とし、未ログイン時は login/register に遷移する
+- 投稿完了時点では即公開扱いにせず、`pending` 前提でUIを構成する
+
+## Billing / Premium UI ルール（Web実装ルール）
+
+- premium UI 分岐は `/api/billings/status/` のレスポンスを基準に行う
+- フロントは課金状態の正本を持たず、表示と再取得だけを責務とする
+- UI分岐の判断は `plan` と `is_active` を基準にし、provider の値を分岐根拠にしない
+- checkout / portal からの復帰後は billing status を refetch する
+- checkout 完了直後の一時状態だけで premium 表示を確定しない
+
 ## Places / place_id の扱い（統一方針）
 - `place_id` は常に `/places/resolve/` で `shrine_id` に解決して正規化する
 - from-place 導線は廃止（今後復活させない）

@@ -140,3 +140,14 @@
 - お気に入りカードに「＋DBへ取り込む」実装
 - マイページの未保存お気に入り → 一括取込
 - Places Details のキャッシュ/レート制御（※今後Google使用時のみ）
+
+
+## Shrine Submission
+- [x] docs で submission pipeline を固定
+- [x] ShrineSubmission モデル作成
+- [x] migration 作成・適用
+- [x] review service 作成
+- [x] approve / duplicate / reject の service 動作確認
+- [x] Django admin 経由の approve / reject 確認
+- [x] submission API 作成
+- [ ] frontend 投稿画面作成
