@@ -29,6 +29,9 @@ import ShrineDetailShell from "@/components/shrine/ShrineDetailShell";
 import ShrineDetailArticle from "@/components/shrine/detail/ShrineDetailArticle";
 import ScrollToTopOnMount from "@/components/navigation/ScrollToTopOnMount";
 
+import { getBenefitLabels } from "@/lib/shrine/getBenefitLabels";
+
+
 function normalizeCtx(v?: string | null): "map" | "concierge" | null {
   return v === "map" || v === "concierge" ? v : null;
 }
@@ -44,6 +47,8 @@ type RecommendationReasonDetailInput = NonNullable<
 
 type RecommendationReasonDetailBuildArgs = {
   shrineName: string;
+  shrineBenefitLabels?: string[];
+  shrineFeatureLabels?: string[];
   conciergeBreakdown: ConciergeBreakdown | null;
   conciergeReason: string | null;
   conciergeExplanationPayload: PickedExplanationPayload | null;
@@ -176,6 +181,8 @@ function buildRecommendationReasonDetailInput(
     index: typeof args.recommendation?.rank === "number" ? Math.max(args.recommendation.rank - 1, 0) : 0,
     mode: args.conciergeMode ?? undefined,
     needTags: fallbackTags,
+    shrineBenefitLabels: args.shrineBenefitLabels ?? [],
+    shrineFeatureLabels: args.shrineFeatureLabels ?? [],
   });
 
   // conciergeDeepReason is a NarrativeFallback for missing detail fields only.
@@ -283,6 +290,8 @@ export default async function Page({ params, searchParams }: Props) {
   if (tid) addQ.set("tid", String(tid));
 
   const addGoshuinHref = `/goshuin/new?${addQ.toString()}`;
+  const shrineBenefitLabels = getBenefitLabels(s);
+  const shrineFeatureLabels: string[] = [];
 
   let publicGoshuins: Awaited<ReturnType<typeof fetchPublicGoshuinsForShrineServer>> = [];
   try {
@@ -391,6 +400,8 @@ export default async function Page({ params, searchParams }: Props) {
     const shrineName = (s.name_jp ?? "").trim() || pageTitle;
     const builtReasonDetail = buildRecommendationReasonDetailInput({
       shrineName,
+      shrineBenefitLabels,
+      shrineFeatureLabels,
       conciergeBreakdown,
       conciergeReason,
       conciergeExplanationPayload,

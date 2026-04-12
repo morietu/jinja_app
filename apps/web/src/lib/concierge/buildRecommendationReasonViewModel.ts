@@ -128,6 +128,8 @@ type BuildParams = {
   mode?: "need" | "compat" | string | null;
   birthdate?: string | null;
   needTags?: string[];
+  shrineBenefitLabels?: string[];
+  shrineFeatureLabels?: string[];
 };
 
 type Candidate = {
@@ -547,7 +549,10 @@ function buildStatePriorityText(params: BuildParams, primary: Candidate): string
   return "今は答えを出すことより先に、状態を整えながら優先順位を見直せる場を優先するのが合っています。";
 }
 
-function getPrimaryNeedBenefitLabel(rec: RecommendationLike): string | null {
+function getPrimaryNeedBenefitLabel(rec: RecommendationLike, shrineBenefitLabels?: string[]): string | null {
+  const preferredBenefit = (shrineBenefitLabels ?? []).map(clean).find(Boolean);
+  if (preferredBenefit) return preferredBenefit;
+
   const shrineBenefit = clean(rec.reason_facts?.shrine_benefit);
   if (shrineBenefit) return shrineBenefit;
 
@@ -557,7 +562,10 @@ function getPrimaryNeedBenefitLabel(rec: RecommendationLike): string | null {
   return null;
 }
 
-function getShrineFeatureLabel(rec: RecommendationLike): string | null {
+function getShrineFeatureLabel(rec: RecommendationLike, shrineFeatureLabels?: string[]): string | null {
+  const preferredFeature = (shrineFeatureLabels ?? []).map(clean).find(Boolean);
+  if (preferredFeature) return preferredFeature;
+
   const feature = clean(rec.reason_facts?.shrine_feature);
   if (feature) return feature;
 
@@ -571,15 +579,14 @@ function buildWishClause(args: { need: string | null; benefit: string | null; fe
   const { need, benefit, feature } = args;
 
   if (benefit) return `${benefit}の願い`;
-
   if (feature) return `${feature}を手がかりにした願い`;
 
   if (need === "厄除け") return "不安や引っかかりをほどきたい願い";
   if (need === "仕事") return "仕事や転機に向き合いたい願い";
   if (need === "金運") return "巡りや金運を整えたい願い";
-  if (need === "転機") return "切り替えを願う思い";
+  if (need === "転機") return "切り替えや節目を整えたい願い";
   if (need === "恋愛") return "縁や関係性を見つめたい願い";
-  if (need === "健康") return "心身の回復を願う思い";
+  if (need === "健康") return "心身の回復を願う願い";
   if (need === "学業") return "集中や学びに向かいたい願い";
 
   return "願い";
@@ -587,8 +594,8 @@ function buildWishClause(args: { need: string | null; benefit: string | null; fe
 
 function buildStateShrineMeaningText(params: BuildParams, primary: Candidate): string {
   const need = clean(params.needTags?.[0]);
-  const benefit = getPrimaryNeedBenefitLabel(params.rec);
-  const feature = getShrineFeatureLabel(params.rec);
+  const benefit = getPrimaryNeedBenefitLabel(params.rec, params.shrineBenefitLabels);
+  const feature = getShrineFeatureLabel(params.rec, params.shrineFeatureLabels);
   const wish = buildWishClause({ need, benefit, feature });
 
   if (primary.key === "distance") {
