@@ -58,7 +58,7 @@ exports[`buildRecommendationReasonViewModel > reason文の代表パターンを 
       "actionMeaning": "まず無理なく足を運べること自体が、参拝の入口になります。",
       "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。",
       "heroMeaningCopy": "切り替えの流れを整え、次の見方を作る神社",
-      "shrineMeaning": "この神社は、切り替えを願う思いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
+      "shrineMeaning": "この神社は、切り替えや節目を整えたい願いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
     },
     "hero": {
       "catchCopy": "今の状態に重ねて見やすい神社",
@@ -68,7 +68,7 @@ exports[`buildRecommendationReasonViewModel > reason文の代表パターンを 
     "interpretation": {
       "actionMeaning": "まず無理なく足を運べること自体が、参拝の入口になります。",
       "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。",
-      "shrineMeaning": "この神社は、切り替えを願う思いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
+      "shrineMeaning": "この神社は、切り替えや節目を整えたい願いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
     },
     "list": {
       "primaryPhrase": "まず選びやすさを優先して見られる候補です",
@@ -102,7 +102,7 @@ exports[`buildRecommendationReasonViewModel > reason文の代表パターンを 
       "actionMeaning": undefined,
       "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。",
       "heroMeaningCopy": "切り替えの流れを整え、次の見方を作る神社",
-      "shrineMeaning": "この神社は、切り替えを願う思いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
+      "shrineMeaning": "この神社は、切り替えや節目を整えたい願いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
     },
     "hero": {
       "catchCopy": "今の状態に重ねて見やすい神社",
@@ -112,7 +112,7 @@ exports[`buildRecommendationReasonViewModel > reason文の代表パターンを 
     "interpretation": {
       "actionMeaning": undefined,
       "consultationSummary": "切り替えたい気持ちが強い時ほど、急いで結論を出そうとして判断が粗くなり、流れの見極めが雑になりやすくなります。 今は答えを急いで決めるより先に、どこを切り替えて何を残すかを整理できる場を優先するのが合っています。",
-      "shrineMeaning": "この神社は、切り替えを願う思いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
+      "shrineMeaning": "この神社は、切り替えや節目を整えたい願いを静かに受け止め、その願いと落ち着いて向き合いたい時に向いている候補です。",
     },
     "list": {
       "primaryPhrase": "切り替えたい今に合いやすい候補です",
