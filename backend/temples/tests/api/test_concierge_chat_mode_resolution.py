@@ -167,10 +167,6 @@ def patch_chat_dependencies(monkeypatch):
         "temples.api_views_concierge.extract_intent",
         fake_extract_intent,
     )
-    monkeypatch.setattr(
-        "temples.api_views_concierge._probe_area_locationbias_for_chat",
-        lambda area=None: None,
-    )
 
     return captured
 

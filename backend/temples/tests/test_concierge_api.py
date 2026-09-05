@@ -15,7 +15,8 @@ def assert_chat_response_does_not_look_like_plan(body: dict):
         assert "route_hints" not in data
 
 
-# 1) area → geocode → findplace の locationbias を検証
+# 1) area 入力から location を解決し、recommendation が正常に返ること
+#    （旧: area → geocode → findplace locationbias という test-only probe 契約は廃止）
 @pytest.mark.django_db
 def test_chat_backfills_short_location(client, settings, monkeypatch):
     settings.GOOGLE_MAPS_API_KEY = "dummy"
@@ -30,17 +31,13 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
         def raise_for_status(self):
             return None
 
-    last_findplace_params = {}
-
     def fake_get(url, params=None, timeout=None, **kw):
-        nonlocal last_findplace_params
         params = params or {}
 
         if "geocode" in url:
             return _R({"results": [{"geometry": {"location": {"lat": 35.671, "lng": 139.736}}}]})
 
         if "findplacefromtext" in url:
-            last_findplace_params = dict(params)
             return _R({"candidates": [{"place_id": "PID_AKASAKA"}]})
 
         if "place/details" in url:
@@ -68,7 +65,6 @@ def test_chat_backfills_short_location(client, settings, monkeypatch):
     assert rec["name"] == "赤坂氷川神社"
     assert rec["location"] == "港区赤坂"
 
-    assert last_findplace_params.get("locationbias") == "circle:8000@35.671,139.736"
     assert_chat_response_does_not_look_like_plan(res.json())
 
 
