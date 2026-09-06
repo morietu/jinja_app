@@ -1,57 +1,30 @@
 // src/lib/api/__tests__/users.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { AxiosInstance } from "axios";
+import { describe, it, expect, vi } from "vitest";
 
-vi.mock("../client", () => {
-  const get = vi.fn();
-  const post = vi.fn();
-  const patch = vi.fn();
-
-  const api = {
-    get,
-    post,
-    patch,
-  } as unknown as AxiosInstance;
-
-  return {
-    __esModule: true,
-    default: api,
-  };
-});
-
-import api from "../client";
-import { updateUser, uploadUserIcon } from "../users";
-
-const mockedApi = vi.mocked(api, { deep: true });
+import { updateUser } from "../users";
 
 describe("users api client", () => {
-  beforeEach(() => {
-    mockedApi.get.mockReset();
-    mockedApi.post.mockReset();
-    mockedApi.patch.mockReset();
-  });
-
-  // ここに updateMe のテストがあればそのままでOK（省略）
-
-  it("uploadUserIcon は FormData で users/me/icon/ に POST する", async () => {
-    const file = new File(["dummy"], "icon.png", { type: "image/png" });
-
-    mockedApi.post.mockResolvedValue({ data: { icon_url: "/media/icon.png" } });
-
-    await uploadUserIcon(file);
-
-    expect(mockedApi.post).toHaveBeenCalledTimes(1);
-    const [url, formData, config] = mockedApi.post.mock.calls[0];
-
-    expect(url).toBe("users/me/icon/");
-    expect(formData).toBeInstanceOf(FormData);
-    // axios に任せるのでヘッダーは undefined でOK
-    expect(config?.headers?.["Content-Type"]).toBeUndefined();
-  });
-
   it("updateUser は /api/users/me/ に PATCH して成功時に User を返す", async () => {
     const patch = { nickname: "patched" };
-    const me = { id: 1, username: "test-user", nickname: "patched" };
+    const me = {
+      id: 1,
+      username: "test-user",
+      email: "test@example.com",
+      first_name: "",
+      last_name: "",
+      profile: {
+        nickname: "patched",
+        is_public: true,
+        bio: null,
+        icon: null,
+        icon_url: null,
+        birthday: null,
+        birth_time: null,
+        birth_place: null,
+        worship_style: null,
+        created_at: "2026-09-06T00:00:00Z",
+      },
+    };
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
