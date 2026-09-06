@@ -93,7 +93,6 @@ DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate admin 0003 --noinput
 DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate sessions 0001 --noinput
 DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate token_blacklist 0013 --noinput
 DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate users 0005 --noinput
-DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate favorites 0002 --noinput
 DATABASE_URL="${SOURCE_URL}" "${PY}" manage.py migrate temples 0089 --noinput
 
 echo "[e2e] seeding realistic baseline data via raw SQL (bypasses the known users/apps.py signal mismatch — see docs/audit/production-all-app-migration-state-audit.md)"

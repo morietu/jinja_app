@@ -242,7 +242,6 @@ INSTALLED_APPS = [
     "drf_spectacular",
     # Local apps（後）
     "users",
-    "favorites",
     "temples.apps.TemplesConfig",
     "storages",
 ]
