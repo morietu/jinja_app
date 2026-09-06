@@ -59,6 +59,8 @@ export type ShrineCardProps = {
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
   isTopPick?: boolean;
+  /** DBへ最近追加された神社かどうか。判定は lib/shrine/isNewShrine.ts が行う。 */
+  isNew?: boolean;
 
   explanationSummary?: string | null;
   explanationReasons?: Array<{
@@ -89,6 +91,7 @@ export function ShrineCard(props: ShrineCardProps) {
     isFavorited,
     onToggleFavorite,
     isTopPick = false,
+    isNew = false,
     explanationSummary,
     explanationReasons,
   } = props;
@@ -134,7 +137,7 @@ export function ShrineCard(props: ShrineCardProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {isTopPick || topReasonLabel ? (
+            {isTopPick || topReasonLabel || isNew ? (
               <div className="mb-2 flex flex-wrap gap-2">
                 {isTopPick ? (
                   <div className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
@@ -145,6 +148,13 @@ export function ShrineCard(props: ShrineCardProps) {
                 {topReasonLabel ? (
                   <div className="inline-flex rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                     {topReasonLabel}
+                  </div>
+                ) : null}
+
+                {/* 情報補助のため「いちばんおすすめ」より弱い視覚階層に留める（中立色・非semibold）。 */}
+                {isNew ? (
+                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    新着
                   </div>
                 ) : null}
               </div>
