@@ -87,14 +87,14 @@ export function PlaceSuggestBox({ value, onChange, onSelect, limit = 10 }: Props
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="神社名や場所を、そっと入れる"
-        className="w-full rounded-3xl border border-stone-200/35 bg-stone-50/25 px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400"
+        className="w-full rounded-3xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-3 py-2 text-sm text-[var(--kt-color-text-primary)] outline-none placeholder:text-[var(--kt-color-text-muted)] focus:border-[var(--kt-color-border-focus)]"
       />
 
-      {loading ? <div className="text-xs text-stone-500 opacity-70">候補を整えています…</div> : null}
-      {error ? <div className="text-xs text-rose-600">{error}</div> : null}
+      {loading ? <div className="text-xs text-[var(--kt-color-text-muted)]">候補を整えています…</div> : null}
+      {error ? <div className="text-xs text-[var(--kt-color-status-error)]">{error}</div> : null}
 
       {items.length ? (
-        <div className="rounded-3xl border border-stone-200/25 bg-white/60 py-0.5">
+        <div className="rounded-3xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] py-0.5">
           {items.map((it) => {
             if (it.kind === "db") {
               const s = it.shrine;
@@ -103,11 +103,11 @@ export function PlaceSuggestBox({ value, onChange, onSelect, limit = 10 }: Props
                   key={it.key}
                   type="button"
                   onClick={() => onSelect(s)}
-                  className="block w-full px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-50/50"
+                  className="block w-full px-3 py-2 text-left text-sm text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-background-subtle)]"
                 >
                   <div className="font-medium">{s.name_jp}</div>
                   {(s as any).address ? (
-                    <div className="mt-0.5 text-xs text-stone-500 opacity-70">{(s as any).address}</div>
+                    <div className="mt-0.5 text-xs text-[var(--kt-color-text-muted)]">{(s as any).address}</div>
                   ) : null}
                 </button>
               );
@@ -135,13 +135,13 @@ export function PlaceSuggestBox({ value, onChange, onSelect, limit = 10 }: Props
                     setIngestingKey(null);
                   }
                 }}
-                className={`block w-full px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-50/50 ${
+                className={`block w-full px-3 py-2 text-left text-sm text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-background-subtle)] ${
                   busy ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 <div className="font-medium">{p.name}</div>
-                {p.address ? <div className="mt-0.5 text-xs text-stone-500 opacity-70">{p.address}</div> : null}
-                <div className="mt-0.5 text-[11px] text-emerald-700 opacity-75">
+                {p.address ? <div className="mt-0.5 text-xs text-[var(--kt-color-text-muted)]">{p.address}</div> : null}
+                <div className="mt-0.5 text-[11px] text-[var(--kt-color-action-primary)]">
                   {busy ? "取り込み中…" : "未登録: 取り込んで選択"}
                 </div>
               </button>
