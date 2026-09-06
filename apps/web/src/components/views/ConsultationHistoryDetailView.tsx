@@ -63,19 +63,22 @@ function RecommendationCard({
   const actionLabel = rec.action_state ? ACTION_STATE_LABEL[rec.action_state] : null;
 
   return (
-    <li className="rounded-2xl border border-stone-200/20 bg-stone-50/30 p-4">
+    <li className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold text-stone-900">{rec.name}</p>
+        <p className="font-semibold text-[var(--kt-color-text-primary)]">{rec.name}</p>
         {actionLabel ? (
           <span className="shrink-0 rounded-full border border-emerald-700/20 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">
             {actionLabel}
           </span>
         ) : null}
       </div>
-      {rec.address ? <p className="mt-1 text-xs text-stone-500">{rec.address}</p> : null}
-      {factText ? <p className="mt-2 text-sm text-stone-700">{factText}</p> : null}
+      {rec.address ? <p className="mt-1 text-xs text-[var(--kt-color-text-muted)]">{rec.address}</p> : null}
+      {factText ? <p className="mt-2 text-sm text-[var(--kt-color-text-secondary)]">{factText}</p> : null}
       {explanationOnlyFactText ? (
-        <p className="mt-2 text-sm text-stone-500" data-testid="consultation-history-explanation-only-fact">
+        <p
+          className="mt-2 text-sm text-[var(--kt-color-text-muted)]"
+          data-testid="consultation-history-explanation-only-fact"
+        >
           <span className="font-semibold">参考情報: </span>
           {explanationOnlyFactText}
         </p>
@@ -86,7 +89,7 @@ function RecommendationCard({
           onClick={() =>
             trackConsultationHistoryShrineOpened({ threadId: tid, shrineId, recommendationRank: rank })
           }
-          className="mt-3 inline-block text-xs font-semibold text-emerald-800 underline"
+          className="mt-3 inline-block text-xs font-semibold text-[var(--kt-color-action-primary)] underline"
         >
           神社の詳細を見る
         </Link>
@@ -116,21 +119,21 @@ export default function ConsultationHistoryDetailView({ tid, thread, fetchFailed
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-3xl p-6 text-stone-800">
-        <p className="text-sm text-stone-500">読み込み中…</p>
+      <main className="mx-auto max-w-3xl p-6 text-[var(--kt-color-text-primary)]">
+        <p className="text-sm text-[var(--kt-color-text-muted)]">読み込み中…</p>
       </main>
     );
   }
 
   if (!isLoggedIn) {
     return (
-      <main className="mx-auto max-w-3xl p-6 text-stone-800">
+      <main className="mx-auto max-w-3xl p-6 text-[var(--kt-color-text-primary)]">
         <h1 className="mb-4 text-xl font-semibold">相談履歴</h1>
-        <div className="rounded-2xl border border-stone-200/20 bg-stone-50/30 p-6">
-          <p className="mb-3 text-sm text-stone-600">ログインすると、この相談履歴を見返せます。</p>
+        <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-6">
+          <p className="mb-3 text-sm text-[var(--kt-color-text-secondary)]">ログインすると、この相談履歴を見返せます。</p>
           <Link
             href={buildLoginHref(`/mypage/history/${tid}`)}
-            className="inline-block rounded-full border border-emerald-700/20 bg-emerald-800 px-4 py-2 text-sm text-white transition hover:bg-emerald-900"
+            className="inline-block rounded-full bg-[var(--kt-color-action-primary)] px-4 py-2 text-sm text-[var(--kt-color-background-base)] transition hover:bg-[var(--kt-color-action-primary-hover)]"
           >
             ログインへ
           </Link>
@@ -141,13 +144,13 @@ export default function ConsultationHistoryDetailView({ tid, thread, fetchFailed
 
   if (fetchFailed) {
     return (
-      <main className="mx-auto max-w-3xl p-6 text-stone-800">
-        <div className="rounded-2xl border border-rose-200/40 bg-rose-50/40 p-6">
-          <p className="mb-3 text-sm text-rose-700">相談履歴を読み込めませんでした。</p>
+      <main className="mx-auto max-w-3xl p-6 text-[var(--kt-color-text-primary)]">
+        <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-6">
+          <p className="mb-3 text-sm text-[var(--kt-color-status-error)]">相談履歴を読み込めませんでした。</p>
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="inline-block rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700 transition hover:bg-stone-50"
+            className="inline-block rounded-full border border-[var(--kt-color-border-strong)] bg-[var(--kt-color-surface-default)] px-4 py-2 text-sm text-[var(--kt-color-text-primary)] transition hover:bg-[var(--kt-color-background-subtle)]"
           >
             もう一度読み込む
           </button>
@@ -158,10 +161,13 @@ export default function ConsultationHistoryDetailView({ tid, thread, fetchFailed
 
   if (!thread) {
     return (
-      <main className="mx-auto max-w-3xl p-6 text-stone-800">
-        <div className="rounded-2xl border border-stone-200/20 bg-stone-50/30 p-6">
-          <p className="text-sm text-stone-600">この相談は見つかりませんでした。</p>
-          <Link href="/mypage/history" className="mt-3 inline-block text-sm text-emerald-800 underline">
+      <main className="mx-auto max-w-3xl p-6 text-[var(--kt-color-text-primary)]">
+        <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-6">
+          <p className="text-sm text-[var(--kt-color-text-secondary)]">この相談は見つかりませんでした。</p>
+          <Link
+            href="/mypage/history"
+            className="mt-3 inline-block text-sm text-[var(--kt-color-action-primary)] underline"
+          >
             相談履歴の一覧へ戻る
           </Link>
         </div>
@@ -172,18 +178,18 @@ export default function ConsultationHistoryDetailView({ tid, thread, fetchFailed
   const recommendations = thread.recommendations_v2 ?? thread.recommendations ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6 text-stone-800">
+    <main className="mx-auto max-w-3xl space-y-6 p-6 text-[var(--kt-color-text-primary)]">
       <div>
-        <Link href="/mypage/history" className="text-xs text-stone-500 underline">
+        <Link href="/mypage/history" className="text-xs text-[var(--kt-color-text-muted)] underline">
           ← 相談履歴の一覧へ
         </Link>
         <h1 className="mt-2 text-xl font-semibold">{thread.title?.trim() || "相談タイトル未設定"}</h1>
-        <p className="mt-1 text-xs text-stone-500">{formatDateTime(thread.last_message_at)}</p>
+        <p className="mt-1 text-xs text-[var(--kt-color-text-muted)]">{formatDateTime(thread.last_message_at)}</p>
       </div>
 
       {recommendations.length > 0 ? (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-stone-700">当時推薦された神社</h2>
+          <h2 className="mb-2 text-sm font-semibold text-[var(--kt-color-text-secondary)]">当時推薦された神社</h2>
           <ul className="space-y-3">
             {recommendations.map((rec, idx) => (
               <RecommendationCard
@@ -198,19 +204,19 @@ export default function ConsultationHistoryDetailView({ tid, thread, fetchFailed
       ) : null}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-stone-700">相談内容</h2>
+        <h2 className="mb-2 text-sm font-semibold text-[var(--kt-color-text-secondary)]">相談内容</h2>
         <ul className="space-y-2">
           {thread.messages.map((message) => (
             <li
               key={message.id}
               className={
                 message.role === "user"
-                  ? "rounded-2xl bg-emerald-50 p-3 text-sm text-stone-800"
-                  : "rounded-2xl bg-stone-100 p-3 text-sm text-stone-800"
+                  ? "rounded-2xl bg-[var(--kt-color-message-own-background)] p-3 text-sm text-[var(--kt-color-message-own-text)]"
+                  : "rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-3 text-sm text-[var(--kt-color-text-primary)]"
               }
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
-              <p className="mt-1 text-xs text-stone-400">{formatDateTime(message.created_at)}</p>
+              <p className="mt-1 text-xs text-[var(--kt-color-text-muted)]">{formatDateTime(message.created_at)}</p>
             </li>
           ))}
         </ul>
