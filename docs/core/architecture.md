@@ -317,6 +317,7 @@ request.user
 ### Core
 
 - Core文書の入口：`docs/core/README.md`
+- ローカル開発環境：`docs/core/desktop-development-contract.md`
 - Meaning Layer：`docs/core/meaning-layer.md`
 - Meaning接続：`docs/core/meaning-layer-connection.md`
 - Narrative原則：`docs/core/narrative-guideline.md`
