@@ -168,6 +168,9 @@ class ShrineListSerializer(ShrineBaseSerializer):
             "distance_text",
             "location",
             "kyusei",
+            # 一覧側の「新着」表示（Frontend判定）が参照する事実値。
+            # Backendはcreated_atという事実を返すだけで、新着かどうかの判定は持たない。
+            "created_at",
         ]
         read_only_fields = (
             "latitude",

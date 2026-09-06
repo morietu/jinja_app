@@ -78,6 +78,10 @@ export type ShrineBase = {
   description?: string | null;
   goriyaku_tags: GoriyakuTag[];
 
+  // ShrineListSerializerのみ返す（ShrineDetailSerializer/ShrinePublicSerializerには存在しない）。
+  // ISO 8601 datetime。/shrines一覧の「新着」表示（lib/shrine/isNewShrine.ts）が参照する。
+  created_at?: string | null;
+
   // ShrineDetailSerializerのみ返す（ShrinePublicSerializer/ShrineListSerializerには存在しない）。
   // 通常Detail API(/api/shrines/{id}/data/)経由でのみ値が入る。
   deities?: ShrineDeity[];

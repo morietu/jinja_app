@@ -7,6 +7,8 @@ export type ShrineCardAdapterProps = {
   imageUrl?: string | null;
   description: string;
   badges?: string[];
+  /** /shrines一覧の「新着」表示用。判定は lib/shrine/isNewShrine.ts が行う。 */
+  isNew?: boolean;
 };
 
 function firstNonEmpty(...xs: Array<string | null | undefined>) {

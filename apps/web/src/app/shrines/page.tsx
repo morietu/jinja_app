@@ -259,6 +259,7 @@ function ShrinesPageContent() {
                           recommendReason={p.description ?? undefined}
                           imageUrl={p.imageUrl ?? undefined}
                           tags={p.badges ?? []}
+                          isNew={p.isNew}
                           href={`/shrines/${p.shrineId}`}
                         />
                       </li>
