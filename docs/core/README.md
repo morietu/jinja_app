@@ -15,6 +15,8 @@ Core文書は、KAMI MUSUBI全体へ横断的に適用されるシステム構�
 ```text
 architecture.md
 ↓
+desktop-development-contract.md
+↓
 roadmap.md
 ↓
 authentication-flow.md
@@ -47,6 +49,7 @@ openapi-contract-governance.md
 | 文書 | 責務 |
 | --- | --- |
 | `architecture.md` | システム全体構造、レイヤー、技術責務および依存関係 |
+| `desktop-development-contract.md` | active local Repository、local DB、再生成経路および開発環境の正本契約 |
 | `roadmap.md` | 開発フェーズ、実装順序、ゴールおよび完了条件 |
 
 ### 認証
