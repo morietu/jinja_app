@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { updateUser, type UserMe } from "@/lib/api/users";
+import { updateUser, type UpdateUserProfilePayload } from "@/lib/api/users";
 import { useAuth as useAuthContext } from "@/lib/auth/AuthProvider";
+import type { AuthUser } from "@/lib/auth/types";
 import type { Favorite } from "@/lib/api/favorites";
 import { getVisits, type Visit } from "@/lib/api/visits";
 import MyPageScreen from "@/features/mypage/components/MyPageScreen";
@@ -20,7 +21,7 @@ const PREFECTURES = ["北海道", "青森県", "岩手県", "宮城県", "秋田
 const WORSHIP_STYLES = ["朝参り", "日中の参拝", "夕参り", "静かに参拝", "御朱印巡り"];
 type ProfileForm = { nickname: string; is_public: boolean; birthday: string; birth_time: string; birth_place: string; worship_style: string };
 
-function profileToForm(profile: UserMe["profile"]): ProfileForm {
+function profileToForm(profile: AuthUser["profile"]): ProfileForm {
   return {
     nickname: (profile?.nickname ?? "").trim(),
     is_public: !!profile?.is_public,
@@ -128,7 +129,7 @@ export default function MyPageView({ initialFavorites }: Props) {
   const tab = normalizeTab(sp.get("tab"));
   const { user: authUser, loading, refreshMe } = useAuthContext();
 
-  const [user, setUser] = useState<UserMe | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [form, setForm] = useState<ProfileForm>(() => profileToForm(null));
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -143,9 +144,8 @@ export default function MyPageView({ initialFavorites }: Props) {
       return;
     }
 
-    const me = authUser as UserMe;
-    setUser(me);
-    setForm(profileToForm(me.profile));
+    setUser(authUser);
+    setForm(profileToForm(authUser.profile));
   }, [authUser]);
 
   useEffect(() => {
@@ -200,7 +200,7 @@ export default function MyPageView({ initialFavorites }: Props) {
     setSaveMessage(null);
     setSaveError(null);
     try {
-      const payload: Record<string, unknown> = {};
+      const payload: UpdateUserProfilePayload = {};
       const nick0 = (user.profile?.nickname ?? "").trim();
       const nick1 = (form.nickname ?? "").trim();
       if (nick1 !== nick0) payload.nickname = nick1;
