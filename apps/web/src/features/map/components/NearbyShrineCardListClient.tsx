@@ -91,7 +91,7 @@ export default function NearbyShrineCardListClient() {
       // ✅ state を依存に入れると setState(loading) で関数が再生成され、
       // 呼び出し側の useEffect が再発火するリスクがあるため、state は依存から外します。
       const key = `${lat},${lng},${DEFAULT_LIMIT},${tid ?? ""}`;
-      if (lastKeyRef.current === key && items.length > 0) return; // state の代わりに items を参照
+      if (lastKeyRef.current === key) return;
       lastKeyRef.current = key;
 
       abortRef.current?.abort();
@@ -143,7 +143,7 @@ export default function NearbyShrineCardListClient() {
         setState("error");
       }
     },
-    [tid, items.length], // stateを外し、リトライを許容するために items.length を参照
+    [tid],
   );
 
   useEffect(() => {
