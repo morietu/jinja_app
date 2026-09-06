@@ -212,6 +212,36 @@ describe("ConsultationHistoryDetailView", () => {
     );
   });
 
+  // NF-1 (Production Smoke Re-check) 回帰ガード。
+  // Dark UIは`<html class="dark">`固定で、Light値のハードコードclassが残ると
+  // title / CTA / 本文が実質判読不能になる(CTA 1.08:1 / title 1.33:1が実測されたP1)。
+  // 特定のtoken名や色をliteralで固定するのではなく、「Light専用の残渣classが
+  // 描画結果に現れないこと」だけを契約として固定する。
+  const LIGHT_RESIDUE = /\b(?:text|bg|border|placeholder|hover:bg|hover:text)-(?:stone|slate|rose|zinc|neutral)-\d{2,3}\b|\bbg-white\b|\btext-white\b/;
+
+  it.each([
+    ["loading", { loading: true, isLoggedIn: false }, null, false] as const,
+    ["unauthenticated", { loading: false, isLoggedIn: false }, null, false] as const,
+    ["fetchFailed", { loading: false, isLoggedIn: true }, null, true] as const,
+    ["not_found", { loading: false, isLoggedIn: true }, null, false] as const,
+  ])("NF-1: %s状態にLight専用のハードコードclassが残らない", (_name, auth, thread, fetchFailed) => {
+    useAuthMock.mockReturnValue(auth);
+    const { container } = render(
+      <ConsultationHistoryDetailView tid="42" thread={thread} fetchFailed={fetchFailed} />,
+    );
+
+    expect(container.innerHTML).not.toMatch(LIGHT_RESIDUE);
+  });
+
+  it("NF-1: 正常系(タイトル・推薦カード・会話履歴)にLight専用のハードコードclassが残らない", () => {
+    useAuthMock.mockReturnValue({ loading: false, isLoggedIn: true });
+    const { container } = render(
+      <ConsultationHistoryDetailView tid="42" thread={THREAD} fetchFailed={false} />,
+    );
+
+    expect(container.innerHTML).not.toMatch(LIGHT_RESIDUE);
+  });
+
   it("神社詳細操作時にshrine_openedをthreadId・shrineId・recommendationRank(1始まり)で送る", () => {
     useAuthMock.mockReturnValue({ loading: false, isLoggedIn: true });
     render(<ConsultationHistoryDetailView tid="42" thread={THREAD} fetchFailed={false} />);
