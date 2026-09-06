@@ -28,7 +28,6 @@ from temples.geocoding.client import geocode_google_point
 from temples.models import ConciergeThread
 from temples.domain.consultation_axis import resolve_consultation_axis
 from temples.domain.kyusei import annual_lucky_directions, planned_visit_lucky_directions
-from temples.services import places as Places
 
 from temples.services.plan_service import resolve_plan_context
 from temples.services.quota_service import check_quota, consume_quota
@@ -254,47 +253,6 @@ def _geocode_area_for_chat(*, area: str) -> tuple[float, float] | None:
         len(area or ""),
     )
     return pt
-
-def _probe_area_locationbias_for_chat(*, area: str | None) -> None:
-    """
-    Chatテスト用：area→geocode→findplace(locationbias=8000) を1回だけ叩いて、
-    monkeypatch が拾う params を残す。結果は使わない。
-    """
-    area = (area or "").strip()
-    if not area:
-        log.info("[concierge/perf] step=probe_locationbias skipped=no_area")
-        return
-
-    pt = _geocode_area_for_chat(area=area)
-    if not pt:
-        log.info("[concierge/perf] step=probe_locationbias skipped=no_geocode_result")
-        return
-
-    lb = f"circle:8000@{pt[0]:.3f},{pt[1]:.3f}"
-
-    t0 = time.perf_counter()
-    try:
-        Places.findplacefromtext(
-            input=area,
-            language="ja",
-            fields="place_id",
-            locationbias=lb,
-        )
-        elapsed = time.perf_counter() - t0
-        log.info(
-            "[concierge/perf] step=probe_locationbias elapsed=%.3f ok=1 area_len=%d",
-            elapsed,
-            len(area),
-        )
-    except Exception:
-        elapsed = time.perf_counter() - t0
-        log.exception(
-            "[concierge/perf] step=probe_locationbias elapsed=%.3f ok=0 area_len=%d",
-            elapsed,
-            len(area),
-        )
-
-
 
 def _resolve_request_location_inputs(
     data: Dict[str, Any],
@@ -761,14 +719,10 @@ class ConciergeChatView(APIView):
             )
 
             # -------------------------
-            # ③ probe / bias / intent
+            # ③ bias / intent
             # -------------------------
             phase = "pre_recommend"
             t0 = time.perf_counter()
-            try:
-                _probe_area_locationbias_for_chat(area=area)
-            except Exception:
-                log.exception("[concierge/perf] step=probe rid=%s failed", rid)
 
             bias = None
             if lat is not None and lng is not None:
