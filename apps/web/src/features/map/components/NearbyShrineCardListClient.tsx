@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { trackNearbyFetch } from "@/lib/analytics/searchEvents";
 import type { PlacesNearbyResponse } from "@/lib/api/places.nearby.types";
 import { requestCurrentPosition } from "@/lib/geo/currentPosition";
 import { buildGoogleMapsDirUrl, buildGoogleMapsSearchUrl } from "@/lib/maps/googleMaps";
@@ -14,6 +15,7 @@ const FALLBACK = { lat: 35.681236, lng: 139.767125 }; // 東京駅
 const DEFAULT_LIMIT = 10;
 
 type NearbyState = "idle" | "loading" | "error" | "empty" | "ready";
+type NearbyFetchTrigger = "auto" | "manual_refresh";
 type NearbyItemView = PlacesNearbyResponse["results"][number] & {
   detailHref?: string | null;
 };
@@ -59,6 +61,7 @@ export default function NearbyShrineCardListClient() {
 
   const lastKeyRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
+  const usedFallbackRef = useRef(false);
 
   // 位置情報取得 — coarse fix is enough for "nearby shrines" and far more
   // reliable on mobile than a high-accuracy GPS acquisition (RH3-4b). On any
@@ -71,10 +74,12 @@ export default function NearbyShrineCardListClient() {
       if (cancelled) return;
       if (result.ok) {
         clientLog("LOC_OK", { acc: result.accuracy });
+        usedFallbackRef.current = false;
         setCoords({ lat: result.lat, lng: result.lng });
         setUsedFallback(false);
       } else {
         clientLog("LOC_FAILED", { reason: result.reason });
+        usedFallbackRef.current = true;
         setCoords(FALLBACK);
         setUsedFallback(true);
       }
@@ -87,7 +92,7 @@ export default function NearbyShrineCardListClient() {
   }, []);
 
   const fetchNearby = useCallback(
-    async (lat: number, lng: number) => {
+    async (lat: number, lng: number, trigger: NearbyFetchTrigger = "auto") => {
       // ✅ state を依存に入れると setState(loading) で関数が再生成され、
       // 呼び出し側の useEffect が再発火するリスクがあるため、state は依存から外します。
       const key = `${lat},${lng},${DEFAULT_LIMIT},${tid ?? ""}`;
@@ -106,6 +111,13 @@ export default function NearbyShrineCardListClient() {
           lat: String(lat),
           lng: String(lng),
           limit: String(DEFAULT_LIMIT),
+        });
+
+        trackNearbyFetch({
+          source: "map",
+          surface: "web",
+          trigger,
+          used_fallback: usedFallbackRef.current,
         });
 
         const r = await fetch(`/api/places/nearby?${qs.toString()}`, {
@@ -199,7 +211,7 @@ export default function NearbyShrineCardListClient() {
           onClick={() => {
             if (!coords) return;
             lastKeyRef.current = ""; // ✅ 更新ボタンだけ強制リフレッシュ
-            void fetchNearby(coords.lat, coords.lng);
+            void fetchNearby(coords.lat, coords.lng, "manual_refresh");
           }}
           className="rounded-full border border-stone-200/70 bg-white/80 px-3 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
           disabled={!canAction}
