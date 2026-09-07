@@ -28,9 +28,11 @@ BOOTSTRAP_STEPS: tuple[BootstrapStep, ...] = (
     ),
     BootstrapStep(
         step="backfill_goriyaku_tags",
+        # Historical Production marker. Keep this version stable so existing SUCCESS rows remain SKIP.
+        # visit_style_tags is canonical in Base Seed; --with-visit-style is repair-only.
         version="2026-05-10-with-visit-style-force-v1",
         command="backfill_goriyaku_tags",
-        args=("--with-visit-style", "--force"),
+        args=("--force",),
     ),
 )
 
