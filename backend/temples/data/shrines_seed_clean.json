@@ -32,7 +32,11 @@
     "location": {
       "lat": 34.9671,
       "lng": 135.7727
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "伊勢神宮（内宮）",
@@ -67,7 +71,10 @@
     "location": {
       "lat": 35.4016,
       "lng": 132.6853
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "春日大社",
@@ -142,7 +149,10 @@
     "location": {
       "lat": 33.531,
       "lng": 131.379
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "日光東照宮",
@@ -157,7 +167,10 @@
     "location": {
       "lat": 36.7579,
       "lng": 139.5986
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "鶴岡八幡宮",
@@ -192,7 +205,10 @@
     "location": {
       "lat": 34.6149,
       "lng": 135.4928
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "石清水八幡宮",
@@ -207,7 +223,10 @@
     "location": {
       "lat": 34.8841,
       "lng": 135.6944
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "金刀比羅宮",
@@ -222,7 +241,10 @@
     "location": {
       "lat": 34.1811,
       "lng": 133.8216
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "鹿島神宮",
@@ -237,7 +259,10 @@
     "location": {
       "lat": 35.9658,
       "lng": 140.6285
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "香取神宮",
@@ -252,7 +277,11 @@
     "location": {
       "lat": 35.9067,
       "lng": 140.535
-    }
+    },
+    "visit_style_tags": [
+      "nature",
+      "classic"
+    ]
   },
   {
     "name_jp": "氷川神社（大宮）",
@@ -267,7 +296,10 @@
     "location": {
       "lat": 35.9201,
       "lng": 139.6263
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "三峯神社",
@@ -362,7 +394,10 @@
     "location": {
       "lat": 35.660614,
       "lng": 139.6017688
-    }
+    },
+    "visit_style_tags": [
+      "urban"
+    ]
   },
   {
     "name_jp": "給田六所神社",
@@ -377,7 +412,10 @@
     "location": {
       "lat": 35.662443,
       "lng": 139.5920237
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "神田神社（神田明神）",
@@ -465,7 +503,10 @@
     "location": {
       "lat": 36.4764,
       "lng": 138.8756
-    }
+    },
+    "visit_style_tags": [
+      "business"
+    ]
   },
   {
     "name_jp": "筑波山神社",
@@ -478,7 +519,10 @@
     "location": {
       "lat": 36.2246,
       "lng": 140.1069
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "阿佐ヶ谷神明宮",
@@ -509,7 +553,10 @@
     "location": {
       "lat": 37.7047,
       "lng": 138.8287
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "氣多大社",
@@ -522,7 +569,10 @@
     "location": {
       "lat": 36.8939,
       "lng": 136.7784
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "越中一宮 高瀬神社",
@@ -535,7 +585,10 @@
     "location": {
       "lat": 36.5578,
       "lng": 136.8619
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "椿大神社",
@@ -566,7 +619,10 @@
     "location": {
       "lat": 35.039,
       "lng": 135.7721
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "賀茂別雷神社（上賀茂神社）",
@@ -579,7 +635,10 @@
     "location": {
       "lat": 35.0605,
       "lng": 135.7522
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "生田神社",
@@ -592,7 +651,10 @@
     "location": {
       "lat": 34.694,
       "lng": 135.1923
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "吉備津神社",
@@ -641,7 +703,11 @@
     "location": {
       "lat": 33.7669,
       "lng": 130.4917
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "川越氷川神社",
@@ -671,7 +737,10 @@
     "location": {
       "lat": 36.4346,
       "lng": 136.6368
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "高千穂神社",
@@ -901,7 +970,10 @@
     "location": {
       "lat": 36.3708,
       "lng": 140.4767
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "二荒山神社",
@@ -916,7 +988,11 @@
     "location": {
       "lat": 36.758,
       "lng": 139.5966
-    }
+    },
+    "visit_style_tags": [
+      "classic",
+      "nature"
+    ]
   },
   {
     "name_jp": "貴船神社",
@@ -950,7 +1026,10 @@
     "location": {
       "lat": 35.0037,
       "lng": 135.7788
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "住吉神社（博多）",
@@ -965,7 +1044,10 @@
     "location": {
       "lat": 33.587,
       "lng": 130.4086
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "靖國神社",
@@ -980,7 +1062,10 @@
     "location": {
       "lat": 35.6944,
       "lng": 139.743
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "乃木神社",
@@ -1252,7 +1337,11 @@
     "location": {
       "lat": 35.8614,
       "lng": 139.6828
-    }
+    },
+    "visit_style_tags": [
+      "nature",
+      "classic"
+    ]
   },
   {
     "name_jp": "調神社",
@@ -1307,7 +1396,10 @@
     "location": {
       "lat": 36.0958,
       "lng": 139.669
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "箭弓稲荷神社",
@@ -1322,7 +1414,11 @@
     "location": {
       "lat": 36.0412,
       "lng": 139.4014
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "安房神社",
@@ -1337,7 +1433,11 @@
     "location": {
       "lat": 34.9724,
       "lng": 139.8297
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "千葉神社",
@@ -1352,7 +1452,11 @@
     "location": {
       "lat": 35.6114,
       "lng": 140.1246
-    }
+    },
+    "visit_style_tags": [
+      "classic",
+      "study"
+    ]
   },
   {
     "name_jp": "玉前神社",
@@ -1367,7 +1471,10 @@
     "location": {
       "lat": 35.3722,
       "lng": 140.365
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "櫻木神社",
@@ -1421,7 +1528,11 @@
     "location": {
       "lat": 36.3846,
       "lng": 140.2669
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "酒列磯前神社",
@@ -1436,7 +1547,10 @@
     "location": {
       "lat": 36.3941,
       "lng": 140.6165
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "宇都宮二荒山神社",
@@ -1451,7 +1565,10 @@
     "location": {
       "lat": 36.5607,
       "lng": 139.8827
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "足利織姫神社",
@@ -1485,7 +1602,11 @@
     "location": {
       "lat": 36.7427,
       "lng": 139.5208
-    }
+    },
+    "visit_style_tags": [
+      "nature",
+      "classic"
+    ]
   },
   {
     "name_jp": "冠稲荷神社",
@@ -1500,7 +1621,11 @@
     "location": {
       "lat": 36.2717,
       "lng": 139.3565
-    }
+    },
+    "visit_style_tags": [
+      "nature",
+      "classic"
+    ]
   },
   {
     "name_jp": "妙義神社",
@@ -1515,7 +1640,10 @@
     "location": {
       "lat": 36.294,
       "lng": 138.7547
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "赤城神社",
@@ -1530,7 +1658,11 @@
     "location": {
       "lat": 36.5601,
       "lng": 139.1936
-    }
+    },
+    "visit_style_tags": [
+      "nature",
+      "classic"
+    ]
   },
   {
     "name_jp": "鶴嶺八幡宮",
@@ -1545,7 +1677,10 @@
     "location": {
       "lat": 35.3375,
       "lng": 139.4047
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "森戸大明神",
@@ -1579,7 +1714,12 @@
     "location": {
       "lat": 35.2508,
       "lng": 139.1548
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic",
+      "study"
+    ]
   },
   {
     "name_jp": "九頭龍神社 新宮",
@@ -1613,7 +1753,10 @@
     "location": {
       "lat": 35.3291,
       "lng": 139.352
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "忌宮神社",
@@ -1628,7 +1771,10 @@
     "location": {
       "lat": 34.0415,
       "lng": 130.9876
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "高良大社",
@@ -1643,7 +1789,10 @@
     "location": {
       "lat": 33.3058,
       "lng": 130.5603
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "寳登山神社",
@@ -1658,7 +1807,10 @@
     "location": {
       "lat": 36.0924821,
       "lng": 139.1039652
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "枚岡神社",
@@ -1673,7 +1825,11 @@
     "location": {
       "lat": 34.6716,
       "lng": 135.6516
-    }
+    },
+    "visit_style_tags": [
+      "business",
+      "classic"
+    ]
   },
   {
     "name_jp": "護王神社",
@@ -1688,7 +1844,10 @@
     "location": {
       "lat": 35.0186,
       "lng": 135.7583
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "阿蘇神社",
@@ -1703,7 +1862,10 @@
     "location": {
       "lat": 32.9519,
       "lng": 131.1211
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "北海道神宮",
@@ -1716,7 +1878,10 @@
     "location": {
       "lat": 43.0553,
       "lng": 141.3126
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "建部大社",
@@ -1729,7 +1894,10 @@
     "location": {
       "lat": 34.9735,
       "lng": 135.9135
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   },
   {
     "name_jp": "波上宮",
@@ -1742,6 +1910,9 @@
     "location": {
       "lat": 26.2144,
       "lng": 127.6672
-    }
+    },
+    "visit_style_tags": [
+      "classic"
+    ]
   }
 ]
