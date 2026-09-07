@@ -46,6 +46,18 @@ echo "=== migration divergence diagnostics (temples 0079-0089) ==="
 } || echo "migration divergence diagnostics failed; continuing startup"
 echo "=== end migration divergence diagnostics ==="
 
+if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ]; then
+  if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ]; then
+    echo "ERROR: RUN_VISIT_STYLE_AUDIT_ON_START requires all write-capable startup flags to be disabled."
+    exit 1
+  fi
+  echo "Auditing Production shrine seed drift because RUN_VISIT_STYLE_AUDIT_ON_START=1 (dry-run only)..."
+  python manage.py import_shrines_seed --dry-run
+  echo "Visit style Production dry-run audit completed."
+else
+  echo "Skipping Visit Style Production audit. Set RUN_VISIT_STYLE_AUDIT_ON_START=1 to run it explicitly."
+fi
+
 if [ "${RUN_STARTUP_CHECK:-0}" = "1" ]; then
   echo "Running startup system check because RUN_STARTUP_CHECK=1..."
   python manage.py check
