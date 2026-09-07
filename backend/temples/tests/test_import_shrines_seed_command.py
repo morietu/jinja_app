@@ -366,27 +366,19 @@ def test_importer_payload_field_set_is_pinned():
 
 
 # --------------------------------------------------------------------------
-# E. visit_style_tags: Base Seedは意図的に部分適用（51/103）
+# E. visit_style_tags: Base Seed canonical completeness / importer semantics
 # --------------------------------------------------------------------------
 
 
-def test_base_seed_visit_style_tags_are_intentionally_partial():
-    """Base Seedの visit_style_tags は全行には無い。
-
-    #1158 / #1159 / #1160（「東京主要神社に追加」→「30件へ拡張」→
-    「50%まで拡張」）で段階的に投入された途中状態であり、key欠落は
-    データ不備ではない。`bootstrap_production_data` はimport後に
-    `backfill_goriyaku_tags --with-visit-style --force` を実行し、
-    空のものを推論で埋める設計になっている。
-    """
+def test_base_seed_visit_style_tags_are_complete_and_non_empty():
+    """Base Seed canonical contract: 全103社がnon-empty visit_style_tagsを持つ。"""
     data = _load_seed()
     with_tags = [row for row in data if "visit_style_tags" in row]
     without_tags = [row for row in data if "visit_style_tags" not in row]
 
-    assert with_tags, "seed should still carry the rolled-out subset"
-    assert without_tags, "seed is intentionally partial; see #1158-#1160"
-    assert len(with_tags) + len(without_tags) == len(data)
-    # 部分適用の行はいずれも空listではなく実タグを持つ。
+    assert len(data) == 103
+    assert len(with_tags) == 103
+    assert without_tags == []
     assert all(row["visit_style_tags"] for row in with_tags)
 
 
@@ -427,37 +419,23 @@ def test_absent_visit_style_tags_key_is_treated_as_empty_list_by_the_importer(tm
     assert shrine.visit_style_tags == ["quiet", "nature", "classic"]
 
 
-def test_bootstrap_order_reproduces_the_reported_update_skip_split():
-    """import -> backfill -> import(dry-run) を再現し、UPDATE/SKIPの内訳が
-    「seedにkeyが無い行数 / ある行数」と一致することを示す。
-
-    これはローカルDBの状態依存の観測ではなく、Seedの構造から決まる。
-    """
+def test_bootstrap_order_is_idempotent_for_canonical_visit_style_seed():
+    """canonical Seedでは import -> backfill -> 再import が全件SKIPになる。"""
     data = _load_seed()
-    without_tags = sum(1 for row in data if "visit_style_tags" not in row)
-    with_tags = sum(1 for row in data if "visit_style_tags" in row)
-
+    assert len(data) == 103
+    assert all(row.get("visit_style_tags") for row in data)
     seed_names = [row["name_jp"] for row in data]
 
     first = _summary(_run("--source", str(SEED_PATH)))
     assert first["created"] == len(data)
 
-    call_command(
-        "backfill_goriyaku_tags", "--with-visit-style", "--force", stdout=StringIO()
-    )
-    assert (
-        Shrine.objects.filter(name_jp__in=seed_names).exclude(visit_style_tags=[]).count()
-        == len(data)
-    )
+    call_command("backfill_goriyaku_tags", "--with-visit-style", "--force", stdout=StringIO())
+    assert Shrine.objects.filter(name_jp__in=seed_names).exclude(visit_style_tags=[]).count() == len(data)
 
     output = _run("--source", str(SEED_PATH), "--dry-run")
     second = _summary(output)
-
     assert second["created"] == 0
-    assert second["updated"] == without_tags
-    assert second["skipped"] == with_tags
-    # UPDATEの理由は visit_style_tags のみ。
-    reported_fields = {
-        line.split("fields=")[1] for line in output.splitlines() if "fields=" in line
-    }
-    assert reported_fields == {"['visit_style_tags']"}
+    assert second["updated"] == 0
+    assert second["skipped"] == len(data)
+    reported_fields = {line.split("fields=")[1] for line in output.splitlines() if "fields=" in line}
+    assert reported_fields == set()

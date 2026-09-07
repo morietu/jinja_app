@@ -3,8 +3,8 @@
 PR-B1.5で既存51社の ``visit_style_tags`` から canonical taxonomy 外の
 legacy tagだけを削除した状態を固定する。
 
-このtestは52社のcanonical追加を扱わない。Base Seedの部分適用
-（51 tagged / 52 missing）はPR-B2まで維持する。
+PR-B2で承認済み52社をcanonical Seedへ追加し、Base Seed全103社が
+visit_style_tagsを持つ状態を固定する。
 """
 
 from __future__ import annotations
@@ -51,14 +51,14 @@ def _load_seed() -> list[dict]:
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
 
 
-def test_base_seed_visit_style_coverage_is_unchanged_by_legacy_cleanup():
+def test_base_seed_visit_style_coverage_is_complete_after_canonicalization():
     data = _load_seed()
     with_tags = [row for row in data if "visit_style_tags" in row]
     without_tags = [row for row in data if "visit_style_tags" not in row]
 
     assert len(data) == 103
-    assert len(with_tags) == 51
-    assert len(without_tags) == 52
+    assert len(with_tags) == 103
+    assert len(without_tags) == 0
 
 
 def test_cleaned_legacy_targets_have_the_exact_mother_ship_approved_arrays():
