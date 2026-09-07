@@ -249,7 +249,8 @@ Validation:
 - tracked変更対象は本Audit文書のみ。一時処理・取得データは/tmpに置きcommitしない。
 - 52社全件掲載、semantic identity重複0、51+52=103。
 - Existing 51 integrity scan実施済み。HOLD以外のfinal候補はallowed内・1〜3件・重複0・nearbyなし。
-- DBはSELECTのみ。bootstrap/backfill/testの実行および永続データ変更なし。
+- DBはSELECTのみ。bootstrap/backfill/DBを使うtestの実行および永続データ変更なし。
+- push時の既存hookによるOpenAPI lint PASS、Web契約テスト171 files / 1339 tests PASS。
 
 Seed / Backfill / Bootstrap / start.sh / Recommendation / DB schema / Productionの変更なし。taxonomy追加なし。
 
