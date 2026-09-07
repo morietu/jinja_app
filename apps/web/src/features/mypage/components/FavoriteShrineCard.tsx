@@ -17,6 +17,13 @@ type Props = {
   addLoading?: boolean;
 
   canAddGoshuin?: boolean;
+
+  /**
+   * 公開御朱印の件数badgeと「御朱印を見る」導線を出すか。
+   * 既定はtrue（/favorites の全件一覧は従来どおり表示する）。
+   * /mypage HUBのpreviewだけがfalseを渡す。
+   */
+  showGoshuinInfo?: boolean;
 };
 
 export function FavoriteShrineCard({
@@ -27,6 +34,7 @@ export function FavoriteShrineCard({
   unsaveLoading,
   addLoading,
   canAddGoshuin,
+  showGoshuinInfo = true,
 }: Props) {
   const { shrineId, placeId } = normalizeFavorite(favorite);
 
@@ -39,7 +47,7 @@ export function FavoriteShrineCard({
   const sub = (favorite.shrine?.address && favorite.shrine.address.trim()) || null;
 
   const publicGoshuinCount = Number(favorite.public_goshuin_count ?? 0);
-  const hasPublicGoshuins = publicGoshuinCount > 0;
+  const hasPublicGoshuins = showGoshuinInfo && publicGoshuinCount > 0;
 
   const goshuinHref = shrineId && hasPublicGoshuins ? buildShrineHref(shrineId, { subpath: "goshuins" }) : null;
 
