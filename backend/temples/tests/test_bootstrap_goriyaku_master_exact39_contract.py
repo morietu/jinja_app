@@ -10,8 +10,7 @@
 # `test_need_to_goriyaku_tag_ids.py`), so the id->name assignment produced by a
 # fresh Production bootstrap is itself a contract. The test therefore drives the
 # real Production entrypoint — `bootstrap_production_data`, which runs
-# `import_shrines_seed` and then `backfill_goriyaku_tags --with-visit-style
-# --force` — against the repository-controlled seed and asserts the resulting
+# `import_shrines_seed` and then `backfill_goriyaku_tags --force` — against the repository-controlled seed and asserts the resulting
 # master row-for-row. Parsing `shrines_seed_clean.json` here and creating the 39
 # rows directly would assert nothing about the bootstrap path and is exactly
 # what this test must not do.
@@ -125,7 +124,14 @@ def _reset_to_fresh_bootstrap_state() -> None:
     _assert_connected_to_test_database()
 
     for model in BOOTSTRAP_OWNED_MODELS:
-        model.objects.all().delete()
+        if model is Shrine:
+            # Avoid Django deletion collector: ConciergeHistory model relation remains while the DB shrine_id column was removed by migration 0047.
+            Shrine.goriyaku_tags.through.objects.all().delete()
+            table = connection.ops.quote_name(Shrine._meta.db_table)
+            with connection.cursor() as cursor:
+                cursor.execute(f"DELETE FROM {table}")
+        else:
+            model.objects.all().delete()
 
     reset_sql = connection.ops.sequence_reset_by_name_sql(
         no_style(),
@@ -218,7 +224,7 @@ def test_fresh_bootstrap_runs_the_declared_production_steps_in_order(monkeypatch
         (
             "backfill_goriyaku_tags",
             "backfill_goriyaku_tags",
-            ("--with-visit-style", "--force"),
+            ("--force",),
         ),
     ]
 

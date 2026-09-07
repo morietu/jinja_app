@@ -102,7 +102,7 @@ if [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ]; then
   else
     echo "Bootstrap migration is not applied. Falling back to direct seed/backfill because RUN_BOOTSTRAP_ON_START=1..."
     python manage.py import_shrines_seed
-    python manage.py backfill_goriyaku_tags --with-visit-style --force
+    python manage.py backfill_goriyaku_tags --force
   fi
 else
   echo "Skipping production data bootstrap. Set RUN_BOOTSTRAP_ON_START=1 to run it explicitly."
