@@ -18,6 +18,7 @@ import {
 import type { ConciergeChatRequestV1, ConciergeChatFilters } from "@/features/concierge/types/chatRequest";
 import { normalizeBirthdateInput } from "@/lib/date/normalizeBirthdateInput";
 import { trackRecommendationQuality } from "@/lib/analytics/searchEvents";
+import { useSharedBirthdayPersistence } from "@/lib/profile/useSharedBirthdayPersistence";
 import {
   buildRecommendationResultSetId,
   normalizeRecommendationInstanceId,
@@ -220,6 +221,7 @@ export function normalizeConciergeResponse(raw: any, recs: ConciergeRecommendati
 export function useConciergeChat(threadId: string | null, options?: UseConciergeChatOptions) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { persistBirthday } = useSharedBirthdayPersistence();
 
   const send = useCallback(
     async (input: SendInput) => {
@@ -332,7 +334,6 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
       setSending(true);
       setError(null);
 
-
       try {
         const res = await postConciergeChat(req);
 
@@ -359,6 +360,13 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
           threadId: threadIdForAnalytics,
           accessLevel: normalizeAccessLevel(payload?.plan),
         });
+
+        // The request has already been accepted and evaluated by Concierge.
+        // Shared birthday persistence is deliberately non-blocking and the hook
+        // itself swallows profile-save failures, so recommendation state wins.
+        if (unified.ok !== false) {
+          persistBirthday((req as any).birthdate);
+        }
 
         options?.onUnified?.(unified);
         options?.onRecommendations?.(recs);
@@ -412,7 +420,7 @@ export function useConciergeChat(threadId: string | null, options?: UseConcierge
         setSending(false);
       }
     },
-    [threadId, options],
+    [threadId, options, persistBirthday],
   );
 
   return { send, sending, error };
