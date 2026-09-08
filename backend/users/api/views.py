@@ -79,7 +79,7 @@ class MeView(APIView):
     def get(self, request):
         UserProfile.objects.get_or_create(
             user=request.user,
-            defaults={"nickname": request.user.username, "is_public": True},
+            defaults={"nickname": request.user.username, "is_public": False},
         )
         user = type(request.user).objects.select_related("profile").get(pk=request.user.pk)
         return Response(UserMeSerializer(user, context={"request": request}).data)
