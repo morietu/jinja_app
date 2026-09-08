@@ -106,7 +106,6 @@ export function buildConciergeRequestPayload({
       birthday: payloadBirthdate,
       birth_time: savedProfile?.birth_time,
       birth_place: savedProfile?.birth_place,
-      worship_style: savedProfile?.worship_style,
     }),
   };
 }
