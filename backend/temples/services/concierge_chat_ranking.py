@@ -30,7 +30,7 @@ class DirectionBonusResult(TypedDict):
 
 # Legacy score_v2 contract. Active direction scoring is direction_signal only.
 DIRECTION_BONUS_MAX = 0.0
-PROFILE_SIGNAL_MAX = 0.03
+PROFILE_SIGNAL_MAX = 0.02
 
 
 log = logging.getLogger(__name__)
@@ -329,7 +329,7 @@ def _score_profile_signal(
 ) -> tuple[float, List[str]]:
     """
     profile_context（参拝スタイル・五行）を補助シグナルとして評価する。
-    最大 PROFILE_SIGNAL_MAX (+0.03) を返す。
+    最大 PROFILE_SIGNAL_MAX (+0.02) を返す。
     既存の need / distance / history_theme スコアを上書きしない。
     """
     if not isinstance(profile_context, dict):
@@ -339,7 +339,6 @@ def _score_profile_signal(
     matched: List[str] = []
 
     derived = profile_context.get("derived_profile") or {}
-    user = profile_context.get("user_profile") or {}
 
     # 五行マッチ (+0.02)
     gogyo = str(derived.get("gogyo") or "").strip()
@@ -353,20 +352,6 @@ def _score_profile_signal(
         if any(e in target_elements for e in shrine_elements):
             score += 0.02
             matched.append(f"gogyo:{gogyo}")
-
-    # 参拝スタイルマッチ (+0.01)
-    worship_style = str(user.get("worshipStyle") or "").strip()
-    if worship_style:
-        shrine_material = " ".join(
-            filter(None, [
-                rec.get("goriyaku") or "",
-                rec.get("description") or "",
-                " ".join(rec.get("visit_style_tags") or []),
-            ])
-        )
-        if worship_style in shrine_material:
-            score += 0.01
-            matched.append(f"worshipStyle:{worship_style}")
 
     return min(score, PROFILE_SIGNAL_MAX), matched
 
