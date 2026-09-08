@@ -383,21 +383,22 @@ def test_base_seed_visit_style_tags_are_complete_and_non_empty():
 
 
 def test_absent_visit_style_tags_key_is_treated_as_empty_list_by_the_importer(tmp_path):
-    """現行Importerの characterization test（挙動の固定であり、是認ではない）。
+    """現行Importerのcharacterization test（挙動の固定であり、是認ではない）。
 
     Importerは `row.get("visit_style_tags") or []` を使うため、
-    **keyが存在しない行**と**空listの行**を区別できない。その結果、
+    keyが存在しない行と空listの行を区別できない。その結果、
     DB側に値が入っているShrineに対してkey欠落行をimportすると、
-    値が空listへ上書きされる。
+    値が空listへのUPDATE対象になる。
 
-    `bootstrap_production_data` は import -> backfill の順で実行するため、
-    2回目以降のimportはbackfillが埋めた値をこの経路で消す。これが
-    `--dry-run` が key欠落の行数ぶんだけ `fields=['visit_style_tags']` の
-    UPDATEを報告する理由である。
+    この挙動は、Base Seedがvisit_style_tagsを部分適用していた時期には、
+    visit-style backfillとの組み合わせで既存値を消去する原因となっていた。
 
-    「seedが正本（上書きが正しい）」か「keyの欠落は無変更を意味すべき」かは
-    データ所有権のproduct判断のため、本PRでは挙動を変更していない
-    （PR本文「Mother Ship Decisions」参照）。
+    現在はBase Seed全103社がcanonicalなvisit_style_tagsを持ち、
+    通常bootstrapからvisit-style backfillも分離済みである。
+    --with-visit-styleはrepair-only経路として扱う。
+
+    Base Seedをcanonical sourceとする現行契約とは別に、
+    Importerのabsent-key semantics自体をcharacterizationとして固定する。
     """
     shrine = _make_shrine(visit_style_tags=["quiet", "nature", "classic"])
     source = _write_seed(
@@ -419,8 +420,8 @@ def test_absent_visit_style_tags_key_is_treated_as_empty_list_by_the_importer(tm
     assert shrine.visit_style_tags == ["quiet", "nature", "classic"]
 
 
-def test_bootstrap_order_is_idempotent_for_canonical_visit_style_seed():
-    """canonical Seedでは import -> backfill -> 再import が全件SKIPになる。"""
+def test_repair_only_visit_style_backfill_is_idempotent_against_canonical_seed():
+    """repair-onlyのvisit-style backfill後もcanonical Seedとの再同期で差分が発生しない。"""
     data = _load_seed()
     assert len(data) == 103
     assert all(row.get("visit_style_tags") for row in data)
