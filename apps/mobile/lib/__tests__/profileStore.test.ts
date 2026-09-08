@@ -48,12 +48,11 @@ describe("profileStore persistence", () => {
     expect(state.directionProfile).toEqual(buildDirectionProfile({}));
   });
 
-  it("persists every user-entered profile field without functions or derived values", async () => {
+  it("persists the supported user-entered profile fields without legacy worshipStyle", async () => {
     const state = useProfileStore.getState();
     state.setBirthday("1990-04-01");
     state.setBirthTime("08:30");
     state.setBirthPlace("東京都");
-    state.setWorshipStyle("朝参り");
 
     await vi.waitFor(() => expect(asyncStorage.setItem).toHaveBeenCalled());
 
@@ -64,7 +63,6 @@ describe("profileStore persistence", () => {
           birthday: "1990-04-01",
           birthTime: "08:30",
           birthPlace: "東京都",
-          worshipStyle: "朝参り",
         },
       },
       version: 1,
@@ -76,7 +74,6 @@ describe("profileStore persistence", () => {
       birthday: "1984-05-15",
       birthTime: "12:15",
       birthPlace: "京都府",
-      worshipStyle: "夕参り",
     };
     resetInMemoryState();
     asyncStorage.values.set(STORAGE_NAME, JSON.stringify({ state: { userProfile }, version: 1 }));
@@ -88,6 +85,33 @@ describe("profileStore persistence", () => {
     expect(state.derivedProfile).toEqual(buildDerivedProfile(userProfile));
     expect(state.directionProfile).toEqual(buildDirectionProfile(userProfile));
     expect(state.setBirthday).toBeTypeOf("function");
+  });
+
+  it("drops legacy worshipStyle from persisted profiles during hydration", async () => {
+    resetInMemoryState();
+    asyncStorage.values.set(
+      STORAGE_NAME,
+      JSON.stringify({
+        state: {
+          userProfile: {
+            birthday: "1984-05-15",
+            birthTime: "12:15",
+            birthPlace: "京都府",
+            worshipStyle: "夕参り",
+          },
+        },
+        version: 1,
+      }),
+    );
+
+    await useProfileStore.persist.rehydrate();
+
+    expect(useProfileStore.getState().userProfile).toEqual({
+      birthday: "1984-05-15",
+      birthTime: "12:15",
+      birthPlace: "京都府",
+    });
+    expect(useProfileStore.getState().userProfile).not.toHaveProperty("worshipStyle");
   });
 
   it("keeps the initial profile usable when persisted JSON is corrupted", async () => {
@@ -111,7 +135,7 @@ describe("profileStore persistence", () => {
     expect(useProfileStore.getState().derivedProfile).toEqual(buildDerivedProfile({ birthday: "2000-01-01" }));
   });
 
-  it("migrates the legacy birthday after hydration and preserves the other profile fields", async () => {
+  it("migrates the legacy birthday after hydration and preserves supported profile fields", async () => {
     const persistedUserProfile = {
       birthTime: "08:30",
       birthPlace: "東京都",
@@ -128,8 +152,9 @@ describe("profileStore persistence", () => {
     await vi.waitFor(() => expect(useProfileStore.getState().userProfile.birthday).toBe("1990-04-01"));
 
     const state = useProfileStore.getState();
-    const expectedUserProfile = { ...persistedUserProfile, birthday: "1990-04-01" };
+    const expectedUserProfile = { birthTime: "08:30", birthPlace: "東京都", birthday: "1990-04-01" };
     expect(state.userProfile).toEqual(expectedUserProfile);
+    expect(state.userProfile).not.toHaveProperty("worshipStyle");
     expect(state.derivedProfile).toEqual(buildDerivedProfile(expectedUserProfile));
     expect(state.directionProfile).toEqual(buildDirectionProfile(expectedUserProfile));
     expect(asyncStorage.values.has(LEGACY_BIRTHDAY_STORAGE_NAME)).toBe(false);
