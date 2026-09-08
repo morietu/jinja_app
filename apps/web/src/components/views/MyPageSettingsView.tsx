@@ -14,6 +14,8 @@ export default function MyPageSettingsView() {
   const { user: authUser, loading, logout, refreshMe } = useAuthContext();
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameDirty, setDisplayNameDirty] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -27,7 +29,39 @@ export default function MyPageSettingsView() {
 
     setUser(authUser);
     setIsPublic(Boolean(authUser.profile?.is_public));
-  }, [authUser]);
+    if (!displayNameDirty) {
+      setDisplayName((authUser.profile?.nickname ?? "").trim());
+    }
+  }, [authUser, displayNameDirty]);
+
+  const handleSaveDisplayName = async () => {
+    if (!user || saving || !displayNameDirty) return;
+
+    const nextDisplayName = displayName.trim();
+    const currentDisplayName = (user.profile?.nickname ?? "").trim();
+    if (nextDisplayName === currentDisplayName) {
+      setDisplayName(nextDisplayName);
+      setDisplayNameDirty(false);
+      return;
+    }
+
+    setSaving(true);
+    setSaveMessage(null);
+    setSaveError(null);
+
+    try {
+      const updated = await updateUser({ nickname: nextDisplayName });
+      setUser(updated);
+      setDisplayName((updated.profile?.nickname ?? "").trim());
+      setDisplayNameDirty(false);
+      setSaveMessage("表示名を保存しました。");
+      await refreshMe();
+    } catch {
+      setSaveError("表示名を保存できませんでした。入力内容を確認して、もう一度お試しください。");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleTogglePublic = async (next: boolean) => {
     if (saving) return;
@@ -95,6 +129,35 @@ export default function MyPageSettingsView() {
         </Link>
         <h1 className="mt-2 text-xl font-semibold">設定</h1>
       </div>
+
+      <section className="space-y-4 rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-5">
+        <div>
+          <label htmlFor="settings-display-name" className="mb-1 block text-sm font-medium text-[var(--kt-color-text-secondary)]">
+            表示名
+          </label>
+          <input
+            id="settings-display-name"
+            type="text"
+            value={displayName}
+            onChange={(event) => {
+              setDisplayName(event.target.value);
+              setDisplayNameDirty(true);
+              setSaveMessage(null);
+              setSaveError(null);
+            }}
+            disabled={saving}
+            className="min-h-11 w-full rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-3 py-2 text-sm text-[var(--kt-color-text-primary)] outline-none transition placeholder:text-[var(--kt-color-text-muted)] focus:border-[var(--kt-color-border-strong)] focus:ring-2 focus:ring-[var(--kt-color-border-default)] disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveDisplayName()}
+            disabled={!displayNameDirty || saving}
+            className="mt-3 inline-flex min-h-11 items-center rounded-full border border-[var(--kt-color-action-primary)] bg-[var(--kt-color-action-primary)] px-4 text-sm font-medium text-[var(--kt-color-action-primary-text)] transition hover:bg-[var(--kt-color-action-primary-hover)] disabled:opacity-40"
+          >
+            表示名を保存
+          </button>
+        </div>
+      </section>
 
       <section className="space-y-4 rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-5">
         <label className="flex min-h-11 items-center gap-3 text-sm text-[var(--kt-color-text-secondary)]">
