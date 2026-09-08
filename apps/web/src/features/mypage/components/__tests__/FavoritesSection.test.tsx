@@ -1,92 +1,70 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import FavoritesSection from "../FavoritesSection";
+import type { Favorite } from "@/lib/api/favorites";
 
-const useFavoritesMock = vi.fn();
+function favorite(id: number, name: string, createdAt: string, publicGoshuinCount = 0): Favorite {
+  return {
+    id,
+    created_at: createdAt,
+    public_goshuin_count: publicGoshuinCount,
+    shrine: { id: id + 100, name_jp: name, address: `住所${id}` },
+  } as Favorite;
+}
 
-vi.mock("../hooks/useFavorites", () => ({
-  useFavorites: (args: unknown) => useFavoritesMock(args),
-}));
+describe("FavoritesSection（/mypage HUBのpreview）", () => {
+  it("created_at降順で最大3件だけ表示する", () => {
+    render(
+      <FavoritesSection
+        favorites={[
+          favorite(1, "古い神社", "2026-01-01T00:00:00Z"),
+          favorite(2, "最新神社", "2026-09-01T00:00:00Z"),
+          favorite(3, "中間神社", "2026-05-01T00:00:00Z"),
+          favorite(4, "最古神社", "2025-01-01T00:00:00Z"),
+        ]}
+        fetchFailed={false}
+      />,
+    );
 
-vi.mock("../FavoriteShrineCard", () => ({
-  FavoriteShrineCard: ({
-    favorite,
-    onUnsave,
-  }: {
-    favorite: { shrine?: { name_jp?: string | null } };
-    onUnsave?: () => void;
-  }) => (
-    <div>
-      <span>{favorite.shrine?.name_jp ?? "NO_NAME"}</span>
-      <button type="button" onClick={onUnsave}>
-        解除
-      </button>
-    </div>
-  ),
-}));
+    const detailLinks = screen
+      .getAllByRole("link", { name: "神社の詳細を見る" })
+      .map((link) => link.getAttribute("href"));
 
-describe("FavoritesSection", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+    expect(detailLinks).toEqual(["/shrines/102", "/shrines/103", "/shrines/101"]);
+    expect(screen.queryByText("最古神社")).toBeNull();
   });
 
-  it("解除後に対象 shrine が一覧から消える", () => {
-    const target = {
-      id: 101,
-      created_at: "2026-04-18T08:00:00Z",
-      public_goshuin_count: 0,
-      shrine: {
-        id: 17,
-        name_jp: "乃木神社",
-        address: "東京都港区赤坂",
-      },
-    };
-
-    const other = {
-      id: 102,
-      created_at: "2026-04-17T08:00:00Z",
-      public_goshuin_count: 0,
-      shrine: {
-        id: 18,
-        name_jp: "伊勢山皇大神宮",
-        address: "神奈川県横浜市",
-      },
-    };
-
-    let items = [target, other];
-
-    const unSaveMock = vi.fn((favorite: { id: number }) => {
-      items = items.filter((x) => x.id !== favorite.id);
-    });
-
-    useFavoritesMock.mockImplementation(() => ({
-      get items() {
-        return items;
-      },
-      get count() {
-        return items.length;
-      },
-      unSave: unSaveMock,
-      error: null,
-    }));
-
-    const { rerender } = render(<FavoritesSection initialFavorites={[target, other] as any} />);
+  it("神社名・住所と、総件数・すべて見る導線を表示する", () => {
+    render(<FavoritesSection favorites={[favorite(1, "乃木神社", "2026-09-01T00:00:00Z")]} fetchFailed={false} />);
 
     expect(screen.getByText("乃木神社")).toBeInTheDocument();
-    expect(screen.getByText("伊勢山皇大神宮")).toBeInTheDocument();
-    expect(screen.getByText("2件")).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole("button", { name: "解除" })[0]);
-
-    expect(unSaveMock).toHaveBeenCalledTimes(1);
-    expect(unSaveMock).toHaveBeenCalledWith(target);
-
-    rerender(<FavoritesSection initialFavorites={[target, other] as any} />);
-
-    expect(screen.queryByText("乃木神社")).not.toBeInTheDocument();
-    expect(screen.getByText("伊勢山皇大神宮")).toBeInTheDocument();
+    expect(screen.getByText("住所1")).toBeInTheDocument();
     expect(screen.getByText("1件")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "すべて見る" })).toHaveAttribute("href", "/favorites");
+  });
+
+  it("公開御朱印がある神社でも、HUBでは御朱印情報と保存解除を出さない", () => {
+    render(<FavoritesSection favorites={[favorite(1, "乃木神社", "2026-09-01T00:00:00Z", 5)]} fetchFailed={false} />);
+
+    expect(screen.queryByText("御朱印 5件")).toBeNull();
+    expect(screen.queryByRole("link", { name: "御朱印を見る" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "保存解除" })).toBeNull();
+  });
+
+  it("0件のときはempty stateを出す", () => {
+    render(<FavoritesSection favorites={[]} fetchFailed={false} />);
+
+    expect(screen.getByText("保存した神社はまだありません")).toBeInTheDocument();
+    expect(screen.getByText("気になる神社を保存できます。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "近くの神社を探す" })).toHaveAttribute("href", "/map");
+    expect(screen.queryByRole("link", { name: "すべて見る" })).toBeNull();
+  });
+
+  it("取得失敗時はsection内にエラーを出す", () => {
+    render(<FavoritesSection favorites={[]} fetchFailed />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("保存した神社を読み込めませんでした。");
   });
 });

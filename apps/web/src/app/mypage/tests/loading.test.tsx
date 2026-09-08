@@ -1,11 +1,7 @@
 // src/app/mypage/tests/loading.test.tsx
 import { render, screen } from "@testing-library/react";
-import MyPageView from "@/components/views/MyPageView";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => ({ get: (k: string) => (k === "tab" ? "profile" : null) }),
-}));
+import MyPageView from "@/components/views/MyPageView";
 
 vi.mock("@/lib/auth/AuthProvider", () => ({
   useAuth: () => ({
@@ -18,15 +14,19 @@ vi.mock("@/lib/auth/AuthProvider", () => ({
   }),
 }));
 
-vi.mock("@/lib/api/users", () => ({
-  updateUser: vi.fn(),
-}));
-
 describe("MyPage loading", () => {
-  it("Skeletonのみを表示し、tabpanelは出さない", () => {
-    render(<MyPageView initialFavorites={[]} />);
+  it("Skeletonのみを表示し、HUBのsectionは出さない", () => {
+    render(
+      <MyPageView
+        favorites={[]}
+        favoritesFetchFailed={false}
+        threads={[]}
+        threadsFetchFailed={false}
+        billingStatus={null}
+      />,
+    );
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.queryByRole("tabpanel")).toBeNull();
+    expect(screen.queryByRole("region")).toBeNull();
   });
 });
