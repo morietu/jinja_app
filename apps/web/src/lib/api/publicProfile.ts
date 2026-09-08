@@ -7,7 +7,6 @@ export type PublicProfile = {
   website: string | null;
   icon_url: string | null;
   bio: string | null;
-  birthday: string | null;
   location: string | null;
   is_public: boolean;
 };
