@@ -79,12 +79,37 @@ def test_every_visit_style_gate_defaults_to_off():
         assert 'echo "Skipping Visit Style Production' in script
 
 
-def test_visit_style_production_audit_uses_seed_import_dry_run_only():
+def test_visit_style_production_audit_uses_the_sync_command_default_dry_run():
+    # The audit answers one question -- "how far is Production's
+    # visit_style_tags from the canonical Base Seed?" -- so it runs the
+    # Visit-Style-only sync command in its default (write-incapable) mode.
     script = _start_sh()
+    block = _audit_block(script)
 
     assert _gate_open(AUDIT_FLAG) in script
-    assert script.count("python manage.py import_shrines_seed --dry-run") == 1
+    assert block.count("python manage.py sync_visit_style_tags_from_seed") == 1
     assert "Visit style Production dry-run audit completed." in script
+
+
+def test_visit_style_production_audit_never_passes_apply_or_any_expected_lock():
+    # Default dry run is what makes this gate read-only. `--apply` here would
+    # turn an audit into a Production write.
+    block = _audit_block(_start_sh())
+
+    assert "--apply" not in block
+    assert "--expected-" not in block
+
+
+def test_visit_style_production_audit_does_not_use_the_full_payload_importer():
+    # import_shrines_seed --dry-run reports goriyaku / latitude / longitude
+    # drift too, which is not what this gate is asking about.
+    block = _audit_block(_start_sh())
+
+    assert "import_shrines_seed" not in block
+
+
+def test_start_sh_no_longer_invokes_the_importer_dry_run_anywhere():
+    assert "python manage.py import_shrines_seed --dry-run" not in _start_sh()
 
 
 def test_sync_gate_exists_and_invokes_the_visit_style_only_command():
