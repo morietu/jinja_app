@@ -18,7 +18,7 @@ class UsersConfig(AppConfig):
             if created:
                 UserProfile.objects.get_or_create(
                     user=instance,
-                    defaults={"nickname": instance.get_username(), "is_public": True},
+                    defaults={"nickname": instance.get_username(), "is_public": False},
                 )
 
         post_save.connect(

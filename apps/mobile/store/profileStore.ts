@@ -12,7 +12,6 @@ type ProfileState = {
   setBirthday: (value: string) => void;
   setBirthTime: (value: string) => void;
   setBirthPlace: (value: string) => void;
-  setWorshipStyle: (value: string) => void;
   resetProfile: () => void;
 };
 
@@ -24,6 +23,16 @@ function recompute(userProfile: UserProfile): { derivedProfile: DerivedProfile; 
   return {
     derivedProfile: buildDerivedProfile(userProfile),
     directionProfile: buildDirectionProfile(userProfile),
+  };
+}
+
+export function normalizePersistedUserProfile(value: unknown): UserProfile {
+  if (!value || typeof value !== "object") return initialUserProfile;
+  const raw = value as Record<string, unknown>;
+  return {
+    ...(typeof raw.birthday === "string" ? { birthday: raw.birthday } : {}),
+    ...(typeof raw.birthTime === "string" ? { birthTime: raw.birthTime } : {}),
+    ...(typeof raw.birthPlace === "string" ? { birthPlace: raw.birthPlace } : {}),
   };
 }
 
@@ -69,12 +78,6 @@ export const useProfileStore = create<ProfileState>()(
           return { userProfile: next, ...recompute(next) };
         }),
 
-      setWorshipStyle: (value) =>
-        set((s) => {
-          const next = { ...s.userProfile, worshipStyle: value };
-          return { userProfile: next, ...recompute(next) };
-        }),
-
       resetProfile: () =>
         set({ userProfile: initialUserProfile, ...recompute(initialUserProfile) }),
     }),
@@ -84,8 +87,8 @@ export const useProfileStore = create<ProfileState>()(
       version: PROFILE_STORAGE_VERSION,
       partialize: (state) => ({ userProfile: state.userProfile }),
       merge: (persistedState, currentState) => {
-        const userProfile = (persistedState as Pick<ProfileState, "userProfile"> | undefined)?.userProfile ??
-          initialUserProfile;
+        const persistedUserProfile = (persistedState as Pick<ProfileState, "userProfile"> | undefined)?.userProfile;
+        const userProfile = normalizePersistedUserProfile(persistedUserProfile);
         return { ...currentState, userProfile, ...recompute(userProfile) };
       },
     },

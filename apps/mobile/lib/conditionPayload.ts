@@ -76,7 +76,6 @@ export type ProfileContextPayload = {
     birthdate?: string;
     birthTime?: string;
     birthPlace?: string;
-    worshipStyle?: string;
     goriyaku_tag_ids?: number[];
     visit_style_tags?: string[];
   };
@@ -124,7 +123,7 @@ export function buildConditionFilters(condition: ConditionState): ConditionFilte
   };
 }
 
-// Concierge画面で入力した条件を優先し、未入力の項目だけ app全体のプロフィール（/profile画面）で補う
+// Concierge画面で入力した条件を優先し、未入力の個人情報だけ app全体のプロフィールで補う
 export function buildConditionProfileContext({
   condition,
   globalUserProfile,
@@ -136,7 +135,6 @@ export function buildConditionProfileContext({
     birthday: condition.birthdate?.trim() || globalUserProfile.birthday,
     birthTime: globalUserProfile.birthTime,
     birthPlace: globalUserProfile.birthPlace,
-    worshipStyle: condition.visitStyleLabel ?? globalUserProfile.worshipStyle,
   };
 
   const derived = buildDerivedProfile(effectiveUserProfile);
@@ -148,7 +146,6 @@ export function buildConditionProfileContext({
       birthdate: effectiveUserProfile.birthday,
       birthTime: effectiveUserProfile.birthTime,
       birthPlace: effectiveUserProfile.birthPlace,
-      worshipStyle: effectiveUserProfile.worshipStyle,
       goriyaku_tag_ids: condition.goriyakuTagIds,
       visit_style_tags: resolveVisitStyleTags(condition.visitStyleLabel),
     },

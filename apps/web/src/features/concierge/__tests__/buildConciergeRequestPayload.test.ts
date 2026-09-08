@@ -55,9 +55,6 @@ describe("buildConciergeRequestPayload", () => {
   });
 
   it("L1 + Assist: a chip-picked example produces the same payload shape as manual text (no separate Assist field)", () => {
-    // ConciergeEntryCard.onPickExample replaces needText with the example's
-    // full sentence before this function ever runs (input assist, not a
-    // distinct signal) -- see ConciergeClientFull.tsx onPickExample.
     const manual = buildConciergeRequestPayload({
       ...baseParams,
       needText: "人との関係やご縁について、落ち着いて見つめ直したいです",
@@ -136,9 +133,7 @@ describe("buildConciergeRequestPayload", () => {
     const payload = buildConciergeRequestPayload({
       needText: "仕事の迷いを整理したい",
       temporaryBirthdate: "1990-05-20",
-      savedProfile: { birthday: "1990-05-20", birth_time: "08:30", birth_place: "東京都", worship_style: "静か" },
-      // In real usage, ConciergeClientFull's `baseFilters` memo always keeps
-      // extra_condition and free_text in sync (free_text: extra).
+      savedProfile: { birthday: "1990-05-20", birth_time: "08:30", birth_place: "東京都" },
       baseFilters: { ...emptyBaseFilters, goriyaku_tag_ids: [1], extra_condition: "駅近", free_text: "駅近" },
       visitPreferences: ["nearby"],
       plannedVisitDate: "2026-09-15",
@@ -156,8 +151,8 @@ describe("buildConciergeRequestPayload", () => {
       birthday: "1990-05-20",
       birthTime: "08:30",
       birthPlace: "東京都",
-      worshipStyle: "静か",
     });
+    expect(payload.profile_context?.user_profile).not.toHaveProperty("worshipStyle");
     expect(payload.filters).toEqual({
       birthdate: "1990-05-20",
       goriyaku_tag_ids: [1],
