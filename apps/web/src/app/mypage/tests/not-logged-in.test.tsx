@@ -1,11 +1,7 @@
 // src/app/mypage/tests/not-logged-in.test.tsx
 import { render, screen } from "@testing-library/react";
-import MyPageView from "@/components/views/MyPageView";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => ({ get: (k: string) => (k === "tab" ? "goshuin" : null) }),
-}));
+import MyPageView from "@/components/views/MyPageView";
 
 vi.mock("@/lib/auth/AuthProvider", () => ({
   useAuth: () => ({
@@ -18,16 +14,19 @@ vi.mock("@/lib/auth/AuthProvider", () => ({
   }),
 }));
 
-vi.mock("@/lib/api/users", () => ({
-  updateUser: vi.fn(),
-}));
-
 describe("MyPage 未ログイン", () => {
   it("ログイン導線が表示される", async () => {
-    render(<MyPageView initialFavorites={[]} />);
+    render(
+      <MyPageView
+        favorites={[]}
+        favoritesFetchFailed={false}
+        threads={[]}
+        threadsFetchFailed={false}
+        billingStatus={null}
+      />,
+    );
 
-    // MyPageView は初回 loading を経由するので findByRole にする
     const link = await screen.findByRole("link", { name: "ログインへ" });
-    expect(link).toHaveAttribute("href", "/auth/login?returnTo=%2Fmypage%3Ftab%3Dprofile");
+    expect(link).toHaveAttribute("href", "/auth/login?returnTo=%2Fmypage");
   });
 });
