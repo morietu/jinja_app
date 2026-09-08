@@ -47,7 +47,7 @@ echo "=== migration divergence diagnostics (temples 0079-0089) ==="
 echo "=== end migration divergence diagnostics ==="
 
 if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ]; then
-  if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ]; then
+  if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_SYNC_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_ROLLBACK_ON_START:-0}" = "1" ]; then
     echo "ERROR: RUN_VISIT_STYLE_AUDIT_ON_START requires all write-capable startup flags to be disabled."
     exit 1
   fi
@@ -56,6 +56,49 @@ if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ]; then
   echo "Visit style Production dry-run audit completed."
 else
   echo "Skipping Visit Style Production audit. Set RUN_VISIT_STYLE_AUDIT_ON_START=1 to run it explicitly."
+fi
+
+# --- Visit Style Production sync (write, opt-in, fail closed) ---------------
+# Writes ONLY Shrine.visit_style_tags. Deliberately NOT import_shrines_seed:
+# Production carries non-Visit-Style drift (goriyaku / latitude / longitude)
+# that the importer would rewrite in the same transaction.
+# Mutually exclusive with the audit, the rollback, and every write-capable
+# startup flag, and placed before migrations / repairs / bootstrap so a
+# misconfiguration fails closed before anything else can write.
+if [ "${RUN_VISIT_STYLE_SYNC_ON_START:-0}" = "1" ]; then
+  if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_ROLLBACK_ON_START:-0}" = "1" ] || [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ]; then
+    echo "ERROR: RUN_VISIT_STYLE_SYNC_ON_START requires the audit, the rollback and all write-capable startup flags to be disabled."
+    exit 1
+  fi
+  if [ -z "${VISIT_STYLE_SYNC_EXPECTED_UPDATES:-}" ] || [ -z "${VISIT_STYLE_SYNC_EXPECTED_SEED_SHA256:-}" ] || [ -z "${VISIT_STYLE_SYNC_EXPECTED_SNAPSHOT_SHA256:-}" ]; then
+    echo "ERROR: RUN_VISIT_STYLE_SYNC_ON_START requires VISIT_STYLE_SYNC_EXPECTED_UPDATES, VISIT_STYLE_SYNC_EXPECTED_SEED_SHA256 and VISIT_STYLE_SYNC_EXPECTED_SNAPSHOT_SHA256."
+    exit 1
+  fi
+  echo "Syncing Shrine.visit_style_tags from the canonical Base Seed because RUN_VISIT_STYLE_SYNC_ON_START=1..."
+  python manage.py sync_visit_style_tags_from_seed --apply --expected-updates "${VISIT_STYLE_SYNC_EXPECTED_UPDATES}" --expected-seed-sha256 "${VISIT_STYLE_SYNC_EXPECTED_SEED_SHA256}" --expected-snapshot-sha256 "${VISIT_STYLE_SYNC_EXPECTED_SNAPSHOT_SHA256}"
+  echo "Visit style Production sync completed."
+else
+  echo "Skipping Visit Style Production sync. Set RUN_VISIT_STYLE_SYNC_ON_START=1 to run it explicitly."
+fi
+
+# --- Visit Style Production rollback (write, opt-in, fail closed) -----------
+# Restores Shrine.visit_style_tags to a preservation snapshot's `before`
+# values. The command itself refuses to run unless every row still carries the
+# snapshot's `after`, so a stale snapshot cannot clobber a later edit.
+if [ "${RUN_VISIT_STYLE_ROLLBACK_ON_START:-0}" = "1" ]; then
+  if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_SYNC_ON_START:-0}" = "1" ] || [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ]; then
+    echo "ERROR: RUN_VISIT_STYLE_ROLLBACK_ON_START requires the audit, the sync and all write-capable startup flags to be disabled."
+    exit 1
+  fi
+  if [ -z "${VISIT_STYLE_ROLLBACK_SNAPSHOT:-}" ] || [ -z "${VISIT_STYLE_ROLLBACK_EXPECTED_SNAPSHOT_SHA256:-}" ]; then
+    echo "ERROR: RUN_VISIT_STYLE_ROLLBACK_ON_START requires VISIT_STYLE_ROLLBACK_SNAPSHOT and VISIT_STYLE_ROLLBACK_EXPECTED_SNAPSHOT_SHA256."
+    exit 1
+  fi
+  echo "Restoring Shrine.visit_style_tags from snapshot because RUN_VISIT_STYLE_ROLLBACK_ON_START=1..."
+  python manage.py restore_visit_style_tags_snapshot --snapshot "${VISIT_STYLE_ROLLBACK_SNAPSHOT}" --apply --expected-snapshot-sha256 "${VISIT_STYLE_ROLLBACK_EXPECTED_SNAPSHOT_SHA256}"
+  echo "Visit style Production rollback completed."
+else
+  echo "Skipping Visit Style Production rollback. Set RUN_VISIT_STYLE_ROLLBACK_ON_START=1 to run it explicitly."
 fi
 
 if [ "${RUN_STARTUP_CHECK:-0}" = "1" ]; then
