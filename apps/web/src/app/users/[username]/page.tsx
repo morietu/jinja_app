@@ -42,22 +42,6 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const hasWebsite = typeof website === "string" && website.trim().length > 0 && /^https?:\/\//i.test(website.trim());
 
-  const birthday: string | null = profile.birthday ?? null;
-  const birthdayText: string | null = (() => {
-    if (!birthday) return null;
-    const d = new Date(birthday);
-    if (Number.isNaN(d.getTime())) {
-      return birthday;
-    }
-    const today = new Date();
-    let age = today.getFullYear() - d.getFullYear();
-    const m = today.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
-      age--;
-    }
-    return `${birthday}（${age}歳）`;
-  })();
-
   return (
     <main className="mx-auto max-w-xl px-4 py-6 sm:px-6 sm:py-8">
       {/* ヘッダー：アイコン＋名前＋@username ＋ 公開バッジ */}
@@ -106,9 +90,6 @@ export default async function PublicProfilePage({ params }: Props) {
               </div>
             </>
           )}
-
-          <div className="text-xs text-gray-400">生年月日</div>
-          <div>{birthdayText ?? "-"}</div>
         </div>
 
         <div>
