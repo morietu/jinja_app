@@ -2,7 +2,6 @@ export type ProfileInput = {
   birthday?: string | null;
   birth_time?: string | null;
   birth_place?: string | null;
-  worship_style?: string | null;
 };
 
 export type DerivedProfile = {
@@ -103,7 +102,6 @@ export function buildProfileContext(profile: ProfileInput) {
       birthdate: normalizeBirthday(profile.birthday),
       birthTime: profile.birth_time || undefined,
       birthPlace: profile.birth_place || undefined,
-      worshipStyle: profile.worship_style || undefined,
     },
     derived_profile: derived,
   };

@@ -10,12 +10,11 @@ import { normalizeBirthday } from "../../lib/profile";
 import { ProfilePickerModal } from "../../components/profile/ProfilePickerModal";
 
 const PREFECTURES = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"];
-const WORSHIP_STYLES = ["朝参り", "日中の参拝", "夕参り", "静かに参拝", "御朱印巡り"];
 type PickerKind = "year" | "month" | "day" | "time" | "place" | null;
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { userProfile, derivedProfile, directionProfile, setBirthday, setBirthTime, setBirthPlace, setWorshipStyle } =
+  const { userProfile, derivedProfile, directionProfile, setBirthday, setBirthTime, setBirthPlace } =
     useProfileStore();
   const normalizedBirthday = normalizeBirthday(userProfile.birthday);
   const birthdayParts = normalizedBirthday?.split("-") ?? [];
@@ -89,17 +88,6 @@ export default function ProfileScreen() {
             <Text style={[styles.selectText, !userProfile.birthPlace && styles.placeholder]}>{userProfile.birthPlace || "都道府県を選択"}</Text>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>参拝スタイル</Text>
-          <View style={styles.chips}>
-            {WORSHIP_STYLES.map((style) => (
-              <Pressable key={style} style={[styles.chip, userProfile.worshipStyle === style && styles.chipSelected]} onPress={() => setWorshipStyle(userProfile.worshipStyle === style ? "" : style)}>
-                <Text style={[styles.chipText, userProfile.worshipStyle === style && styles.chipTextSelected]}>{style}</Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
       </View>
 
@@ -217,11 +205,6 @@ const styles = StyleSheet.create({
   selectText: { color: theme.text, fontSize: 14, fontWeight: "700" },
   placeholder: { color: theme.muted },
   chevron: { color: theme.gold, fontSize: 22, lineHeight: 22 },
-  chips: { flex: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 7 },
-  chip: { borderWidth: 1, borderColor: theme.borderHeader, borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 7 },
-  chipSelected: { borderColor: theme.gold, backgroundColor: "rgba(221, 178, 82, 0.14)" },
-  chipText: { color: theme.muted, fontSize: 12, fontWeight: "700" },
-  chipTextSelected: { color: theme.gold },
   label: {
     color: theme.text,
     fontSize: 14,
