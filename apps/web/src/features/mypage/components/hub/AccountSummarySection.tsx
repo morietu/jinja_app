@@ -1,8 +1,6 @@
 // apps/web/src/features/mypage/components/hub/AccountSummarySection.tsx
 "use client";
 
-import Link from "next/link";
-
 type Props = {
   displayName: string;
   email: string | null;
@@ -32,13 +30,6 @@ export default function AccountSummarySection({ displayName, email, isPremium }:
       </div>
 
       {email ? <p className="mt-1 break-all text-sm text-[var(--kt-color-text-muted)]">{email}</p> : null}
-
-      <Link
-        href="/mypage/profile"
-        className="mt-4 inline-flex min-h-11 items-center rounded-full border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-4 text-sm text-[var(--kt-color-text-secondary)] transition hover:bg-[var(--kt-color-background-subtle)] hover:text-[var(--kt-color-text-primary)]"
-      >
-        プロフィールを編集
-      </Link>
     </section>
   );
 }
