@@ -142,10 +142,11 @@ describe("/mypage HUB", () => {
       expect(screen.getByText("FREE")).toBeInTheDocument();
     });
 
-    it("プロフィール編集導線は /mypage/profile を指す", () => {
+    it("プロフィール編集導線は表示しない", () => {
       renderHub();
 
-      expect(screen.getByRole("link", { name: "プロフィールを編集" })).toHaveAttribute("href", "/mypage/profile");
+      expect(screen.queryByRole("link", { name: "プロフィールを編集" })).toBeNull();
+      expect(screen.getAllByRole("link").some((link) => link.getAttribute("href") === "/mypage/profile")).toBe(false);
     });
   });
 
@@ -246,7 +247,6 @@ describe("/mypage HUB", () => {
         .getAllByRole("link", { name: "神社の詳細を見る" })
         .map((link) => link.getAttribute("href"));
 
-      // 最新神社(id=2) → 中間神社(id=3) → 古い神社(id=1) の順。最古神社(id=4)は表示しない。
       expect(detailLinks).toEqual(["/shrines/102", "/shrines/103", "/shrines/101"]);
       expect(screen.queryByText("最古神社")).toBeNull();
     });
