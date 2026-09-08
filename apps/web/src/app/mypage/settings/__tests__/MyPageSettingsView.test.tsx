@@ -48,6 +48,51 @@ describe("/mypage/settings", () => {
     vi.restoreAllMocks();
   });
 
+  it("保存済みnicknameを表示名として表示する", () => {
+    render(<MyPageSettingsView />);
+
+    expect(screen.getByLabelText("表示名")).toHaveValue("太郎");
+    expect(screen.getByRole("button", { name: "表示名を保存" })).toBeDisabled();
+  });
+
+  it("表示名を変更したときnicknameだけを更新する", async () => {
+    mocks.updateUser.mockResolvedValue(authUser({ profile: { nickname: "次郎", is_public: true } }));
+
+    render(<MyPageSettingsView />);
+
+    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "次郎" } });
+    fireEvent.click(screen.getByRole("button", { name: "表示名を保存" }));
+
+    await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledWith({ nickname: "次郎" }));
+    expect(await screen.findByText("表示名を保存しました。")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.refreshMe).toHaveBeenCalledTimes(1));
+  });
+
+  it("表示名保存に失敗しても入力値を保持する", async () => {
+    mocks.updateUser.mockRejectedValue(new Error("updateUser failed: 500"));
+
+    render(<MyPageSettingsView />);
+
+    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "次郎" } });
+    fireEvent.click(screen.getByRole("button", { name: "表示名を保存" }));
+
+    expect(
+      await screen.findByText("表示名を保存できませんでした。入力内容を確認して、もう一度お試しください。"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("表示名")).toHaveValue("次郎");
+  });
+
+  it("Personal Contextの入力項目は設定に表示しない", () => {
+    render(<MyPageSettingsView />);
+
+    expect(screen.queryByLabelText("生年月日")).toBeNull();
+    expect(screen.queryByLabelText(/出生時間/)).toBeNull();
+    expect(screen.queryByLabelText("出生地")).toBeNull();
+    expect(screen.queryByText("参拝スタイル")).toBeNull();
+    expect(screen.queryByText("九星")).toBeNull();
+    expect(screen.queryByText("五行")).toBeNull();
+  });
+
   it("プロフィール公開の現在値を表示する", () => {
     render(<MyPageSettingsView />);
 
