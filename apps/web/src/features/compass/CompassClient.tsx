@@ -43,6 +43,12 @@ type CompassResultState =
   | "recommendation_success"
   | "backend_error";
 
+type CompassClientProps = {
+  savedBirthday?: string | null;
+  isLoggedIn?: boolean;
+  onPersistBirthday?: (birthday: string) => void;
+};
+
 function formatTargetMonth(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月`;
 }
@@ -84,10 +90,14 @@ function getDirectionStatusLabel(calculationMethod: CompassDirectionRuntime["cal
   return null;
 }
 
-export default function CompassClient() {
+export default function CompassClient({
+  savedBirthday = null,
+  isLoggedIn = false,
+  onPersistBirthday,
+}: CompassClientProps = {}) {
   const [now] = useState(() => new Date());
   const [purpose, setPurpose] = useState<CompassPurpose | null>(null);
-  const [birthdate, setBirthdate] = useState("");
+  const [birthdate, setBirthdate] = useState(savedBirthday ?? "");
   const [origin, setOrigin] = useState<UserOrigin | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
@@ -96,6 +106,12 @@ export default function CompassClient() {
 
   const searchParams = useSearchParams();
   const entryTrackedRef = useRef(false);
+  const birthdateEditedRef = useRef(false);
+
+  useEffect(() => {
+    if (!savedBirthday || birthdateEditedRef.current) return;
+    setBirthdate(savedBirthday);
+  }, [savedBirthday]);
 
   useEffect(() => {
     if (entryTrackedRef.current) return;
@@ -169,6 +185,8 @@ export default function CompassClient() {
       return;
     }
 
+    const submittedBirthdate = birthdate.trim();
+
     setUiState("loading");
     setResult(null);
 
@@ -178,7 +196,7 @@ export default function CompassClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           purpose,
-          birthdate: birthdate.trim(),
+          birthdate: submittedBirthdate,
           origin: toOriginPayload(origin),
         }),
       });
@@ -192,6 +210,14 @@ export default function CompassClient() {
       const body = (await res.json()) as CompassRecommendationsResponse;
       setResult(body);
       setUiState(body.state);
+
+      // A structured Compass result means this birthday was actually submitted
+      // for the direction/recommendation flow. Persistence is delegated to the
+      // Shared Context boundary and never awaited here, so result rendering wins.
+      if (isLoggedIn && body.state !== "invalid_purpose") {
+        onPersistBirthday?.(submittedBirthdate);
+      }
+
       trackCompassResult(
         body.state,
         body.state === "recommendation_success" ? (body.recommendations?.length ?? 0) : null,
@@ -255,9 +281,17 @@ export default function CompassClient() {
               id="compass-birthdate"
               type="date"
               value={birthdate}
-              onChange={(event) => setBirthdate(event.target.value)}
+              onChange={(event) => {
+                birthdateEditedRef.current = true;
+                setBirthdate(event.target.value);
+              }}
               className="min-h-11 w-full rounded-[var(--kt-radius-control)] border border-[var(--kt-color-border-default)] px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             />
+            {isLoggedIn ? (
+              <p className="text-xs text-[var(--kt-color-text-muted)]">
+                ログイン中は次回以降も利用できるよう保存されます。
+              </p>
+            ) : null}
             {missingBirthdate ? (
               <p role="alert" className="text-sm text-[var(--kt-color-status-error)]">
                 生年月日を入力してください。

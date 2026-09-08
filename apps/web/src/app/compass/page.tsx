@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import CompassClient from "@/features/compass/CompassClient";
+import CompassSharedBirthdayClient from "@/features/compass/CompassSharedBirthdayClient";
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <CompassClient />
+      <CompassSharedBirthdayClient />
     </Suspense>
   );
 }
