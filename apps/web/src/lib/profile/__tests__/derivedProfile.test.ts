@@ -15,12 +15,14 @@ describe("web profile derivation", () => {
     expect(buildDerivedProfile({ birthday: "1984/05/" }).lifePath).toBeUndefined();
   });
 
-  it("builds the profile context sent to concierge", () => {
-    expect(buildProfileContext({ birthday: "1984-05-15", birth_place: "東京都", worship_style: "朝参り" })).toMatchObject({
-      user_profile: { birthdate: "1984-05-15", birthPlace: "東京都", worshipStyle: "朝参り" },
+  it("builds the profile context sent to concierge without legacy worshipStyle", () => {
+    const context = buildProfileContext({ birthday: "1984-05-15", birth_place: "東京都" });
+    expect(context).toMatchObject({
+      user_profile: { birthdate: "1984-05-15", birthPlace: "東京都" },
       derived_profile: { lifePath: "6" },
     });
-    expect(buildProfileContext({ birthday: "1984-05-15" })).not.toHaveProperty("direction_profile");
+    expect(context.user_profile).not.toHaveProperty("worshipStyle");
+    expect(context).not.toHaveProperty("direction_profile");
   });
 
   it("matches the mobile annual direction result for the same date", () => {
