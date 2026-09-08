@@ -26,6 +26,16 @@ function recompute(userProfile: UserProfile): { derivedProfile: DerivedProfile; 
   };
 }
 
+export function normalizePersistedUserProfile(value: unknown): UserProfile {
+  if (!value || typeof value !== "object") return initialUserProfile;
+  const raw = value as Record<string, unknown>;
+  return {
+    ...(typeof raw.birthday === "string" ? { birthday: raw.birthday } : {}),
+    ...(typeof raw.birthTime === "string" ? { birthTime: raw.birthTime } : {}),
+    ...(typeof raw.birthPlace === "string" ? { birthPlace: raw.birthPlace } : {}),
+  };
+}
+
 const profileStorage = createJSONStorage(() => ({
   getItem: (name: string) => AsyncStorage.getItem(name),
   setItem: async (name: string, value: string) => {
@@ -77,8 +87,8 @@ export const useProfileStore = create<ProfileState>()(
       version: PROFILE_STORAGE_VERSION,
       partialize: (state) => ({ userProfile: state.userProfile }),
       merge: (persistedState, currentState) => {
-        const userProfile = (persistedState as Pick<ProfileState, "userProfile"> | undefined)?.userProfile ??
-          initialUserProfile;
+        const persistedUserProfile = (persistedState as Pick<ProfileState, "userProfile"> | undefined)?.userProfile;
+        const userProfile = normalizePersistedUserProfile(persistedUserProfile);
         return { ...currentState, userProfile, ...recompute(userProfile) };
       },
     },
