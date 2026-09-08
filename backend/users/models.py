@@ -9,7 +9,7 @@ class UserProfile(models.Model):
         related_name="profile",
     )
     nickname = models.CharField(max_length=64, blank=True, default="")
-    is_public = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=False)
     bio = models.TextField(blank=True, null=True)
     icon = models.ImageField(upload_to="icons/", blank=True, null=True)
     birthday = models.DateField(blank=True, null=True)
