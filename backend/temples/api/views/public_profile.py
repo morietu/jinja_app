@@ -10,12 +10,14 @@ from drf_spectacular.utils import extend_schema
 
 User = get_user_model()
 
+
 class PublicProfileResponseSerializer(serializers.Serializer):
     username = serializers.CharField(required=False)
     nickname = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     bio = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     icon = serializers.CharField(required=False, allow_null=True)
     is_public = serializers.BooleanField(required=False)
+
 
 @extend_schema(
     operation_id="api_public_profile_retrieve",
@@ -36,13 +38,14 @@ def public_profile(request, username: str):
     if not getattr(profile, "is_public", False):
         return Response({"detail": "Profile is not public"}, status=status.HTTP_404_NOT_FOUND)
 
+    # Personal Context（birthday等）は公開プロフィールの責務外。
+    # Public Identityとして明示的に公開する項目だけを返す。
     data = {
         "username": user.username,
         "nickname": getattr(profile, "nickname", "") or user.username,
         "website": getattr(profile, "website", None),
         "icon_url": getattr(profile, "icon_url", None),
         "bio": getattr(profile, "bio", None),
-        "birthday": getattr(profile, "birthday", None),
         "location": getattr(profile, "location", None),
         "is_public": getattr(profile, "is_public", False),
     }
