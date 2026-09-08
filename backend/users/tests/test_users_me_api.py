@@ -71,7 +71,6 @@ def test_me_patch_persists_birth_profile_fields_and_get_restores_them():
         "birthday": "1984-05-15",
         "birth_time": "05:25",
         "birth_place": "東京都",
-        "worship_style": "朝参り",
     }
     patched = c.patch(reverse(ME_URL_NAME), payload, format="json")
     assert patched.status_code == 200
@@ -83,7 +82,48 @@ def test_me_patch_persists_birth_profile_fields_and_get_restores_them():
     assert profile["birthday"] == "1984-05-15"
     assert profile["birth_time"] == "05:25:00"
     assert profile["birth_place"] == "東京都"
-    assert profile["worship_style"] == "朝参り"
+
+
+@pytest.mark.django_db
+def test_me_response_does_not_expose_retired_worship_style():
+    """worship_styleはProfile schemaから退役済みなので、GET/PATCHどちらの応答にも出さない。"""
+    user = UserFactory()
+    UserProfile.objects.get_or_create(user=user)
+    c = api_client_as(user)
+
+    got = c.get(reverse(ME_URL_NAME))
+    assert got.status_code == 200
+    assert "worship_style" not in got.json()["profile"]
+
+    patched = c.patch(reverse(ME_URL_NAME), {"nickname": "NewName"}, format="json")
+    assert patched.status_code == 200
+    assert "worship_style" not in patched.json()["profile"]
+
+
+@pytest.mark.django_db
+def test_me_patch_ignores_legacy_worship_style_without_breaking_request():
+    """legacy clientがworship_styleを送ってもrequest全体を壊さず、無視する。
+
+    他fieldの更新は通常通り成功し、responseにもworship_styleは出ない。
+    """
+    user = UserFactory()
+    UserProfile.objects.get_or_create(user=user)
+    c = api_client_as(user)
+
+    res = c.patch(
+        reverse(ME_URL_NAME),
+        {"nickname": "LegacyClient", "birth_place": "東京都", "worship_style": "朝参り"},
+        format="json",
+    )
+
+    assert res.status_code == 200
+    profile = res.json()["profile"]
+    assert profile["nickname"] == "LegacyClient"
+    assert profile["birth_place"] == "東京都"
+    assert "worship_style" not in profile
+
+    prof = UserProfile.objects.get(user=user)
+    assert not hasattr(prof, "worship_style")
 
 
 @pytest.mark.django_db

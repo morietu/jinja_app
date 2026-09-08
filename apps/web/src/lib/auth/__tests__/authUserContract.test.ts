@@ -22,7 +22,6 @@ const backendMeResponse: AuthUser = {
     birthday: "1984-05-15",
     birth_time: "05:25:00",
     birth_place: "東京都",
-    worship_style: "朝参り",
   },
 };
 
@@ -32,8 +31,17 @@ describe("AuthUser contract", () => {
     expect(backendMeResponse.profile?.birthday).toBe("1984-05-15");
     expect(backendMeResponse.profile?.birth_time).toBe("05:25:00");
     expect(backendMeResponse.profile?.birth_place).toBe("東京都");
-    expect(backendMeResponse.profile?.worship_style).toBe("朝参り");
     expect(backendMeResponse.profile?.is_public).toBe(true);
+  });
+
+  // worship_style は永続Profile schema / APIから退役済み（UserProfileSerializer・
+  // UserProfileUpdateSerializerのいずれにも存在しない）。AuthUserへ再導入されると
+  // ここが `pnpm typecheck` で落ちる。
+  it("does not declare the retired worship_style on the profile", () => {
+    // @ts-expect-error worship_style is retired from the live profile contract
+    const worshipStyle = backendMeResponse.profile?.worship_style;
+
+    expect(worshipStyle).toBeUndefined();
   });
 
   // These only bite under `pnpm typecheck` (vitest strips types without

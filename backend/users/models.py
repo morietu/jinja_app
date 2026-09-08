@@ -15,7 +15,6 @@ class UserProfile(models.Model):
     birthday = models.DateField(blank=True, null=True)
     birth_time = models.TimeField(blank=True, null=True)
     birth_place = models.CharField(max_length=32, blank=True, default="")
-    worship_style = models.CharField(max_length=64, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     stripe_customer_id = models.CharField(max_length=255, blank=True, default="")

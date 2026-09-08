@@ -195,7 +195,7 @@ Candidate/Rankを一切変えず、推薦理由の説明にのみ使用するSig
 | `direction` | Context（`direction_signal_score`のみ実効、max+0.02。`direction_bonus`経路は死んでいる） | **Context** | 今回の参拝予定日・出発地点というsession依存情報。現状のContext分類は妥当。ただし`direction_bonus`のdead code整理はGap（§12） | High |
 | `popularity` | Secondary（`score_popular*w3`）+ Candidate Retrieval段階でのpre-truncation sort key | **Secondary** | 神社側の静的属性であり、ユーザー固有でも今回固有でもない、候補全体に対する品質のtie-breaker | High |
 | `behavior` | Secondary、`min(base*0.3, 0.5)`でcap | **Personalization** | 複数セッションを跨いだユーザー固有の行動履歴であり、継続的信号。Cap設計（Level 1〜3を上回らない）は`concierge-input-architecture.md` Rule 5と整合、現状維持が妥当 | Medium |
-| `profile_context` | Context/Secondary、max+0.03 | **Personalization/Context混在**（`derived_profile.gogyo`はbirthdate由来のPersonalization、`user_profile.worshipStyle`はProfile由来のPersonalization。現状は両方ともsession単位で都度送信されており実質Context的に扱われている） | 五行・参拝スタイルは本来継続的なProfile情報だが、現行実装ではrequestごとに送信されるstatelessな値として扱われている。Personalizationとして永続化するかは今回の意思決定範囲外（Future） | Low（実装のstateless性が分類を曖昧にしている、§12） |
+| `profile_context` | Context/Secondary、max+0.03 | **Personalization/Context混在**（`derived_profile.gogyo`はbirthdate由来のPersonalization。現状はsession単位で都度送信されており実質Context的に扱われている） | 五行は本来継続的なProfile情報だが、現行実装ではrequestごとに送信されるstatelessな値として扱われている。Personalizationとして永続化するかは今回の意思決定範囲外（Future）。なお`user_profile.worshipStyle`はRecommendation Signal（PR #2751）に続き永続Profile schema / APIからも退役済みで、本表の対象外 | Low（実装のstateless性が分類を曖昧にしている、§12） |
 
 ## 7. Primary Recommendation Contract
 
@@ -395,10 +395,11 @@ Signalと一致すること。**
 5. `recommendation_reason_v4`のExplanation文体が将来変化した場合に
    §10のExplanation Contractを壊さないことを検証する専用テストが
    存在しない
-6. `profile_context`（`gogyo`/`worshipStyle`）はPersonalization相当の
+6. `profile_context`（`gogyo`）はPersonalization相当の
    継続的情報だが、現行実装はstatelessなrequest単位送信であり、
    分類上Context/Personalizationのどちらとも言い切れない曖昧さが
-   残る
+   残る（かつて同じ項目に含めていた`worshipStyle`は、Recommendation
+   Signal・永続Profile schema・API contractのいずれからも退役済み）
 7. Knowledge（`deity`/`shrine_history`）のCoverageが著しく低く
    （Legacy 105/105空、新Model 1件のみPilot）、A（現状維持）からの
    将来的な昇格判断に必要なデータが揃っていない

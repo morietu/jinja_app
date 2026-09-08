@@ -6,7 +6,6 @@ export type UserProfile = {
   birthday?: string | null;      // "1990-04-12" のような ISO 日付
   birth_time?: string | null;
   birth_place?: string | null;
-  worship_style?: string | null;
   location?: string | null;      // 都道府県や市区町村など
   website?: string | null;       // https://...
 };

@@ -21,7 +21,6 @@ describe("users api client", () => {
         birthday: null,
         birth_time: null,
         birth_place: null,
-        worship_style: null,
         created_at: "2026-09-06T00:00:00Z",
       },
     };

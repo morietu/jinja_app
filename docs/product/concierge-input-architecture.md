@@ -234,8 +234,12 @@ highlights_not_score`）。`hard_filter`分類は定義上空集合で、一度�
 
 **Current該当Signal**: `birthdate`（element/astrology/direction
 Personalization Signalとして利用される）。`profile_context.
-user_profile`（`birth_place`/`birth_time`/`worshipStyle`、backend
-で永続化はされるが`worshipStyle`のtext-matchのみ実効）。
+user_profile`（`birth_place`/`birth_time`、backendで永続化される）。
+
+> `worshipStyle`（`UserProfile.worship_style`）はRecommendation Signal
+> としてもProfile schemaとしても退役済み。Recommendation側の除外は
+> PR #2751、永続化Profile / API contractからの削除は本節の改訂と同じPRで
+> 完了しており、`GET/PATCH /api/users/me/`のresponseにも含まれない。
 
 ### 3-B Explicit Constraint
 
