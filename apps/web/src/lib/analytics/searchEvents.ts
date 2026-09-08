@@ -23,6 +23,7 @@ export type SearchAnalyticsEventName =
   | "add_shrine_click"
   | "shrine_card_click"
   | "shrine_detail_view"
+  | "nearby_fetch"
   // Compass lifecycle (docs/audit/compass-analytics-contract-readiness.md
   // §6-7, PR-A scope only -- discovery/entry/result, no downstream
   // Recommendation/Shrine-Detail/Favorite/Visit/Reflection attribution).
@@ -64,6 +65,12 @@ export type SearchAnalyticsPayload = {
   historyTheme?: string | null;
   consultationAxis?: string | null;
   actionTheme?: string | null;
+  /** Nearby fetch only. Fixed product surface; never a URL, coordinate, or free text. */
+  surface?: "web" | null;
+  /** Nearby fetch only. Distinguishes automatic fetches from the explicit refresh button. */
+  trigger?: "auto" | "manual_refresh" | null;
+  /** Nearby fetch only. Coarse fallback flag; coordinates are never included in analytics. */
+  used_fallback?: boolean | null;
   /**
    * 実際のReflection入力UI（reflection_prompt_view / reflection_saved）でのみ使用する。
    * どのフォーム構造で入力させたかを表す。
@@ -182,6 +189,17 @@ export function trackSearchEvent(eventName: SearchAnalyticsEventName, payload: S
       console.warn("[search analytics]", eventName, serializedPayload, error);
     }
   }
+}
+
+export type NearbyFetchAnalyticsPayload = {
+  source: "map";
+  surface: "web";
+  trigger: "auto" | "manual_refresh";
+  used_fallback: boolean;
+};
+
+export function trackNearbyFetch(payload: NearbyFetchAnalyticsPayload) {
+  trackSearchEvent("nearby_fetch", payload);
 }
 
 export type RecommendationQualityAnalyticsPayload = {
