@@ -6,14 +6,15 @@ import { useEffect, useState } from "react";
 
 import { updateUser } from "@/lib/api/users";
 import { useAuth as useAuthContext } from "@/lib/auth/AuthProvider";
-import type { AuthUser } from "@/lib/auth/types";
 import { buildLoginHref } from "@/lib/nav/login";
 
 export default function MyPageSettingsView() {
   const router = useRouter();
   const { user: authUser, loading, logout, refreshMe } = useAuthContext();
 
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const savedDisplayName = (authUser?.profile?.nickname ?? "").trim();
+  const savedIsPublic = Boolean(authUser?.profile?.is_public);
+
   const [displayName, setDisplayName] = useState("");
   const [displayNameDirty, setDisplayNameDirty] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
@@ -22,24 +23,19 @@ export default function MyPageSettingsView() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authUser) {
-      setUser(null);
-      return;
-    }
+    setDisplayName(savedDisplayName);
+    setDisplayNameDirty(false);
+  }, [authUser?.id, savedDisplayName]);
 
-    setUser(authUser);
-    setIsPublic(Boolean(authUser.profile?.is_public));
-    if (!displayNameDirty) {
-      setDisplayName((authUser.profile?.nickname ?? "").trim());
-    }
-  }, [authUser, displayNameDirty]);
+  useEffect(() => {
+    setIsPublic(savedIsPublic);
+  }, [authUser?.id, savedIsPublic]);
 
   const handleSaveDisplayName = async () => {
-    if (!user || saving || !displayNameDirty) return;
+    if (!authUser || saving || !displayNameDirty) return;
 
     const nextDisplayName = displayName.trim();
-    const currentDisplayName = (user.profile?.nickname ?? "").trim();
-    if (nextDisplayName === currentDisplayName) {
+    if (nextDisplayName === savedDisplayName) {
       setDisplayName(nextDisplayName);
       setDisplayNameDirty(false);
       return;
@@ -51,7 +47,6 @@ export default function MyPageSettingsView() {
 
     try {
       const updated = await updateUser({ nickname: nextDisplayName });
-      setUser(updated);
       setDisplayName((updated.profile?.nickname ?? "").trim());
       setDisplayNameDirty(false);
       setSaveMessage("表示名を保存しました。");
@@ -64,7 +59,7 @@ export default function MyPageSettingsView() {
   };
 
   const handleTogglePublic = async (next: boolean) => {
-    if (saving) return;
+    if (!authUser || saving) return;
 
     setSaving(true);
     setSaveMessage(null);
@@ -73,12 +68,11 @@ export default function MyPageSettingsView() {
 
     try {
       const updated = await updateUser({ is_public: next });
-      setUser(updated);
       setIsPublic(Boolean(updated.profile?.is_public));
       setSaveMessage("公開設定を保存しました。");
       await refreshMe();
     } catch {
-      setIsPublic(!next);
+      setIsPublic(savedIsPublic);
       setSaveError("公開設定を保存できませんでした。時間をおいて、もう一度お試しください。");
     } finally {
       setSaving(false);
@@ -101,7 +95,7 @@ export default function MyPageSettingsView() {
     );
   }
 
-  if (!user) {
+  if (!authUser) {
     return (
       <main className="mx-auto max-w-3xl p-6 text-[var(--kt-color-text-primary)]">
         <h1 className="mb-4 text-xl font-semibold">設定</h1>
@@ -118,7 +112,7 @@ export default function MyPageSettingsView() {
     );
   }
 
-  const username = (user.username ?? "").trim();
+  const username = (authUser.username ?? "").trim();
   const hasPublicPage = Boolean(username) && isPublic;
 
   return (
