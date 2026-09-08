@@ -12,7 +12,6 @@ type ProfileState = {
   setBirthday: (value: string) => void;
   setBirthTime: (value: string) => void;
   setBirthPlace: (value: string) => void;
-  setWorshipStyle: (value: string) => void;
   resetProfile: () => void;
 };
 
@@ -66,12 +65,6 @@ export const useProfileStore = create<ProfileState>()(
       setBirthPlace: (value) =>
         set((s) => {
           const next = { ...s.userProfile, birthPlace: value };
-          return { userProfile: next, ...recompute(next) };
-        }),
-
-      setWorshipStyle: (value) =>
-        set((s) => {
-          const next = { ...s.userProfile, worshipStyle: value };
           return { userProfile: next, ...recompute(next) };
         }),
 
