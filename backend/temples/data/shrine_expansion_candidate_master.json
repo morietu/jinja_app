@@ -3,7 +3,6 @@
   "title": "KAMI MUSUBI Shrine Expansion Candidate Master",
   "purpose": "Pre-import candidate registry for the +500 shrine expansion track.",
   "recorded_at": "2026-09-09",
-  "candidate_count": 0,
   "required_discovery_fields": [
     "discovery_source",
     "discovery_source_url",
