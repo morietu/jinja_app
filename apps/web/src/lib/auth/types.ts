@@ -15,7 +15,6 @@ export type AuthUser = {
     birthday?: string | null;
     birth_time?: string | null;
     birth_place?: string | null;
-    worship_style?: string | null;
   } | null;
 };
 

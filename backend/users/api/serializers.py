@@ -34,7 +34,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # 必要なフィールドを一つに統合（必要に応じて created_at を残す/外す）
         fields = (
             "nickname", "is_public", "bio", "icon", "icon_url",
-            "birthday", "birth_time", "birth_place", "worship_style", "created_at",
+            "birthday", "birth_time", "birth_place", "created_at",
         )
         read_only_fields = ("icon", "icon_url", "created_at")
 
@@ -63,7 +63,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = (
             "nickname", "is_public", "bio", "icon",
-            "birthday", "birth_time", "birth_place", "worship_style",
+            "birthday", "birth_time", "birth_place",
         )
 
     def validate_birthday(self, value):

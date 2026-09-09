@@ -328,7 +328,7 @@ def _score_profile_signal(
     profile_context: Optional[Dict[str, Any]],
 ) -> tuple[float, List[str]]:
     """
-    profile_context（参拝スタイル・五行）を補助シグナルとして評価する。
+    profile_context（五行）を補助シグナルとして評価する。
     最大 PROFILE_SIGNAL_MAX (+0.02) を返す。
     既存の need / distance / history_theme スコアを上書きしない。
     """
@@ -1326,7 +1326,7 @@ def _attach_breakdown(
     # Reflection Profile v1: reflection_signal のみ（意味解析はまだしない）
     reflection_profile = calculate_reflection_profile_breakdown(behavior_breakdown=behavior_breakdown)
 
-    # profile_context 補助シグナル（最大 +0.03、主重みには影響しない）
+    # profile_context 補助シグナル（最大 +0.02、主重みには影響しない）
     profile_signal_score, profile_signal_matched = _score_profile_signal(rec, profile_context)
 
     # direction_profile 補助シグナル（最大 +0.02、候補に方位情報がある場合のみ加算）

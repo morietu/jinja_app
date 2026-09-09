@@ -13,7 +13,6 @@ export type UserProfileData = {
   birthday: string | null;
   birth_time: string | null;
   birth_place: string | null;
-  worship_style: string | null;
   created_at: string;
 };
 
@@ -33,7 +32,6 @@ export type UpdateUserProfilePayload = Partial<{
   birthday: string | null;
   birth_time: string | null;
   birth_place: string;
-  worship_style: string;
 }>;
 
 export async function updateUser(patch: UpdateUserProfilePayload): Promise<UserMe> {
