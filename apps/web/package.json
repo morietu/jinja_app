@@ -75,7 +75,7 @@
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "msw": "^2.15.0",
-    "serialize-javascript": "^7.0.5",
+    "serialize-javascript": "^7.1.1",
     "storybook": "10.5.10",
     "tailwindcss": "^4.3.3",
     "ts-prune": "^0.10.3",
