@@ -4,20 +4,23 @@ import { HomeHeroConsultationInput } from "./HomeHeroConsultationInput";
 
 export function HomeHero() {
   return (
-    <section className="rounded-3xl bg-[var(--kt-color-surface-elevated)] px-6 py-16 sm:px-10 sm:py-24">
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-10 text-center">
-        <div className="space-y-4">
-          <p className="text-xs font-medium tracking-[0.35em] text-[var(--kt-color-text-muted)]">KAMI MUSUBI</p>
-          <h1 className="text-3xl font-semibold leading-tight text-[var(--kt-color-text-primary)] sm:text-4xl">
-            今の相談から、向かう神社を見つける
-          </h1>
-          <p className="mx-auto max-w-xl text-sm leading-7 text-[var(--kt-color-text-muted)]">
-            迷っていることを一言にすると、今の気持ちに合わせて神社との出会いを整えます。
-          </p>
-        </div>
-
-        <HomeHeroConsultationInput />
+    // Home上部の単一の焦点。旧実装は大きな角丸カード(py-24)でHeroを囲っていたが、
+    // カードの表現は入力カードへ集約し、Hero自体は面を持たない見出し帯とする。
+    // これにより「カードが二重になって焦点が割れる」状態を避ける。
+    <section className="space-y-7">
+      <div className="space-y-3">
+        <p className="text-[10px] font-medium tracking-[0.3em] text-[var(--kt-color-text-muted)]">KAMI MUSUBI</p>
+        <h1 className="text-[27px] font-semibold leading-[1.35] tracking-tight text-[var(--kt-color-text-primary)]">
+          今の相談から、
+          <br />
+          向かう神社を見つける
+        </h1>
+        <p className="text-[13px] leading-7 text-[var(--kt-color-text-secondary)]">
+          迷っていることを一言にすると、今の気持ちに合わせて神社との出会いを整えます。
+        </p>
       </div>
+
+      <HomeHeroConsultationInput />
     </section>
   );
 }

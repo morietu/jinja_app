@@ -9,44 +9,43 @@ vi.mock("next/navigation", () => ({
 describe("HomeMainClient", () => {
   it("既存のConcierge Heroをそのまま保持する", () => {
     render(<HomeMainClient />);
-    expect(screen.getByRole("heading", { level: 1, name: "今の相談から、向かう神社を見つける" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("今の相談から、向かう神社を見つける");
     expect(screen.getByRole("button", { name: "この相談ではじめる" })).toBeInTheDocument();
   });
 
-  it("Compassへの独立した入口を、SUB PATHSとは別セクションとして表示する", () => {
+  // 構成順がそのまま階層を表す。相談Heroが主、補助導線はその後ろ。
+  it("見出しの出現順はHero → 補助導線グリッドの順を維持する", () => {
     render(<HomeMainClient />);
 
-    const compassHeading = screen.getByRole("heading", { level: 2, name: "方向から探す" });
-    expect(compassHeading).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "参拝コンパスを見る" })).toHaveAttribute("href", "/compass?ref=home");
-  });
-
-  it("Compassセクションの見出しは、Concierge前提のSUB PATHS見出しとは異なる文言を持つ", () => {
-    render(<HomeMainClient />);
-
-    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toContain("方向から探す");
-    expect(headings).toContain("相談のあとに、場所でも確かめる");
-    // Compass's own heading must not presuppose Concierge came first.
-    expect(screen.getByRole("heading", { level: 2, name: "方向から探す" }).textContent).not.toMatch(/相談/);
-  });
-
-  it("既存SUB PATHS（地図・神社一覧）はそのまま保持される", () => {
-    render(<HomeMainClient />);
-    expect(screen.getByRole("link", { name: "地図でも確認する" })).toHaveAttribute("href", "/map");
-    expect(screen.getByRole("link", { name: "神社一覧も見る" })).toHaveAttribute("href", "/shrines");
-  });
-
-  it("見出しの出現順はHero → Compass入口 → SUB PATHSの順を維持する", () => {
-    render(<HomeMainClient />);
     const headingTexts = [
       screen.getByRole("heading", { level: 1 }).textContent,
       ...screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
     ];
-    expect(headingTexts).toEqual([
-      "今の相談から、向かう神社を見つける",
-      "方向から探す",
-      "相談のあとに、場所でも確かめる",
-    ]);
+    expect(headingTexts).toEqual(["今の相談から、向かう神社を見つける", "ほかの入り口から"]);
+  });
+
+  it("候補チップと条件リンクは相談入力カードより後ろに置かれる", () => {
+    const { container } = render(<HomeMainClient />);
+
+    const order = Array.from(
+      container.querySelectorAll("#home-hero-consultation, [aria-label='この相談ではじめる'], [aria-pressed], [aria-expanded]"),
+    );
+    const textarea = order.findIndex((el) => el.id === "home-hero-consultation");
+    const submit = order.findIndex((el) => el.getAttribute("aria-label") === "この相談ではじめる");
+    const firstChip = order.findIndex((el) => el.hasAttribute("aria-pressed"));
+    const conditions = order.findIndex((el) => el.hasAttribute("aria-expanded"));
+
+    expect(textarea).toBeGreaterThanOrEqual(0);
+    expect(submit).toBeGreaterThan(textarea);
+    expect(firstChip).toBeGreaterThan(submit);
+    expect(conditions).toBeGreaterThan(firstChip);
+  });
+
+  it("補助導線（地図・神社一覧・Compass・記録）を保持する", () => {
+    render(<HomeMainClient />);
+    expect(screen.getByRole("link", { name: /今月から探す/ })).toHaveAttribute("href", "/compass?ref=home");
+    expect(screen.getByRole("link", { name: /地図から探す/ })).toHaveAttribute("href", "/map");
+    expect(screen.getByRole("link", { name: /神社一覧/ })).toHaveAttribute("href", "/shrines");
+    expect(screen.getByRole("link", { name: /参拝の記録/ })).toHaveAttribute("href", "/goshuins");
   });
 });

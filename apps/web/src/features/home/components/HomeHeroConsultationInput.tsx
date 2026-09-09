@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowUp } from "lucide-react";
 
 function buildConciergeHref(theme: string, options?: { openFilter?: boolean }): string {
   const params = new URLSearchParams();
@@ -54,23 +55,56 @@ export function HomeHeroConsultationInput() {
   };
 
   return (
-    <div className="w-full max-w-2xl rounded-[2rem] border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-elevated)] p-4 text-left shadow-sm sm:p-5">
-      <label htmlFor="home-hero-consultation" className="block text-[11px] font-medium text-[var(--kt-color-text-muted)]">
-        今の気持ちを少しだけ書く
-      </label>
+    // Home構成の主コンテンツ。入力カード → chips → 条件リンクの順で縦に積み、
+    // 「相談カードが主、それ以外は補助」という階層を並び順そのもので表す。
+    <div className="w-full space-y-6 text-left">
+      {/* 相談入力カード: この画面唯一の焦点。金の送信ボタンだけが光を持つ。 */}
+      <div className="rounded-[1.75rem] border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-4">
+        <label htmlFor="home-hero-consultation" className="block text-[11px] font-medium text-[var(--kt-color-text-muted)]">
+          今の気持ちを少しだけ書く
+        </label>
 
-      <textarea
-        id="home-hero-consultation"
-        value={theme}
-        onChange={(event) => setTheme(event.target.value)}
-        placeholder="例: 気持ちを切り替えたい、これからのことを考えたい"
-        rows={3}
-        className="mt-2 w-full resize-none rounded-3xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-4 py-3 text-sm leading-7 text-[var(--kt-color-text-primary)] outline-none transition placeholder:text-[var(--kt-color-text-muted)] focus:border-[var(--kt-color-border-focus)] focus:ring-1 focus:ring-[var(--kt-color-border-focus)]"
-      />
+        <textarea
+          id="home-hero-consultation"
+          value={theme}
+          onChange={(event) => setTheme(event.target.value)}
+          placeholder="例: 気持ちを切り替えたい、これからのことを考えたい"
+          rows={3}
+          className="mt-2 w-full resize-none border-0 bg-transparent px-0 py-1 text-[15px] leading-8 text-[var(--kt-color-text-primary)] outline-none placeholder:text-[var(--kt-color-text-secondary)]"
+        />
 
-      <div className="mt-3">
-        <p className="text-[11px] font-medium text-[var(--kt-color-text-muted)]">相談のきっかけ</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex items-end justify-between gap-4">
+          <p className="text-[11px] leading-5 text-[var(--kt-color-text-secondary)]">
+            あなたの言葉から、ご縁のある神社へ
+          </p>
+
+          {/* 主CTA。円形の金は画面内で一箇所のみに置き、
+              有効時だけ微光(--kt-shadow-brand)を纏わせる。 */}
+          <button
+            type="button"
+            aria-label="この相談ではじめる"
+            title="この相談ではじめる"
+            className={[
+              "inline-flex size-12 shrink-0 items-center justify-center rounded-full transition",
+              canSubmit
+                ? "bg-[var(--kt-color-action-primary)] text-[var(--kt-color-action-primary-text)] shadow-[var(--kt-shadow-brand)] hover:bg-[var(--kt-color-action-primary-hover)] active:scale-[0.97]"
+                : // 無効時も金を保つ。中立色にすると焦点そのものが消えるため、減光で表す。
+                  "cursor-not-allowed border border-[var(--kt-color-action-primary)] bg-transparent text-[var(--kt-color-action-primary)] opacity-40",
+            ].join(" ")}
+            disabled={!canSubmit}
+            onClick={() => submitTheme(theme)}
+          >
+            <ArrowUp className="size-5" aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      {/* 候補チップ: 入力カードの外に出し、補助であることを位置で示す。 */}
+      <div>
+        <p className="px-1 text-[11px] font-medium text-[var(--kt-color-text-muted)]">
+          ことばが浮かばないときは、ここから
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
           {CONSULTATION_THEME_CHIPS.map((chip) => {
             const isSelected = theme.trim() === chip.text;
             return (
@@ -80,8 +114,8 @@ export function HomeHeroConsultationInput() {
                 className={[
                   "rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-[0.98]",
                   isSelected
-                    ? "border-[var(--kt-color-action-primary)] bg-[var(--kt-color-background-subtle)] text-[var(--kt-color-action-primary)] shadow-sm"
-                    : "border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] text-[var(--kt-color-text-secondary)] hover:bg-[var(--kt-color-background-subtle)]",
+                    ? "border-[var(--kt-color-action-primary)] bg-[var(--kt-color-surface-elevated)] text-[var(--kt-color-action-primary)]"
+                    : "border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] text-[var(--kt-color-text-secondary)] hover:border-[var(--kt-color-border-strong)]",
                 ].join(" ")}
                 onClick={() => setTheme(chip.text)}
                 aria-pressed={isSelected}
@@ -94,10 +128,10 @@ export function HomeHeroConsultationInput() {
         </div>
       </div>
 
-      <div className="mt-3 border-t border-[var(--kt-color-border-default)] pt-3">
+      <div className="px-1">
         <button
           type="button"
-          className="inline-flex items-center rounded-full px-1 text-xs font-medium text-[var(--kt-color-text-secondary)] transition hover:text-[var(--kt-color-action-primary)]"
+          className="inline-flex items-center text-xs font-medium text-[var(--kt-color-text-secondary)] transition hover:text-[var(--kt-color-action-primary)]"
           onClick={() => setIsConditionHintOpen((current) => !current)}
           aria-expanded={isConditionHintOpen}
         >
@@ -108,17 +142,6 @@ export function HomeHeroConsultationInput() {
             誕生日やご利益、参拝スタイルなどの条件は次のステップで追加できます。
           </p>
         ) : null}
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          className="inline-flex min-h-[40px] w-full items-center justify-center rounded-full border border-[var(--kt-color-action-primary)] bg-[var(--kt-color-background-subtle)] px-5 py-2 text-sm font-medium text-[var(--kt-color-action-primary)] transition hover:bg-[var(--kt-color-surface-default)] disabled:cursor-not-allowed disabled:opacity-45"
-          disabled={!canSubmit}
-          onClick={() => submitTheme(theme)}
-        >
-          この相談ではじめる
-        </button>
       </div>
     </div>
   );

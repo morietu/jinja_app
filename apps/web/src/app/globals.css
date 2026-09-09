@@ -143,6 +143,21 @@
   --sidebar-ring: oklch(0.749 0.090 83.5); /* #c9a96a */
 }
 
+/*
+ * Home のアプリバー幅
+ *
+ * Home は本文が電話幅(27rem)の単一カラム構成のため、アプリバーだけが
+ * 広いままだとブランドの左端が本文とずれ、「横に広いWebページ」の印象が残る。
+ * ヘッダーは Root Layout 側にあり Page からは祖先にあたるため、
+ * Page 側の値でヘッダーを直接制御できない。ここでは :has() で
+ * 「Homeの frame が存在するとき」だけアプリバー幅を本文へ揃える。
+ * 他ページの既定幅(max-w-5xl)には一切影響させない。
+ * :has() 非対応の環境では既定幅のまま描画され、崩れではなく従来表示に留まる。
+ */
+body:has([data-app-frame="home"]) header nav {
+  max-width: 27rem;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
