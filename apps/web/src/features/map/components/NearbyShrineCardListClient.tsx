@@ -181,7 +181,7 @@ export default function NearbyShrineCardListClient() {
     <div className="flex flex-col gap-6">
       {/* デバッグ用表示：必要なら残す */}
       {DEBUG && (
-        <div className="text-[10px] text-slate-400">
+        <div className="text-[10px] text-[var(--kt-color-text-secondary)]">
           state={state} | items={items.length}
         </div>
       )}
@@ -199,13 +199,13 @@ export default function NearbyShrineCardListClient() {
       )}
 
       {usedFallback && !loadingLoc && (
-        <div className="rounded-2xl border border-stone-200/50 bg-stone-50/70 px-4 py-3 text-[11px] text-stone-500">
+        <div className="rounded-2xl border border-[var(--kt-color-border-default)]/50 bg-[var(--kt-color-surface-default)]/70 px-4 py-3 text-[11px] text-[var(--kt-color-text-secondary)]">
           現在地が取れないため仮の場所（東京駅）で検索中
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium tracking-[0.2em] text-stone-500">{title}</p>
+        <p className="text-[11px] font-medium tracking-[0.2em] text-[var(--kt-color-text-secondary)]">{title}</p>
         <button
           type="button"
           onClick={() => {
@@ -213,7 +213,7 @@ export default function NearbyShrineCardListClient() {
             lastKeyRef.current = ""; // ✅ 更新ボタンだけ強制リフレッシュ
             void fetchNearby(coords.lat, coords.lng, "manual_refresh");
           }}
-          className="rounded-full border border-stone-200/70 bg-white/80 px-3 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+          className="rounded-full border border-[var(--kt-color-border-default)]/70 bg-[var(--kt-color-surface-default)]/80 px-3 py-1 text-[11px] font-medium text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-surface-default)] disabled:opacity-50"
           disabled={!canAction}
         >
           {state === "loading" ? "更新中…" : "更新"}
@@ -231,20 +231,20 @@ export default function NearbyShrineCardListClient() {
       {state === "loading" && items.length === 0 && (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-3xl bg-stone-100" />
+            <div key={i} className="h-24 animate-pulse rounded-3xl bg-[var(--kt-color-surface-elevated)]" />
           ))}
         </div>
       )}
 
       {/* 空・エラー時のフォールバック */}
       {(state === "empty" || state === "error") && (
-        <div className="space-y-4 rounded-3xl border border-stone-200/25 bg-white/70 p-5 text-center">
+        <div className="space-y-4 rounded-3xl border border-[var(--kt-color-border-default)]/25 bg-[var(--kt-color-surface-default)]/70 p-5 text-center">
           <div className="space-y-1">
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-[var(--kt-color-text-secondary)]">
               {state === "error" ? "情報の取得に失敗しました。" : "近くに候補が見つかりませんでした。"}
             </p>
             {state === "empty" && (
-              <p className="text-xs text-stone-500">この場所にはまだ登録がない可能性があります。</p>
+              <p className="text-xs text-[var(--kt-color-text-secondary)]">この場所にはまだ登録がない可能性があります。</p>
             )}
           </div>
 
@@ -259,7 +259,7 @@ export default function NearbyShrineCardListClient() {
             )}
 
             <a
-              className="flex-1 rounded-full border border-stone-200/70 bg-stone-50 px-3 py-2 text-center text-xs font-medium text-stone-700 hover:bg-stone-100"
+              className="flex-1 rounded-full border border-[var(--kt-color-border-default)]/70 bg-[var(--kt-color-surface-default)] px-3 py-2 text-center text-xs font-medium text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-surface-elevated)]"
               href={googleSearchNearbyUrl}
               target="_blank"
               rel="noreferrer"
@@ -284,19 +284,19 @@ export default function NearbyShrineCardListClient() {
               <li
                 key={key}
                 className={[
-                  "rounded-3xl border border-stone-200/25 bg-white/70 px-5",
+                  "rounded-3xl border border-[var(--kt-color-border-default)]/25 bg-[var(--kt-color-surface-default)]/70 px-5",
                   idx % 2 === 0 ? "mr-3 py-6 sm:mr-8" : "ml-3 py-8 sm:ml-10",
                 ].join(" ")}
               >
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-stone-900">{p.name}</p>
-                  {p.address ? <p className="text-xs text-stone-500">{p.address}</p> : null}
+                  <p className="text-sm font-medium text-[var(--kt-color-text-primary)]">{p.name}</p>
+                  {p.address ? <p className="text-xs text-[var(--kt-color-text-secondary)]">{p.address}</p> : null}
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-2">
                   {p.detailHref ? (
                     <Link
-                      className="rounded-full border border-stone-200/55 bg-stone-50/80 px-3 py-1.5 text-center text-xs font-normal text-stone-700 hover:bg-stone-100"
+                      className="rounded-full border border-[var(--kt-color-border-default)]/55 bg-[var(--kt-color-surface-default)]/80 px-3 py-1.5 text-center text-xs font-normal text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-surface-elevated)]"
                       href={p.detailHref}
                       prefetch={false}
                     >
@@ -304,7 +304,7 @@ export default function NearbyShrineCardListClient() {
                     </Link>
                   ) : (
                     <a
-                      className="rounded-full border border-stone-200/55 bg-white/75 px-3 py-1.5 text-center text-xs font-normal text-stone-700 hover:bg-stone-50"
+                      className="rounded-full border border-[var(--kt-color-border-default)]/55 bg-[var(--kt-color-surface-default)]/75 px-3 py-1.5 text-center text-xs font-normal text-[var(--kt-color-text-primary)] hover:bg-[var(--kt-color-surface-default)]"
                       href={buildGoogleMapsSearchUrl(p.name, p.address ?? undefined)}
                       target="_blank"
                       rel="noreferrer"

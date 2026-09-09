@@ -85,7 +85,7 @@ export default function PopularShrinesListPage() {
     <main className="mx-auto max-w-lg p-4">
       <h1 className="mb-4 text-lg font-semibold">人気神社一覧</h1>
 
-      {loading && <p className="text-sm text-gray-500">読み込み中です…</p>}
+      {loading && <p className="text-sm text-[var(--kt-color-text-secondary)]">読み込み中です…</p>}
 
       {error && !loading && (
         <div
@@ -100,7 +100,7 @@ export default function PopularShrinesListPage() {
       {!loading && !error && (
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {items.length === 0 ? (
-            <li className="list-none pl-0 text-gray-500">表示できる神社がありません。</li>
+            <li className="list-none pl-0 text-[var(--kt-color-text-secondary)]">表示できる神社がありません。</li>
           ) : (
             items.map((s) => <li key={s.id}>{labelFor(s)}</li>)
           )}

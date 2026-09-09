@@ -21,7 +21,12 @@ export function HeaderAuthButtons() {
 
   return (
     <div className="flex items-center gap-2">
-      <Link href={myPageHref} className="rounded-md bg-[var(--kt-color-action-primary)] px-3 py-2 text-xs font-medium text-[var(--kt-color-action-primary-text)]">
+      <Link
+        href={myPageHref}
+        // ナビゲーションは静かに保つ。goldは各ページの主アクションのために温存し、
+        // 全ページ常設のヘッダーリンクがCTA階層の最上位を占めないようにする。
+        className="rounded-md border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-3 py-2 text-xs font-medium text-[var(--kt-color-text-secondary)]"
+      >
         マイページ
       </Link>
 

@@ -77,38 +77,70 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
 }
 
+/*
+ * shadcn Semantic Token — Visual Direction: Dark Forest (森影)
+ *
+ * 旧実装は hue 264（Navy）系の oklch で統一されていた。
+ * 本改訂で色相を森域（緑 ~150 / 金 ~84）へ移し、
+ * apps/web/src/styles/tokens.css の --kt-color-* および
+ * apps/mobile/design/theme.ts の kamimusubiDark と同一の実値に揃える。
+ * 値は tokens.css 側のhexをoklchへ変換したもので、括弧内に対応hexを併記する。
+ *
+ * 面の明度順は background(#0a0f0c) < card(#131a15) < popover(#1a231c) とし、
+ * 背景 / カード面 / 浮き面の分離を保つ。
+ */
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.162 0.010 158.7); /* #0a0f0c near-black green */
+  --foreground: oklch(0.950 0.016 86.4); /* #f3eee3 warm mist-ivory */
+
+  /* カード面はモスチャコール。浮き面(popover/dialog)は一段明るくする。 */
+  --card: oklch(0.209 0.014 153.9); /* #131a15 */
+  --card-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+  --popover: oklch(0.245 0.018 151.6); /* #1a231c */
+  --popover-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+
+  /* Primary は restrained shrine-gold。明色塗りのため文字は背景色を反転色に使う。
+     tokens.css の --kt-color-action-primary と同値。 */
+  --primary: oklch(0.749 0.090 83.5); /* #c9a96a */
+  --primary-foreground: oklch(0.162 0.010 158.7); /* #0a0f0c */
+
+  /* Secondary / muted / accent は「わずかに持ち上げた面」。金は使わない。 */
+  --secondary: oklch(0.245 0.018 151.6); /* #1a231c */
+  --secondary-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+  --muted: oklch(0.245 0.018 151.6); /* #1a231c */
+  --muted-foreground: oklch(0.736 0.025 120.3); /* #a7ac9b sage */
+  --accent: oklch(0.282 0.019 148.1); /* #232c24 */
+  --accent-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+
+  /* Error は赤土寄り。tokens.css の --kt-color-status-error と同値。 */
+  --destructive: oklch(0.735 0.097 25.2); /* #e0918a */
+
+  /* 線は主張させない。旧実装同様に半透明を保ちつつ、
+     白ではなく森側へ色相を寄せて面に馴染ませる。 */
+  --border: oklch(0.88 0.04 140 / 14%);
+  --input: oklch(0.88 0.04 140 / 18%);
+
+  /* フォーカスリングは「重要な操作に差す光」= gold。
+     tokens.css の --kt-color-border-focus と同値。 */
+  --ring: oklch(0.749 0.090 83.5); /* #c9a96a */
+
+  /* chart-* は2026-09時点でComponentからの参照が無い（未使用）。
+     テーマとしての一貫性のため森の色域で定義し、色相を離して識別性を確保する。 */
+  --chart-1: oklch(0.749 0.090 83.5); /* gold   hue 84 */
+  --chart-2: oklch(0.716 0.069 137.6); /* cedar  hue 138 */
+  --chart-3: oklch(0.735 0.097 25.2); /* clay   hue 25 */
+  --chart-4: oklch(0.700 0.045 195.0); /* mist   hue 195 */
+  --chart-5: oklch(0.827 0.022 112.7); /* sage   hue 113 */
+
+  /* Sidebar は card 面に揃える。 */
+  --sidebar: oklch(0.209 0.014 153.9); /* #131a15 */
+  --sidebar-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+  --sidebar-primary: oklch(0.749 0.090 83.5); /* #c9a96a */
+  --sidebar-primary-foreground: oklch(0.162 0.010 158.7); /* #0a0f0c */
+  --sidebar-accent: oklch(0.282 0.019 148.1); /* #232c24 */
+  --sidebar-accent-foreground: oklch(0.950 0.016 86.4); /* #f3eee3 */
+  --sidebar-border: oklch(0.88 0.04 140 / 14%);
+  --sidebar-ring: oklch(0.749 0.090 83.5); /* #c9a96a */
 }
 
 @layer base {
