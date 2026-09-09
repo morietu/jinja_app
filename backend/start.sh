@@ -61,8 +61,16 @@ if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ]; then
     exit 1
   fi
   echo "Auditing Production visit_style_tags against canonical Base Seed because RUN_VISIT_STYLE_AUDIT_ON_START=1 (dry-run only)..."
-  python manage.py sync_visit_style_tags_from_seed
-  echo "Visit style Production dry-run audit completed."
+  # A read-only audit must never take the service down. `set -e` is suspended
+  # inside an `if` condition, so a non-zero exit here is reported and startup
+  # continues to gunicorn. The completed message is emitted only on success, so
+  # a green log line always means the audit really ran.
+  if python manage.py sync_visit_style_tags_from_seed; then
+    echo "Visit style Production dry-run audit completed."
+  else
+    visit_style_audit_exit=$?
+    echo "ERROR: Visit style Production dry-run audit failed (exit=${visit_style_audit_exit}); no row was written and startup continues."
+  fi
 else
   echo "Skipping Visit Style Production audit. Set RUN_VISIT_STYLE_AUDIT_ON_START=1 to run it explicitly."
 fi
