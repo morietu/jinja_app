@@ -41,11 +41,10 @@ describe("HomeMainClient", () => {
     expect(conditions).toBeGreaterThan(firstChip);
   });
 
-  it("補助導線（地図・神社一覧・Compass・記録）を保持する", () => {
+  it("補助導線（Compass・地図・神社一覧）を保持する", () => {
     render(<HomeMainClient />);
     expect(screen.getByRole("link", { name: /今月から探す/ })).toHaveAttribute("href", "/compass?ref=home");
     expect(screen.getByRole("link", { name: /地図から探す/ })).toHaveAttribute("href", "/map");
     expect(screen.getByRole("link", { name: /神社一覧/ })).toHaveAttribute("href", "/shrines");
-    expect(screen.getByRole("link", { name: /参拝の記録/ })).toHaveAttribute("href", "/goshuins");
   });
 });

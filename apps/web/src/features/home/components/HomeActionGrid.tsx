@@ -15,9 +15,21 @@
 // Compassのアナリティクス契約 (docs/audit/compass-analytics-contract-readiness.md §6)
 // は据え置き: /compass?ref=home へのリンクと home_compass_entry_click の
 // 送出を、旧 HomeCompassSection からそのまま引き継ぐ。
+//
+// 「参拝の記録」カードは保留 (Mother Ship判断待ち):
+// 参拝記録の閲覧面はWebに到達可能なルートが存在しない。
+//   /goshuins        -> redirect("/")
+//   /goshuins/public -> redirect("/")
+//   /mypage          -> MyPageView (御朱印セクションを持たない)
+//   MyPageScreen / MyGoshuinList は実装済みだが、どのルートからも未マウント
+//   /goshuin/new, /g/[username], /shrines/[id]/goshuins は
+//   いずれもshrine/username等のパラメータ前提でHomeからの静的な入口にならない
+// 宛先を新設するのはルートの発明にあたるため、本PRではカードを置かない。
+// 各カードの宛先が「意図されたルート契約」に解決することは
+// __tests__/HomeActionGrid.routes.test.ts で機械的に担保する。
 "use client";
 
-import { Compass, Map, List, ScrollText } from "lucide-react";
+import { Compass, Map, List } from "lucide-react";
 
 import { trackSearchEvent } from "@/lib/analytics/searchEvents";
 import { HomeActionCard } from "./HomeActionCard";
@@ -40,7 +52,6 @@ export function HomeActionGrid() {
         />
         <HomeActionCard href="/map" icon={Map} title="地図から探す" subtitle="近くの神社を巡る" />
         <HomeActionCard href="/shrines" icon={List} title="神社一覧" subtitle="ご利益から見る" />
-        <HomeActionCard href="/goshuins" icon={ScrollText} title="参拝の記録" subtitle="結んだご縁を残す" />
       </div>
     </section>
   );

@@ -50,11 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ClientBootstrap />
 
-          <header className="sticky top-0 z-[100] border-b border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-base)]">
-            {/* 既定幅は据え置き。Homeのみ本文が電話幅の単一カラムのため、
-                globals.css の body:has([data-app-frame="home"]) で
-                アプリバーを同じ幅へ揃える（他ページには影響させない）。 */}
-            <nav className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-3">
+          <header className="sticky top-0 z-[100] bg-[var(--kt-color-surface-default)]">
+            <nav className="mx-auto flex max-w-5xl items-center gap-4 p-3">
               <HomeLogoLink />
 
               <div className="ml-auto flex items-center gap-4">

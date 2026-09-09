@@ -44,12 +44,7 @@ export function HeaderAuthButtons() {
       )}
 
       {!loading && !isLoggedIn && (
-        <Link
-          href={loginHref}
-          // 未ログイン時もページ側の主CTA(相談をはじめる)と同時に表示されるため、
-          // ヘッダー側は金を使わない。画面内でgoldを持つのは主CTAのみとする。
-          className="rounded-md border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-3 py-2 text-xs font-medium text-[var(--kt-color-text-secondary)]"
-        >
+        <Link href={loginHref} className="rounded-md bg-[var(--kt-color-action-primary)] px-3 py-2 text-xs font-medium text-[var(--kt-color-action-primary-text)]">
           ログイン
         </Link>
       )}

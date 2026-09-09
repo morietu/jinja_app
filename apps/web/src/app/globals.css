@@ -144,18 +144,45 @@
 }
 
 /*
- * Home のアプリバー幅
+ * Home フレーム限定のヘッダー調整
  *
- * Home は本文が電話幅(27rem)の単一カラム構成のため、アプリバーだけが
- * 広いままだとブランドの左端が本文とずれ、「横に広いWebページ」の印象が残る。
- * ヘッダーは Root Layout 側にあり Page からは祖先にあたるため、
- * Page 側の値でヘッダーを直接制御できない。ここでは :has() で
- * 「Homeの frame が存在するとき」だけアプリバー幅を本文へ揃える。
- * 他ページの既定幅(max-w-5xl)には一切影響させない。
- * :has() 非対応の環境では既定幅のまま描画され、崩れではなく従来表示に留まる。
+ * Home は本文が電話幅(27rem)の単一カラム構成であり、アプリバーだけが
+ * 広い/明るいままだと構図が切れる。ただしヘッダーは Root Layout 側の
+ * 共有要素であり、Page からは祖先にあたるため Page 側の値では制御できない。
+ *
+ * そこで「Homeの frame が存在するとき」だけに限定して、ここで調整する。
+ * app/layout.tsx と HeaderAuthButtons.tsx は変更しないため、
+ * Home 以外のページのヘッダーは一切変わらない（既定の
+ * max-w-5xl / surface-default 背景 / gold のログインボタンのまま）。
+ *
+ * :has() 非対応の環境では既定の見た目で描画され、崩れではなく従来表示に留まる。
+ * Tailwind の utility は @layer 内にあるため、非レイヤーの本ルールが優先される。
  */
+
+/* 1) 幅と左右余白を本文カラムへ揃え、ブランドの左端を本文と一致させる。
+      上下余白は既定(p-3 = 0.75rem)のまま。 */
 body:has([data-app-frame="home"]) header nav {
   max-width: 27rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* 2) 全幅の明るい帯をやめ、地面と同色 + ヘアラインにしてカラム構図を切らない。 */
+body:has([data-app-frame="home"]) header {
+  background-color: var(--kt-color-background-base);
+  border-bottom: 1px solid var(--kt-color-border-default);
+}
+
+/* 3) 未ログイン時のログインボタンはHomeでのみ静かな枠線にする。
+      Homeにはページ側の主CTA(相談をはじめる)があり、goldが二重になると
+      「重要な操作にだけ光を差す」原則が崩れるため。
+      href は buildLoginHref() が常に /auth/login 始まりを返す契約
+      (src/lib/nav/login.ts)。仮にこの形が変わってもHomeでgoldに戻るだけで、
+      レイアウトは壊れない。 */
+body:has([data-app-frame="home"]) header nav a[href^="/auth/login"] {
+  background-color: var(--kt-color-surface-default);
+  border: 1px solid var(--kt-color-border-default);
+  color: var(--kt-color-text-secondary);
 }
 
 @layer base {

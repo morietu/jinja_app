@@ -24,7 +24,18 @@ describe("HomeActionGrid", () => {
     expect(screen.getByRole("link", { name: /今月から探す/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /地図から探す/ })).toHaveAttribute("href", "/map");
     expect(screen.getByRole("link", { name: /神社一覧/ })).toHaveAttribute("href", "/shrines");
-    expect(screen.getByRole("link", { name: /参拝の記録/ })).toHaveAttribute("href", "/goshuins");
+  });
+
+  // 参拝の記録カードはMother Ship判断待ちで未設置。到達可能な宛先が
+  // 存在しないため（/goshuins は redirect("/") の行き止まり）、
+  // 宛先が決まるまでHomeに置かないことをテストで固定する。
+  it("到達できない宛先のカードを置かない", () => {
+    render(<HomeActionGrid />);
+
+    expect(screen.queryByRole("link", { name: /参拝の記録/ })).toBeNull();
+    document.querySelectorAll("a").forEach((a) => {
+      expect(a.getAttribute("href")).not.toBe("/goshuins");
+    });
   });
 
   it("Compassは/compassへ?ref=homeを付与したリンクで、Compass自身の入力収集を重複させない", () => {
