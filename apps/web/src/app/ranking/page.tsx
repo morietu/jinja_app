@@ -58,7 +58,7 @@ function RankingList({
   const hasData = Array.isArray(data) && data.length > 0;
   return (
     <ol role="list" className="space-y-4">
-      {!hasData && <li className="p-4 text-gray-500">ランキングデータがありません</li>}
+      {!hasData && <li className="p-4 text-[var(--kt-color-text-secondary)]">ランキングデータがありません</li>}
       {hasData &&
         data.map((shrine, idx) => (
           <li key={shrine.id ?? idx}>
@@ -67,10 +67,10 @@ function RankingList({
                 idx === 0
                   ? "bg-yellow-50 border border-yellow-200 hover:border-yellow-400"
                   : idx === 1
-                    ? "bg-gray-50 border border-gray-200 hover:border-gray-400"
+                    ? "bg-[var(--kt-color-surface-default)] border border-[var(--kt-color-border-default)] hover:border-[var(--kt-color-border-strong)]"
                     : idx === 2
                       ? "bg-amber-50 border border-amber-200 hover:border-amber-400"
-                      : "bg-white border hover:border-blue-300"
+                      : "bg-[var(--kt-color-surface-default)] border hover:border-blue-300"
               }`}
             >
               <CardHeader>
@@ -91,25 +91,25 @@ function RankingList({
               </CardHeader>
 
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">{shrine?.address ?? "住所不明"}</p>
+                <p className="text-sm text-[var(--kt-color-text-secondary)]">{shrine?.address ?? "住所不明"}</p>
 
                 {Array.isArray(shrine.goriyaku_tags) && shrine.goriyaku_tags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {shrine.goriyaku_tags.map((tag) => (
-                      <span key={tag.id} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                      <span key={tag.id} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-[var(--kt-color-action-primary)]">
                         {tag.name}
                       </span>
                     ))}
                   </div>
                 )}
 
-                <div className="flex gap-4 text-xs text-gray-500">
+                <div className="flex gap-4 text-xs text-[var(--kt-color-text-secondary)]">
                   <span>参拝数: {"visit_count" in shrine ? (shrine.visit_count ?? 0) : 0}</span>
                   <span>お気に入り: {"favorite_count" in shrine ? (shrine.favorite_count ?? 0) : 0}</span>
                 </div>
 
                 {typeof shrine.id === "number" && (
-                  <Link href={buildShrineHref(shrine.id)} className="text-blue-600 underline text-sm inline-block mt-2">
+                  <Link href={buildShrineHref(shrine.id)} className="text-[var(--kt-color-action-primary)] underline text-sm inline-block mt-2">
 
                     詳細へ
                   </Link>

@@ -170,7 +170,7 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
           }}
         />
         <button
-          className="px-3 py-2 rounded bg-slate-900 text-white text-sm disabled:opacity-60"
+          className="px-3 py-2 rounded bg-[var(--kt-color-action-primary)] text-[var(--kt-color-action-primary-text)] text-sm disabled:opacity-60"
           onClick={() => void runSearch()}
           disabled={loading}
         >
@@ -180,13 +180,13 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
 
       <div className="mb-4 flex gap-2">
         <button
-          className={`px-3 py-1 rounded ${tab === "overview" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+          className={`px-3 py-1 rounded ${tab === "overview" ? "bg-[var(--kt-color-action-primary)] text-[var(--kt-color-action-primary-text)]" : "bg-[var(--kt-color-surface-elevated)] text-[var(--kt-color-text-secondary)]"}`}
           onClick={() => goTab("overview")}
         >
           概要
         </button>
         <button
-          className={`px-3 py-1 rounded ${tab === "route" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+          className={`px-3 py-1 rounded ${tab === "route" ? "bg-[var(--kt-color-action-primary)] text-[var(--kt-color-action-primary-text)]" : "bg-[var(--kt-color-surface-elevated)] text-[var(--kt-color-text-secondary)]"}`}
           onClick={() => goTab("route")}
           disabled={!stops.length}
           title={!stops.length ? "ルート情報がありません" : ""}
@@ -195,17 +195,17 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
         </button>
       </div>
 
-      {loading && <div className="text-sm text-slate-600">読み込み中…</div>}
+      {loading && <div className="text-sm text-[var(--kt-color-text-secondary)]">読み込み中…</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
       {tab === "overview" && primary && (
-        <section className="rounded-xl border bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">今回のおすすめ（理由）</h2>
+        <section className="rounded-xl border bg-[var(--kt-color-surface-default)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--kt-color-text-primary)]">今回のおすすめ（理由）</h2>
           <div className="mt-2 text-sm font-semibold">{title}</div>
-          <div className="mt-1 text-sm text-slate-700">{reason}</div>
+          <div className="mt-1 text-sm text-[var(--kt-color-text-primary)]">{reason}</div>
 
-          <div className="mt-3 text-xs text-slate-500">［補足］</div>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-slate-600">
+          <div className="mt-3 text-xs text-[var(--kt-color-text-secondary)]">［補足］</div>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-[var(--kt-color-text-secondary)]">
             {bullets.map((b, i) => (
               <li key={i}>{b}</li>
             ))}
@@ -214,10 +214,10 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
       )}
 
       {tab === "route" && (
-        <section className="rounded-xl border bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">ルート</h2>
+        <section className="rounded-xl border bg-[var(--kt-color-surface-default)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--kt-color-text-primary)]">ルート</h2>
           {!stops.length ? (
-            <div className="mt-2 text-sm text-slate-600">ルート情報がありません</div>
+            <div className="mt-2 text-sm text-[var(--kt-color-text-secondary)]">ルート情報がありません</div>
           ) : (
             <ol className="mt-3 space-y-3">
               {stops.map((s) => (
@@ -225,8 +225,8 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
                   <div className="text-sm font-semibold">
                     {s.order}. {s.name}
                   </div>
-                  <div className="text-xs text-slate-600">{s.display_address}</div>
-                  <div className="mt-2 text-xs text-slate-500">
+                  <div className="text-xs text-[var(--kt-color-text-secondary)]">{s.display_address}</div>
+                  <div className="mt-2 text-xs text-[var(--kt-color-text-secondary)]">
                     移動 {s.travel_minutes}分 / 滞在 {s.stay_minutes}分 / 到着目安 {s.eta_minutes}分
                   </div>
                 </li>
@@ -259,14 +259,14 @@ export default function PlanView({ initialQuery }: { initialQuery: InitialQuery 
             </button>
           </div>
 
-          <section className="rounded-xl border bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-900">候補</h2>
+          <section className="rounded-xl border bg-[var(--kt-color-surface-default)] p-4">
+            <h2 className="text-sm font-semibold text-[var(--kt-color-text-primary)]">候補</h2>
             <ol className="mt-3 space-y-2">
               {pagedRecs.map((r, i) => (
                 <li key={`${r.name ?? "rec"}-${i}`} className="rounded-lg border p-3">
                   <div className="text-sm font-semibold">{r.display_name ?? r.name ?? "名称未設定"}</div>
-                  {r.display_address && <div className="text-xs text-slate-600">{r.display_address}</div>}
-                  {r.reason && <div className="mt-1 text-xs text-slate-700">{r.reason}</div>}
+                  {r.display_address && <div className="text-xs text-[var(--kt-color-text-secondary)]">{r.display_address}</div>}
+                  {r.reason && <div className="mt-1 text-xs text-[var(--kt-color-text-primary)]">{r.reason}</div>}
                 </li>
               ))}
             </ol>

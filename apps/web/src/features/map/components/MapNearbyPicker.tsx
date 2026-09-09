@@ -132,21 +132,21 @@ export default function MapNearbyPicker(props: Props) {
 
   if (phase === "waiting_coords") {
     return (
-      <div className="rounded-2xl border border-stone-200/50 bg-stone-50/70 p-3 text-xs text-stone-500">
+      <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-3 text-xs text-[var(--kt-color-text-secondary)]">
         位置情報を取得中…
       </div>
     );
   }
   if (phase === "loading") {
     return (
-      <div className="rounded-2xl border border-stone-200/50 bg-stone-50/70 p-3 text-xs text-stone-500">
+      <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-3 text-xs text-[var(--kt-color-text-secondary)]">
         読み込み中…
       </div>
     );
   }
   if (!items.length && !showPinnedSelected) {
     return (
-      <div className="rounded-2xl border border-stone-200/50 bg-stone-50/70 p-3 text-xs text-stone-500">
+      <div className="rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-background-subtle)] p-3 text-xs text-[var(--kt-color-text-secondary)]">
         近くの候補が見つかりませんでした。
       </div>
     );
@@ -155,7 +155,7 @@ export default function MapNearbyPicker(props: Props) {
   return (
     <div className="space-y-2">
       {isPickMode && !!selectedPlaceId && !hasSelectedInList && (
-        <div className="rounded-2xl border border-stone-200/55 bg-stone-50/70 p-3 text-xs text-stone-700">
+        <div className="rounded-2xl border border-[var(--kt-color-border-default)]/55 bg-[var(--kt-color-surface-default)]/70 p-3 text-xs text-[var(--kt-color-text-primary)]">
           選択中の神社は「近くの候補」に見つかりませんでした（場所が離れている可能性）。地図上で確認できます。
         </div>
       )}
@@ -175,11 +175,11 @@ export default function MapNearbyPicker(props: Props) {
                 className="w-full rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-3 text-left"
               >
                 <div className="text-[11px] font-medium text-emerald-700">選択中</div>
-                <div className="mt-1 text-sm font-medium text-stone-900">
+                <div className="mt-1 text-sm font-medium text-[var(--kt-color-text-primary)]">
                   {initialSelectedPlace?.name ?? "（名称不明）"}
                 </div>
-                <div className="mt-1 text-xs text-stone-500">{initialSelectedPlace?.address ?? ""}</div>
-                <div className="mt-2 text-[11px] text-stone-500">この神社を選択中です</div>
+                <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{initialSelectedPlace?.address ?? ""}</div>
+                <div className="mt-2 text-[11px] text-[var(--kt-color-text-secondary)]">この神社を選択中です</div>
               </button>
             );
           }
@@ -191,11 +191,11 @@ export default function MapNearbyPicker(props: Props) {
             return (
               <div className="block w-full rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-3 text-left">
                 <div className="text-[11px] font-medium text-emerald-700">おすすめ（起点）</div>
-                <div className="mt-1 text-sm font-medium text-stone-900">
+                <div className="mt-1 text-sm font-medium text-[var(--kt-color-text-primary)]">
                   {initialSelectedPlace?.name ?? "（名称不明）"}
                 </div>
-                <div className="mt-1 text-xs text-stone-500">{initialSelectedPlace?.address ?? ""}</div>
-                <div className="mt-2 text-[11px] text-stone-500">詳細リンクを生成できませんでした</div>
+                <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{initialSelectedPlace?.address ?? ""}</div>
+                <div className="mt-2 text-[11px] text-[var(--kt-color-text-secondary)]">詳細リンクを生成できませんでした</div>
               </div>
             );
           }
@@ -207,11 +207,11 @@ export default function MapNearbyPicker(props: Props) {
               prefetch={false}
             >
               <div className="text-[11px] font-medium text-emerald-700">おすすめ（起点）</div>
-              <div className="mt-1 text-sm font-medium text-stone-900">
+              <div className="mt-1 text-sm font-medium text-[var(--kt-color-text-primary)]">
                 {initialSelectedPlace?.name ?? "（名称不明）"}
               </div>
-              <div className="mt-1 text-xs text-stone-500">{initialSelectedPlace?.address ?? ""}</div>
-              <div className="mt-2 text-[11px] text-stone-500">タップで神社の詳細へ</div>
+              <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{initialSelectedPlace?.address ?? ""}</div>
+              <div className="mt-2 text-[11px] text-[var(--kt-color-text-secondary)]">タップで神社の詳細へ</div>
             </Link>
           );
         })()}
@@ -232,11 +232,11 @@ export default function MapNearbyPicker(props: Props) {
                 onSelect({ placeId: x.place_id, lat: x.lat ?? null, lng: x.lng ?? null });
               }}
               className={`w-full rounded-2xl border p-3 text-left ${
-                active ? "border-emerald-200/80 bg-emerald-50/70" : "border-stone-200/60 bg-white/80"
+                active ? "border-emerald-200/80 bg-emerald-50/70" : "border-[var(--kt-color-border-default)]/60 bg-[var(--kt-color-surface-default)]/80"
               }`}
             >
-              <div className="text-sm font-medium text-stone-900">{x.name}</div>
-              <div className="mt-1 text-xs text-stone-500">{x.address}</div>
+              <div className="text-sm font-medium text-[var(--kt-color-text-primary)]">{x.name}</div>
+              <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{x.address}</div>
             </button>
           );
         }
@@ -248,12 +248,12 @@ export default function MapNearbyPicker(props: Props) {
             <div
               key={x.rowKey}
               className={`block w-full rounded-2xl border p-3 text-left ${
-                active ? "border-emerald-200/80 bg-emerald-50/70" : "border-stone-200/60 bg-white/80"
+                active ? "border-emerald-200/80 bg-emerald-50/70" : "border-[var(--kt-color-border-default)]/60 bg-[var(--kt-color-surface-default)]/80"
               }`}
             >
-              <div className="text-sm font-medium text-stone-900">{x.name}</div>
-              <div className="mt-1 text-xs text-stone-500">{x.address}</div>
-              <div className="mt-2 text-[11px] text-stone-500">詳細リンクを生成できませんでした</div>
+              <div className="text-sm font-medium text-[var(--kt-color-text-primary)]">{x.name}</div>
+              <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{x.address}</div>
+              <div className="mt-2 text-[11px] text-[var(--kt-color-text-secondary)]">詳細リンクを生成できませんでした</div>
             </div>
           );
         }
@@ -264,12 +264,12 @@ export default function MapNearbyPicker(props: Props) {
             href={href}
             prefetch={false}
             className={`block w-full rounded-2xl border p-3 text-left ${
-              active ? "border-emerald-200/80 bg-emerald-50/70" : "border-stone-200/60 bg-white/80"
+              active ? "border-emerald-200/80 bg-emerald-50/70" : "border-[var(--kt-color-border-default)]/60 bg-[var(--kt-color-surface-default)]/80"
             }`}
           >
-            <div className="text-sm font-medium text-stone-900">{x.name}</div>
-            <div className="mt-1 text-xs text-stone-500">{x.address}</div>
-            <div className="mt-2 text-[11px] text-stone-500">タップで詳細へ</div>
+            <div className="text-sm font-medium text-[var(--kt-color-text-primary)]">{x.name}</div>
+            <div className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">{x.address}</div>
+            <div className="mt-2 text-[11px] text-[var(--kt-color-text-secondary)]">タップで詳細へ</div>
           </Link>
         );
       })}

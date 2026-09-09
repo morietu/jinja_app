@@ -86,15 +86,15 @@ export default function LoginForm({ next }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded bg-[var(--kt-color-action-primary)] px-4 py-2 text-[var(--kt-color-action-primary-text)] hover:bg-[var(--kt-color-action-primary-hover)] disabled:opacity-50"
         >
           {loading ? "ログイン中..." : "ログイン"}
         </button>
       </form>
 
-      <div className="mt-4 text-sm text-slate-600">
+      <div className="mt-4 text-sm text-[var(--kt-color-text-secondary)]">
         アカウントをお持ちでない方は{" "}
-        <Link href={registerHref} className="font-semibold text-blue-600 hover:underline">
+        <Link href={registerHref} className="font-semibold text-[var(--kt-color-action-primary)] hover:underline">
           新規登録はこちら
         </Link>
       </div>

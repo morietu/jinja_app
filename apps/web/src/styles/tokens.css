@@ -164,125 +164,174 @@
 }
 
 /*
- * Dark UI Token Foundation (Phase 2)
+ * Dark UI Token Foundation — Visual Direction: Dark Forest (森影)
  *
  * 正本: docs/audit/web-mobile-dark-ui-phase1-audit.md（Phase 1 Code Audit）
  *       docs/audit/web-mobile-dark-ui-phase2-decision-gate.md（Phase 2 Decision Gate）
+ *       apps/mobile/design/theme.ts の kamimusubiDark（Color Primitiveの正本）
  *
- * 対象は上記2文書のDesign Contract 18 Semantic Roleのうち、Decision Gateで
- * 母艦確定済みの13 Role（Background/Surface/Elevated Surface/Primary Text/
- * Secondary Text/Muted Text/Border/Primary Action/Primary Action Text/
- * Premium/Success/Warning/Error）と、それらが実際に使用する既存Sub-token
- * （border-strong/border-focus、action-disabled、success-text/-surface/-border）
- * のみ。第3のToken体系は作らず、既存 `--kt-color-*` へDark値を追加するのみ。
+ * ■ 改訂の趣旨
+ * 旧実装はNavy基調（#07101F系）＋Emerald/Amberという構成で、世界観としては
+ * 汎用的なダークUIに留まっていた。本改訂では基盤をForest-charcoal / Moss-shadow
+ * （近黒緑〜モスチャコール）へ移し、「静かな鎮守の杜の参道」を狙う。
+ * ホラー/ゴシック、および黒×金のラグジュアリー表現は明確に対象外とする。
+ * 奥行きはエフェクトではなく、背景・面・浮き面の明度差（大気遠近）で作る。
  *
- * 値のSource優先順位（Phase 2実装指示 Step 3準拠）:
- *   1. 母艦Decision（Primary Action=Emerald維持、Premium=Amber維持、
- *      Success/WarningをPrimary/Premiumと責務分離）
- *   2. Expo `kamimusubiDark`実値（apps/mobile/design/theme.ts）
- *   3. Design Contract Visual Requirement
- *   4. Web既存Semantic Responsibility（既存Tailwind primitiveの範囲内）
+ * ■ 値のSource
+ * apps/mobile/design/theme.ts の kamimusubiDark と同一実値を用いる。
+ * Webから当該TSを実行時参照はできないため、従来同様hexを直書きし、
+ * 対応するPrimitive名をコメントで明示する（Mobileと値がずれた場合に追える）。
  *
- * unresolved 4 Roles（Subtle Border/Secondary Action/Secondary Action Text/
- * Input Background）はDecision GateでComposition解決済みのため、専用Tokenを
- * 追加しない（本ブロックにも新規Tokenは無い）。
+ * ■ コントラスト検証（背景 #0A0F0C 比 / WCAG）
+ *   text-primary 16.70 / text-muted 11.37 / text-secondary 8.30
+ *   action-primary(gold) 8.62 / premium 11.93 / success(cedar) 7.87
+ *   warning 7.99 / error 7.90
+ *   gold塗り上のaction-primary-text 8.62
+ * いずれもAA(4.5)を満たし、主要な文字・アクセントはAAA(7.0)以上。
  *
- * Design Contract未定義のSub-token（overlay/message-own/selection/
- * surface-emphasis/saved/status-info）は今回Dark値を追加しない。
- * status-infoはWeb全体で実利用が確認できない（tokens.css自身とテスト以外に
- * 参照なし）。他は18 Semantic Role対象外のためScope外とし、Phase 3以降で
- * 該当Componentに着手する際に個別追加する（Deferred、PR本文に明記）。
+ * ■ 旧実装から意図的に変更した3点（いずれも既存の不整合の是正）
+ * 1. surface-elevated の明度逆転を解消
+ *    旧: elevated に surfaceSoft(#0b1424) を割り当てており、
+ *        surface-default(#101827) より暗かった（旧コメント自身が自認）。
+ *    新: surfaceRaised(#1A231C) を割り当て、
+ *        background < subtle < default < elevated の単調増加に揃える。
+ * 2. border-strong の強弱逆転を解消
+ *    旧: strong は slate-500 で default(#384154) と明度が近接していた。
+ *    新: default(#333D31) より明確に明るい #465043 を割り当てる。
+ * 3. action-primary を Emerald から shrine-gold へ変更（下記に詳述）
+ *
+ * ■ action-primary: Emerald → shrine-gold（母艦Decisionの見直しを要する箇所）
+ * Phase 2の母艦Decisionは「Primary Action=Emerald維持、Gold不採用」であり、
+ * 本改訂はそれを反転させている。理由は世界観変更に伴う構造的なもの:
+ *   - 基盤が緑になったため、緑のCTAは背景と同色相になりCTA階層が弱まる。
+ *     （Emerald決定はNavy基調＝CTAが背景と別色相である前提で成立していた）
+ *   - Mobileは以前からaction.primary=goldであり、Web/Mobileの分岐が解消される。
+ *   - 指定された視覚方針「restrained shrine-gold accents」「subtle glow around
+ *     important actions only」に一致する。
+ * Premiumとの値衝突（旧Mobile実装が抱えていた欠陥）は、Premiumに
+ * goldより明度の高い premiumAccent(#E4C88F) を割り当てることで回避している。
+ * Emeraldへ戻す場合は action-primary / -hover / -text の3宣言のみの変更で済む。
+ *
+ * ■ 旧「Deferred」Tokenへのdark値追加
+ * 旧実装はoverlay / message-own / selection / surface-emphasis / saved /
+ * status-info にdark値を持たず、:root のLight値（例 saved-background =
+ * emerald-50）がdarkでもそのまま解決されていた。Forest基調では明るい面が
+ * 浮いてしまうため、本改訂で該当Tokenにもdark値を与える。
  */
 .dark {
-  /* ---- Background ----
-     Source: Expo kamimusubiDark.background / .surfaceSoft（design/theme.ts）
-     Web側にこれに相当する既存Dark primitiveが無いため、Mobileの実値を
-     そのままPrimitiveとして採用する（Web/Mobile間で対立していないRole）。 */
-  --kt-color-background-base: #07101f;
-  --kt-color-background-subtle: #0b1424;
+  /* ---- Background: near-black green ---- */
+  /* Primitive: kamimusubiDark.background / .surfaceSoft */
+  --kt-color-background-base: #0a0f0c;
+  --kt-color-background-subtle: #0e1410;
 
-  /* ---- Surface ----
-     Source: Expo kamimusubiDark.surface / .surfaceSoft。
-     Mobile自身のkamimusubiDarkSemanticThemeは surface.elevated を
-     surfaceSoft（#0b1424）に、surface.default を surface（#101827）に
-     割り当てている。RGB上はsurfaceSoftの方がわずかに暗く、一般的な
-     「elevatedほど明るい」直感とは順序が逆だが、本Tokenは独自の階調を
-     設計せずExpoの実値をそのまま踏襲する（値は同じMobile内で実証済み）。 */
-  --kt-color-surface-default: #101827;
-  --kt-color-surface-elevated: #0b1424;
+  /* ---- Surface: deep moss charcoal ---- */
+  /* Primitive: kamimusubiDark.surface / .surfaceRaised
+     背景 / カード面 / 浮き面の分離を明度順で保証する（改訂点1）。 */
+  --kt-color-surface-default: #131a15;
+  --kt-color-surface-elevated: #1a231c;
 
-  /* ---- Text ----
-     Source: Expo kamimusubiDark.text / .muted / .mutedSoft。
-     Secondary=muted、Muted=mutedSoftはkamimusubiDarkSemanticThemeの
-     text.secondary/text.mutedマッピングに一致させた
-     （Mobile画面自体はこの2値を厳密に使い分けていないことをPhase 1で
-     確認済みだが、Semantic Contractとして定義されている値を優先する）。
-     text-inverseはEmerald塗り(action-primary)上の文字色のため、
-     ExpoのGold上ダーク文字(action.primaryText=background)は再利用せず、
-     Web既存責務（白文字）を維持する。 */
-  --kt-color-text-primary: #f7f0e3;
-  --kt-color-text-secondary: #a99b80;
-  --kt-color-text-muted: #c4b89a;
-  --kt-color-text-inverse: var(--color-white);
+  /* ---- Text: warm mist-ivory -> sage ---- */
+  /* Primitive: kamimusubiDark.text / .muted / .mutedSoft
+     secondary=muted、muted=mutedSoft というMobile側のマッピングを踏襲する
+     （muted の方が secondary より明るいという既存の対応関係を維持）。
+     text-inverse は action-primary(gold) 塗りの上に載る文字色。
+     goldは明色のため白ではなく背景色を反転色として使う（Mobileと同値）。 */
+  --kt-color-text-primary: #f3eee3;
+  --kt-color-text-secondary: #a7ac9b;
+  --kt-color-text-muted: #c6c8b8;
+  --kt-color-text-inverse: #0a0f0c;
 
-  /* ---- Border ----
-     default: Expo kamimusubiDark.border。
-     strong/focusはExpoに対応するライトな値が無いため
-     （Expo側のborder系はborderの方が最も明るい）、Priority 4
-     （Web既存Semantic Responsibility）に基づき既存Tailwind primitiveで
-     defaultより明るい段階を用意する。 */
-  --kt-color-border-default: #384154;
-  --kt-color-border-strong: var(--color-slate-500);
-  --kt-color-border-focus: var(--color-emerald-400);
+  /* ---- Border: muted olive-gray ---- */
+  /* Primitive: kamimusubiDark.border / .borderStrong / .gold
+     線は主張させず、面の境界は第一に明度差で示す。 */
+  --kt-color-border-default: #333d31;
+  --kt-color-border-strong: #465043;
+  --kt-color-border-focus: #c9a96a;
 
-  /* ---- Primary Action（母艦Decision: Emerald維持、Gold不採用） ----
-     Web既存のEmerald系（Priority 4）を維持しつつ、暗い背景での視認性
-     確保のため既存Tailwind Emeraldパレット内でLight版(600系)より
-     明るい階調（500/400）へシフトする。ExpoのGold値は使用しない
-     （Primary Action=Emeraldという母艦Decisionそのもの）。
-     action-primary-textはEmerald塗りに対する白文字を維持（Text節参照）。 */
-  --kt-color-action-primary: var(--color-emerald-500);
-  --kt-color-action-primary-hover: var(--color-emerald-400);
-  --kt-color-action-primary-text: var(--color-white);
-  --kt-color-action-disabled: var(--color-slate-700);
+  /* ---- Primary Action: restrained shrine-gold ---- */
+  /* Primitive: kamimusubiDark.gold / .goldSoft / .background / .mutedDark
+     「重要な操作にだけ差す光」。面や装飾には広げない。 */
+  --kt-color-action-primary: #c9a96a;
+  --kt-color-action-primary-hover: #dcc28a;
+  --kt-color-action-primary-text: #0a0f0c;
+  --kt-color-action-disabled: #2a332a;
 
-  /* ---- Success（母艦Decision: Primary/Premiumと責務分離） ----
-     既存Success Token（Emerald系）をそのまま優先し、新規Token・新規Hueは
-     追加しない。Action Primary（500/400）と値が重複しないよう、
-     Success系はEmeraldパレット内の別階調（300/200/950/800）を割り当てる。 */
-  --kt-color-status-success: var(--color-emerald-300);
-  --kt-color-status-success-text: var(--color-emerald-200);
-  --kt-color-status-success-surface: var(--color-emerald-950);
-  --kt-color-status-success-border: var(--color-emerald-800);
+  /* ---- Success: soft cedar-green ---- */
+  /* Primitive: kamimusubiDark.cedar / .cedarDim / .cedarDeep
+     旧実装はEmerald系。Forest基盤では緑が背景色相と重なるため、
+     背景より明確に明るい杉色に寄せて「静かな肯定」として区別する。
+     success-text は success-surface 上での可読性を確保するため
+     cedarより明るい階調（#a9c39e, cedarDim比 7.40）を用いる。 */
+  --kt-color-status-success: #8fae84;
+  --kt-color-status-success-text: #a9c39e;
+  --kt-color-status-success-surface: #222e25;
+  --kt-color-status-success-border: #3e5142;
 
-  /* ---- Warning（母艦Decision: Premium Amberと責務分離） ----
-     既存Warning Token（Amber系）を優先する母艦指示のため、Hueは変更せず
-     Amber系に留める。ただしPremiumと完全に同一値になっていた既存の
-     衝突（Decision Gate確認済み、ConciergeSectionsRenderer.tsxのコード内
-     コメントが自認）を再発させないよう、Premiumとは異なる階調
-     （amber-300）を明示的に割り当てる。
-     注記: これは「Token責務を共有しない」という最小限の分離であり、
-     Hueが同じAmber系である以上、視覚的な差は階調差にとどまる。
-     Warning≠Premiumの視覚的区別が階調差だけで十分かは、実装後の
-     見た目確認（Phase 3以降）で母艦に再確認することを推奨する。 */
-  --kt-color-status-warning: var(--color-amber-300);
+  /* ---- Warning ---- */
+  /* Primitive: kamimusubiDark.warning
+     旧実装のAmber系はPremium/goldと色相が重なり混同しやすかったため、
+     goldより橙寄り・高彩度に振って信号色として分離する。 */
+  --kt-color-status-warning: #d99a4e;
 
-  /* ---- Error ----
-     既存Error Token（Red系）を維持。暗い背景での視認性確保のため
-     Light版(600)より明るい階調(400)へシフトする。 */
-  --kt-color-status-error: var(--color-red-400);
+  /* ---- Error ---- */
+  /* Primitive: kamimusubiDark.error
+     警告性を保ちつつ、森の世界観に合わせ赤土寄りの落ち着いた色味とする。 */
+  --kt-color-status-error: #e0918a;
 
-  /* ---- Notice（Amber系から分離、Premiumとの混同防止） ---- */
-  --kt-color-notice-bg: #0b1424;
-  --kt-color-notice-border: #384154;
-  --kt-color-notice-text: #b8aa8e;
+  /* ---- Info ---- */
+  /* Primitive: kamimusubiDark.muted */
+  --kt-color-status-info: #a7ac9b;
 
-  /* ---- Premium（母艦Decision: Amber/Gold系をIdentityとして維持） ----
-     Web既存のAmber系（Priority 4）を維持。ExpoのGold（Primary Actionと
-     完全同値という欠陥を持つ）は再利用しない。Warning（amber-300）とは
-     異なる階調（500/950/800）を用いることで、Decision Gateが確認した
-     Premium/Warningの値衝突をDark版で再発させない。 */
-  --kt-color-premium-accent: var(--color-amber-500);
-  --kt-color-premium-surface: var(--color-amber-950);
-  --kt-color-premium-border: var(--color-amber-800);
+  /* ---- Notice ---- */
+  --kt-color-notice-bg: #0e1410;
+  --kt-color-notice-border: #333d31;
+  --kt-color-notice-text: #c6c8b8;
+
+  /* ---- Premium ---- */
+  /* Primitive: kamimusubiDark.premiumAccent / .surfaceRaised / .borderGold
+     「同じ森の、より深く静かで、わずかに発光する層」。
+     action-primary(gold) と同値にせず、明度を上げて責務を分離する。 */
+  --kt-color-premium-accent: #e4c88f;
+  --kt-color-premium-surface: #1a231c;
+  --kt-color-premium-border: #7a6438;
+
+  /* ================================================================
+   * 以下は旧実装で dark 値が無く、:root のLight値が解決されていたTokens。
+   * Forest基調では明るい面が浮くため、dark値を与える。
+   * ================================================================ */
+
+  /* ---- Overlay ---- */
+  /* 背景(#0a0f0c)に合わせた森影。旧値はNavy由来 rgb(0 0 0 / .5)。 */
+  --kt-color-overlay-default: rgb(6 10 8 / 0.82);
+
+  /* ---- Selection（選択中のリスト項目） ---- */
+  /* 旧: blue-50 / blue-500。Forest基調では青が世界観から浮くため、
+     選択は「苔が湿って色が濃くなる」方向の杉色で示す。 */
+  --kt-color-selection-background: #1c2a22;
+  --kt-color-selection-border: #8fae84;
+
+  /* ---- Surface Emphasis（強調CTA/リンクの濃色背景） ---- */
+  /* 旧: slate-800/900。暗背景では「濃い面」で強調できないため、
+     周囲よりわずかに持ち上げた面として再定義する。 */
+  --kt-color-surface-emphasis: #232c24;
+  --kt-color-surface-emphasis-hover: #2a342b;
+
+  /* ---- Message Own（自分側メッセージ） ---- */
+  /* 旧: gray-900 + 白文字。暗背景では沈むため、杉寄りに持ち上げる。 */
+  --kt-color-message-own-background: #2c3a2e;
+  --kt-color-message-own-text: #f3eee3;
+
+  /* ---- Saved / Favorite ---- */
+  /* 旧: emerald-50 背景（darkでも明色のまま解決されていた）。
+     Successと同じ杉系だが、面ではなく状態表示として一段落ち着かせる。 */
+  --kt-color-saved-background: #222e25;
+  --kt-color-saved-text: #a9c39e;
+  --kt-color-saved-border: #3e5142;
+
+  /* ---- Shadow ---- */
+  /* 旧brandはEmerald由来の落ち影。Forest基調では発光ではなく
+     「重要なアクションの周囲にだけ滲む微光」として金を極薄で使う。 */
+  --kt-shadow-brand:
+    0 0 0 1px color-mix(in oklab, #c9a96a 14%, transparent),
+    0 10px 24px -12px color-mix(in oklab, #c9a96a 22%, transparent);
 }

@@ -92,13 +92,13 @@ export default function SignupForm({ returnTo }: Props) {
             disabled={loading}
             autoComplete="new-password"
           />
-          <p className="mt-1 text-xs text-gray-500">8文字以上</p>
+          <p className="mt-1 text-xs text-[var(--kt-color-text-secondary)]">8文字以上</p>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded bg-[var(--kt-color-action-primary)] px-4 py-2 text-[var(--kt-color-action-primary-text)] hover:bg-[var(--kt-color-action-primary-hover)] disabled:opacity-50"
         >
           {loading ? "作成中..." : "アカウント作成"}
         </button>
