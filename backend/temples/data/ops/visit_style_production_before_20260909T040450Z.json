@@ -1,0 +1,444 @@
+{
+  "snapshot_version": 1,
+  "source_seed_sha256": "15dc4bd475cbb857b23aafbfb59832e4bf0934b6c8c91b196002f5a56a172838",
+  "planned_update_count": 64,
+  "rows": [
+    {
+      "id": 2,
+      "name_jp": "伏見稲荷大社",
+      "address": "京都府京都市伏見区深草薮之内町68",
+      "before": ["business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 4,
+      "name_jp": "出雲大社",
+      "address": "島根県出雲市大社町杵築東195",
+      "before": ["business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 8,
+      "name_jp": "宇佐神宮",
+      "address": "大分県宇佐市南宇佐2859",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 9,
+      "name_jp": "日光東照宮",
+      "address": "栃木県日光市山内2301",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 11,
+      "name_jp": "住吉大社",
+      "address": "大阪府大阪市住吉区住吉2-9-89",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 12,
+      "name_jp": "石清水八幡宮",
+      "address": "京都府八幡市八幡高坊30",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 13,
+      "name_jp": "金刀比羅宮",
+      "address": "香川県仲多度郡琴平町892-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 14,
+      "name_jp": "鹿島神宮",
+      "address": "茨城県鹿嶋市宮中2306-1",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 15,
+      "name_jp": "香取神宮",
+      "address": "千葉県香取市香取1697-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["nature", "classic"]
+    },
+    {
+      "id": 16,
+      "name_jp": "氷川神社（大宮）",
+      "address": "埼玉県さいたま市大宮区高鼻町1-407",
+      "before": ["quiet", "reset", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 22,
+      "name_jp": "給田六所神社",
+      "address": "日本、〒157-0064 東京都世田谷区給田１丁目３−７",
+      "before": ["urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 24,
+      "name_jp": "浅草神社",
+      "address": "東京都台東区浅草2-3-1",
+      "before": ["classic", "tourism", "less_crowded"],
+      "after": ["classic", "less_crowded"]
+    },
+    {
+      "id": 27,
+      "name_jp": "榛名神社",
+      "address": "群馬県高崎市榛名山町849",
+      "before": ["nature", "business", "classic", "urban"],
+      "after": ["business"]
+    },
+    {
+      "id": 28,
+      "name_jp": "筑波山神社",
+      "address": "茨城県つくば市筑波1",
+      "before": ["nature", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 30,
+      "name_jp": "彌彦神社",
+      "address": "新潟県西蒲原郡弥彦村弥彦2887-2",
+      "before": ["business", "classic"],
+      "after": ["classic"]
+    },
+    {
+      "id": 31,
+      "name_jp": "氣多大社",
+      "address": "石川県羽咋市寺家町ク1-1",
+      "before": ["business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 32,
+      "name_jp": "越中一宮 高瀬神社",
+      "address": "富山県南砺市高瀬291",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 34,
+      "name_jp": "賀茂御祖神社（下鴨神社）",
+      "address": "京都府京都市左京区下鴨泉川町59",
+      "before": ["quiet", "reset", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 35,
+      "name_jp": "賀茂別雷神社（上賀茂神社）",
+      "address": "京都府京都市北区上賀茂本山339",
+      "before": ["nature", "quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 36,
+      "name_jp": "生田神社",
+      "address": "兵庫県神戸市中央区下山手通1-2-1",
+      "before": ["nature", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 39,
+      "name_jp": "宮地嶽神社",
+      "address": "福岡県福津市宮司元町7-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 40,
+      "name_jp": "川越氷川神社",
+      "address": "埼玉県川越市宮下町2-11-3",
+      "before": ["classic", "love", "nature"],
+      "after": ["classic", "nature"]
+    },
+    {
+      "id": 41,
+      "name_jp": "白山比咩神社",
+      "address": "石川県白山市三宮町ニ105-1",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 43,
+      "name_jp": "日枝神社",
+      "address": "東京都千代田区永田町2-10-5",
+      "before": ["quiet", "formal", "classic"],
+      "after": ["quiet", "classic"]
+    },
+    {
+      "id": 44,
+      "name_jp": "東京大神宮",
+      "address": "東京都千代田区富士見2-4-1",
+      "before": ["quiet", "urban", "love"],
+      "after": ["quiet", "urban"]
+    },
+    {
+      "id": 52,
+      "name_jp": "江島神社",
+      "address": "神奈川県藤沢市江の島2-3-8",
+      "before": ["nature", "love", "reset"],
+      "after": ["nature", "reset"]
+    },
+    {
+      "id": 53,
+      "name_jp": "水戸東照宮",
+      "address": "茨城県水戸市宮町2-5-13",
+      "before": ["business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 54,
+      "name_jp": "二荒山神社",
+      "address": "栃木県日光市山内2307",
+      "before": ["nature", "business", "classic", "urban"],
+      "after": ["classic", "nature"]
+    },
+    {
+      "id": 55,
+      "name_jp": "貴船神社",
+      "address": "京都府京都市左京区鞍馬貴船町180",
+      "before": ["nature", "quiet", "love"],
+      "after": ["nature", "quiet"]
+    },
+    {
+      "id": 56,
+      "name_jp": "八坂神社",
+      "address": "京都府京都市東山区祇園町北側625",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 57,
+      "name_jp": "住吉神社（博多）",
+      "address": "福岡県福岡市博多区住吉3-1-51",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 58,
+      "name_jp": "靖國神社",
+      "address": "東京都千代田区九段北3-1-1",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 60,
+      "name_jp": "赤坂氷川神社",
+      "address": "東京都港区赤坂6-10-12",
+      "before": ["quiet", "urban", "love"],
+      "after": ["quiet", "urban"]
+    },
+    {
+      "id": 65,
+      "name_jp": "白山神社",
+      "address": "東京都文京区白山5-31-26",
+      "before": ["quiet", "urban", "love"],
+      "after": ["quiet", "urban"]
+    },
+    {
+      "id": 70,
+      "name_jp": "多摩川浅間神社",
+      "address": "東京都大田区田園調布1-55-12",
+      "before": ["nature", "quiet", "love"],
+      "after": ["nature", "quiet"]
+    },
+    {
+      "id": 72,
+      "name_jp": "武蔵一宮 氷川女體神社",
+      "address": "埼玉県さいたま市緑区宮本2-17-1",
+      "before": ["nature", "quiet", "reset", "classic", "urban"],
+      "after": ["nature", "classic"]
+    },
+    {
+      "id": 75,
+      "name_jp": "鷲宮神社",
+      "address": "埼玉県久喜市鷲宮1-6-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 76,
+      "name_jp": "箭弓稲荷神社",
+      "address": "埼玉県東松山市箭弓町2-5-14",
+      "before": ["nature", "business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 77,
+      "name_jp": "安房神社",
+      "address": "千葉県館山市大神宮589",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 78,
+      "name_jp": "千葉神社",
+      "address": "千葉県千葉市中央区院内1-16-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic", "study"]
+    },
+    {
+      "id": 79,
+      "name_jp": "玉前神社",
+      "address": "千葉県長生郡一宮町一宮3048",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 80,
+      "name_jp": "櫻木神社",
+      "address": "千葉県野田市桜台210",
+      "before": ["study", "love", "reset"],
+      "after": ["study", "reset"]
+    },
+    {
+      "id": 82,
+      "name_jp": "笠間稲荷神社",
+      "address": "茨城県笠間市笠間1",
+      "before": ["business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 83,
+      "name_jp": "酒列磯前神社",
+      "address": "茨城県ひたちなか市磯崎町4607-2",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 84,
+      "name_jp": "宇都宮二荒山神社",
+      "address": "栃木県宇都宮市馬場通り1-1-1",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 85,
+      "name_jp": "足利織姫神社",
+      "address": "栃木県足利市西宮町3889",
+      "before": ["study", "love", "business"],
+      "after": ["study", "business"]
+    },
+    {
+      "id": 86,
+      "name_jp": "古峯神社",
+      "address": "栃木県鹿沼市草久3027",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["nature", "classic"]
+    },
+    {
+      "id": 87,
+      "name_jp": "冠稲荷神社",
+      "address": "群馬県太田市細谷町1",
+      "before": ["quiet", "reset", "classic", "urban"],
+      "after": ["nature", "classic"]
+    },
+    {
+      "id": 88,
+      "name_jp": "妙義神社",
+      "address": "群馬県富岡市妙義町妙義6",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 89,
+      "name_jp": "赤城神社",
+      "address": "群馬県前橋市富士見町赤城山4-2",
+      "before": ["nature", "business", "classic", "urban"],
+      "after": ["nature", "classic"]
+    },
+    {
+      "id": 90,
+      "name_jp": "鶴嶺八幡宮",
+      "address": "神奈川県茅ヶ崎市浜之郷462",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 91,
+      "name_jp": "森戸大明神",
+      "address": "神奈川県三浦郡葉山町堀内1025",
+      "before": ["nature", "love", "reset"],
+      "after": ["nature", "reset"]
+    },
+    {
+      "id": 92,
+      "name_jp": "報徳二宮神社",
+      "address": "神奈川県小田原市城内8-10",
+      "before": ["business", "classic", "urban"],
+      "after": ["business", "classic", "study"]
+    },
+    {
+      "id": 93,
+      "name_jp": "九頭龍神社 新宮",
+      "address": "神奈川県足柄下郡箱根町元箱根80-1",
+      "before": ["nature", "love", "reset"],
+      "after": ["nature", "reset"]
+    },
+    {
+      "id": 94,
+      "name_jp": "平塚八幡宮",
+      "address": "神奈川県平塚市浅間町1-6",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 95,
+      "name_jp": "忌宮神社",
+      "address": "山口県下関市長府宮の内町1-18",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 96,
+      "name_jp": "高良大社",
+      "address": "福岡県久留米市御井町1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 97,
+      "name_jp": "寳登山神社",
+      "address": "埼玉県秩父郡長瀞町長瀞1828",
+      "before": ["nature", "quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 98,
+      "name_jp": "枚岡神社",
+      "address": "大阪府東大阪市出雲井町7-16",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["business", "classic"]
+    },
+    {
+      "id": 99,
+      "name_jp": "護王神社",
+      "address": "京都府京都市上京区烏丸通下長者町下ル桜鶴円町385",
+      "before": ["quiet", "reset", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 100,
+      "name_jp": "阿蘇神社",
+      "address": "熊本県阿蘇市一の宮町宮地3083-1",
+      "before": ["quiet", "reset", "business", "classic", "urban"],
+      "after": ["classic"]
+    },
+    {
+      "id": 106,
+      "name_jp": "北海道神宮",
+      "address": "北海道札幌市中央区宮ヶ丘474",
+      "before": [],
+      "after": ["classic"]
+    },
+    { "id": 107, "name_jp": "建部大社", "address": "滋賀県大津市神領1-16-1", "before": [], "after": ["classic"] },
+    { "id": 108, "name_jp": "波上宮", "address": "沖縄県那覇市若狭1-25-11", "before": [], "after": ["classic"] }
+  ],
+  "snapshot_sha256": "f584954df14c22ebb86654b45dcaed4cdd6374b4f42c0bba4deaacdbb4ef315e"
+}
