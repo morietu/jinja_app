@@ -46,14 +46,31 @@ echo "=== migration divergence diagnostics (temples 0079-0089) ==="
 } || echo "migration divergence diagnostics failed; continuing startup"
 echo "=== end migration divergence diagnostics ==="
 
+# --- Visit Style Production audit (read-only, opt-in, fail closed) ---------
+# Runs the Visit-Style-only sync command in its DEFAULT DRY RUN mode: no
+# --apply, no --expected-* locks, so it cannot write. It reports PRESERVE
+# before/after, planned_updates, source_seed_sha256 and snapshot_sha256 to the
+# Render logs, which is exactly the input the Mother Ship Apply Gate needs.
+# Deliberately NOT import_shrines_seed: that dry-run reports full-payload drift
+# (goriyaku / latitude / longitude) and so does not answer "how far is
+# Production's visit_style_tags from the canonical Base Seed?".
+# The same gate doubles as the post-sync check: planned_updates=0 is success.
 if [ "${RUN_VISIT_STYLE_AUDIT_ON_START:-0}" = "1" ]; then
   if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || [ "${RUN_SHRINE_REFLECTION_REPAIR:-0}" = "1" ] || [ "${RUN_FAVORITE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_FEATUREUSAGE_REPAIR_ON_START:-0}" = "1" ] || [ "${RUN_BOOTSTRAP_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_SYNC_ON_START:-0}" = "1" ] || [ "${RUN_VISIT_STYLE_ROLLBACK_ON_START:-0}" = "1" ]; then
     echo "ERROR: RUN_VISIT_STYLE_AUDIT_ON_START requires all write-capable startup flags to be disabled."
     exit 1
   fi
-  echo "Auditing Production shrine seed drift because RUN_VISIT_STYLE_AUDIT_ON_START=1 (dry-run only)..."
-  python manage.py import_shrines_seed --dry-run
-  echo "Visit style Production dry-run audit completed."
+  echo "Auditing Production visit_style_tags against canonical Base Seed because RUN_VISIT_STYLE_AUDIT_ON_START=1 (dry-run only)..."
+  # A read-only audit must never take the service down. `set -e` is suspended
+  # inside an `if` condition, so a non-zero exit here is reported and startup
+  # continues to gunicorn. The completed message is emitted only on success, so
+  # a green log line always means the audit really ran.
+  if python manage.py sync_visit_style_tags_from_seed; then
+    echo "Visit style Production dry-run audit completed."
+  else
+    visit_style_audit_exit=$?
+    echo "ERROR: Visit style Production dry-run audit failed (exit=${visit_style_audit_exit}); no row was written and startup continues."
+  fi
 else
   echo "Skipping Visit Style Production audit. Set RUN_VISIT_STYLE_AUDIT_ON_START=1 to run it explicitly."
 fi
