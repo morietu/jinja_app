@@ -207,7 +207,7 @@ function PopularTab() {
       </header>
 
       {error && (
-        <div className="text-red-600 text-sm">
+        <div className="text-[var(--kt-color-status-error)] text-sm">
           読み込みに失敗しました。{" "}
           <button onClick={() => location.reload()} className="underline">
             再試行
@@ -323,7 +323,7 @@ export default function RankingPage() {
 
       {/* 状態メッセージは見出しの下で表示するが、タブ本体は常時描画 */}
       {loading && <p className="mb-2 opacity-70">読み込み中…</p>}
-      {error && <p className="mb-2 text-red-600">{error}</p>}
+      {error && <p className="mb-2 text-[var(--kt-color-status-error)]">{error}</p>}
 
       <Tabs defaultValue="popular">
         <TabsList className="mb-6">

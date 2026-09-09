@@ -82,7 +82,7 @@ export default function RankingPage() {
         {loading && <p className="px-2 py-4 text-xs text-gray-500">ランキングを読み込み中です…</p>}
 
         {error && !loading && (
-          <p className="px-2 py-4 text-xs text-red-600">
+          <p className="px-2 py-4 text-xs text-[var(--kt-color-status-error)]">
             ランキングの取得に失敗しました。時間をおいて再度お試しください。
           </p>
         )}
