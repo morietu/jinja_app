@@ -25,7 +25,7 @@
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.12",
     "@stoplight/spectral-cli": "^6.15.1",
-    "baseline-browser-mapping": "^2.10.24",
+    "baseline-browser-mapping": "^2.11.21",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
