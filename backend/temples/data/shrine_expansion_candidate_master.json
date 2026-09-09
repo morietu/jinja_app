@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "title": "KAMI MUSUBI Shrine Expansion Candidate Master",
+  "purpose": "Pre-import candidate registry for the +500 shrine expansion track.",
+  "recorded_at": "2026-09-09",
+  "required_discovery_fields": [
+    "discovery_source",
+    "discovery_source_url",
+    "discovery_rank",
+    "captured_at"
+  ],
+  "source_policy": {
+    "discovery_source": "Candidate discovery only. Do not use as the factual source for shrine identity, location, deity, history, or goriyaku.",
+    "official_source": "Official shrine site, Jinja-cho, municipality, cultural-property or equivalent verifiable source is required before factual fields are confirmed."
+  },
+  "candidate_contract": {
+    "candidate_id": "Required stable candidate identifier.",
+    "candidate_name": "Discovery-time shrine name. Not sufficient for real-world identity confirmation.",
+    "prefecture": "Discovery-time prefecture used for disambiguation and coverage analysis.",
+    "candidate_status": "Initial value: DISCOVERED.",
+    "identity_status": "Initial value: UNREVIEWED.",
+    "duplicate_status": "Initial value: UNREVIEWED. Name-only dedupe is prohibited.",
+    "official_source_status": "Initial value: UNREVIEWED.",
+    "knowledge_status": "Initial value: UNREVIEWED.",
+    "discovery_sources": "Array. Each item must contain discovery_source, discovery_source_url, discovery_rank, captured_at.",
+    "candidate_reason": "Why this shrine entered the candidate pool.",
+    "official_name": "Null until confirmed from an acceptable factual source.",
+    "official_address": "Null until confirmed from an acceptable factual source.",
+    "official_source_type": "Null until factual source review.",
+    "official_source_url": "Null until factual source review.",
+    "verified_at": "Null until factual verification.",
+    "latitude": "Null until position verification.",
+    "longitude": "Null until position verification.",
+    "goriyaku": "Empty until source-backed review.",
+    "goriyaku_tags": "Empty until source-backed normalization."
+  },
+  "candidates": []
+}
