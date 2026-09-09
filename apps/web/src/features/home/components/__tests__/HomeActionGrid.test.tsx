@@ -24,12 +24,19 @@ describe("HomeActionGrid", () => {
     expect(screen.getByRole("link", { name: /今月から探す/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /地図から探す/ })).toHaveAttribute("href", "/map");
     expect(screen.getByRole("link", { name: /神社一覧/ })).toHaveAttribute("href", "/shrines");
+    expect(screen.getByRole("link", { name: /よく見られている/ })).toHaveAttribute("href", "/ranking");
   });
 
-  // 参拝の記録カードはMother Ship判断待ちで未設置。到達可能な宛先が
-  // 存在しないため（/goshuins は redirect("/") の行き止まり）、
-  // 宛先が決まるまでHomeに置かないことをテストで固定する。
-  it("到達できない宛先のカードを置かない", () => {
+  it("2x2グリッドとして4枚のカードを持つ", () => {
+    render(<HomeActionGrid />);
+
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+  });
+
+  // Mother Ship決定: 参拝記録はHomeに置かない。現行betaでは保存/お気に入りが
+  // ユーザーと神社の関係を表し、MyPage / Favorites から辿る。
+  // /goshuins は redirect("/") の行き止まりでもあるため、復活させないことを固定する。
+  it("参拝記録の入口をHomeに置かない", () => {
     render(<HomeActionGrid />);
 
     expect(screen.queryByRole("link", { name: /参拝の記録/ })).toBeNull();
@@ -56,6 +63,7 @@ describe("HomeActionGrid", () => {
     render(<HomeActionGrid />);
 
     fireEvent.click(screen.getByRole("link", { name: /地図から探す/ }));
+    fireEvent.click(screen.getByRole("link", { name: /よく見られている/ }));
 
     expect(analyticsMocks.trackSearchEvent).not.toHaveBeenCalled();
   });

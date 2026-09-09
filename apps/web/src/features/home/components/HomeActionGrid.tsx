@@ -16,20 +16,20 @@
 // は据え置き: /compass?ref=home へのリンクと home_compass_entry_click の
 // 送出を、旧 HomeCompassSection からそのまま引き継ぐ。
 //
-// 「参拝の記録」カードは保留 (Mother Ship判断待ち):
-// 参拝記録の閲覧面はWebに到達可能なルートが存在しない。
-//   /goshuins        -> redirect("/")
-//   /goshuins/public -> redirect("/")
-//   /mypage          -> MyPageView (御朱印セクションを持たない)
-//   MyPageScreen / MyGoshuinList は実装済みだが、どのルートからも未マウント
-//   /goshuin/new, /g/[username], /shrines/[id]/goshuins は
-//   いずれもshrine/username等のパラメータ前提でHomeからの静的な入口にならない
-// 宛先を新設するのはルートの発明にあたるため、本PRではカードを置かない。
+// 4枚目のカード (Mother Ship決定):
+// 「よく見られている」-> /ranking を採用する。
+// 参拝記録はHomeに置かない。現行betaでは、ユーザーと神社の関係は
+// 保存/お気に入りで表現し、MyPage / Favorites から辿る方針が確定している。
+// (調査結果: /goshuins と /goshuins/public は redirect("/") の行き止まり、
+//  MyPageScreen / MyGoshuinList は未マウント、/goshuin/new・/g/[username]・
+//  /shrines/[id]/goshuins はいずれもパラメータ前提で、Homeからの
+//  静的な入口になる宛先が存在しなかった)
+//
 // 各カードの宛先が「意図されたルート契約」に解決することは
 // __tests__/HomeActionGrid.routes.test.ts で機械的に担保する。
 "use client";
 
-import { Compass, Map, List } from "lucide-react";
+import { Compass, Map, List, TrendingUp } from "lucide-react";
 
 import { trackSearchEvent } from "@/lib/analytics/searchEvents";
 import { HomeActionCard } from "./HomeActionCard";
@@ -52,6 +52,7 @@ export function HomeActionGrid() {
         />
         <HomeActionCard href="/map" icon={Map} title="地図から探す" subtitle="近くの神社を巡る" />
         <HomeActionCard href="/shrines" icon={List} title="神社一覧" subtitle="ご利益から見る" />
+        <HomeActionCard href="/ranking" icon={TrendingUp} title="よく見られている" subtitle="いま関心の集まる神社" />
       </div>
     </section>
   );
