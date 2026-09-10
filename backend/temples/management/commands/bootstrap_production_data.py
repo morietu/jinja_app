@@ -22,9 +22,10 @@ class BootstrapStep:
 
 BOOTSTRAP_STEPS: tuple[BootstrapStep, ...] = (
     BootstrapStep(
-        step="import_shrines_seed",
-        version="2026-05-10-v1",
+        step="import_shrines_seed_base",
+        version="2026-09-10-base-v1",
         command="import_shrines_seed",
+        args=("--skip-goriyaku-tags",),
     ),
     BootstrapStep(
         step="backfill_goriyaku_tags",
@@ -33,6 +34,11 @@ BOOTSTRAP_STEPS: tuple[BootstrapStep, ...] = (
         version="2026-05-10-with-visit-style-force-v1",
         command="backfill_goriyaku_tags",
         args=("--force",),
+    ),
+    BootstrapStep(
+        step="sync_explicit_goriyaku_tags",
+        version="2026-09-10-explicit-goriyaku-tags-v1",
+        command="import_shrines_seed",
     ),
 )
 
