@@ -2,7 +2,7 @@
 
 ## Status
 
-- Status: `BUILD_IN_PROGRESS_CANONICAL_INTEGRATION_PENDING`
+- Status: `PASS_BASE_SEED_BUILT`
 - Recorded at: `2026-09-10`
 - Batch: `W0-B01`
 - Scope: 三輪神社 / 大鳥大社 / 御岩神社 / 烏森神社 / 榴岡天満宮
@@ -35,6 +35,22 @@ location.lat/location.lng
 
 `astro_elements` と `visit_style_tags` はSource Packet Freezeで今回承認していないため空配列とし、本工程で推測しない。
 
+## Canonical Base Seed Integration
+
+`backend/temples/data/shrines_seed_clean.json` の既存末尾 `波上宮` の後ろへW0-B01 5社を追加した。
+
+追加順はCandidate Master / Wave0 Batch順を維持する。
+
+```text
+三輪神社
+大鳥大社
+御岩神社
+烏森神社
+榴岡天満宮
+```
+
+各rowの `name_jp / address / latitude / longitude / goriyaku / goriyaku_tags` はSource Packet Freezeの採用値と一致する。
+
 ## Safety Contract
 
 1. W0-B01は5社ちょうど
@@ -46,20 +62,42 @@ location.lat/location.lng
 7. 既存Shrine rowを変更しない
 8. Production DBへ書き込まない
 
-## Canonical Integration Gate
+## Canonical Integration Verification
 
-最終DONE条件は `backend/temples/data/shrines_seed_clean.json` へ5社を追加し、既存row変更0であること。
+`develop` merge commit `070be853a0ccac00980a38ae8cbe2e3d604ab716` とData Build branchを比較した。
 
-GitHub connectorはpartial patch writeを持たないため、canonical JSON全置換を直接本branchで行わず、temporary branch上で更新してparentとの差分を確認する。
-
-Accept条件:
+`shrines_seed_clean.json` の差分:
 
 ```text
-existing row deletions = 0
-existing row modifications = 0
-new shrine rows = 5
-added identities = W0-B01 exact 5
-JSON parse = PASS
+status = modified
+additions = 104
+deletions = 0
 ```
 
-Accept後のみData Build branchへcommitを進める。
+末尾を再取得し、追加内容がW0-B01の5社のみであることを確認した。
+既存Base Seed rowの削除は0。
+
+## Contract Test
+
+`backend/temples/tests/test_wave0_b01_base_seed_packet.py`
+
+以下を固定する。
+
+- 5社exact order
+- Batch内identity unique
+- 必須Base Seed fields
+- latitude/longitude = location.lat/location.lng
+- `goriyaku.split("・") == goriyaku_tags`
+- tag duplicateなし
+- canonical Base Seed既存identityとの重複なし
+- P0-B canonical id contract = 1..39
+
+## Exit Decision
+
+```text
+W0_B01_BASE_SHRINE_SEED_BUILD = PASS
+CANONICAL_BASE_SEED_UPDATED = YES
+EXISTING_ROW_DELETIONS = 0
+PRODUCTION_DB_WRITE = 0
+NEXT_GATE = DATA_BUILD_CONTRACT_TESTS
+```
