@@ -115,8 +115,8 @@
   /* Error は赤土寄り。tokens.css の --kt-color-status-error と同値。 */
   --destructive: oklch(0.735 0.097 25.2); /* #e0918a */
 
-  /* 線は主張させない。旧実装同样に半透明を保ちつつ、
-     白ではなく森側へ色相を寄せて面に馴ませる。 */
+  /* 線は主張させない。旧実装同様に半透明を保ちつつ、
+     白ではなく森側へ色相を寄せて面に馴染ませる。 */
   --border: oklch(0.88 0.04 140 / 14%);
   --input: oklch(0.88 0.04 140 / 18%);
 
@@ -237,7 +237,7 @@ body:has([data-app-frame="home"]) header nav {
 /* 2) 全幅の明るい帯をやめ、地面と同色 + ヘアラインにしてカラム構図を切らない。
       地がNavyになったため、Headerも同じ地色に揃える。ここを既存の
       background-base のままにすると、stickyなHeaderと本文の間に
-      Forest / Navy の境目が横一本出てしまう。
+      Forest / Navy の境目が横一本に出てしまう。
       var()の2番目は :has() が効かない場合のfallbackで、従来値と同じ。 */
 body:has([data-app-frame="home"]) header {
   background-color: var(--home-ground, var(--kt-color-background-base));
