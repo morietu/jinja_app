@@ -132,6 +132,52 @@ describe("CompassClient", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).birthdate).toBe("2024-02-29");
   });
 
+  it.each([
+    ["1984", "5", "15", "1984-05-15"],
+    ["1984", "5", "5", "1984-05-05"],
+  ])("1桁の月日をYYYY-MM-DDへ正規化して送信できる", async (year, month, day, expectedBirthdate) => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        state: "no_common_direction",
+        purpose: "career",
+        direction_context: null,
+        recommendations: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<CompassClient />);
+    fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
+    setOriginViaPrefecture();
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: year } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: month } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: day } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).birthdate).toBe(expectedBirthdate);
+  });
+
+  it("月13は不正日付として送信しない", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<CompassClient />);
+    fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
+    setOriginViaPrefecture();
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1984" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "13" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "15" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
+
+    expect(screen.getByText("正しい生年月日を入力してください。")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("存在しない日付は不正日付として送信しない", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

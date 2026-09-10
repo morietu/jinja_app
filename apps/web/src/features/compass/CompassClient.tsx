@@ -56,7 +56,7 @@ function parseBirthdate(value: string | null | undefined): BirthdateParts {
 }
 
 function isValidBirthdate({ year, month, day }: BirthdateParts): boolean {
-  if (!/^\d{4}$/.test(year) || !/^\d{2}$/.test(month) || !/^\d{2}$/.test(day)) return false;
+  if (!/^\d{4}$/.test(year) || !/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day)) return false;
 
   const numericYear = Number(year);
   const numericMonth = Number(month);
