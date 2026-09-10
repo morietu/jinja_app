@@ -36,9 +36,9 @@ function setOriginViaPrefecture() {
 function fillMinimumValidInput() {
   fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
   setOriginViaPrefecture();
-  fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-    target: { value: "1990-01-01" },
-  });
+  fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+  fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+  fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 }
 
 function submit() {
@@ -258,7 +258,9 @@ describe("CompassClient lifecycle analytics", () => {
       expect(resultStates).toEqual(["direction_zero_candidates", "direction_filter_unavailable"]);
       // recommendation_count must not be fabricated for non-success states.
       const zeroCandidatesPayload = analyticsMocks.trackSearchEvent.mock.calls.find(
-        ([name, payload]) => name === "compass_result" && (payload as { result_state: string }).result_state === "direction_zero_candidates",
+        ([name, payload]) =>
+          name === "compass_result" &&
+          (payload as { result_state: string }).result_state === "direction_zero_candidates",
       )?.[1] as {
         recommendation_count: unknown;
         calculationMethod: unknown;
@@ -276,7 +278,8 @@ describe("CompassClient lifecycle analytics", () => {
       // metadata must stay null, never fabricated from the previous request.
       const unavailableDistancePayload = analyticsMocks.trackSearchEvent.mock.calls.find(
         ([name, payload]) =>
-          name === "compass_result" && (payload as { result_state: string }).result_state === "direction_filter_unavailable",
+          name === "compass_result" &&
+          (payload as { result_state: string }).result_state === "direction_filter_unavailable",
       )?.[1] as { distance_stage_km: unknown; direction_candidate_count: unknown; distance_candidate_count: unknown };
       expect(unavailableDistancePayload.distance_stage_km).toBeNull();
       expect(unavailableDistancePayload.direction_candidate_count).toBeNull();
@@ -287,7 +290,8 @@ describe("CompassClient lifecycle analytics", () => {
       expect(zeroCandidatesPayload.calculationMethod).toBeNull();
       const unavailablePayload = analyticsMocks.trackSearchEvent.mock.calls.find(
         ([name, payload]) =>
-          name === "compass_result" && (payload as { result_state: string }).result_state === "direction_filter_unavailable",
+          name === "compass_result" &&
+          (payload as { result_state: string }).result_state === "direction_filter_unavailable",
       )?.[1] as { calculationMethod: unknown };
       expect(unavailablePayload.calculationMethod).toBeNull();
     });

@@ -28,8 +28,7 @@ function geoSuccess(lat: number, lng: number): GetCurrentPosition {
 }
 
 function geoError(code: number): GetCurrentPosition {
-  return ((_success, error) =>
-    error?.({ code, message: "x" } as GeolocationPositionError)) as GetCurrentPosition;
+  return ((_success, error) => error?.({ code, message: "x" } as GeolocationPositionError)) as GetCurrentPosition;
 }
 
 async function openDeviceOrigin() {
@@ -48,9 +47,9 @@ function setOriginViaPrefecture() {
 function fillMinimumValidInput() {
   fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
   setOriginViaPrefecture();
-  fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-    target: { value: "1990-01-01" },
-  });
+  fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+  fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+  fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 }
 
 describe("CompassClient", () => {
@@ -64,6 +63,89 @@ describe("CompassClient", () => {
     expect(screen.getByRole("heading", { level: 2, name: "今月の参拝コンパス" })).toBeInTheDocument();
     expect(screen.getByText("今月の流れと目的から、向かう方向と参拝候補を見つけます。")).toBeInTheDocument();
     expect(screen.queryByText("この方向の参拝候補")).not.toBeInTheDocument();
+  });
+
+  it("native date inputを使わず、年・月・日の数値入力を表示する", () => {
+    render(<CompassClient />);
+
+    expect(document.querySelector('input[type="date"]')).not.toBeInTheDocument();
+    expect(screen.getByLabelText("生年月日の年")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("生年月日の年")).toHaveAttribute("inputmode", "numeric");
+    expect(screen.getByLabelText("生年月日の年")).toHaveAttribute("placeholder", "YYYY");
+    expect(screen.getByLabelText("生年月日の月")).toHaveAttribute("placeholder", "MM");
+    expect(screen.getByLabelText("生年月日の日")).toHaveAttribute("placeholder", "DD");
+  });
+
+  it("年4桁、月2桁の入力完了で次のフィールドへfocusし、Backspaceで前へ戻る", () => {
+    render(<CompassClient />);
+    const year = screen.getByLabelText("生年月日の年");
+    const month = screen.getByLabelText("生年月日の月");
+    const day = screen.getByLabelText("生年月日の日");
+
+    fireEvent.change(year, { target: { value: "1984" } });
+    expect(document.activeElement).toBe(month);
+    fireEvent.change(month, { target: { value: "05" } });
+    expect(document.activeElement).toBe(day);
+    fireEvent.keyDown(day, { key: "Backspace" });
+    expect(document.activeElement).toBe(month);
+    fireEvent.change(month, { target: { value: "" } });
+    fireEvent.keyDown(month, { key: "Backspace" });
+    expect(document.activeElement).toBe(year);
+  });
+
+  it("数字以外を入力値として採用しない", () => {
+    render(<CompassClient />);
+
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "19a9" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "0x5" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "1z5" } });
+
+    expect(screen.getByLabelText("生年月日の年")).toHaveValue("199");
+    expect(screen.getByLabelText("生年月日の月")).toHaveValue("05");
+    expect(screen.getByLabelText("生年月日の日")).toHaveValue("15");
+  });
+
+  it.each([["2024", "02", "29"]])("leap yearの%jは送信できる", async (year, month, day) => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        state: "no_common_direction",
+        purpose: "career",
+        direction_context: null,
+        recommendations: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<CompassClient />);
+    fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
+    setOriginViaPrefecture();
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: year } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: month } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: day } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).birthdate).toBe("2024-02-29");
+  });
+
+  it("存在しない日付は不正日付として送信しない", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<CompassClient />);
+    fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
+    setOriginViaPrefecture();
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "2026" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "02" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "30" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
+
+    expect(screen.getByText("正しい生年月日を入力してください。")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("目的・出発地点・生年月日が未入力のまま送信すると、それぞれ個別のエラーを出しAPIを呼ばない", () => {
@@ -194,7 +276,9 @@ describe("CompassClient", () => {
     expect(
       screen.queryByText("年盤と月盤の両方で重なる、今月の参考方位です。日盤は使用していません。（参考情報です）"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("年盤と月盤による参考情報です。日盤は使用していません。（参考情報です）")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("年盤と月盤による参考情報です。日盤は使用していません。（参考情報です）"),
+    ).not.toBeInTheDocument();
     // Direction visual and recommendation flow must remain unaffected.
     expect(screen.getByText("今月意識したい方向: 南東")).toBeInTheDocument();
     expect(screen.getByText("南東神社")).toBeInTheDocument();
@@ -268,9 +352,9 @@ describe("CompassClient", () => {
     fireEvent.click(screen.getByRole("button", { name: /その他の目的を見る/ }));
     fireEvent.click(screen.getByRole("radio", { name: "移動・安全" }));
     setOriginViaPrefecture();
-    fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-      target: { value: "1990-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
@@ -380,9 +464,7 @@ describe("CompassClient", () => {
     });
 
     expect(await screen.findByText("方向の参考情報を計算できませんでした")).toBeInTheDocument();
-    expect(
-      screen.getByText("生年月日または出発地点をご確認のうえ、もう一度お試しください。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("生年月日または出発地点をご確認のうえ、もう一度お試しください。")).toBeInTheDocument();
     expect(screen.queryByText("今月は方位の参考情報がありません")).not.toBeInTheDocument();
     // direction_filter_unavailable is a distinct Group A error state --
     // the no_common_direction continuation CTA must not leak into it
@@ -421,7 +503,16 @@ describe("CompassClient", () => {
     expect(await screen.findByRole("button", { name: "確認しています…" })).toBeDisabled();
 
     await act(async () => {
-      resolveFetch({ ok: true, status: 200, json: async () => ({ state: "direction_zero_candidates", purpose: "career", direction_context: null, recommendations: [] }) });
+      resolveFetch({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          state: "direction_zero_candidates",
+          purpose: "career",
+          direction_context: null,
+          recommendations: [],
+        }),
+      });
     });
   });
 

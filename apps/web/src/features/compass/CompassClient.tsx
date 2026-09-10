@@ -5,7 +5,7 @@
 //
 // No free-text consultation input here (Phase 5 brief Section 4) -- that
 // belongs to Concierge. This screen collects only: purpose (chip select),
-// origin (reused OriginSelector), birthdate (date input), then calls the
+// origin (reused OriginSelector), birthdate, then calls the
 // Compass BFF and renders one of the backend's 5 fail-safe states plus
 // this component's own pre-submit states (birthdate/origin missing).
 import { useEffect, useRef, useState } from "react";
@@ -20,12 +20,7 @@ import CompassDirectionVisual from "./components/CompassDirectionVisual";
 import CompassOriginSummary from "./components/CompassOriginSummary";
 import CompassPurposeSelector from "./components/CompassPurposeSelector";
 import CompassRecommendationsSection from "./components/CompassRecommendationsSection";
-import type {
-  CompassDirectionRuntime,
-  CompassPurpose,
-  CompassRecommendationsResponse,
-  CompassUiState,
-} from "./types";
+import type { CompassDirectionRuntime, CompassPurpose, CompassRecommendationsResponse, CompassUiState } from "./types";
 
 // Compass lifecycle analytics (PR-A,
 // docs/audit/compass-analytics-contract-readiness.md §6-10). Only the
@@ -48,6 +43,34 @@ type CompassClientProps = {
   isLoggedIn?: boolean;
   onPersistBirthday?: (birthday: string) => void;
 };
+
+type BirthdateParts = {
+  year: string;
+  month: string;
+  day: string;
+};
+
+function parseBirthdate(value: string | null | undefined): BirthdateParts {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? { year: match[1], month: match[2], day: match[3] } : { year: "", month: "", day: "" };
+}
+
+function isValidBirthdate({ year, month, day }: BirthdateParts): boolean {
+  if (!/^\d{4}$/.test(year) || !/^\d{2}$/.test(month) || !/^\d{2}$/.test(day)) return false;
+
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  const numericDay = Number(day);
+  if (numericMonth < 1 || numericMonth > 12 || numericDay < 1) return false;
+
+  const isLeapYear = numericYear % 4 === 0 && (numericYear % 100 !== 0 || numericYear % 400 === 0);
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return numericDay <= daysInMonth[numericMonth - 1];
+}
+
+function formatBirthdate({ year, month, day }: BirthdateParts): string {
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
 
 function formatTargetMonth(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月`;
@@ -97,7 +120,7 @@ export default function CompassClient({
 }: CompassClientProps = {}) {
   const [now] = useState(() => new Date());
   const [purpose, setPurpose] = useState<CompassPurpose | null>(null);
-  const [birthdate, setBirthdate] = useState(savedBirthday ?? "");
+  const [birthdateParts, setBirthdateParts] = useState<BirthdateParts>(() => parseBirthdate(savedBirthday));
   const [origin, setOrigin] = useState<UserOrigin | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
@@ -107,10 +130,13 @@ export default function CompassClient({
   const searchParams = useSearchParams();
   const entryTrackedRef = useRef(false);
   const birthdateEditedRef = useRef(false);
+  const birthdateYearRef = useRef<HTMLInputElement>(null);
+  const birthdateMonthRef = useRef<HTMLInputElement>(null);
+  const birthdateDayRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!savedBirthday || birthdateEditedRef.current) return;
-    setBirthdate(savedBirthday);
+    setBirthdateParts(parseBirthdate(savedBirthday));
   }, [savedBirthday]);
 
   useEffect(() => {
@@ -175,17 +201,20 @@ export default function CompassClient({
     );
   };
 
-  const missingBirthdate = attempted && !birthdate.trim();
+  const hasBirthdateInput = Object.values(birthdateParts).some(Boolean);
+  const validBirthdate = isValidBirthdate(birthdateParts);
+  const missingBirthdate = attempted && !hasBirthdateInput;
+  const invalidBirthdate = attempted && hasBirthdateInput && !validBirthdate;
   const missingOrigin = attempted && !origin;
   const missingPurpose = attempted && !purpose;
 
   const handleSubmit = async () => {
     setAttempted(true);
-    if (!purpose || !birthdate.trim() || !origin) {
+    if (!purpose || !validBirthdate || !origin) {
       return;
     }
 
-    const submittedBirthdate = birthdate.trim();
+    const submittedBirthdate = formatBirthdate(birthdateParts);
 
     setUiState("loading");
     setResult(null);
@@ -274,19 +303,71 @@ export default function CompassClient({
           ) : null}
 
           <div className="space-y-1.5">
-            <label htmlFor="compass-birthdate" className="text-sm font-medium text-[var(--kt-color-text-secondary)]">
-              生年月日（方位計算に使用）
-            </label>
-            <input
-              id="compass-birthdate"
-              type="date"
-              value={birthdate}
-              onChange={(event) => {
-                birthdateEditedRef.current = true;
-                setBirthdate(event.target.value);
-              }}
-              className="min-h-11 w-full rounded-[var(--kt-radius-control)] border border-[var(--kt-color-border-default)] px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-            />
+            <p className="text-sm font-medium text-[var(--kt-color-text-secondary)]">生年月日（方位計算に使用）</p>
+            <div className="flex items-center gap-2" role="group" aria-label="生年月日">
+              <input
+                ref={birthdateYearRef}
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="YYYY"
+                aria-label="生年月日の年"
+                value={birthdateParts.year}
+                onChange={(event) => {
+                  birthdateEditedRef.current = true;
+                  const year = event.target.value.replace(/\D/g, "").slice(0, 4);
+                  setBirthdateParts((current) => ({ ...current, year }));
+                  if (year.length === 4) birthdateMonthRef.current?.focus();
+                }}
+                className="min-h-11 min-w-0 flex-1 rounded-[var(--kt-radius-control)] border border-[var(--kt-color-border-default)] px-3 py-2 text-center text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              />
+              <span aria-hidden="true" className="text-sm text-[var(--kt-color-text-secondary)]">
+                年
+              </span>
+              <input
+                ref={birthdateMonthRef}
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                placeholder="MM"
+                aria-label="生年月日の月"
+                value={birthdateParts.month}
+                onKeyDown={(event) => {
+                  if (event.key === "Backspace" && !birthdateParts.month) birthdateYearRef.current?.focus();
+                }}
+                onChange={(event) => {
+                  birthdateEditedRef.current = true;
+                  const month = event.target.value.replace(/\D/g, "").slice(0, 2);
+                  setBirthdateParts((current) => ({ ...current, month }));
+                  if (month.length === 2 && Number(month) >= 1 && Number(month) <= 12) birthdateDayRef.current?.focus();
+                }}
+                className="min-h-11 min-w-0 flex-1 rounded-[var(--kt-radius-control)] border border-[var(--kt-color-border-default)] px-3 py-2 text-center text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              />
+              <span aria-hidden="true" className="text-sm text-[var(--kt-color-text-secondary)]">
+                月
+              </span>
+              <input
+                ref={birthdateDayRef}
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                placeholder="DD"
+                aria-label="生年月日の日"
+                value={birthdateParts.day}
+                onKeyDown={(event) => {
+                  if (event.key === "Backspace" && !birthdateParts.day) birthdateMonthRef.current?.focus();
+                }}
+                onChange={(event) => {
+                  birthdateEditedRef.current = true;
+                  const day = event.target.value.replace(/\D/g, "").slice(0, 2);
+                  setBirthdateParts((current) => ({ ...current, day }));
+                }}
+                className="min-h-11 min-w-0 flex-1 rounded-[var(--kt-radius-control)] border border-[var(--kt-color-border-default)] px-3 py-2 text-center text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              />
+              <span aria-hidden="true" className="text-sm text-[var(--kt-color-text-secondary)]">
+                日
+              </span>
+            </div>
             {isLoggedIn ? (
               <p className="text-xs text-[var(--kt-color-text-muted)]">
                 ログイン中は次回以降も利用できるよう保存されます。
@@ -295,6 +376,11 @@ export default function CompassClient({
             {missingBirthdate ? (
               <p role="alert" className="text-sm text-[var(--kt-color-status-error)]">
                 生年月日を入力してください。
+              </p>
+            ) : null}
+            {invalidBirthdate ? (
+              <p role="alert" className="text-sm text-[var(--kt-color-status-error)]">
+                正しい生年月日を入力してください。
               </p>
             ) : null}
           </div>
