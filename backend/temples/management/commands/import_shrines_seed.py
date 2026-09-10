@@ -95,10 +95,19 @@ class Command(BaseCommand):
             action="store_true",
             help="DBを更新せずに create/update/skip の件数だけ確認する",
         )
+        parser.add_argument(
+            "--skip-goriyaku-tags",
+            action="store_true",
+            help=(
+                "explicit goriyaku_tagsのM2M同期だけを遅延し、Base Shrineを先にimportする。"
+                "値の構造検証は行う。fresh bootstrapの第1pass専用。"
+            ),
+        )
 
     def handle(self, *args, **options):
         source = Path(options["source"])
         dry_run = bool(options["dry_run"])
+        skip_goriyaku_tags = bool(options["skip_goriyaku_tags"])
 
         if not source.exists():
             raise CommandError(f"source file not found: {source}")
@@ -107,11 +116,18 @@ class Command(BaseCommand):
         if not isinstance(data, list):
             raise CommandError("seed json must be a list")
 
+        # Even in Base-only mode, malformed explicit lists are blocked now rather
+        # than carried into the later activation pass. Only canonical master
+        # resolution and M2M writes are deferred.
         explicit_tags = _parse_explicit_goriyaku_tags(data)
-        requested_names = {
-            name for names in explicit_tags.values() for name in names
-        }
-        canonical_tags = _canonical_goriyaku_tag_map(requested_names)
+        if skip_goriyaku_tags:
+            requested_names: set[str] = set()
+            canonical_tags: dict[str, GoriyakuTag] = {}
+        else:
+            requested_names = {
+                name for names in explicit_tags.values() for name in names
+            }
+            canonical_tags = _canonical_goriyaku_tag_map(requested_names)
 
         created = 0
         updated = 0
@@ -125,6 +141,12 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN MODE: DBは更新されません"))
+        if skip_goriyaku_tags and explicit_tags:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"GORIYAKU_TAGS DEFERRED rows={len(explicit_tags)} base_only_pass"
+                )
+            )
 
         with transaction.atomic():
             for index, row in enumerate(data):
@@ -136,7 +158,9 @@ class Command(BaseCommand):
                     self.stdout.write(f"SKIP invalid row name={name!r} address={address!r}")
                     continue
 
-                requested_tag_names = explicit_tags.get(index)
+                requested_tag_names = (
+                    None if skip_goriyaku_tags else explicit_tags.get(index)
+                )
                 if requested_tag_names is not None:
                     goriyaku_tag_rows += 1
 
