@@ -8,7 +8,7 @@ function Spinner() {
   return <div className="py-6 text-center text-sm text-[var(--kt-color-text-secondary)]">読み込み中…</div>;
 }
 function ErrorView({ message }: { message: string }) {
-  return <div className="py-6 text-center text-sm text-red-600">{message}</div>;
+  return <div className="py-6 text-center text-sm text-[var(--kt-color-status-error)]">{message}</div>;
 }
 
 export default function BillingPage() {
