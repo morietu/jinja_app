@@ -24,7 +24,15 @@
 // ■ Animation
 // 今回は追加しない（仕様上必須ではない）。Animationなしで成立する構図に
 // 留めることで、reduced-motion環境と通常環境の見た目を同一に保つ。
-"use client";
+//
+// ■ Client Boundary
+// 本Componentは Server Component である（"use client" を持たない）。
+// hooks / state / event handler / browser API のいずれも使わず、
+// import も持たない純粋な静的マークアップのため、Clientへ送る必要がない。
+// 取り込み側の HomePage.tsx も Server Component なので境界は成立する。
+// 装飾レイヤーの分だけClient bundleを増やさないために、この境界を保つこと。
+// 将来Animationやinteractionを足す場合は、ここに "use client" を付けるのではなく
+// 動く部分だけを別のClient Componentへ切り出す方が影響範囲が小さい。
 
 /*
  * 波線帯の座標系。
