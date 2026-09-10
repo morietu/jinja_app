@@ -105,6 +105,36 @@ def test_absent_key_leaves_existing_m2m_untouched_and_needs_no_canonical_master(
     assert "goriyaku_tags rows=0 updated=0 added_links=0 removed_links=0" in output
 
 
+def test_skip_goriyaku_tags_allows_base_first_then_normal_pass_syncs_exact_set(tmp_path):
+    source = _write_seed(
+        tmp_path,
+        [
+            {
+                "name_jp": "two-passテスト神社",
+                "address": "東京都台東区1-1",
+                "goriyaku": "開運",
+                "goriyaku_tags": ["開運"],
+            }
+        ],
+    )
+
+    first = _run(source, "--skip-goriyaku-tags")
+
+    shrine = Shrine.objects.get(name_jp="two-passテスト神社")
+    assert GoriyakuTag.objects.count() == 0
+    assert _tag_names(shrine) == set()
+    assert "GORIYAKU_TAGS DEFERRED rows=1 base_only_pass" in first
+    assert "goriyaku_tags rows=0 updated=0 added_links=0 removed_links=0" in first
+
+    _seed_canonical_master()
+    second = _run(source)
+
+    shrine.refresh_from_db()
+    assert _tag_names(shrine) == {"開運"}
+    assert GoriyakuTag.objects.count() == 39
+    assert "GORIYAKU_TAGS SET" in second
+
+
 def test_explicit_key_sets_exact_canonical_subset_without_creating_tags(tmp_path):
     _seed_canonical_master()
     shrine = _make_shrine()
