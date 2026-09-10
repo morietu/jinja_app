@@ -1,28 +1,18 @@
 import "server-only";
 
+import { cookies } from "next/headers";
+
 import type { ShrineMeaningPayloadV2 } from "@/lib/shrineMeaning/payloadV2";
 import { isShrineMeaningPayloadV2 } from "@/lib/api/shrineMeaning";
 import { resolveServerBaseUrl } from "@/lib/server/resolveServerBaseUrl";
-
-function normalizeBaseUrl(value: string): string {
-  return value.replace(/\/$/, "");
-}
-
-function resolveBackendPublicBaseUrl(): string | null {
-  const raw =
-    process.env.DJANGO_API_BASE_URL ||
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    null;
-
-  return raw ? normalizeBaseUrl(raw) : null;
-}
 
 /**
  * Server-side reader for ShrineMeaningPayloadV2.
  *
  * 方針:
- * - Server Component から呼ぶため absolute URL を使う
+ * - Server Component から Next.js BFF を経由して取得する
+ * - 現在の request Cookie を BFF へ引き継ぐ
+ * - Premium / Free 判定は Backend を正本とする
  * - 取得失敗時は null を返し、詳細画面では既存 fallback を維持する
  */
 export async function fetchShrineMeaningPayloadV2Server(
@@ -33,15 +23,29 @@ export async function fetchShrineMeaningPayloadV2Server(
   }
 
   try {
-    const base = resolveBackendPublicBaseUrl() ?? (await resolveServerBaseUrl());
-    const url = `${base}/api/shrines/${encodeURIComponent(String(shrineId))}/meaning/`;
+    const base = await resolveServerBaseUrl();
 
-    const res = await fetch(url, { cache: "no-store" });
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.toString();
+
+    const url = `${base}/api/shrines/${encodeURIComponent(
+      String(shrineId),
+    )}/meaning/`;
+
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+    });
+
     if (!res.ok) {
       return null;
     }
 
     const data = (await res.json()) as unknown;
+
     return isShrineMeaningPayloadV2(data) ? data : null;
   } catch {
     return null;
