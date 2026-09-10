@@ -64,120 +64,152 @@ SELECT 'C_INTERACTION_LOG_COUNT' AS section,
 FROM temples_shrineinteractionlog AS il
 WHERE il.shrine_id = 102;
 
--- D. Shrine を参照する全 relation の件数と、その table が現環境に存在するか。
---    「その他 N relation が 0」の N を推測せず、存在する table のみを
---    実測して数える。
-SELECT 'D_RELATIONS' AS section, relation, column_name, table_exists, referencing_rows
-FROM (
-  SELECT 'temples_shrinedeity' AS relation, 'shrine_id' AS column_name,
-         to_regclass('public.temples_shrinedeity') IS NOT NULL AS table_exists,
-         (SELECT count(*) FROM temples_shrinedeity WHERE shrine_id = 102) AS referencing_rows
-  UNION ALL SELECT 'temples_shrinehistory', 'shrine_id',
-         to_regclass('public.temples_shrinehistory') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinehistory WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_historythemeassignment', 'shrine_id',
-         to_regclass('public.temples_historythemeassignment') IS NOT NULL,
-         (SELECT count(*) FROM temples_historythemeassignment WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrinegoriyakuassignment', 'shrine_id',
-         to_regclass('public.temples_shrinegoriyakuassignment') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinegoriyakuassignment WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_favorite', 'shrine_id',
-         to_regclass('public.temples_favorite') IS NOT NULL,
-         (SELECT count(*) FROM temples_favorite WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_conciergethread', 'main_shrine_id',
-         to_regclass('public.temples_conciergethread') IS NOT NULL,
-         (SELECT count(*) FROM temples_conciergethread WHERE main_shrine_id = 102)
-  UNION ALL SELECT 'temples_visit', 'shrine_id',
-         to_regclass('public.temples_visit') IS NOT NULL,
-         (SELECT count(*) FROM temples_visit WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrinereflection', 'shrine_id',
-         to_regclass('public.temples_shrinereflection') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinereflection WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_actionevent', 'shrine_id',
-         to_regclass('public.temples_actionevent') IS NOT NULL,
-         (SELECT count(*) FROM temples_actionevent WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_goshuin', 'shrine_id',
-         to_regclass('public.temples_goshuin') IS NOT NULL,
-         (SELECT count(*) FROM temples_goshuin WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_like', 'shrine_id',
-         to_regclass('public.temples_like') IS NOT NULL,
-         (SELECT count(*) FROM temples_like WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_rankinglog', 'shrine_id',
-         to_regclass('public.temples_rankinglog') IS NOT NULL,
-         (SELECT count(*) FROM temples_rankinglog WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_conciergehistory', 'shrine_id',
-         to_regclass('public.temples_conciergehistory') IS NOT NULL,
-         (SELECT count(*) FROM temples_conciergehistory WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrine_goriyaku_tags', 'shrine_id',
-         to_regclass('public.temples_shrine_goriyaku_tags') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrine_goriyaku_tags WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrine_deities', 'shrine_id',
-         to_regclass('public.temples_shrine_deities') IS NOT NULL,
-         0
-  UNION ALL SELECT 'temples_shrineinteractionlog', 'shrine_id',
-         to_regclass('public.temples_shrineinteractionlog') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrineinteractionlog WHERE shrine_id = 102)
-) AS refs
-ORDER BY referencing_rows DESC, relation;
+-- D. Shrine を参照する全 relation の存在有無と参照件数。
+--
+--    【重要 / 実装上の制約】
+--    PostgreSQL は文全体を実行前に parse するため、同じ SELECT の中で
+--    `to_regclass(...) IS NOT NULL` を書いても、兄弟の
+--    `(SELECT count(*) FROM <存在しない table>)` は保護されない。
+--    Production では temples_conciergehistory / temples_like /
+--    temples_rankinglog が NOT_DEPLOYED であり、静的に table 名を書くと
+--    `ERROR: relation "temples_like" does not exist` で query 全体が
+--    中断する（ローカルで当該3 tableを落として実測確認済み）。
+--
+--    そこで、存在する relation だけを `existing` CTE（MATERIALIZED で
+--    評価順序を固定）へ絞り込み、その行に対してのみ `query_to_xml` で
+--    count を取得する。実行される文字列は
+--        SELECT count(*) AS c FROM public.<ident> WHERE <ident> = 102
+--    のみで、識別子はすべて下の VALUES に literal で列挙されている。
+--    外部入力は無い。read-only であり、DB を一切変更しない。
+--
+--    inventory は Django introspection 実測の15 relation を常に全件保持し、
+--    11 へ縮小しない。NOT_DEPLOYED の relation は referencing_rows = NULL
+--    として区別できるようにし、0 と混同しない。
+WITH inventory(relation, column_name) AS (
+  VALUES
+    ('temples_shrinedeity',             'shrine_id'),
+    ('temples_shrinehistory',           'shrine_id'),
+    ('temples_historythemeassignment',  'shrine_id'),
+    ('temples_shrinegoriyakuassignment','shrine_id'),
+    ('temples_favorite',                'shrine_id'),
+    ('temples_conciergethread',         'main_shrine_id'),
+    ('temples_visit',                   'shrine_id'),
+    ('temples_shrinereflection',        'shrine_id'),
+    ('temples_actionevent',             'shrine_id'),
+    ('temples_goshuin',                 'shrine_id'),
+    ('temples_shrine_goriyaku_tags',    'shrine_id'),
+    ('temples_conciergehistory',        'shrine_id'),
+    ('temples_like',                    'shrine_id'),
+    ('temples_rankinglog',              'shrine_id'),
+    ('temples_shrineinteractionlog',    'shrine_id')
+),
+existing AS MATERIALIZED (
+  SELECT relation, column_name
+  FROM inventory
+  WHERE to_regclass('public.' || relation) IS NOT NULL
+),
+counted AS (
+  SELECT e.relation,
+         (xpath(
+            '/row/c/text()',
+            query_to_xml(
+              format('SELECT count(*) AS c FROM public.%I WHERE %I = 102',
+                     e.relation, e.column_name),
+              false, true, '')
+          ))[1]::text::bigint AS referencing_rows
+  FROM existing AS e
+)
+SELECT 'D_RELATIONS' AS section,
+       i.relation,
+       i.column_name,
+       to_regclass('public.' || i.relation) IS NOT NULL AS table_exists,
+       c.referencing_rows,
+       CASE
+         WHEN to_regclass('public.' || i.relation) IS NULL THEN 'NOT_DEPLOYED'
+         WHEN c.referencing_rows = 0                       THEN 'DEPLOYED_ZERO'
+         ELSE                                                   'DEPLOYED_NONZERO'
+       END AS state
+FROM inventory AS i
+LEFT JOIN counted AS c ON c.relation = i.relation
+ORDER BY (c.referencing_rows IS NULL), c.referencing_rows DESC, i.relation;
 
--- D2. relation inventory契約の3値を実測で出す。
---     NON_INTERACTION_RELATION_TOTAL / DEPLOYED_ZERO / DEPLOYED_NONZERO /
---     NOT_DEPLOYED。inventoryを縮小せず、常に14を分母にする。
-WITH rel(relation, column_name, table_exists, referencing_rows) AS (
-  SELECT 'temples_shrinedeity', 'shrine_id',
-         to_regclass('public.temples_shrinedeity') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinedeity WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrinehistory', 'shrine_id',
-         to_regclass('public.temples_shrinehistory') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinehistory WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_historythemeassignment', 'shrine_id',
-         to_regclass('public.temples_historythemeassignment') IS NOT NULL,
-         (SELECT count(*) FROM temples_historythemeassignment WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrinegoriyakuassignment', 'shrine_id',
-         to_regclass('public.temples_shrinegoriyakuassignment') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinegoriyakuassignment WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_favorite', 'shrine_id',
-         to_regclass('public.temples_favorite') IS NOT NULL,
-         (SELECT count(*) FROM temples_favorite WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_conciergethread', 'main_shrine_id',
-         to_regclass('public.temples_conciergethread') IS NOT NULL,
-         (SELECT count(*) FROM temples_conciergethread WHERE main_shrine_id = 102)
-  UNION ALL SELECT 'temples_visit', 'shrine_id',
-         to_regclass('public.temples_visit') IS NOT NULL,
-         (SELECT count(*) FROM temples_visit WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrinereflection', 'shrine_id',
-         to_regclass('public.temples_shrinereflection') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrinereflection WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_actionevent', 'shrine_id',
-         to_regclass('public.temples_actionevent') IS NOT NULL,
-         (SELECT count(*) FROM temples_actionevent WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_goshuin', 'shrine_id',
-         to_regclass('public.temples_goshuin') IS NOT NULL,
-         (SELECT count(*) FROM temples_goshuin WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_shrine_goriyaku_tags', 'shrine_id',
-         to_regclass('public.temples_shrine_goriyaku_tags') IS NOT NULL,
-         (SELECT count(*) FROM temples_shrine_goriyaku_tags WHERE shrine_id = 102)
-  UNION ALL SELECT 'temples_conciergehistory', 'shrine_id',
-         to_regclass('public.temples_conciergehistory') IS NOT NULL, 0
-  UNION ALL SELECT 'temples_like', 'shrine_id',
-         to_regclass('public.temples_like') IS NOT NULL, 0
-  UNION ALL SELECT 'temples_rankinglog', 'shrine_id',
-         to_regclass('public.temples_rankinglog') IS NOT NULL, 0
+-- D2. relation inventory契約の3値。ShrineInteractionLog は削除対象なので
+--     分母から外し、NON_INTERACTION_RELATION_TOTAL は常に14になる。
+--     DEPLOYED_NONZERO が 0 でなければ fail closed の対象。
+WITH inventory(relation, column_name) AS (
+  VALUES
+    ('temples_shrinedeity',             'shrine_id'),
+    ('temples_shrinehistory',           'shrine_id'),
+    ('temples_historythemeassignment',  'shrine_id'),
+    ('temples_shrinegoriyakuassignment','shrine_id'),
+    ('temples_favorite',                'shrine_id'),
+    ('temples_conciergethread',         'main_shrine_id'),
+    ('temples_visit',                   'shrine_id'),
+    ('temples_shrinereflection',        'shrine_id'),
+    ('temples_actionevent',             'shrine_id'),
+    ('temples_goshuin',                 'shrine_id'),
+    ('temples_shrine_goriyaku_tags',    'shrine_id'),
+    ('temples_conciergehistory',        'shrine_id'),
+    ('temples_like',                    'shrine_id'),
+    ('temples_rankinglog',              'shrine_id')
+),
+existing AS MATERIALIZED (
+  SELECT relation, column_name
+  FROM inventory
+  WHERE to_regclass('public.' || relation) IS NOT NULL
+),
+counted AS (
+  SELECT e.relation,
+         (xpath(
+            '/row/c/text()',
+            query_to_xml(
+              format('SELECT count(*) AS c FROM public.%I WHERE %I = 102',
+                     e.relation, e.column_name),
+              false, true, '')
+          ))[1]::text::bigint AS referencing_rows
+  FROM existing AS e
 )
 SELECT 'D2_RELATION_CONTRACT' AS section,
-       count(*)                                              AS non_interaction_relation_total,
-       count(*) FILTER (WHERE table_exists AND referencing_rows = 0) AS deployed_zero,
-       count(*) FILTER (WHERE table_exists AND referencing_rows > 0) AS deployed_nonzero,
-       count(*) FILTER (WHERE NOT table_exists)              AS not_deployed
-FROM rel;
+       (SELECT count(*) FROM inventory)                                AS non_interaction_relation_total,
+       count(*) FILTER (WHERE c.referencing_rows = 0)                  AS deployed_zero,
+       count(*) FILTER (WHERE c.referencing_rows > 0)                  AS deployed_nonzero,
+       (SELECT count(*) FROM inventory) - count(*)                     AS not_deployed
+FROM counted AS c;
 
--- D3. NOT_DEPLOYED と申告された3 relationの現在の存在状態を単独で確認する。
---     migration実行時に存在するようになっていた場合、D2 の 0 仮置きではなく
---     実測が必要になるため、その判定材料をここで固定する。
-SELECT 'D3_NOT_DEPLOYED_CHECK' AS section, t.relation,
-       to_regclass('public.' || t.relation) IS NOT NULL AS table_exists
-FROM (VALUES ('temples_conciergehistory'), ('temples_like'), ('temples_rankinglog'))
-     AS t(relation)
+-- D3. NOT_DEPLOYED と申告された3 relationの存在状態と、存在する場合の
+--     実測件数。存在したこと自体はFAILにしない。1件以上でSTOP。
+WITH target(relation, column_name) AS (
+  VALUES ('temples_conciergehistory', 'shrine_id'),
+         ('temples_like',             'shrine_id'),
+         ('temples_rankinglog',       'shrine_id')
+),
+existing AS MATERIALIZED (
+  SELECT relation, column_name
+  FROM target
+  WHERE to_regclass('public.' || relation) IS NOT NULL
+),
+counted AS (
+  SELECT e.relation,
+         (xpath(
+            '/row/c/text()',
+            query_to_xml(
+              format('SELECT count(*) AS c FROM public.%I WHERE %I = 102',
+                     e.relation, e.column_name),
+              false, true, '')
+          ))[1]::text::bigint AS referencing_rows
+  FROM existing AS e
+)
+SELECT 'D3_NOT_DEPLOYED_CHECK' AS section,
+       t.relation,
+       to_regclass('public.' || t.relation) IS NOT NULL AS table_exists,
+       c.referencing_rows,
+       CASE
+         WHEN to_regclass('public.' || t.relation) IS NULL THEN 'NOT_DEPLOYED'
+         WHEN c.referencing_rows = 0                       THEN 'DEPLOYED_ZERO_OK'
+         ELSE                                                   'DEPLOYED_NONZERO_STOP'
+       END AS verdict
+FROM target AS t
+LEFT JOIN counted AS c ON c.relation = t.relation
 ORDER BY t.relation;
 
 -- E. legacy M2M table `temples_shrine_deities` が存在する場合のみの件数。
