@@ -1,12 +1,34 @@
 import * as React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
 import { kamimusubiDark as theme } from "../../design/theme";
 import { getFavoriteShrines, getRecentViewed } from "../../lib/shrineStorage";
 import { getCounts } from "../../lib/storage";
 import { getAuthenticatedBillingStatus, isPremiumStatus, type BillingStatus } from "../../lib/billing";
 import { isUnauthenticatedError } from "../../lib/http";
 import { trackConsultationHistoryEntryClicked } from "../../lib/consultationHistoryAnalytics";
+
+// ---- お問い合わせ (Mother Ship承認済みの契約) ----
+// 宛先と件名は可読な定数として保持する。
+const CONTACT_EMAIL = "j33db05@gmail.com";
+const CONTACT_SUBJECT = "KAMI MUSUBI お問い合わせ";
+
+// クエリ値は UTF-8 の完全な percent-encode とする。生の日本語を置くと
+// URLの解釈がメーラー任せになり件名が化ける端末が出るため、
+// 長いpercent文字列を手書きせず encodeURIComponent で構築して取りこぼしを防ぐ。
+//
+// 実際に生成される文字列:
+//   mailto:j33db05@gmail.com?subject=KAMI%20MUSUBI%20%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B
+const CONTACT_MAILTO_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(CONTACT_SUBJECT)}`;
+
+// メールアプリが未設定の端末では openURL が reject する。
+// UI(文言・レイアウト・カード構造)は変えない方針のため、ここでは
+// rejectを未処理のまま残さないことだけを保証する
+// (既存の app/shrines/[id].tsx と同じ扱い)。
+function openContactMail() {
+  Linking.openURL(CONTACT_MAILTO_URL).catch(() => {});
+}
 
 type PremiumMetaState =
   | { kind: "loading" }
@@ -227,6 +249,7 @@ export default function MyPageScreen() {
           description="不具合や相談がある場合の連絡先です。"
           iconText="問"
           actionLabel="送る"
+          onPress={openContactMail}
         />
       </View>
     </ScrollView>
