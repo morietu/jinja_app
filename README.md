@@ -119,6 +119,10 @@ source ../.venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
+
+BILLING_STUB_PLAN=free BILLING_STUB_ACTIVE=0 python backend/manage.py runserver 127.0.0.1:8000 --noreload
+
+BILLING_STUB_PLAN=premium BILLING_STUB_ACTIVE=1 python backend/manage.py runserver 127.0.0.1:8000 --noreload
 ```
 
 ```bash
