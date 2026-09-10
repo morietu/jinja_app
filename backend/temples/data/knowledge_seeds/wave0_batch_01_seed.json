@@ -1,0 +1,363 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "key": "wave0-b01-miwa-official-yuisyo",
+      "source_type": "shrine_official",
+      "title": "三輪神社由緒",
+      "publisher": "三輪神社",
+      "url": "https://miwajinnjya.com/guide/miwa-yuisyo/",
+      "bibliography": "",
+      "accessed_at": "2026-09-10",
+      "verified_at": "2026-09-10T09:52:00+00:00",
+      "verification_status": "source_confirmed",
+      "confidence": "high",
+      "language": "ja",
+      "note": "現在の御祭神、所在地、元亀年間の創祀伝承を公式本文で再確認。"
+    },
+    {
+      "key": "wave0-b01-ootori-official-taisha",
+      "source_type": "shrine_official",
+      "title": "大鳥大社について",
+      "publisher": "大鳥大社",
+      "url": "https://www.ootoritaisha.jp/taisha/",
+      "bibliography": "",
+      "accessed_at": "2026-09-10",
+      "verified_at": "2026-09-10T09:52:00+00:00",
+      "verification_status": "source_confirmed",
+      "confidence": "high",
+      "language": "ja",
+      "note": "現在の御祭神、白鳥降臨を起源とする社伝、社殿再建沿革を公式本文で再確認。"
+    },
+    {
+      "key": "wave0-b01-oiwa-official-introduction",
+      "source_type": "shrine_official",
+      "title": "御岩神社 神社紹介",
+      "publisher": "御岩神社",
+      "url": "https://www.oiwajinja.jp/jinjasyoukai.html",
+      "bibliography": "",
+      "accessed_at": "2026-09-10",
+      "verified_at": "2026-09-10T09:52:00+00:00",
+      "verification_status": "source_confirmed",
+      "confidence": "high",
+      "language": "ja",
+      "note": "御岩神社本体のnamed deity 4柱、創建時期不明の由緒、水戸藩祈願所としての信仰史を公式本文で再確認。未記名の他二十二柱・全山総祭神188柱・境内社祭神は本BatchのDeity Factへ展開しない。"
+    },
+    {
+      "key": "wave0-b01-karasumori-official-about",
+      "source_type": "shrine_official",
+      "title": "烏森神社について",
+      "publisher": "烏森神社",
+      "url": "https://karasumorijinja.or.jp/%E7%83%8F%E6%A3%AE%E7%A5%9E%E7%A4%BE%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6",
+      "bibliography": "",
+      "accessed_at": "2026-09-10",
+      "verified_at": "2026-09-10T09:52:00+00:00",
+      "verification_status": "source_confirmed",
+      "confidence": "high",
+      "language": "ja",
+      "note": "現在の御祭神と天慶3年の創始伝承を公式本文で再確認。"
+    },
+    {
+      "key": "wave0-b01-tsutsujigaoka-official-about",
+      "source_type": "shrine_official",
+      "title": "榴岡天満宮について",
+      "publisher": "榴岡天満宮",
+      "url": "https://tsutsujigaokatenmangu.jp/about/",
+      "bibliography": "",
+      "accessed_at": "2026-09-10",
+      "verified_at": "2026-09-10T09:52:00+00:00",
+      "verification_status": "source_confirmed",
+      "confidence": "high",
+      "language": "ja",
+      "note": "御祭神、天延2年の創建由緒、寛文7年の榴ヶ岡遷座を公式本文で再確認。"
+    }
+  ],
+  "shrines": [
+    {
+      "shrine_ref": {
+        "name_jp": "三輪神社",
+        "address": "愛知県名古屋市中区大須3-9-32"
+      },
+      "deities": [
+        {
+          "display_name": "大物主神",
+          "canonical_name": "大物主神",
+          "role": "unknown",
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-miwa-official-yuisyo"]
+        },
+        {
+          "display_name": "徳川義宜公",
+          "canonical_name": "徳川義宜公",
+          "role": "unknown",
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-miwa-official-yuisyo"]
+        }
+      ],
+      "histories": [
+        {
+          "history_type": "tradition",
+          "title": "元亀年間の創祀伝承",
+          "content": "三輪神社公式は、元亀年間に牧若狭守長清が大和三輪山にちなみ大物主神を鎮め祀ったと伝えている。",
+          "period_text": "元亀年間（1570〜1572）",
+          "event_date": null,
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "公式の伝承表現を保持し、確定した創建史実へ昇格しない。",
+          "source_keys": ["wave0-b01-miwa-official-yuisyo"]
+        }
+      ]
+    },
+    {
+      "shrine_ref": {
+        "name_jp": "大鳥大社",
+        "address": "大阪府堺市西区鳳北町1-1-2"
+      },
+      "deities": [
+        {
+          "display_name": "日本武尊",
+          "canonical_name": "日本武尊",
+          "role": "unknown",
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-ootori-official-taisha"]
+        },
+        {
+          "display_name": "大鳥連祖神",
+          "canonical_name": "大鳥連祖神",
+          "role": "unknown",
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-ootori-official-taisha"]
+        }
+      ],
+      "histories": [
+        {
+          "history_type": "tradition",
+          "title": "日本武尊の白鳥降臨を起源とする社伝",
+          "content": "大鳥大社公式は、日本武尊の御霊が白鳥となって当地へ降り立ち、社を建てて祀ったことを当社の起源として伝えている。",
+          "period_text": "社伝上の起源",
+          "event_date": null,
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "白鳥降臨の内容は社伝として保持する。",
+          "source_keys": ["wave0-b01-ootori-official-taisha"]
+        },
+        {
+          "history_type": "historical_event",
+          "title": "明治42年の現社殿再建",
+          "content": "大鳥大社公式は、明治38年の雷火で社殿が焼失した後、明治42年に従来の形式で現社殿が再建されたとしている。",
+          "period_text": "明治42年（1909）",
+          "event_date": null,
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-ootori-official-taisha"]
+        }
+      ]
+    },
+    {
+      "shrine_ref": {
+        "name_jp": "御岩神社",
+        "address": "茨城県日立市入四間町752"
+      },
+      "deities": [
+        {
+          "display_name": "国常立尊",
+          "canonical_name": "国常立尊",
+          "role": "unknown",
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        },
+        {
+          "display_name": "大国主命",
+          "canonical_name": "大国主命",
+          "role": "unknown",
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        },
+        {
+          "display_name": "伊邪那岐尊",
+          "canonical_name": "伊邪那岐尊",
+          "role": "unknown",
+          "sort_order": 2,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        },
+        {
+          "display_name": "伊邪那美尊",
+          "canonical_name": "伊邪那美尊",
+          "role": "unknown",
+          "sort_order": 3,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "公式の御岩神社本体セクションで名前が明示された4柱のみを本BatchでFact化する。",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        }
+      ],
+      "histories": [
+        {
+          "history_type": "official_origin",
+          "title": "創建時期不明とする御由緒",
+          "content": "御岩神社公式は創建時期を不明とし、古い地誌の記述や祭祀遺跡などから、古代より信仰の場であったことがうかがえるとしている。",
+          "period_text": "創建時期不明・古代からの信仰",
+          "event_date": null,
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "創建年を補完しない。",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        },
+        {
+          "history_type": "regional_context",
+          "title": "水戸藩の祈願所としての信仰史",
+          "content": "御岩神社公式は、江戸時代に御岩山が水戸藩の祈願所として位置づけられ、藩主が代々参拝したとしている。",
+          "period_text": "江戸時代",
+          "event_date": null,
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-oiwa-official-introduction"]
+        }
+      ]
+    },
+    {
+      "shrine_ref": {
+        "name_jp": "烏森神社",
+        "address": "東京都港区新橋2-15-5"
+      },
+      "deities": [
+        {
+          "display_name": "倉稲魂命",
+          "canonical_name": "倉稲魂命",
+          "role": "unknown",
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-karasumori-official-about"]
+        },
+        {
+          "display_name": "天鈿女命",
+          "canonical_name": "天鈿女命",
+          "role": "unknown",
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-karasumori-official-about"]
+        },
+        {
+          "display_name": "瓊々杵尊",
+          "canonical_name": "瓊々杵尊",
+          "role": "unknown",
+          "sort_order": 2,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-karasumori-official-about"]
+        }
+      ],
+      "histories": [
+        {
+          "history_type": "tradition",
+          "title": "天慶3年の創始伝承",
+          "content": "烏森神社公式は、天慶3年の平将門の乱の頃、藤原秀郷の戦勝祈願と白狐・白羽の矢にまつわる出来事を神社の創始として伝えている。",
+          "period_text": "天慶3年（940）",
+          "event_date": null,
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "創始伝承として保持し、確定史実へ昇格しない。",
+          "source_keys": ["wave0-b01-karasumori-official-about"]
+        }
+      ]
+    },
+    {
+      "shrine_ref": {
+        "name_jp": "榴岡天満宮",
+        "address": "宮城県仙台市宮城野区榴ケ岡105-3"
+      },
+      "deities": [
+        {
+          "display_name": "菅原道真公",
+          "canonical_name": "菅原道真公",
+          "role": "unknown",
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "",
+          "source_keys": ["wave0-b01-tsutsujigaoka-official-about"]
+        }
+      ],
+      "histories": [
+        {
+          "history_type": "founding",
+          "title": "天延2年の創建由緒",
+          "content": "榴岡天満宮公式は、天延2年に山城国で創建されたとしている。",
+          "period_text": "天延2年（974）",
+          "event_date": null,
+          "sort_order": 0,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "公式由緒に基づく。",
+          "source_keys": ["wave0-b01-tsutsujigaoka-official-about"]
+        },
+        {
+          "history_type": "historical_event",
+          "title": "寛文7年の榴ヶ岡遷座",
+          "content": "榴岡天満宮公式は、寛文7年7月25日に伊達綱宗公の意思で社殿が造営され、現在の鎮座地である榴ヶ岡へ遷座したとしている。",
+          "period_text": "寛文7年（1667）",
+          "event_date": null,
+          "sort_order": 1,
+          "verification_status": "source_confirmed",
+          "confidence": "high",
+          "verified_at": "2026-09-10T09:52:00+00:00",
+          "note": "旧暦・新暦換算を行わずevent_dateはnullとする。",
+          "source_keys": ["wave0-b01-tsutsujigaoka-official-about"]
+        }
+      ]
+    }
+  ]
+}
