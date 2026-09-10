@@ -9,11 +9,12 @@
 # (`temples.domain.need_to_goriyaku_tag_ids.NEED_TO_GORIYAKU_IDS`, pinned by
 # `test_need_to_goriyaku_tag_ids.py`), so the id->name assignment produced by a
 # fresh Production bootstrap is itself a contract. The test therefore drives the
-# real Production entrypoint — `bootstrap_production_data`, which runs
-# `import_shrines_seed` and then `backfill_goriyaku_tags --force` — against the repository-controlled seed and asserts the resulting
-# master row-for-row. Parsing `shrines_seed_clean.json` here and creating the 39
-# rows directly would assert nothing about the bootstrap path and is exactly
-# what this test must not do.
+# real Production entrypoint — `bootstrap_production_data`, which runs a Base-only
+# `import_shrines_seed`, then `backfill_goriyaku_tags --force`, then a second
+# `import_shrines_seed` pass for explicit canonical M2M synchronization — against
+# the repository-controlled seed and asserts the resulting master row-for-row.
+# Parsing `shrines_seed_clean.json` here and creating the 39 rows directly would
+# assert nothing about the bootstrap path and is exactly what this test must not do.
 #
 # A seed edit, a `parse_goriyaku` change, a reordering of `BOOTSTRAP_STEPS`, or
 # a new/renamed ご利益 label surfaces here as an explicit diff instead of a
@@ -89,13 +90,7 @@ BOOTSTRAP_OWNED_MODELS = (Shrine, GoriyakuTag, ProductionDataBootstrapRun)
 
 
 def _assert_connected_to_test_database() -> None:
-    """Fail closed unless this connection is the test-runner-created database.
-
-    The developer's local `jinja_db` (and Production) must never be touched by
-    `_reset_to_fresh_bootstrap_state()`. Django points `connection` at the test
-    database for the duration of the run, so the name is the authoritative
-    check.
-    """
+    """Fail closed unless this connection is the test-runner-created database."""
     name = str(connection.settings_dict.get("NAME") or "")
     configured_test_name = str((connection.settings_dict.get("TEST") or {}).get("NAME") or "")
 
@@ -111,16 +106,7 @@ def _assert_connected_to_test_database() -> None:
 
 
 def _reset_to_fresh_bootstrap_state() -> None:
-    """Bring the *test* database to the state a fresh Production DB is in.
-
-    Migrations (`temples.migrations` and the CI `temples.migrations_nogis`
-    variant) create no `GoriyakuTag` row, so a freshly migrated database already
-    has an empty master. What is not guaranteed is the *sequence* position and
-    the absence of rows written by conftest autouse fixtures
-    (`_ensure_shrine_exists` creates `Shrine` pk=1) or by whichever test ran
-    before this one in the same session. Since the produced ids are the contract,
-    both the rows and the id sequences have to start where Production started.
-    """
+    """Bring the *test* database to the state a fresh Production DB is in."""
     _assert_connected_to_test_database()
 
     for model in BOOTSTRAP_OWNED_MODELS:
@@ -148,25 +134,7 @@ def _reset_to_fresh_bootstrap_state() -> None:
 
 
 def _run_production_bootstrap(monkeypatch) -> str:
-    """Run the Production entrypoint itself, unmodified.
-
-    `bootstrap_production_data` is idempotent through `ProductionDataBootstrapRun`
-    markers, which `_reset_to_fresh_bootstrap_state()` has just cleared — so the
-    fresh path really is exercised and there is no need to fall back to calling
-    `import_shrines_seed` / `backfill_goriyaku_tags` by hand.
-
-    `import_shrines_seed` defaults `--source` to the *relative* path
-    `temples/data/shrines_seed_clean.json`, so it resolves against the working
-    directory. Production runs `python manage.py bootstrap_production_data` from
-    `backend/` (`backend/start.sh`, `RUN_BOOTSTRAP_ON_START=1`), i.e. from
-    `settings.BASE_DIR`; CI happens to run pytest from there too, but a developer
-    running pytest from the repository root does not. Reproducing the Production
-    working directory keeps the default seed resolution itself inside the
-    contract — passing an explicit `--source` would quietly step around it.
-
-    `--skip-debug-counts` only suppresses the trailing summary print; it does not
-    change any bootstrap step.
-    """
+    """Run the Production entrypoint itself, unmodified."""
     monkeypatch.chdir(settings.BASE_DIR)
     out = StringIO()
     call_command("bootstrap_production_data", "--skip-debug-counts", stdout=out, stderr=out)
@@ -185,12 +153,9 @@ def test_fresh_bootstrap_produces_exact_canonical_39_row_master(monkeypatch):
 
     rows = _master_rows()
 
-    # 1. count
     assert GoriyakuTag.objects.count() == 39
-    # 2. ids are exactly 1..39, contiguous, no gaps and nothing outside
     assert {row[0] for row in rows} == CANONICAL_IDS
     assert [row[0] for row in rows] == list(range(1, 40))
-    # 3. the full id -> name mapping, in id order
     assert rows == list(CANONICAL_MASTER)
 
 
@@ -202,29 +167,32 @@ def test_fresh_bootstrap_produces_no_extra_and_no_missing_labels(monkeypatch):
 
     produced = set(GoriyakuTag.objects.values_list("name", flat=True))
 
-    # 4. no extra / legacy label
     assert produced - CANONICAL_NAMES == set()
     for legacy in KNOWN_LEGACY_LABELS:
         assert not GoriyakuTag.objects.filter(
             name=legacy
         ).exists(), f"legacy label {legacy!r} must not be produced by a fresh bootstrap"
-    # 5. no canonical label missing
     assert CANONICAL_NAMES - produced == set()
-    # names are unique, so name-set equality plus the count pins the master
     assert len(produced) == GoriyakuTag.objects.count() == 39
 
 
 @pytest.mark.django_db(transaction=True, reset_sequences=True)
 def test_fresh_bootstrap_runs_the_declared_production_steps_in_order(monkeypatch):
-    # Guards the assumption the contract rests on: this test exercised the real
-    # Production step list, in the Production order, with the Production args —
-    # not a monkeypatched or partial path.
     assert [(step.step, step.command, step.args) for step in bootstrap_module.BOOTSTRAP_STEPS] == [
-        ("import_shrines_seed", "import_shrines_seed", ()),
+        (
+            "import_shrines_seed_base",
+            "import_shrines_seed",
+            ("--skip-goriyaku-tags",),
+        ),
         (
             "backfill_goriyaku_tags",
             "backfill_goriyaku_tags",
             ("--force",),
+        ),
+        (
+            "sync_explicit_goriyaku_tags",
+            "import_shrines_seed",
+            (),
         ),
     ]
 
@@ -236,16 +204,15 @@ def test_fresh_bootstrap_runs_the_declared_production_steps_in_order(monkeypatch
         ProductionDataBootstrapRun.objects.order_by("id").values_list("step", "status")
     )
     assert completed == [
-        ("import_shrines_seed", ProductionDataBootstrapRun.Status.SUCCESS),
+        ("import_shrines_seed_base", ProductionDataBootstrapRun.Status.SUCCESS),
         ("backfill_goriyaku_tags", ProductionDataBootstrapRun.Status.SUCCESS),
+        ("sync_explicit_goriyaku_tags", ProductionDataBootstrapRun.Status.SUCCESS),
     ]
     assert _master_rows() == list(CANONICAL_MASTER)
 
 
 @pytest.mark.django_db(transaction=True, reset_sequences=True)
 def test_repeated_bootstrap_keeps_the_master_byte_identical(monkeypatch):
-    # Production re-runs the bootstrap entrypoint on every release; a second run
-    # must neither append ids 40+ nor renumber anything.
     _reset_to_fresh_bootstrap_state()
 
     _run_production_bootstrap(monkeypatch)
