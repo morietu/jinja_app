@@ -9,12 +9,25 @@
 //   - goldは使わず、文字サイズと彩度を落として面も持たせない
 // 色は既存のDark Forest Semantic Tokenのみを使い、新規Tokenは追加しない。
 
+/** Mother Ship承認済みの問い合わせ先。 */
+export const HOME_CONTACT_EMAIL = "j33db05@gmail.com";
+
+/** 件名のデコード後の値。 */
+export const HOME_CONTACT_SUBJECT = "KAMI MUSUBI お問い合わせ";
+
 /**
- * Mother Ship承認済みの問い合わせ先。
- * 件名は承認された契約文字列をそのまま用いる（空白は %20、日本語はそのまま）。
+ * 問い合わせ用の mailto href。
+ *
+ * クエリ値は UTF-8 の完全な percent-encode とする。日本語を生のまま
+ * 置くと、URLの解釈がクライアント任せになり件名が化ける環境が出るため、
+ * 手書きせず encodeURIComponent で構築して取りこぼしを防ぐ。
+ *
+ * 実際に生成される文字列（契約値。テストで固定している）:
+ *   mailto:j33db05@gmail.com?subject=KAMI%20MUSUBI%20%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B
  */
-export const HOME_CONTACT_MAILTO_HREF =
-  "mailto:j33db05@gmail.com?subject=KAMI%20MUSUBI%20お問い合わせ";
+export const HOME_CONTACT_MAILTO_HREF = `mailto:${HOME_CONTACT_EMAIL}?subject=${encodeURIComponent(
+  HOME_CONTACT_SUBJECT,
+)}`;
 
 export function HomeContactFooter() {
   return (
