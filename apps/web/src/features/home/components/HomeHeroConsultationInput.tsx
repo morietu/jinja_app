@@ -45,13 +45,11 @@ const CONSULTATION_THEME_CHIPS = [
 export function HomeHeroConsultationInput() {
   const router = useRouter();
   const [theme, setTheme] = useState("");
-  const [isConditionHintOpen, setIsConditionHintOpen] = useState(false);
 
   const canSubmit = useMemo(() => theme.trim().length > 0, [theme]);
 
   const submitTheme = (value: string) => {
-    const href = buildConciergeHref(value, { openFilter: isConditionHintOpen });
-    router.push(href);
+    router.push(buildConciergeHref(value));
   };
 
   return (
@@ -75,7 +73,10 @@ export function HomeHeroConsultationInput() {
           ].join(", "),
         }}
       >
-        <label htmlFor="home-hero-consultation" className="block text-[11px] font-medium text-[var(--kt-color-text-muted)]">
+        <label
+          htmlFor="home-hero-consultation"
+          className="block text-[11px] font-medium text-[var(--kt-color-text-muted)]"
+        >
           今の気持ちを少しだけ書く
         </label>
 
@@ -147,16 +148,10 @@ export function HomeHeroConsultationInput() {
         <button
           type="button"
           className="inline-flex items-center text-xs font-medium text-[var(--kt-color-text-secondary)] transition hover:text-[var(--kt-color-action-primary)]"
-          onClick={() => setIsConditionHintOpen((current) => !current)}
-          aria-expanded={isConditionHintOpen}
+          onClick={() => router.push(buildConciergeHref(theme, { openFilter: true }))}
         >
           ＋ 条件を追加する
         </button>
-        {isConditionHintOpen ? (
-          <p className="mt-2 rounded-2xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] px-3 py-2 text-xs leading-6 text-[var(--kt-color-text-muted)]">
-            誕生日やご利益、参拝スタイルなどの条件は次のステップで追加できます。
-          </p>
-        ) : null}
       </div>
     </div>
   );

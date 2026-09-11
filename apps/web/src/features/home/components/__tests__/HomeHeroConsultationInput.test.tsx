@@ -49,7 +49,7 @@ describe("HomeHeroConsultationInput", () => {
     );
   });
 
-  it("条件ヒントを開いた状態で開始するとopenFilterを付与する", () => {
+  it("themeありで条件を追加するとthemeとopenFilterを付けて遷移する", () => {
     render(<HomeHeroConsultationInput />);
 
     fireEvent.change(screen.getByLabelText("今の気持ちを少しだけ書く"), {
@@ -57,12 +57,16 @@ describe("HomeHeroConsultationInput", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "＋ 条件を追加する" }));
 
-    expect(screen.getByText("誕生日やご利益、参拝スタイルなどの条件は次のステップで追加できます。")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "この相談ではじめる" }));
-
     expect(pushMock).toHaveBeenCalledWith(
       "/concierge?theme=%E4%BB%95%E4%BA%8B%E3%81%AE%E6%B5%81%E3%82%8C%E3%82%92%E6%95%B4%E3%81%88%E3%81%9F%E3%81%84&openFilter=1",
     );
+  });
+
+  it("themeなしで条件を追加するとopenFilterだけを付けて遷移する", () => {
+    render(<HomeHeroConsultationInput />);
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ 条件を追加する" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/concierge?openFilter=1");
   });
 });
