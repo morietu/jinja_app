@@ -30,9 +30,9 @@ function setOriginViaPrefecture() {
 function fillMinimumValidInput() {
   fireEvent.click(screen.getByRole("radio", { name: "転機・仕事" }));
   setOriginViaPrefecture();
-  fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-    target: { value: "1990-01-01" },
-  });
+  fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+  fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+  fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 }
 
 function submit() {
@@ -69,8 +69,7 @@ describe("Compass recommendation_eligibility_zero_candidates", () => {
 
   // 8: frontend/API state unions accept the new state
   it("API response型とUI state型が新stateを受け付ける", () => {
-    const response: CompassRecommendationsResponse["state"] =
-      "recommendation_eligibility_zero_candidates";
+    const response: CompassRecommendationsResponse["state"] = "recommendation_eligibility_zero_candidates";
     const ui: CompassUiState = "recommendation_eligibility_zero_candidates";
     expect(response).toBe("recommendation_eligibility_zero_candidates");
     expect(ui).toBe("recommendation_eligibility_zero_candidates");
@@ -92,9 +91,7 @@ describe("Compass recommendation_eligibility_zero_candidates", () => {
     expect(screen.getByText("ご案内できる参拝候補がまだありません")).toBeTruthy();
     // 4: 「該当する神社が1件も登録されていない」と断定せず、現在の条件に
     // 限定した表現であること。
-    expect(
-      screen.getByText("現在の条件では、ご案内に必要な情報を確認できる神社が見つかりませんでした。"),
-    ).toBeTruthy();
+    expect(screen.getByText("現在の条件では、ご案内に必要な情報を確認できる神社が見つかりませんでした。")).toBeTruthy();
     expect(screen.queryByText(/登録されていません/)).toBeNull();
     // 既存の /concierge CTA と空結果UI構造は維持する。
     expect(screen.getByRole("link", { name: "コンシェルジュで相談する" })).toBeTruthy();
@@ -161,8 +158,7 @@ describe("Compass recommendation_eligibility_zero_candidates", () => {
     const eligibilityPayload = analyticsMocks.trackSearchEvent.mock.calls.find(
       ([name, payload]) =>
         name === "compass_result" &&
-        (payload as { result_state: string }).result_state ===
-          "recommendation_eligibility_zero_candidates",
+        (payload as { result_state: string }).result_state === "recommendation_eligibility_zero_candidates",
     )?.[1] as {
       recommendation_count: unknown;
       direction_candidate_count: unknown;

@@ -42,52 +42,44 @@ describe("CompassClient Shared Birthday Context", () => {
   it("保存済みbirthdayがある場合は入力欄の初期値として再利用する", () => {
     render(<CompassClient savedBirthday="1984-05-15" isLoggedIn />);
 
-    expect(screen.getByLabelText("生年月日（方位計算に使用）")).toHaveValue("1984-05-15");
+    expect(screen.getByLabelText("生年月日の年")).toHaveValue("1984");
+    expect(screen.getByLabelText("生年月日の月")).toHaveValue("05");
+    expect(screen.getByLabelText("生年月日の日")).toHaveValue("15");
     expect(screen.getByText("ログイン中は次回以降も利用できるよう保存されます。")).toBeInTheDocument();
   });
 
   it("Auth hydrationで保存birthdayが後から届いた場合、未編集ならprefillする", async () => {
     const { rerender } = render(<CompassClient savedBirthday={null} isLoggedIn={false} />);
 
-    expect(screen.getByLabelText("生年月日（方位計算に使用）")).toHaveValue("");
+    expect(screen.getByLabelText("生年月日の年")).toHaveValue("");
 
     rerender(<CompassClient savedBirthday="1984-05-15" isLoggedIn />);
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("生年月日（方位計算に使用）")).toHaveValue("1984-05-15"),
-    );
+    await waitFor(() => expect(screen.getByLabelText("生年月日の年")).toHaveValue("1984"));
   });
 
   it("ユーザーが先にbirthdayを編集した場合、late hydrationで保存値を上書きしない", async () => {
     const { rerender } = render(<CompassClient savedBirthday={null} isLoggedIn={false} />);
 
-    fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-      target: { value: "1990-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 
     rerender(<CompassClient savedBirthday="1984-05-15" isLoggedIn />);
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("生年月日（方位計算に使用）")).toHaveValue("1990-01-01"),
-    );
+    await waitFor(() => expect(screen.getByLabelText("生年月日の年")).toHaveValue("1990"));
   });
 
   it("ログイン中はCompassで実際に使ったbirthdayを結果取得後に保存境界へ渡す", async () => {
     const onPersistBirthday = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successResponse()));
 
-    render(
-      <CompassClient
-        savedBirthday="1984-05-15"
-        isLoggedIn
-        onPersistBirthday={onPersistBirthday}
-      />,
-    );
+    render(<CompassClient savedBirthday="1984-05-15" isLoggedIn onPersistBirthday={onPersistBirthday} />);
 
     fillPurposeAndOrigin();
-    fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-      target: { value: "1990-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
@@ -104,9 +96,9 @@ describe("CompassClient Shared Birthday Context", () => {
 
     render(<CompassClient onPersistBirthday={onPersistBirthday} />);
     fillPurposeAndOrigin();
-    fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-      target: { value: "1990-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
@@ -118,16 +110,13 @@ describe("CompassClient Shared Birthday Context", () => {
 
   it("Compass backend error時はbirthdayを保存しない", async () => {
     const onPersistBirthday = vi.fn();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
 
     render(<CompassClient isLoggedIn onPersistBirthday={onPersistBirthday} />);
     fillPurposeAndOrigin();
-    fireEvent.change(screen.getByLabelText("生年月日（方位計算に使用）"), {
-      target: { value: "1990-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText("生年月日の年"), { target: { value: "1990" } });
+    fireEvent.change(screen.getByLabelText("生年月日の月"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("生年月日の日"), { target: { value: "01" } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "今月の方向を確認する" }));
