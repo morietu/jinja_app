@@ -193,47 +193,67 @@ backend/temples/tests/test_migration_0105_w0b02t02_remove_qa_artifact_id102.py
 
 ### 2. 使い捨て local DB での実 `migrate` 往復
 
-GIS lineage（PostGIS + GDAL 導入）の使い捨て DB `w0105` で、
-`manage.py migrate` を実際に往復させた。Production ではない。
+GIS lineage（PostGIS + GDAL 導入）の使い捨て DB で `manage.py migrate` を
+実際に往復させた。Production ではない。
+
+#### 2-1. `0104 → forward → reverse → forward`（artefact を PRE 状態で投入）
+
+使い捨て DB を `0104` まで migrate し、Production PRE を raw SQL で exact に
+再現（signal を一切経由しない）してから 4 段階を実行した。
 
 ```text
-migrate            -> 0105 applied（fresh lineage の clean no-op）
-migrate temples 0104 -> Unapplying 0105 ... OK（reverse 実行）
+STEP 1  migrate temples 0104        -> ledger head = 0104_evidence_link_foundation
+        PRE 投入後の実測
+          shrine created_us = 1781163949473076
+          shrine updated_us = 1781163949473590
+          log 3 created_us  = 1781164297018819
+          log 6 created_us  = 1781168618508071
+
+STEP 2  migrate temples 0105        -> Applying 0105 ... OK   （real forward delete）
+          shrine_102=0  logs_for_102=0  logs_pk_3_6=0
+          ledger head = 0105_w0b02t02_remove_qa_artifact_id102
+
+STEP 3  migrate temples 0104        -> Unapplying 0105 ... OK （reverse restore）
+          created_us = 1781163949473076   PRE と一致
+          updated_us = 1781163949473590   PRE と一致（auto_now に上書きされていない）
+          lat_null=true lng_null=true loc_null=true
+          owner_id=1 kind=shrine name=テスト確認神社 20260611 addr=東京テスト
+          SQL_NULL     : name_romaji / description / element / kyusei / place_ref_id
+          EMPTY_STRING : goriyaku / sajin / history_theme
+          log 3 user=1 detail_view shrine_detail thread_null=true
+                meta={"ctx": null, "event": "shrine_detail_view"} us=1781164297018819
+          log 6 同上 us=1781168618508071
+
+STEP 4  migrate temples 0105        -> Applying 0105 ... OK   （forward delete 再）
+          shrine_102=0  logs_for_102=0
+          shrine_seq=1  log_seq=1   （sequence は巻き戻しも前進もしていない）
+          ledger head = 0105_w0b02t02_remove_qa_artifact_id102
 ```
 
-reverse 直後の実測:
+#### 2-2. precondition と delete が同一 transaction であることの実証
+
+`updated_at` を **1 microsecond だけ** 進めた状態で `migrate temples 0105`
+を実行した。
 
 ```text
-id=102 kind=shrine name_jp=テスト確認神社 20260611 address=東京テスト
-location_is_null = t
-astro_elements=[] visit_style_tags=[] history_theme=''
-views_30d=0 favorites_30d=0 popular_score=0 owner_id=1
-created_us = 1781163949473076   （PRE と一致）
-updated_us = 1781163949473590   （PRE と一致 / auto_now に上書きされていない）
+PreconditionViolation: [temples.0105 W0-B02-T02] PRESTATE_MISMATCH:
+  Shrine pk 102 の updated_at は epoch_us=1781163949473591
+  (期待値 1781163949473590 = 2026-06-11T07:45:49.473590+00:00)
 
-NULL semantics:
-  description=SQL_NULL  element=SQL_NULL  kyusei=SQL_NULL
-  name_romaji=SQL_NULL  place_ref_id=SQL_NULL  location=SQL_NULL
-  goriyaku=EMPTY_STRING sajin=EMPTY_STRING    history_theme=EMPTY_STRING
-
-InteractionLog:
-  id=3 user_id=1 shrine_id=102 detail_view shrine_detail thread_id=NULL
-       metadata={"ctx": null, "event": "shrine_detail_view"}
-       created_us=1781164297018819   （PRE と一致）
-  id=6 ... created_us=1781168618508071（PRE と一致）
+ロールバック後の実測:
+  ledger head  = 0104_evidence_link_foundation   （0105 は適用済みにならない）
+  shrine_102   = 1                                （削除されていない）
+  logs_for_102 = 2                                （削除されていない）
 ```
 
-forward 実行後:
+`RunPython` は `Migration.atomic`（既定 `True`）の下で実行されるため、
+precondition 検証と delete は同一 transaction 内にあり、不一致時は
+ledger も行も一切変化しない。
 
-```text
-migrate temples 0105 -> Applying 0105 ... OK
-shrine_102   = 0
-logs_for_102 = 0
-logs_pk_3_6  = 0
-shrine_seq   = 1   （巻き戻しも前進もしていない）
-log_seq      = 1
-ledger head  = 0105_w0b02t02_remove_qa_artifact_id102
-```
+#### 2-3. fresh lineage
+
+別の使い捨て DB（artefact 不在）では `0105` が clean no-op として適用され、
+その後の `0104` reverse → `0105` forward も同様に成立した。
 
 この DB の `temples_shrine.location` は `USER-DEFINED`（geometry）であり、
 Production の `text`、NoGIS test lineage の `jsonb` と異なる。3 通りの物理型で
@@ -245,6 +265,9 @@ Production の `text`、NoGIS test lineage の `jsonb` と異なる。3 通り�
 python scripts/build_base_shrine_seed.py --check
   SHA256=88d9edbfee67a239a09c4eb3a37febce64f0a457b49e1f3e427be2e8f83fb07c
   BASE_SEED_BUILD=OK
+
+関連 migration / seed tests（0100 / 0101 / 0105 / seed build / import / exact39 / scripts）
+  123 passed
 
 backend/temples/tests + scripts/tests
   FAILED 一覧は本作業着手前の baseline と同一の 7 件のみ:
