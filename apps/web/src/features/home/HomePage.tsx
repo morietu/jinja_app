@@ -14,29 +14,23 @@
 import { Suspense } from "react";
 import { HomeToastClient } from "@/features/home/components/HomeToastClient";
 import { HomeMainClient } from "@/features/home/components/HomeMainClient";
+import { HomeBackdrop } from "@/features/home/components/HomeBackdrop";
 
 export default function HomePage() {
   return (
+    // 地色はHome限定のArt Direction Layer (--home-ground = Deep Ink Navy)。
+    // Global の --kt-color-background-base は変更していないため、
+    // fallbackとして残し、:has()非対応環境では従来のDark Forest地で描画する。
     <div
       data-app-frame="home"
-      className="relative isolate min-h-full bg-[var(--kt-color-background-base)]"
+      className="relative isolate min-h-full bg-[var(--home-ground,var(--kt-color-background-base))]"
     >
       {/*
-        木漏れ日。上方から差す柔らかい光だけを表現し、テクスチャや装飾は置かない。
-        値は既存Tokenの color-mix のみで構成し、新しい色は導入しない。
-        1層目: 本文カラムを持ち上げる面の光
-        2層目: shrine-gold のごく薄い暖かみ (6%)
+        背景モチーフ (Deep Ink Navyの地 / 大気 / 波線3本 / Main Orb)。
+        旧実装の「木漏れ日」1枚をここへ引き継ぎ、Luminous Pathとして再構成した。
+        画像は使わず、CSS gradientとinline SVGのみ。装飾のためaria-hidden。
       */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background: [
-            "radial-gradient(110% 52% at 50% -6%, color-mix(in oklab, var(--kt-color-surface-elevated) 90%, transparent) 0%, transparent 68%)",
-            "radial-gradient(58% 26% at 50% 0%, color-mix(in oklab, var(--kt-color-action-primary) 6%, transparent) 0%, transparent 72%)",
-          ].join(", "),
-        }}
-      />
+      <HomeBackdrop />
 
       <HomeToastClient />
 

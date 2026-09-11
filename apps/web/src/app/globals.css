@@ -159,6 +159,73 @@
  * Tailwind の utility は @layer 内にあるため、非レイヤーの本ルールが優先される。
  */
 
+/*
+ * Home限定 Art Direction Layer — "Japanese Modern Classic / Luminous Path"
+ *
+ * ■ スコープの決定 (HOME_SCOPED_NAVY)
+ * Stitchで確定したBase色 (Deep Ink Navy / Blue Black) は、Top画面だけに与える。
+ * Global の --kt-color-background-base および shadcn --background は変更しない。
+ * Web全体の正本は上記 Dark Forest (森影) のまま維持し、
+ * apps/mobile/design/theme.ts の kamimusubiDark との実値一致も保つ。
+ * これは Global Base Color の巻き戻しではなく、Home専用のArt Direction Layerである。
+ *
+ * ■ 既存Tokenを上書きしない
+ * ここで宣言するのは既存Semantic Tokenの再定義ではなく、Home専用の
+ * 新しいlocal property (--home-*) である。--kt-* / shadcn変数は一切代入しない。
+ * したがってHome以外の画面・Component・Mobileへ値が波及する経路は存在しない。
+ *
+ * ■ 差分はBaseだけ
+ * Stitchの4要素のうち、Surface (Moss Charcoal) / Text (Ivory) /
+ * Accent (Warm Brass・Champagne Gold) は既存 --kt-* が既に充足しているため
+ * そのまま再利用する。新しい色を作るのはBase (地) と、その上に差す光だけ。
+ *
+ * ■ 宣言位置
+ * 背景レイヤーはHomeのPage配下にあるが、Headerは Root Layout 側の共有要素で
+ * Pageの祖先にあたる。両方へ継承させる必要があるため、既存のHome限定
+ * オーバーライドと同じ `body:has(...)` に載せる。
+ * :has() 非対応環境では --home-* が解決されず、後述のfallbackで
+ * 既存のDark Forest表示に留まる（崩れではなく従来表示）。
+ */
+body:has([data-app-frame="home"]) {
+  /* 地: Deep Ink Navy / Blue Black。
+     コントラスト実測 (WCAG, 対 #0b111c):
+       text-primary(#f3eee3) 16.33 / text-muted(#c6c8b8) 11.12 /
+       text-secondary(#a7ac9b) 8.12 / action-primary(#c9a96a) 8.43 /
+       premium(#e4c88f) 11.66  — いずれもAAA(7.0)以上。
+     相対輝度は 0.00556 で surface-default(#131a15, 0.00931) より低い。
+     これにより background < surface < elevated という面の明度順序が
+     Navy地の上でも崩れない（Moss Charcoalのカードが正しく浮く）。 */
+  --home-ground: #0b111c;
+
+  /* 上方から差す光。地と同色相をひと段持ち上げた藍で、純黒にも青一色にもしない。 */
+  --home-ground-lit: #16203a;
+
+  /* Moss Charcoalのニュアンス。「全面を青一色にしない」ための緑側の残り香。
+     新しい色を作らず、既存のelevated面をそのまま薄く敷く。 */
+  --home-ground-moss: var(--kt-color-surface-elevated);
+
+  /* 参道の光。Warm Brass と Champagne Gold は既存Tokenをそのまま使う。 */
+  --home-path: var(--kt-color-action-primary);
+  --home-path-lit: var(--kt-color-premium-accent);
+
+  /* 主見出しの明朝Display。
+     Webfontは追加しない = bundle影響ゼロ、package.json / lockfile も無変更。
+     既存Fontは Geist / Geist Mono のラテン専用2種のみで、日本語は元々
+     OS標準へフォールバックしている。ここではその落とし先をゴシックから
+     明朝へ寄せるだけで、読み込むリソースは増えない。
+     明朝が無い環境では最後の serif、それも無ければ既存の継承値に戻る。
+
+     総称の serif には頼らず、明朝の実ファミリ名を明示的に並べる。
+     fontconfig環境では serif:lang=ja がゴシック系CJKフォントへ解決される
+     ことがあり（本リポジトリのCI相当コンテナで WenQuanYi Zen Hei に解決:
+     実測済み）、serif任せでは明朝にならないため。
+     順序は macOS/iOS → Windows → Android/Linux(Noto/Source Han) → IPA。 */
+  --home-font-display:
+    "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho", YuMincho, "BIZ UDMincho",
+    "MS PMincho", "Noto Serif CJK JP", "Noto Serif JP", "Source Han Serif JP", "IPAexMincho",
+    "IPAPMincho", serif;
+}
+
 /* 1) 幅と左右余白を本文カラムへ揃え、ブランドの左端を本文と一致させる。
       上下余白は既定(p-3 = 0.75rem)のまま。 */
 body:has([data-app-frame="home"]) header nav {
@@ -167,9 +234,13 @@ body:has([data-app-frame="home"]) header nav {
   padding-right: 1.25rem;
 }
 
-/* 2) 全幅の明るい帯をやめ、地面と同色 + ヘアラインにしてカラム構図を切らない。 */
+/* 2) 全幅の明るい帯をやめ、地面と同色 + ヘアラインにしてカラム構図を切らない。
+      地がNavyになったため、Headerも同じ地色に揃える。ここを既存の
+      background-base のままにすると、stickyなHeaderと本文の間に
+      Forest / Navy の境目が横一本に出てしまう。
+      var()の2番目は :has() が効かない場合のfallbackで、従来値と同じ。 */
 body:has([data-app-frame="home"]) header {
-  background-color: var(--kt-color-background-base);
+  background-color: var(--home-ground, var(--kt-color-background-base));
   border-bottom: 1px solid var(--kt-color-border-default);
 }
 
