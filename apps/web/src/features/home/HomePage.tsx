@@ -34,7 +34,7 @@ export default function HomePage() {
 
       <HomeToastClient />
 
-      <div className="mx-auto w-full max-w-[27rem] px-5 pb-24 pt-9">
+      <div className="relative z-10 mx-auto w-full max-w-[27rem] px-5 pb-24 pt-9">
         <Suspense fallback={<div className="text-sm text-[var(--kt-color-text-muted)]">読み込み中…</div>}>
           <HomeMainClient />
         </Suspense>

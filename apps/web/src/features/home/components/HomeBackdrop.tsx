@@ -93,7 +93,7 @@ const SUB_PATH_2 = "M -24 260 C 56 266, 116 306, 180 330 C 252 357, 330 398, 414
 
 export function HomeBackdrop() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
       {/*
         地 + 大気。
         1層目: 上方から差す光（本文カラムを持ち上げる面の光）
