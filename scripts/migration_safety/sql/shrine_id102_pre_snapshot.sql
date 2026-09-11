@@ -43,6 +43,48 @@ WHERE c.table_schema = 'public'
   AND c.table_name IN ('temples_shrine', 'temples_shrineinteractionlog')
 ORDER BY c.table_name, c.ordinal_position;
 
+-- A3. Shrine pk=102 の全24保存列を JSON で出力する（NULL semantics 正本）。
+--
+--    psql の aligned 表示では nullable text 列の SQL NULL と空文字 '' が
+--    どちらも空白として描画され区別できない。reverse が復元すべき値を
+--    一意に固定するため、行全体を to_jsonb で 1 値として出力する。
+--
+--      SQL NULL  -> JSON null
+--      空文字 ''  -> JSON ""
+--
+--    to_jsonb は行の全列を必ず含むため、列の取りこぼしが起きない。
+--    jsonb 列（astro_elements / visit_style_tags / metadata）は入れ子の
+--    JSON として、text 列（Production の location）は JSON 文字列として
+--    出力されるので、A2 の physical type と併せれば reverse serialization
+--    を推測なしに決定できる。
+--
+--    timestamp の exact instant は引き続き A の
+--    *_utc_iso / *_epoch_us を正本とする（JSON 側の描画は session
+--    TimeZone に依存するため参考値）。
+SELECT 'A3_SHRINE_JSON' AS section,
+       to_jsonb(s)::text AS shrine_row_json
+FROM temples_shrine AS s
+WHERE s.id = 102;
+
+-- A4. A3 を列ごとに分解し、NULL / 空文字 / 値 を明示分類する。
+--     JSON を目視でパースせずに NULL semantics を確認できるようにする。
+--     列名は hardcode せず to_jsonb の全キーを走査するため、列の
+--     取りこぼしが構造的に起きない。
+SELECT 'A4_NULL_SEMANTICS' AS section,
+       e.key AS column_name,
+       jsonb_typeof(e.value) AS json_type,
+       CASE
+         WHEN e.value = 'null'::jsonb                  THEN 'SQL_NULL'
+         WHEN jsonb_typeof(e.value) = 'string'
+              AND (e.value #>> '{}') = ''              THEN 'EMPTY_STRING'
+         ELSE                                               'VALUE'
+       END AS semantics,
+       e.value::text AS json_value
+FROM temples_shrine AS s
+CROSS JOIN LATERAL jsonb_each(to_jsonb(s)) AS e
+WHERE s.id = 102
+ORDER BY e.key;
+
 -- B. ShrineInteractionLog の全行（pk を絞らず shrine_id で取得する）。
 --    「exactly 2 rows / pk が 3,6」という PRE をここで検証するため、
 --    pk で先に絞り込まない。3件目が存在すれば必ずここに現れる。
@@ -55,6 +97,33 @@ SELECT 'B_INTERACTION_LOGS' AS section,
 FROM temples_shrineinteractionlog AS il
 WHERE il.shrine_id = 102
 ORDER BY il.id;
+
+-- B2. ShrineInteractionLog の対象行を JSON で出力する（NULL semantics 正本）。
+--     A3 と同じ理由。thread_id の SQL NULL と、source の空文字を区別する。
+--     pk で絞らず shrine_id で取得するため、3件目が存在すればここにも現れる。
+SELECT 'B2_INTERACTION_LOG_JSON' AS section,
+       il.id,
+       to_jsonb(il)::text AS interaction_log_row_json
+FROM temples_shrineinteractionlog AS il
+WHERE il.shrine_id = 102
+ORDER BY il.id;
+
+-- B3. B2 を列ごとに分解し、NULL / 空文字 / 値 を明示分類する。
+SELECT 'B3_NULL_SEMANTICS' AS section,
+       il.id AS interaction_log_id,
+       e.key AS column_name,
+       jsonb_typeof(e.value) AS json_type,
+       CASE
+         WHEN e.value = 'null'::jsonb                  THEN 'SQL_NULL'
+         WHEN jsonb_typeof(e.value) = 'string'
+              AND (e.value #>> '{}') = ''              THEN 'EMPTY_STRING'
+         ELSE                                               'VALUE'
+       END AS semantics,
+       e.value::text AS json_value
+FROM temples_shrineinteractionlog AS il
+CROSS JOIN LATERAL jsonb_each(to_jsonb(il)) AS e
+WHERE il.shrine_id = 102
+ORDER BY il.id, e.key;
 
 -- C. ShrineInteractionLog の件数（PRE: exactly 2）。
 SELECT 'C_INTERACTION_LOG_COUNT' AS section,
