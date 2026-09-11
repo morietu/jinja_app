@@ -142,17 +142,27 @@ Batch membershipはProduct priorityで決めず、既存CORE READY候補表の�
 
 ### Wave0 Build Batch
 
-| Batch | Shrines |
-|---|---|
-| W0-B01 | 三輪神社 / 大鳥大社 / 御岩神社 / 烏森神社 / 榴岡天満宮 |
-| W0-B02 | 射水神社 / 別小江神社 / 戸隠神社 中社 / 札幌諏訪神社 / 少彦名神社 |
-| W0-B03 | 大神神社 / 北野天満宮 / 宮城縣護國神社 / 平安神宮 / 岡田宮 |
-| W0-B04 | 建勲神社 / 水堂須佐男神社 / 大阪天満宮 / 毛谷黒龍神社 / 大崎八幡宮 |
-| W0-B05 | 鎌数伊勢大神宮 / 廣田神社 / 石浦神社 / 洲崎神社 / 來宮神社 |
-| W0-B06 | 蛇窪神社 / 櫻岡大神宮 / 三嶋大社 / 柏神社 / 櫛田神社 |
-| W0-B07 | 坪沼八幡神社 / 菊田神社 / 伊奈波神社 / 青島神社 / 西宮神社 |
+**Namespace 注記（W0-B03 Namespace Reconciliation, schema 1.2）**
+
+Data Build Batch の canonical namespace は `W0-DB01`〜`W0-DB07` である。
+旧表記 `W0-B01`〜`W0-B07` は Wave0 の**工程ID**（`W0-B01` = Base Shrine Seed
+Build / `W0-B02` = Production Shrine Reconciliation / `W0-B03` = 本 Namespace
+Reconciliation）と衝突していたため、Data Build Batch 側だけを改名した。
+member set は不変である。
+
+| Batch | legacy | Shrines |
+|---|---|---|
+| W0-DB01 | `W0-B01` | 三輪神社 / 大鳥大社 / 御岩神社 / 烏森神社 / 榴岡天満宮 |
+| W0-DB02 | `W0-B02` | 射水神社 / 別小江神社 / 戸隠神社 中社 / 札幌諏訪神社 / 少彦名神社 |
+| W0-DB03 | `W0-B03` | 大神神社 / 北野天満宮 / 宮城縣護國神社 / 平安神宮 / 岡田宮 |
+| W0-DB04 | `W0-B04` | 建勲神社 / 水堂須佐男神社 / 大阪天満宮 / 毛谷黒龍神社 / 大崎八幡宮 |
+| W0-DB05 | `W0-B05` | 鎌数伊勢大神宮 / 廣田神社 / 石浦神社 / 洲崎神社 / 來宮神社 |
+| W0-DB06 | `W0-B06` | 蛇窪神社 / 櫻岡大神宮 / 三嶋大社 / 柏神社 / 櫛田神社 |
+| W0-DB07 | `W0-B07` | 坪沼八幡神社 / 菊田神社 / 伊奈波神社 / 青島神社 / 西宮神社 |
 
 この順番は優先順位ではない。既存Audit順を保持するためのdeterministic groupingである。
+
+次の Data Build target は **`W0-DB01`**。
 
 ## One-time Foundation PRs
 
@@ -193,7 +203,7 @@ identity / duplicate / official source / knowledgeのsub-statusも、現行Audit
 
 ## Per-Batch Data Build Flow
 
-各W0-B01〜B07は同じ工程を反復する。
+各 `W0-DB01`〜`W0-DB07` は同じ工程を反復する（旧表記 `W0-B01`〜`W0-B07`）。
 
 ### Phase 1: Source Packet Freeze
 

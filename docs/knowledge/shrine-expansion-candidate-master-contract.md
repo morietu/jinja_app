@@ -5,7 +5,7 @@
 - Status: `ACTIVE`
 - Effective from: `2026-09-10`
 - Scope: KAMI MUSUBI 神社500社拡充の pre-import Candidate 管理
-- Schema version: `1.1`
+- Schema version: `1.2`
 - Runtime / DB schema change: なし
 
 ## 目的
@@ -193,25 +193,67 @@ Lifecycle stateとEvidence詳細を分離したまま、後続Batchが「なぜ�
 
 Data Buildのoperational grouping。
 
-Wave0では:
+### canonical namespace（schema 1.2 以降）
+
+`build_batch` に許可される値は次の 7 つと `null` だけである。
 
 ```text
-W0-B01
-W0-B02
-W0-B03
-W0-B04
-W0-B05
-W0-B06
-W0-B07
+W0-DB01
+W0-DB02
+W0-DB03
+W0-DB04
+W0-DB05
+W0-DB06
+W0-DB07
 ```
 
-を使用する。
-
-- `BUILD_READY` 35社だけがP0-A時点でbatch assignmentを持つ。
+- `BUILD_READY` 35社だけがbatch assignmentを持つ。
 - 各Batchは5社。
 - HOLD / REVIEWは `null`。
 - Batch順はProduct priorityではない。
-- PR #2780のdeterministic groupingをそのまま使用する。
+- PR #2780のdeterministic groupingをそのまま使用する（member setは不変）。
+
+### legacy mapping（schema 1.1 以前）
+
+schema 1.1 までは `W0-B01`〜`W0-B07` を使用していた。この文字列は Wave0 の
+**工程ID** と完全に衝突していた。
+
+```text
+工程ID   W0-B01 = Base Shrine Seed Build
+工程ID   W0-B02 = Production Shrine Reconciliation
+工程ID   W0-B03 = Data Batch Namespace Reconciliation（本改名を行った工程）
+```
+
+同じ `W0-B01` が「Base Shrine Seed Build という工程」と「Data Build の第1
+バッチ」の両方を指す状態だったため、Data Build Batch 側だけを改名した。
+
+| legacy `build_batch` | canonical `build_batch` |
+|---|---|
+| `W0-B01` | `W0-DB01` |
+| `W0-B02` | `W0-DB02` |
+| `W0-B03` | `W0-DB03` |
+| `W0-B04` | `W0-DB04` |
+| `W0-B05` | `W0-DB05` |
+| `W0-B06` | `W0-DB06` |
+| `W0-B07` | `W0-DB07` |
+
+改名は `build_batch` の**値のみ**を対象とする。工程IDは変更しない。
+candidate identity / order / status / status_reason_code / duplicate_status /
+discovery provenance はいずれも不変であり、factual hydration も行っていない。
+
+Candidate Master に legacy `W0-B01`〜`W0-B07` が `build_batch` として残って
+いないことは
+`backend/temples/tests/test_shrine_expansion_candidate_master.py::test_wave0_build_batch_uses_the_canonical_db_namespace_only`
+が固定する。
+
+### 次の Data Build target
+
+```text
+W0-DB01 = 三輪神社 / 大鳥大社 / 御岩神社 / 烏森神社 / 榴岡天満宮
+```
+
+この member set は
+`test_wave0_db01_member_set_is_frozen` が exact に固定する。
 
 ## Sub-status Contract
 
