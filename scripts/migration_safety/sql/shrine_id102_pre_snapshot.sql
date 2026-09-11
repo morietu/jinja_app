@@ -212,13 +212,46 @@ FROM target AS t
 LEFT JOIN counted AS c ON c.relation = t.relation
 ORDER BY t.relation;
 
--- E. legacy M2M table `temples_shrine_deities` が存在する場合のみの件数。
---    D では存在確認だけを行い 0 を仮置きしているため、ここで実測する。
---    table が存在しない場合、この SELECT は 0 行を返す。
-SELECT 'E_LEGACY_M2M' AS section, c.relname AS table_present
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relname = 'temples_shrine_deities';
+-- E. ORM-less legacy M2M `temples_shrine_deities` の別Gate。
+--
+--    このtableはDjango modelに対応が無く（Shrine._meta.related_objects に
+--    現れない）、introspection由来の15 relation inventoryには入らない。
+--    そのため独立したGateとして必ず確認する。
+--
+--    D と同じく、存在しない場合に query 全体が中断しないよう
+--    existing CTE で絞り込んでから query_to_xml で数える。
+--    存在自体はFAILにしない。参照1件以上でSTOP。
+WITH target(relation, column_name) AS (
+  VALUES ('temples_shrine_deities', 'shrine_id')
+),
+existing AS MATERIALIZED (
+  SELECT relation, column_name
+  FROM target
+  WHERE to_regclass('public.' || relation) IS NOT NULL
+),
+counted AS (
+  SELECT e.relation,
+         (xpath(
+            '/row/c/text()',
+            query_to_xml(
+              format('SELECT count(*) AS c FROM public.%I WHERE %I = 102',
+                     e.relation, e.column_name),
+              false, true, '')
+          ))[1]::text::bigint AS referencing_rows
+  FROM existing AS e
+)
+SELECT 'E_LEGACY_M2M_GATE' AS section,
+       t.relation,
+       t.column_name,
+       to_regclass('public.' || t.relation) IS NOT NULL AS table_exists,
+       c.referencing_rows,
+       CASE
+         WHEN to_regclass('public.' || t.relation) IS NULL THEN 'NOT_DEPLOYED'
+         WHEN c.referencing_rows = 0                       THEN 'DEPLOYED_ZERO_OK'
+         ELSE                                                   'DEPLOYED_NONZERO_STOP'
+       END AS verdict
+FROM target AS t
+LEFT JOIN counted AS c ON c.relation = t.relation;
 
 -- F. migration ledger の現在位置（0104 まで適用済みかの確認）。
 SELECT 'F_MIGRATION_STATE' AS section, m.app, m.name, m.applied
