@@ -110,3 +110,4 @@ apps/web/test-results/
 /snippet.txt
 apps/web/AGENTS.md
 apps/web/CLAUDE.md
+logs/shrine_identity_reconciliation.json

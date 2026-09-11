@@ -29,14 +29,14 @@
     "astro_elements": [
       "土"
     ],
-    "location": {
-      "lat": 34.9671,
-      "lng": 135.7727
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 34.9671,
+      "lng": 135.7727
+    }
   },
   {
     "name_jp": "伊勢神宮（内宮）",
@@ -48,15 +48,15 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 34.455,
-      "lng": 136.7256
-    },
     "visit_style_tags": [
       "classic",
       "reset",
       "nature"
-    ]
+    ],
+    "location": {
+      "lat": 34.455,
+      "lng": 136.7256
+    }
   },
   {
     "name_jp": "出雲大社",
@@ -68,13 +68,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.4016,
       "lng": 132.6853
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "春日大社",
@@ -86,15 +86,15 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 34.6814,
-      "lng": 135.8481
-    },
     "visit_style_tags": [
       "classic",
       "reset",
       "nature"
-    ]
+    ],
+    "location": {
+      "lat": 34.6814,
+      "lng": 135.8481
+    }
   },
   {
     "name_jp": "太宰府天満宮",
@@ -106,15 +106,15 @@
     "astro_elements": [
       "土"
     ],
-    "location": {
-      "lat": 33.5213,
-      "lng": 130.5351
-    },
     "visit_style_tags": [
       "study",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 33.5213,
+      "lng": 130.5351
+    }
   },
   {
     "name_jp": "熱田神宮",
@@ -126,15 +126,15 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 35.1279,
-      "lng": 136.9114
-    },
     "visit_style_tags": [
       "classic",
       "reset",
       "business"
-    ]
+    ],
+    "location": {
+      "lat": 35.1279,
+      "lng": 136.9114
+    }
   },
   {
     "name_jp": "宇佐神宮",
@@ -146,13 +146,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 33.531,
       "lng": 131.379
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "日光東照宮",
@@ -164,13 +164,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.7579,
       "lng": 139.5986
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "鶴岡八幡宮",
@@ -182,15 +182,15 @@
     "astro_elements": [
       "土"
     ],
-    "location": {
-      "lat": 35.3256,
-      "lng": 139.5566
-    },
     "visit_style_tags": [
       "classic",
       "business",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 35.3256,
+      "lng": 139.5566
+    }
   },
   {
     "name_jp": "住吉大社",
@@ -202,13 +202,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.6149,
       "lng": 135.4928
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "石清水八幡宮",
@@ -220,13 +220,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.8841,
       "lng": 135.6944
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "金刀比羅宮",
@@ -238,13 +238,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.1811,
       "lng": 133.8216
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "鹿島神宮",
@@ -256,13 +256,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.9658,
       "lng": 140.6285
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "香取神宮",
@@ -274,14 +274,14 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 35.9067,
-      "lng": 140.535
-    },
     "visit_style_tags": [
       "nature",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 35.9067,
+      "lng": 140.535
+    }
   },
   {
     "name_jp": "氷川神社（大宮）",
@@ -293,13 +293,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.9201,
       "lng": 139.6263
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "三峯神社",
@@ -311,15 +311,15 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 35.9221,
-      "lng": 138.9336
-    },
     "visit_style_tags": [
       "nature",
       "reset",
       "quiet"
-    ]
+    ],
+    "location": {
+      "lat": 35.9221,
+      "lng": 138.9336
+    }
   },
   {
     "name_jp": "箱根神社",
@@ -331,15 +331,15 @@
     "astro_elements": [
       "土"
     ],
-    "location": {
-      "lat": 35.2067,
-      "lng": 139.0237
-    },
     "visit_style_tags": [
       "nature",
       "reset",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 35.2067,
+      "lng": 139.0237
+    }
   },
   {
     "name_jp": "富士山本宮浅間大社",
@@ -351,15 +351,15 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 35.2229,
-      "lng": 138.6216
-    },
     "visit_style_tags": [
       "nature",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 35.2229,
+      "lng": 138.6216
+    }
   },
   {
     "name_jp": "諏訪大社（上社本宮）",
@@ -371,15 +371,15 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 36.0404,
-      "lng": 138.1184
-    },
     "visit_style_tags": [
       "nature",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 36.0404,
+      "lng": 138.1184
+    }
   },
   {
     "name_jp": "長太稲荷神社",
@@ -391,13 +391,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "urban"
+    ],
     "location": {
       "lat": 35.660614,
       "lng": 139.6017688
-    },
-    "visit_style_tags": [
-      "urban"
-    ]
+    }
   },
   {
     "name_jp": "給田六所神社",
@@ -409,13 +409,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.662443,
       "lng": 139.5920237
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "神田神社（神田明神）",
@@ -500,13 +500,13 @@
     "goriyaku": "開運・五穀豊穣・商売繁盛",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "business"
+    ],
     "location": {
       "lat": 36.4764,
       "lng": 138.8756
-    },
-    "visit_style_tags": [
-      "business"
-    ]
+    }
   },
   {
     "name_jp": "筑波山神社",
@@ -516,13 +516,13 @@
     "goriyaku": "縁結び・夫婦円満・開運",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.2246,
       "lng": 140.1069
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "阿佐ヶ谷神明宮",
@@ -550,13 +550,13 @@
     "goriyaku": "開運・勝運・縁結び",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 37.7047,
       "lng": 138.8287
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "氣多大社",
@@ -566,13 +566,13 @@
     "goriyaku": "縁結び・恋愛成就・開運",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.8939,
       "lng": 136.7784
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "越中一宮 高瀬神社",
@@ -582,13 +582,13 @@
     "goriyaku": "厄除け・家内安全・開運",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.5578,
       "lng": 136.8619
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "椿大神社",
@@ -598,15 +598,15 @@
     "goriyaku": "導き・仕事運・開運",
     "kyusei": null,
     "astro_elements": [],
-    "location": {
-      "lat": 34.8893,
-      "lng": 136.4204
-    },
     "visit_style_tags": [
       "business",
       "reset",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 34.8893,
+      "lng": 136.4204
+    }
   },
   {
     "name_jp": "賀茂御祖神社（下鴨神社）",
@@ -616,13 +616,13 @@
     "goriyaku": "縁結び・美容・厄除け",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.039,
       "lng": 135.7721
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "賀茂別雷神社（上賀茂神社）",
@@ -632,13 +632,13 @@
     "goriyaku": "厄除け・勝運・方除け",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.0605,
       "lng": 135.7522
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "生田神社",
@@ -648,13 +648,13 @@
     "goriyaku": "縁結び・恋愛成就・健康長寿",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.694,
       "lng": 135.1923
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "吉備津神社",
@@ -664,15 +664,15 @@
     "goriyaku": "厄除け・開運・学業成就",
     "kyusei": null,
     "astro_elements": [],
-    "location": {
-      "lat": 34.6863,
-      "lng": 133.8483
-    },
     "visit_style_tags": [
       "study",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 34.6863,
+      "lng": 133.8483
+    }
   },
   {
     "name_jp": "厳島神社",
@@ -682,15 +682,15 @@
     "goriyaku": "海上安全・開運・芸能",
     "kyusei": null,
     "astro_elements": [],
-    "location": {
-      "lat": 34.2959,
-      "lng": 132.3199
-    },
     "visit_style_tags": [
       "nature",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 34.2959,
+      "lng": 132.3199
+    }
   },
   {
     "name_jp": "宮地嶽神社",
@@ -700,14 +700,14 @@
     "goriyaku": "開運・商売繁盛・交通安全",
     "kyusei": null,
     "astro_elements": [],
-    "location": {
-      "lat": 33.7669,
-      "lng": 130.4917
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 33.7669,
+      "lng": 130.4917
+    }
   },
   {
     "name_jp": "川越氷川神社",
@@ -734,13 +734,13 @@
     "goriyaku": "開運・縁結び・厄除け",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.4346,
       "lng": 136.6368
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "高千穂神社",
@@ -750,15 +750,15 @@
     "goriyaku": "厄除け・縁結び・家内安全",
     "kyusei": null,
     "astro_elements": [],
-    "location": {
-      "lat": 32.7118,
-      "lng": 131.3078
-    },
     "visit_style_tags": [
       "nature",
       "classic",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 32.7118,
+      "lng": 131.3078
+    }
   },
   {
     "name_jp": "日枝神社",
@@ -967,13 +967,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.3708,
       "lng": 140.4767
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "二荒山神社",
@@ -985,14 +985,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 36.758,
-      "lng": 139.5966
-    },
     "visit_style_tags": [
       "classic",
       "nature"
-    ]
+    ],
+    "location": {
+      "lat": 36.758,
+      "lng": 139.5966
+    }
   },
   {
     "name_jp": "貴船神社",
@@ -1004,14 +1004,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 35.1217,
-      "lng": 135.762
-    },
     "visit_style_tags": [
       "nature",
       "quiet"
-    ]
+    ],
+    "location": {
+      "lat": 35.1217,
+      "lng": 135.762
+    }
   },
   {
     "name_jp": "八坂神社",
@@ -1023,13 +1023,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.0037,
       "lng": 135.7788
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "住吉神社（博多）",
@@ -1041,13 +1041,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 33.587,
       "lng": 130.4086
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "靖國神社",
@@ -1059,13 +1059,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.6944,
       "lng": 139.743
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "乃木神社",
@@ -1334,14 +1334,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 35.8614,
-      "lng": 139.6828
-    },
     "visit_style_tags": [
       "nature",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 35.8614,
+      "lng": 139.6828
+    }
   },
   {
     "name_jp": "調神社",
@@ -1373,15 +1373,15 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 35.9917,
-      "lng": 139.0848
-    },
     "visit_style_tags": [
       "study",
       "classic",
       "urban"
-    ]
+    ],
+    "location": {
+      "lat": 35.9917,
+      "lng": 139.0848
+    }
   },
   {
     "name_jp": "鷲宮神社",
@@ -1393,13 +1393,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.0958,
       "lng": 139.669
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "箭弓稲荷神社",
@@ -1411,14 +1411,14 @@
     "astro_elements": [
       "土"
     ],
-    "location": {
-      "lat": 36.0412,
-      "lng": 139.4014
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.0412,
+      "lng": 139.4014
+    }
   },
   {
     "name_jp": "安房神社",
@@ -1430,14 +1430,14 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 34.9724,
-      "lng": 139.8297
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 34.9724,
+      "lng": 139.8297
+    }
   },
   {
     "name_jp": "千葉神社",
@@ -1449,14 +1449,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 35.6114,
-      "lng": 140.1246
-    },
     "visit_style_tags": [
       "classic",
       "study"
-    ]
+    ],
+    "location": {
+      "lat": 35.6114,
+      "lng": 140.1246
+    }
   },
   {
     "name_jp": "玉前神社",
@@ -1468,13 +1468,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.3722,
       "lng": 140.365
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "櫻木神社",
@@ -1486,14 +1486,14 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 35.9559,
-      "lng": 139.8678
-    },
     "visit_style_tags": [
       "study",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 35.9559,
+      "lng": 139.8678
+    }
   },
   {
     "name_jp": "大洗磯前神社",
@@ -1505,15 +1505,15 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 36.314,
-      "lng": 140.5749
-    },
     "visit_style_tags": [
       "nature",
       "reset",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.314,
+      "lng": 140.5749
+    }
   },
   {
     "name_jp": "笠間稲荷神社",
@@ -1525,14 +1525,14 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 36.3846,
-      "lng": 140.2669
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.3846,
+      "lng": 140.2669
+    }
   },
   {
     "name_jp": "酒列磯前神社",
@@ -1544,13 +1544,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.3941,
       "lng": 140.6165
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "宇都宮二荒山神社",
@@ -1562,13 +1562,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.5607,
       "lng": 139.8827
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "足利織姫神社",
@@ -1580,14 +1580,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 36.3418,
-      "lng": 139.4568
-    },
     "visit_style_tags": [
       "study",
       "business"
-    ]
+    ],
+    "location": {
+      "lat": 36.3418,
+      "lng": 139.4568
+    }
   },
   {
     "name_jp": "古峯神社",
@@ -1599,14 +1599,14 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 36.7427,
-      "lng": 139.5208
-    },
     "visit_style_tags": [
       "nature",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.7427,
+      "lng": 139.5208
+    }
   },
   {
     "name_jp": "冠稲荷神社",
@@ -1618,14 +1618,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 36.2717,
-      "lng": 139.3565
-    },
     "visit_style_tags": [
       "nature",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.2717,
+      "lng": 139.3565
+    }
   },
   {
     "name_jp": "妙義神社",
@@ -1637,13 +1637,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.294,
       "lng": 138.7547
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "赤城神社",
@@ -1655,14 +1655,14 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 36.5601,
-      "lng": 139.1936
-    },
     "visit_style_tags": [
       "nature",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 36.5601,
+      "lng": 139.1936
+    }
   },
   {
     "name_jp": "鶴嶺八幡宮",
@@ -1674,13 +1674,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.3375,
       "lng": 139.4047
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "森戸大明神",
@@ -1692,14 +1692,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 35.2747,
-      "lng": 139.578
-    },
     "visit_style_tags": [
       "nature",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 35.2747,
+      "lng": 139.578
+    }
   },
   {
     "name_jp": "報徳二宮神社",
@@ -1711,15 +1711,15 @@
     "astro_elements": [
       "風"
     ],
-    "location": {
-      "lat": 35.2508,
-      "lng": 139.1548
-    },
     "visit_style_tags": [
       "business",
       "classic",
       "study"
-    ]
+    ],
+    "location": {
+      "lat": 35.2508,
+      "lng": 139.1548
+    }
   },
   {
     "name_jp": "九頭龍神社 新宮",
@@ -1731,14 +1731,14 @@
     "astro_elements": [
       "水"
     ],
-    "location": {
-      "lat": 35.2049,
-      "lng": 139.0227
-    },
     "visit_style_tags": [
       "nature",
       "reset"
-    ]
+    ],
+    "location": {
+      "lat": 35.2049,
+      "lng": 139.0227
+    }
   },
   {
     "name_jp": "平塚八幡宮",
@@ -1750,13 +1750,13 @@
     "astro_elements": [
       "火"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.3291,
       "lng": 139.352
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "忌宮神社",
@@ -1768,13 +1768,13 @@
     "astro_elements": [
       "土"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.0415,
       "lng": 130.9876
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "高良大社",
@@ -1786,13 +1786,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 33.3058,
       "lng": 130.5603
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "寳登山神社",
@@ -1804,13 +1804,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 36.0924821,
       "lng": 139.1039652
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "枚岡神社",
@@ -1822,14 +1822,14 @@
     "astro_elements": [
       "火"
     ],
-    "location": {
-      "lat": 34.6716,
-      "lng": 135.6516
-    },
     "visit_style_tags": [
       "business",
       "classic"
-    ]
+    ],
+    "location": {
+      "lat": 34.6716,
+      "lng": 135.6516
+    }
   },
   {
     "name_jp": "護王神社",
@@ -1841,13 +1841,13 @@
     "astro_elements": [
       "水"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 35.0186,
       "lng": 135.7583
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "阿蘇神社",
@@ -1859,13 +1859,13 @@
     "astro_elements": [
       "風"
     ],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 32.9519,
       "lng": 131.1211
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "北海道神宮",
@@ -1875,13 +1875,13 @@
     "goriyaku": "",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 43.0553,
       "lng": 141.3126
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "建部大社",
@@ -1891,13 +1891,13 @@
     "goriyaku": "",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 34.9735,
       "lng": 135.9135
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   },
   {
     "name_jp": "波上宮",
@@ -1907,12 +1907,12 @@
     "goriyaku": "",
     "kyusei": null,
     "astro_elements": [],
+    "visit_style_tags": [
+      "classic"
+    ],
     "location": {
       "lat": 26.2144,
       "lng": 127.6672
-    },
-    "visit_style_tags": [
-      "classic"
-    ]
+    }
   }
 ]
