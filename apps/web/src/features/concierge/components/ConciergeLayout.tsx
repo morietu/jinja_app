@@ -41,7 +41,7 @@ export default function ConciergeLayout(props: Props) {
   const baseRootClass = "mx-auto max-w-4xl w-full min-w-0 flex flex-col px-4";
   const rootClass = embedMode
     ? `${baseRootClass} min-h-[400px]`
-    : `${baseRootClass} flex-1 min-h-0 bg-neutral-50 overflow-hidden`;
+    : `${baseRootClass} flex-1 min-h-0 overflow-hidden`;
   const mainClass = embedMode ? "flex flex-col w-full" : "flex flex-col flex-1 min-h-0 w-full h-full";
 
   // 通常の /concierge では下部チャットバーを出さない。
