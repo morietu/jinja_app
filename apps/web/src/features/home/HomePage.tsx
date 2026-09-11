@@ -34,7 +34,12 @@ export default function HomePage() {
 
       <HomeToastClient />
 
-      <div className="mx-auto w-full max-w-[27rem] px-5 pb-24 pt-9">
+      {/*
+        本文は relative z-10 で背景レイヤー(z-0)より前に置く。
+        「地(このdivの背景) < 装飾(z-0) < 本文(z-10)」という重なり順を
+        正のz-indexだけで明示し、負のz-indexに依存させない。
+      */}
+      <div className="relative z-10 mx-auto w-full max-w-[27rem] px-5 pb-24 pt-9">
         <Suspense fallback={<div className="text-sm text-[var(--kt-color-text-muted)]">読み込み中…</div>}>
           <HomeMainClient />
         </Suspense>

@@ -93,7 +93,16 @@ const SUB_PATH_2 = "M -24 260 C 56 266, 116 306, 180 330 C 252 357, 330 398, 414
 
 export function HomeBackdrop() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    // Stacking契約:
+    //   親(HomePage root)は relative isolate + 不透明な地色を持つ。
+    //   このレイヤーは z-0 の「配置済み子要素」として、親自身の背景より前・
+    //   本文(relative z-10)より後ろに入る。
+    //   負のz-index(-z-10)は使わない。仕様上は負のz-indexでも親背景より前に
+    //   描かれるが、親にopacity / transform / filter / mix-blend-mode 等が
+    //   後から付いたときに崩れ方が読みにくくなるため、
+    //   「地(親背景) < 装飾(z-0) < 本文(z-10)」を正の値だけで表す。
+    //   同階層の HomeToastClient は fixed z-50 なのでこのレイヤーより前に出る。
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
       {/*
         地 + 大気。
         1層目: 上方から差す光（本文カラムを持ち上げる面の光）
