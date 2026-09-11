@@ -27,13 +27,11 @@ describe("HomeMainClient", () => {
   it("候補チップと条件リンクは相談入力カードより後ろに置かれる", () => {
     const { container } = render(<HomeMainClient />);
 
-    const order = Array.from(
-      container.querySelectorAll("#home-hero-consultation, [aria-label='この相談ではじめる'], [aria-pressed], [aria-expanded]"),
-    );
-    const textarea = order.findIndex((el) => el.id === "home-hero-consultation");
-    const submit = order.findIndex((el) => el.getAttribute("aria-label") === "この相談ではじめる");
-    const firstChip = order.findIndex((el) => el.hasAttribute("aria-pressed"));
-    const conditions = order.findIndex((el) => el.hasAttribute("aria-expanded"));
+    const order = Array.from(container.querySelectorAll("textarea, button"));
+    const textarea = order.indexOf(screen.getByRole("textbox", { name: "今の気持ちを少しだけ書く" }));
+    const submit = order.indexOf(screen.getByRole("button", { name: "この相談ではじめる" }));
+    const firstChip = order.indexOf(screen.getByRole("button", { name: "疲れを整えたい" }));
+    const conditions = order.indexOf(screen.getByRole("button", { name: "＋ 条件を追加する" }));
 
     expect(textarea).toBeGreaterThanOrEqual(0);
     expect(submit).toBeGreaterThan(textarea);
