@@ -131,28 +131,28 @@ export function HomeBackdrop() {
             線全体を均一に光らせない。
           */}
           <linearGradient id="home-path-main" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.05" />
-            <stop offset="24%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.18" />
-            <stop offset="38%" stopColor="var(--home-path-lit, var(--kt-color-premium-accent))" stopOpacity="0.62" />
-            <stop offset="44%" stopColor="var(--home-path-lit, var(--kt-color-premium-accent))" stopOpacity="0.8" />
-            <stop offset="54%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.26" />
-            <stop offset="72%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.04" />
+            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.09" />
+            <stop offset="24%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.3" />
+            <stop offset="38%" stopColor="var(--home-path-lit, var(--kt-color-premium-accent))" stopOpacity="0.7" />
+            <stop offset="44%" stopColor="var(--home-path-lit, var(--kt-color-premium-accent))" stopOpacity="0.86" />
+            <stop offset="54%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.42" />
+            <stop offset="72%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.07" />
           </linearGradient>
 
           {/* 副線1: 中程度。主線より暗く、均一な明るさにしない。 */}
           <linearGradient id="home-path-sub-1" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.04" />
-            <stop offset="46%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.06" />
+            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.07" />
+            <stop offset="46%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.36" />
+            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.1" />
           </linearGradient>
 
           {/* 副線2: 最も低いopacity。文字の上を通る唯一の線なので、
               輪郭を主張させず奥行きだけを担う強さに抑える。 */}
           <linearGradient id="home-path-sub-2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.02" />
-            <stop offset="52%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.03" />
+            <stop offset="0%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.04" />
+            <stop offset="52%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.17" />
+            <stop offset="100%" stopColor="var(--home-path, var(--kt-color-action-primary))" stopOpacity="0.05" />
           </linearGradient>
         </defs>
 
@@ -160,7 +160,7 @@ export function HomeBackdrop() {
         <path
           d={SUB_PATH_2}
           stroke="url(#home-path-sub-2)"
-          strokeWidth="0.6"
+          strokeWidth="0.8"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
         />
