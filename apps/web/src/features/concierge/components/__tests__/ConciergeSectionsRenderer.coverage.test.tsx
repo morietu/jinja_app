@@ -100,8 +100,8 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     const payload = buildTestPayload(u, { ...baseFilterState, extraCondition: "駅近" });
     render(<ConciergeSectionsRenderer payload={payload} threadId={1} onAction={onAction} isEntryRoute={false} />);
 
-    // Quick preset chips / apply / back-to-entry now live only in the open state --
-    // moved there, not removed (see the next test).
+    // apply / back-to-entry / 参拝Preference presetは開いた状態にのみ存在する
+    // （次のテスト参照）。短縮ラベルの独立Quick Presetはどちらの状態でも持たない。
     expect(screen.queryByRole("button", { name: "静か" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "入口に戻る" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "この内容で反映する" })).not.toBeInTheDocument();
@@ -135,13 +135,11 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     fireEvent.click(screen.getByRole("button", { name: "この内容に反映する" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_apply" });
 
-    // Quick presets moved here from the collapsed state (docs/product/
-    // recommendation-result-information-architecture.md §15 PR1).
-    fireEvent.click(screen.getByRole("button", { name: "駅近" }));
-    expect(onAction).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "filter_set_visit_preferences", visitPreferences: ["nearby"] }),
-    );
-
+    // 参拝PreferenceのStructured Signalは上の「静かな時間を過ごしたい」= 正本
+    // ConciergeFilterPanel のPresetが担う。Renderer側の独立Quick Preset
+    // （短縮ラベル「駅近」等）は廃止したためここでは操作しない。
+    // canonical tagの送出内容自体は ConciergeFilterPanel.visitPreference.test.tsx
+    // が網羅しているため重複させない。
     fireEvent.click(screen.getByRole("button", { name: "入口に戻る" }));
     expect(onAction).toHaveBeenCalledWith({ type: "back_to_entry" });
   });
