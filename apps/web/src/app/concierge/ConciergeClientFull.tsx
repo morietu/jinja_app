@@ -1018,7 +1018,7 @@ export default function ConciergeClientFull() {
     ],
   );
 
-  const useCurrentLocation = useCallback(() => {
+  const handleCurrentLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setLocationError("このブラウザでは現在地を取得できません。");
       return;
@@ -1704,7 +1704,7 @@ export default function ConciergeClientFull() {
         return;
 
       case "filter_use_current_location":
-        useCurrentLocation();
+        handleCurrentLocation();
         return;
 
       case "filter_clear":
