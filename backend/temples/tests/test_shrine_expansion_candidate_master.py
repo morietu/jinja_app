@@ -51,6 +51,98 @@ EXPECTED_W0_DB01_MEMBERS = {
     "榴岡天満宮",
 }
 
+REQUIRED_W0_DB01_HYDRATION_FIELDS = {
+    "official_name",
+    "official_address",
+    "official_source_type",
+    "official_source_url",
+    "verified_at",
+    "latitude",
+    "longitude",
+    "goriyaku",
+    "goriyaku_tags",
+}
+
+EXPECTED_W0_DB01_HYDRATION = {
+    "三輪神社": {
+        "official_name": "三輪神社",
+        "official_address": "愛知県名古屋市中区大須3-9-32",
+        "official_source_type": "shrine_official",
+        "official_source_url": "https://miwajinnjya.com/guide/miwa-yuisyo/",
+        "verified_at": "2026-09-12",
+        "latitude": 35.1608797,
+        "longitude": 136.9054313,
+        "goriyaku": "厄除祈願",
+        "goriyaku_tags": ["厄除け"],
+    },
+    "大鳥大社": {
+        "official_name": "大鳥大社",
+        "official_address": "大阪府堺市西区鳳北町1-1-2",
+        "official_source_type": "shrine_official",
+        "official_source_url": "https://www.ootoritaisha.jp/taisha/",
+        "verified_at": "2026-09-12",
+        "latitude": 34.5367778,
+        "longitude": 135.4608611,
+        "goriyaku": "家内安全・厄除祈願・安産祈願・必勝祈願・合格祈願・商売繁盛",
+        "goriyaku_tags": [
+            "家内安全",
+            "厄除け",
+            "安産",
+            "勝運",
+            "合格祈願",
+            "商売繁盛",
+        ],
+    },
+    "御岩神社": {
+        "official_name": "御岩神社",
+        "official_address": "茨城県日立市入四間町752",
+        "official_source_type": "shrine_official",
+        "official_source_url": "https://www.oiwajinja.jp/jinjasyoukai.html",
+        "verified_at": "2026-09-12",
+        "latitude": 36.63604985,
+        "longitude": 140.58558306,
+        "goriyaku": "安産祈願・家内安全・厄除開運・病気平癒・商売繁昌・良縁成就",
+        "goriyaku_tags": [
+            "安産",
+            "家内安全",
+            "厄除け",
+            "開運",
+            "病気平癒",
+            "商売繁盛",
+            "縁結び",
+        ],
+    },
+    "烏森神社": {
+        "official_name": "烏森神社",
+        "official_address": "東京都港区新橋2-15-5",
+        "official_source_type": "shrine_official",
+        "official_source_url": "https://karasumorijinja.or.jp/烏森神社について",
+        "verified_at": "2026-09-12",
+        "latitude": 35.666443,
+        "longitude": 139.756134,
+        "goriyaku": "商売繁盛・技芸上達・家内安全・必勝祈願の成就",
+        "goriyaku_tags": ["商売繁盛", "技芸上達", "家内安全", "勝運"],
+    },
+    "榴岡天満宮": {
+        "official_name": "榴岡天満宮",
+        "official_address": "宮城県仙台市宮城野区榴ケ岡105-3",
+        "official_source_type": "shrine_official",
+        "official_source_url": "https://tsutsujigaokatenmangu.jp/about/",
+        "verified_at": "2026-09-12",
+        "latitude": 38.260624,
+        "longitude": 140.893021,
+        "goriyaku": "合格成就・学業上達・厄祓い・安産祈願・交通安全・商売繁盛",
+        "goriyaku_tags": [
+            "合格祈願",
+            "学業成就",
+            "厄除け",
+            "安産",
+            "交通安全",
+            "商売繁盛",
+        ],
+    },
+}
+
 
 def _load_master() -> dict:
     return json.loads(MASTER_PATH.read_text(encoding="utf-8"))
@@ -122,6 +214,32 @@ def test_wave0_db01_member_set_is_frozen():
     )
 
 
+def test_wave0_db01_candidates_are_hydrated_from_frozen_source_packet():
+    master = _load_master()
+    rows = {
+        row["candidate_name"]: row
+        for row in master["candidates"]
+        if row["build_batch"] == "W0-DB01"
+    }
+
+    assert set(rows) == EXPECTED_W0_DB01_MEMBERS
+
+    for name, expected in EXPECTED_W0_DB01_HYDRATION.items():
+        row = rows[name]
+        effective = _effective(master, row)
+
+        assert REQUIRED_W0_DB01_HYDRATION_FIELDS <= row.keys()
+        assert effective["identity_status"] == "CONFIRMED"
+        assert effective["official_source_status"] == "CONFIRMED"
+        assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
+        assert row["candidate_status"] == "BUILD_READY"
+        assert row["status_reason_code"] == "WAVE0_CORE_READY_CANDIDATE"
+        assert row["duplicate_status"] == "NEW"
+
+        for field, expected_value in expected.items():
+            assert row[field] == expected_value
+
+
 def test_wave0_hold_and_review_candidates_stay_separated():
     candidates = _load_master()["candidates"]
 
@@ -162,11 +280,16 @@ def test_wave0_duplicate_and_availability_states_match_completed_audits():
 
     for row in candidates:
         effective = _effective(master, row)
-        assert effective["identity_status"] == "UNREVIEWED"
-        if row["candidate_status"] == "REVIEW":
+        if row["build_batch"] == "W0-DB01":
+            assert effective["identity_status"] == "CONFIRMED"
+            assert effective["official_source_status"] == "CONFIRMED"
+            assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
+        elif row["candidate_status"] == "REVIEW":
+            assert effective["identity_status"] == "UNREVIEWED"
             assert effective["official_source_status"] == "UNREVIEWED"
             assert effective["knowledge_status"] == "UNREVIEWED"
         else:
+            assert effective["identity_status"] == "UNREVIEWED"
             assert effective["official_source_status"] == "AVAILABLE"
             assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
 
