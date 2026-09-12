@@ -21,7 +21,17 @@
   維持する。`prefecture` は住所から導出するderived valueとして検証・集計
   のみに使い、Seedへは書き出さない。
 * Knowledge / GoriyakuTag / Recommendation / visit_style_tags の意味内容は
-  変更しない。
+  変更しない。builderは既存の `visit_style_tags` の値を書き換えず、
+  新規Shrineへタグを推測・自動生成もしない。
+* `visit_style_tags` は **optional key** である。Importer / Sync と同じ
+  managed / unmanaged 契約をここでも強制する:
+
+      key なし          = unmanaged / 未レビュー（合法）
+      key あり + 1〜3件  = managed / canonical
+      key あり + []      = invalid（VISIT_STYLE_INVALID gate失敗 →
+                            BASE_SEED_BUILD=FAILED / exit 1 で書き込まない）
+
+  canonical taxonomy 外・legacy・request-only・重複タグはいずれもinvalid。
 
 Usage:
     python scripts/build_base_shrine_seed.py            # build + write
@@ -60,7 +70,14 @@ CANONICAL_KEY_ORDER: tuple[str, ...] = (
     "location",
 )
 EXPECTED_KEYS = frozenset(CANONICAL_KEY_ORDER)
-REQUIRED_SEED_KEYS = frozenset(key for key in CANONICAL_KEY_ORDER if key != "goriyaku_tags")
+
+# `visit_style_tags` はoptional。key なし = 未レビュー / unmanaged であり、
+# Base Seedへ新規Shrineを追加するとき合法な状態である。builderはその行へ
+# キーを補わない（空listを足すとImporter側で「レビュー済みタグ0件」と
+# 区別できなくなる）。
+OPTIONAL_KEYS = frozenset({"goriyaku_tags", "visit_style_tags"})
+REQUIRED_SCHEMA_KEYS = EXPECTED_KEYS - OPTIONAL_KEYS
+
 
 # `location` object内のcanonical key順。
 CANONICAL_LOCATION_KEY_ORDER: tuple[str, ...] = ("lat", "lng")
@@ -88,6 +105,33 @@ PREFECTURES: tuple[str, ...] = (
     "沖縄県",
 )
 
+# Canonical Shrine Visit Style taxonomy。
+# `temples.management.commands.sync_visit_style_tags_from_seed` が正本だが、
+# 本builderはPREFECTURESと同じ理由（Django settings非依存で動かす）により
+# importせずローカルに保持する。両者が一致することは
+# `test_base_shrine_seed_build_contract.py` のdrift testが固定する。
+ALLOWED_VISIT_STYLE_TAGS = frozenset(
+    {
+        "quiet",
+        "less_crowded",
+        "nature",
+        "reset",
+        "classic",
+        "business",
+        "study",
+        "urban",
+    }
+)
+
+# `nearby` は訪問者の現在地に対する相対条件であり、Shrineの固定属性ではない。
+REQUEST_ONLY_TAGS = frozenset({"nearby"})
+
+# canonical Seedへ二度と現れてはならない旧ラベル。
+FORBIDDEN_LEGACY_TAGS = frozenset({"love", "formal", "tourism"})
+
+MIN_TAGS_PER_SHRINE = 1
+MAX_TAGS_PER_SHRINE = 3
+
 # docs/audit/shrine-geographic-knowledge-coverage.md が記録するGoogle Maps形式
 # address 2件の既知例外。prefecture導出時にのみ前置部を読み飛ばす。
 # addressの永続値は書き換えない。
@@ -107,6 +151,55 @@ def derive_prefecture(address: str) -> str | None:
     return None
 
 
+def validate_visit_style_tags(row: dict[str, Any], label: str) -> list[str]:
+    """1行分の `visit_style_tags` を検証し、違反の一覧を返す。
+
+    key が無い行（unmanaged / 未レビュー）は違反ゼロで返す。値は読むだけで、
+    書き換えも補完もしない。
+    """
+    if "visit_style_tags" not in row:
+        return []
+
+    tags = row["visit_style_tags"]
+    if not isinstance(tags, list):
+        return [f"{label}: visit_style_tags must be a list"]
+
+    if not tags:
+        # key があるのに空 = 「レビュー済みでタグ0件」は認めない。
+        # 未レビューを表したいなら key ごと省く。
+        return [
+            f"{label}: visit_style_tags is present but empty; "
+            "omit the key entirely for an unreviewed Shrine"
+        ]
+
+    violations: list[str] = []
+    if not MIN_TAGS_PER_SHRINE <= len(tags) <= MAX_TAGS_PER_SHRINE:
+        violations.append(
+            f"{label}: visit_style_tags cardinality must be "
+            f"{MIN_TAGS_PER_SHRINE}-{MAX_TAGS_PER_SHRINE}, got {len(tags)}"
+        )
+
+    seen: set[str] = set()
+    for tag in tags:
+        if not isinstance(tag, str) or not tag.strip():
+            violations.append(f"{label}: blank or non-string tag {tag!r}")
+            continue
+        if tag in seen:
+            violations.append(f"{label}: duplicate tag {tag!r}")
+        seen.add(tag)
+
+        if tag in REQUEST_ONLY_TAGS:
+            violations.append(
+                f"{label}: {tag!r} is request-only and must not be a Shrine attribute"
+            )
+        elif tag in FORBIDDEN_LEGACY_TAGS:
+            violations.append(f"{label}: {tag!r} is a forbidden legacy label")
+        elif tag not in ALLOWED_VISIT_STYLE_TAGS:
+            violations.append(f"{label}: {tag!r} is outside the allowed taxonomy")
+
+    return violations
+
+
 def load_source(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         raise BuildError(f"source file not found: {path}")
@@ -121,7 +214,12 @@ def load_source(path: Path) -> list[dict[str, Any]]:
 
 
 def canonicalize_row(row: dict[str, Any]) -> dict[str, Any]:
-    """key順だけを固定する。値は一切変換しない。"""
+    """key順だけを固定する。値は一切変換しない。
+
+    optional key（goriyaku_tags / visit_style_tags）が無い行にはkeyを補わない。
+    特に visit_style_tags keyなしは未レビュー / unmanaged を意味するため、
+    空listを補完しない。
+    """
     canonical = {key: row[key] for key in CANONICAL_KEY_ORDER if key in row}
 
     location = canonical.get("location")
@@ -157,12 +255,15 @@ def validate(source_rows: list[dict[str, Any]], built_rows: list[dict[str, Any]]
     schema_violations: list[str] = []
     missing_required: list[str] = []
     untrimmed_identity: list[str] = []
+    visit_style_violations: list[str] = []
+    managed_visit_style_rows = 0
+    unmanaged_visit_style_rows = 0
 
     for index, row in enumerate(source_rows):
         label = str(row.get("name_jp") or f"<row {index}>")
 
         unexpected = sorted(set(row) - EXPECTED_KEYS)
-        absent = sorted(REQUIRED_SEED_KEYS - set(row))
+        absent = sorted(REQUIRED_SCHEMA_KEYS - set(row))
         if unexpected:
             schema_violations.append(f"{label}: unexpected keys {unexpected}")
         if absent:
@@ -172,6 +273,12 @@ def validate(source_rows: list[dict[str, Any]], built_rows: list[dict[str, Any]]
             value = row.get(key)
             if not isinstance(value, str) or not value.strip():
                 missing_required.append(f"{label}: required field {key!r} is missing or empty")
+
+        if "visit_style_tags" in row:
+            managed_visit_style_rows += 1
+        else:
+            unmanaged_visit_style_rows += 1
+        visit_style_violations.extend(validate_visit_style_tags(row, label))
 
         # trimはvalidation用途のみ。値の書き換えには使わない。
         for key in IDENTITY_KEYS:
@@ -228,6 +335,9 @@ def validate(source_rows: list[dict[str, Any]], built_rows: list[dict[str, Any]]
         "identity_mutations": identity_mutations,
         "schema_violations": schema_violations,
         "untrimmed_identity": untrimmed_identity,
+        "visit_style_violations": visit_style_violations,
+        "managed_visit_style_rows": managed_visit_style_rows,
+        "unmanaged_visit_style_rows": unmanaged_visit_style_rows,
         "prefecture_counts": prefecture_counts,
         "prefecture_unresolved": prefecture_unresolved,
     }
@@ -247,6 +357,9 @@ def report(result: dict[str, Any], sha256: str, stream=sys.stdout) -> None:
     emit(f"SCHEMA_UNEXPECTED_CHANGE={len(result['schema_violations'])}")
     emit(f"PREFECTURE_UNRESOLVED={len(result['prefecture_unresolved'])}")
     emit(f"ID_FIELD_ROWS={result['id_field_rows']}")
+    emit(f"VISIT_STYLE_MANAGED={result['managed_visit_style_rows']}")
+    emit(f"VISIT_STYLE_UNMANAGED={result['unmanaged_visit_style_rows']}")
+    emit(f"VISIT_STYLE_INVALID={len(result['visit_style_violations'])}")
 
     for key, label in (
         ("duplicate_identity", "DUPLICATE_IDENTITY"),
@@ -255,6 +368,7 @@ def report(result: dict[str, Any], sha256: str, stream=sys.stdout) -> None:
         ("identity_mutations", "IDENTITY_MUTATION"),
         ("schema_violations", "SCHEMA_UNEXPECTED_CHANGE"),
         ("untrimmed_identity", "UNTRIMMED_IDENTITY"),
+        ("visit_style_violations", "VISIT_STYLE_INVALID"),
         ("prefecture_unresolved", "PREFECTURE_UNRESOLVED"),
     ):
         for detail in result[key]:
@@ -281,6 +395,8 @@ def gate_failures(result: dict[str, Any]) -> list[str]:
         failures.append("SCHEMA_UNEXPECTED_CHANGE != 0")
     if result["untrimmed_identity"]:
         failures.append("UNTRIMMED_IDENTITY != 0")
+    if result["visit_style_violations"]:
+        failures.append("VISIT_STYLE_INVALID != 0")
     if result["prefecture_unresolved"]:
         failures.append("PREFECTURE_UNRESOLVED != 0")
     return failures

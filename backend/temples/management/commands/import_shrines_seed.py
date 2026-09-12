@@ -5,10 +5,78 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from temples.management.commands.sync_visit_style_tags_from_seed import (
+    ALLOWED_VISIT_STYLE_TAGS,
+    FORBIDDEN_LEGACY_TAGS,
+    MAX_TAGS_PER_SHRINE,
+    MIN_TAGS_PER_SHRINE,
+    REQUEST_ONLY_TAGS,
+)
 from temples.models import GoriyakuTag, Shrine
 
 
 CANONICAL_GORIYAKU_TAG_IDS = tuple(range(1, 40))
+
+
+def _parse_visit_style_tags(data: list[dict]) -> dict[int, list[str]]:
+    """`visit_style_tags` key を持つ行だけを managed として検証して返す。
+
+    Visit Style の管理契約:
+
+    * key **なし** = 未レビュー / unmanaged。CREATE では model default を使い、
+      UPDATE では既存 DB 値を一切変更しない。ここでは戻り値に含めない。
+    * key **あり** = canonical 管理対象。1〜3 件の canonical tag を必須とする。
+      `[]` は「レビュー済みでタグ 0 件」を意味しないため invalid として
+      fail closed にする（未レビューを表したいなら key ごと省く）。
+
+    taxonomy 定数は `sync_visit_style_tags_from_seed` を単一の正本として
+    再利用する（複製すると 2 箇所で drift する）。
+    """
+    managed: dict[int, list[str]] = {}
+
+    for index, row in enumerate(data):
+        name = str(row.get("name_jp") or "").strip()
+        address = str(row.get("address") or "").strip()
+        if not name or not address or "visit_style_tags" not in row:
+            continue
+
+        raw = row["visit_style_tags"]
+        if not isinstance(raw, list):
+            raise CommandError(f"{name}: visit_style_tags must be a list")
+
+        if not MIN_TAGS_PER_SHRINE <= len(raw) <= MAX_TAGS_PER_SHRINE:
+            raise CommandError(
+                f"{name}: visit_style_tags cardinality must be "
+                f"{MIN_TAGS_PER_SHRINE}-{MAX_TAGS_PER_SHRINE}, got {len(raw)} "
+                "(omit the key entirely for an unreviewed Shrine)"
+            )
+
+        tags: list[str] = []
+        seen: set[str] = set()
+        for value in raw:
+            if not isinstance(value, str) or not value.strip():
+                raise CommandError(
+                    f"{name}: visit_style_tags must contain non-empty strings only"
+                )
+            if value in seen:
+                raise CommandError(f"{name}: duplicate visit_style_tags entry {value!r}")
+            seen.add(value)
+
+            if value in REQUEST_ONLY_TAGS:
+                raise CommandError(
+                    f"{name}: {value!r} is request-only and must not be a Shrine attribute"
+                )
+            if value in FORBIDDEN_LEGACY_TAGS:
+                raise CommandError(f"{name}: {value!r} is a forbidden legacy label")
+            if value not in ALLOWED_VISIT_STYLE_TAGS:
+                raise CommandError(
+                    f"{name}: {value!r} is outside the allowed Visit Style taxonomy"
+                )
+            tags.append(value)
+
+        managed[index] = tags
+
+    return managed
 
 
 def _parse_explicit_goriyaku_tags(data: list[dict]) -> dict[int, list[str]]:
@@ -120,6 +188,8 @@ class Command(BaseCommand):
         # than carried into the later activation pass. Only canonical master
         # resolution and M2M writes are deferred.
         explicit_tags = _parse_explicit_goriyaku_tags(data)
+        # Visit Style も transaction に入る前に全行を検証する（fail closed）。
+        managed_visit_style = _parse_visit_style_tags(data)
         if skip_goriyaku_tags:
             requested_names: set[str] = set()
             canonical_tags: dict[str, GoriyakuTag] = {}
@@ -174,12 +244,16 @@ class Command(BaseCommand):
                     "goriyaku": row.get("goriyaku") or "",
                     "kyusei": row.get("kyusei"),
                     "astro_elements": row.get("astro_elements") or [],
-                    "visit_style_tags": row.get("visit_style_tags") or [],
                     "name_romaji": row.get("name_romaji"),
                     "sajin": row.get("sajin") or "",
                     "description": row.get("description"),
                     "element": row.get("element"),
                 }
+
+                # `visit_style_tags` は key がある行だけ payload に載せる。
+                # key なし行は CREATE で model default、UPDATE で既存値保持になる。
+                if index in managed_visit_style:
+                    payload["visit_style_tags"] = list(managed_visit_style[index])
 
                 if use_gis and lat is not None and lng is not None:
                     from django.contrib.gis.geos import Point
