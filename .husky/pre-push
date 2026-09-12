@@ -1,6 +1,6 @@
 #!/bin/sh
 # Husky v10-ready, local-only contract checks
-set -euo pipefail
+set -eu
 
 # CI環境ではスキップ（GitHub Actions 等）
 if [ "${CI:-}" = "true" ]; then
