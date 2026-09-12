@@ -1,24 +1,29 @@
 """Weekly Presentation Snapshot persistence service.
 
-`lookup` と `create` を別責務として分離する。この module は request object に
-依存しない（Owner解決＝cookie/認証からuser/anonymous_idを取り出す処理は
-API層の責務であり、このPRの対象外）。
+`lookup` / `create` / `race recovery` を別責務として分離する。この module は
+request object に依存しない（Owner解決＝cookie/認証からuser/anonymous_idを
+取り出す処理はAPI層の責務）。
 
 責務境界:
     Model（temples.models_weekly_presentation）      -> 何を保存できるか
     Selection（temples.domain.weekly_presentation ほか）-> 何を選ぶか
-    このmodule                                        -> 既存Snapshotを引く / 確定結果を保存する
+    このmodule                                        -> 既存Snapshotを引く / 確定結果を保存する / 同時createを収束させる
 
 Selection algorithm も API View もここへ持ち込まない。
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any, Mapping, Optional, Sequence
 
+from django.db import IntegrityError, transaction
+
 from temples.domain.weekly_presentation import WEEKLY_PRESENTATION_VERSION
 from temples.models_weekly_presentation import WeeklyPresentationSnapshot
+
+log = logging.getLogger(__name__)
 
 
 def _resolve_owner_filters(
@@ -99,7 +104,65 @@ def create_weekly_snapshot(
     )
 
 
+def get_or_create_weekly_snapshot(
+    *,
+    user: Any = None,
+    anonymous_id: Optional[str] = None,
+    week_start: date,
+    purpose: str,
+    direction_fingerprint: str,
+    weekly_theme: Mapping[str, Any],
+    featured_shrine_ids: Sequence[int],
+    presentation_version: str = WEEKLY_PRESENTATION_VERSION,
+) -> tuple[WeeklyPresentationSnapshot, bool]:
+    """Snapshotをrace-safeに確定し、`(snapshot, created)` を返す。
+
+    同一Ownerの初回requestが同時に届いた場合（どちらもlookupがMISS）、両方が
+    createへ進む。最終Authorityは DB の conditional UniqueConstraint
+    （`uq_weekly_presentation_snapshot_user` /
+    `uq_weekly_presentation_snapshot_anonymous`）であり、衝突した側は
+    **自分が生成した結果を返さず**、勝者が保存したSnapshotを読み直して返す。
+    これにより、競合した2requestが別々のPresentationを返すことがなくなる。
+
+    transaction scope は create の1文だけへ狭く限定する（savepointを張るため
+    のもので、Recommendation計算やShrine hydrationは決して含めない）。
+    IntegrityError は呼び出し側のatomic blockを壊すため、内側のsavepointで
+    受け止める必要がある。
+
+    再lookupでも見つからないIntegrityErrorは unique 衝突ではない別の制約違反
+    （例: Owner XOR違反）なので、飲み込まずそのまま送出する。
+    """
+    lookup_kwargs = dict(
+        user=user,
+        anonymous_id=anonymous_id,
+        week_start=week_start,
+        purpose=purpose,
+        direction_fingerprint=direction_fingerprint,
+        presentation_version=presentation_version,
+    )
+
+    existing = get_existing_weekly_snapshot(**lookup_kwargs)
+    if existing is not None:
+        return existing, False
+
+    try:
+        with transaction.atomic():
+            created = create_weekly_snapshot(
+                weekly_theme=weekly_theme,
+                featured_shrine_ids=featured_shrine_ids,
+                **lookup_kwargs,
+            )
+        return created, True
+    except IntegrityError:
+        winner = get_existing_weekly_snapshot(**lookup_kwargs)
+        if winner is None:
+            raise
+        log.info("[weekly_snapshot] create_race_recovered week_start=%s purpose=%s", week_start, purpose)
+        return winner, False
+
+
 __all__ = [
     "get_existing_weekly_snapshot",
     "create_weekly_snapshot",
+    "get_or_create_weekly_snapshot",
 ]
