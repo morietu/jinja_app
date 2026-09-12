@@ -141,7 +141,16 @@ class CompassWeeklyView(APIView):
 
         # Anonymous cookieは既存Authorityへ委譲する。cookie name / salt /
         # max age / SameSite / Secure / HttpOnly をWeekly側で再定義しない。
-        if plan_context.plan == PLAN_ANONYMOUS and plan_context.anon_id:
+        #
+        # 発行するかどうかの判断も `PlanContext.should_set_anon_cookie`
+        # （= requestに既存cookieが無かったという事実）へ委譲する。既にcookieを
+        # 持っているOwnerへ毎回Set-Cookieを返さない -- 同じanonymous Ownerを
+        # 再利用するだけで、cookieの再発行は不要である。
+        if (
+            plan_context.plan == PLAN_ANONYMOUS
+            and plan_context.anon_id
+            and plan_context.should_set_anon_cookie
+        ):
             attach_anonymous_cookie(response, plan_context.anon_id)
             log.info("[compass/weekly] anonymous_cookie_attached rid=%s", rid)
 

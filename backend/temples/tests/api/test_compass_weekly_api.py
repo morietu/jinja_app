@@ -211,6 +211,39 @@ def test_anonymous_request_without_cookie_sets_existing_concierge_anon_cookie(cl
     assert cookie["path"] == "/"
 
 
+def test_second_request_with_an_existing_cookie_does_not_reissue_it(client, northwest_shrines):
+    """既にcookieを持つOwnerへは Set-Cookie を返さない。
+
+    発行判断は `PlanContext.should_set_anon_cookie`（requestに既存cookieが
+    無かったという事実）がAuthority。同じanonymous Ownerを再利用するだけで、
+    cookieの再発行は不要である。
+    """
+    first = _post_on(client, REFERENCE_DATE)
+    assert ANONYMOUS_ID_COOKIE_NAME in first.cookies
+    issued_value = client.cookies[ANONYMOUS_ID_COOKIE_NAME].value
+    assert issued_value
+
+    second = _post_on(client, REFERENCE_DATE)
+
+    assert second.status_code == 200
+    # 2回目のresponseは Set-Cookie を含まない（clientが持つcookieは保持される）。
+    assert ANONYMOUS_ID_COOKIE_NAME not in second.cookies
+    assert client.cookies[ANONYMOUS_ID_COOKIE_NAME].value == issued_value
+    # Ownerが同一なのでSnapshotはHITし、新規作成されない。
+    assert WeeklyPresentationSnapshot.objects.count() == 1
+    assert second.json()["weekly_theme"] == first.json()["weekly_theme"]
+
+
+def test_cookie_is_reissued_when_the_client_lost_it(client, northwest_shrines):
+    """cookieを失ったclientには再びSet-Cookieを返す（新しいOwnerとして発行）。"""
+    _post_on(client, REFERENCE_DATE)
+    client.cookies.clear()
+
+    response = _post_on(client, REFERENCE_DATE)
+
+    assert ANONYMOUS_ID_COOKIE_NAME in response.cookies
+
+
 def test_same_anonymous_cookie_hits_the_same_snapshot(client, northwest_shrines):
     first = _post_on(client, REFERENCE_DATE)
     assert first.status_code == 200
