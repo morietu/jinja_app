@@ -24,8 +24,8 @@ export type ConciergeFilterState = {
   // Level 3-C Recommendation Context. These remain optional during the staged
   // PR3 wiring so the branch stays type-safe until ConciergeClientFull starts
   // projecting the existing source-of-truth state into this FilterState.
-  plannedVisitDate?: string;
-  userOrigin?: UserOrigin | null;
+  plannedVisitDate: string;
+  userOrigin: UserOrigin | null;
 };
 
 /* =========================
@@ -161,5 +161,8 @@ export type RendererAction =
   | { type: "filter_toggle_tag"; tagId: number }
   | { type: "filter_set_extra"; extraCondition: string }
   | { type: "filter_set_visit_preferences"; visitPreferences: string[] }
+  | { type: "filter_set_visit_date"; plannedVisitDate: string }
+  | { type: "filter_set_origin"; userOrigin: UserOrigin | null }
+  | { type: "filter_use_current_location" }
   | { type: "filter_clear" }
   | { type: "save_concierge_thread" };

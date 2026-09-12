@@ -36,6 +36,8 @@ const baseFilterState: any = {
   tagsError: null,
   extraCondition: "",
   visitPreferences: [],
+  plannedVisitDate: "",
+  userOrigin: null,
 };
 
 function buildTestPayload(u: any, filterState = baseFilterState) {
@@ -80,7 +82,9 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     fireEvent.click(openMap);
     fireEvent.click(widen);
 
-    expect(screen.getByText("条件に合う神社が少ないため、まずは向かいやすい神社から表示しています。")).toBeInTheDocument();
+    expect(
+      screen.getByText("条件に合う神社が少ないため、まずは向かいやすい神社から表示しています。"),
+    ).toBeInTheDocument();
   });
 
   it("appliedLabelが表示され、クリアボタンがfilter_clearを発火する", () => {
@@ -114,7 +118,9 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     const onAction = vi.fn();
     const u: any = { data: { recommendations: [heroRec] }, thread: { id: 1 } };
     const payload = buildTestPayload(u, { ...baseFilterState, isOpen: true, extraCondition: "静か" });
-    render(<ConciergeSectionsRenderer payload={payload} threadId={1} onAction={onAction} isEntryRoute={false} />);
+    render(
+      <ConciergeSectionsRenderer payload={payload} threadId={1} onAction={onAction} isEntryRoute={false} canApply />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "健康" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_toggle_tag", tagId: 1 });
@@ -128,9 +134,7 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     expect(onAction).toHaveBeenCalledWith({ type: "filter_close" });
 
     fireEvent.click(screen.getByRole("button", { name: "静かな時間を過ごしたい" }));
-    expect(onAction).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "filter_set_extra" }),
-    );
+    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ type: "filter_set_extra" }));
 
     fireEvent.click(screen.getByRole("button", { name: "この内容に反映する" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_apply" });

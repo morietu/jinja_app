@@ -33,6 +33,8 @@ const baseFilterState: any = {
   tagsError: null,
   extraCondition: "",
   visitPreferences: [],
+  plannedVisitDate: "",
+  userOrigin: null,
 };
 
 const heroRec = {

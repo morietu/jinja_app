@@ -88,17 +88,17 @@ const INITIAL_VISIBLE_GORIYAKU_COUNT = 4;
 // natural-language-only (no Shrine-side capability to evaluate it, Task 13
 // Shrine Data Capability Check: Hold).
 const PRESET_VISIT_PREFERENCE_TAGS: Readonly<Record<string, readonly string[]>> = {
-  "静かな時間を過ごしたい": ["quiet"],
-  "気分を切り替えたい": ["reset"],
-  "自然を感じたい": ["nature"],
-  "歴史や文化に触れたい": ["classic"],
-  "近場がいい": ["nearby"],
-  "アクセスしやすい場所がいい": ["nearby"],
-  "有名な神社が安心": ["classic"],
-  "人混みを避けたい": ["less_crowded"],
-  "由緒を知りたい": ["classic"],
-  "神話に触れたい": ["classic"],
-  "境内をゆっくり歩きたい": ["quiet", "nature"],
+  静かな時間を過ごしたい: ["quiet"],
+  気分を切り替えたい: ["reset"],
+  自然を感じたい: ["nature"],
+  歴史や文化に触れたい: ["classic"],
+  近場がいい: ["nearby"],
+  アクセスしやすい場所がいい: ["nearby"],
+  有名な神社が安心: ["classic"],
+  人混みを避けたい: ["less_crowded"],
+  由緒を知りたい: ["classic"],
+  神話に触れたい: ["classic"],
+  境内をゆっくり歩きたい: ["quiet", "nature"],
 };
 
 function mergeExtra(prev: string, add: string) {
@@ -170,7 +170,8 @@ export default function ConciergeFilterPanel({
 
         {element4 ? (
           <div className="text-[11px] text-[var(--kt-color-text-muted)]">
-            誕生日から見た補助傾向: <span className="font-semibold text-[var(--kt-color-text-secondary)]">{element4}</span>
+            誕生日から見た補助傾向:{" "}
+            <span className="font-semibold text-[var(--kt-color-text-secondary)]">{element4}</span>
           </div>
         ) : null}
 
@@ -245,7 +246,10 @@ export default function ConciergeFilterPanel({
           not a "おすすめテーマ"/Personal Profile. Kept distinct from L2
           (参拝スタイル) and L3-A (誕生日) above (Task 7). */}
       {tagsLoading || tagsError || visibleGoriyakuTags.length > 0 || hiddenGoriyakuCount > 0 ? (
-        <section aria-label="ご利益を指定する" className="space-y-1 rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-2">
+        <section
+          aria-label="ご利益を指定する"
+          className="space-y-1 rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-2"
+        >
           <div>
             <div className="text-[10px] font-semibold text-[var(--kt-color-text-secondary)]">ご利益を指定する</div>
             <p className="mt-0.5 text-[10px] leading-4 text-[var(--kt-color-text-muted)]">
@@ -299,8 +303,7 @@ export default function ConciergeFilterPanel({
           onClick={() => {
             onApply();
           }}
-          disabled={false}
-          style={{ pointerEvents: "auto" }}
+          disabled={!canApply}
           className={[
             "relative z-20 rounded-xl px-3 py-1.5 text-sm font-semibold transition",
             canApply
