@@ -106,6 +106,13 @@ def _artifact_rows():
     )
 
 
+def django_user_model_has_operator():
+    """PRE の owner_id が指す operator user が存在するか（test 用 helper）。"""
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.filter(pk=SHRINE_PRE["owner_id"]).exists()
+
+
 def _assert_nothing_deleted():
     assert _artifact_rows() == (1, len(LOG_IDS))
 
@@ -427,6 +434,82 @@ def test_forward_then_reverse_round_trips_to_the_pre_state(full_pre):
     # 復元後は forward が再び成立する（PRE と exact 一致している証明）。
     forward(APPS, SE)
     assert _artifact_rows() == (0, 0)
+
+
+def test_reverse_is_a_clean_no_op_on_a_fresh_lineage(db):
+    """fresh lineage（forward が no-op だった状態）では reverse も no-op。
+
+    operator user が存在しないため、従来の reverse は
+    `owner_id=1` の FK violation で落ちていた（GIS migration chain の
+    rollback が実際にこれで失敗した）。
+    """
+    assert not django_user_model_has_operator()
+    assert _artifact_rows() == (0, 0)
+
+    reverse(APPS, SE)
+
+    assert _artifact_rows() == (0, 0)
+    assert not ShrineInteractionLog.objects.filter(pk__in=LOG_IDS).exists()
+
+
+def test_reverse_no_op_leaves_unrelated_fresh_rows_untouched(db):
+    """fresh 判定は artefact id 域より前の Shrine があっても成立する。"""
+    other = Shrine.objects.create(name_jp="無関係神社", address="東京都新宿区1-1")
+    assert other.id < ID
+
+    reverse(APPS, SE)
+
+    assert _artifact_rows() == (0, 0)
+    assert Shrine.objects.filter(pk=other.id).exists()
+
+
+def test_reverse_fails_closed_when_operator_user_is_absent_but_db_is_not_fresh(
+    db, django_user_model
+):
+    """非 fresh な DB で operator user が欠けていれば fail closed。
+
+    operator user の不在 "だけ" を根拠に no-op してしまうと、Production-like
+    な DB から user が消えた場合に復元を黙って飛ばすことになる。
+    """
+    # fresh ではない signal: InteractionLog が存在する
+    other = Shrine.objects.create(name_jp="別神社", address="東京都港区1-1")
+    user = django_user_model.objects.create(id=2, username="not-the-operator")
+    ShrineInteractionLog.objects.create(
+        user_id=user.id, shrine_id=other.id, action_type="detail_view",
+        source="shrine_detail", metadata={},
+    )
+    assert not django_user_model_has_operator()
+
+    with pytest.raises(PreconditionViolation):
+        reverse(APPS, SE)
+
+    assert _artifact_rows() == (0, 0)
+    assert not ShrineInteractionLog.objects.filter(pk__in=LOG_IDS).exists()
+
+
+def test_reverse_fails_closed_when_shrine_ids_reached_the_artifact_range(
+    db, django_user_model
+):
+    """artefact の id 域へ到達済みの DB は fresh と見なさない。"""
+    Shrine.objects.bulk_create(
+        [Shrine(id=ID + 1, name_jp="高id神社", address="東京都中央区1-1", location=None)]
+    )
+    assert not django_user_model_has_operator()
+
+    with pytest.raises(PreconditionViolation):
+        reverse(APPS, SE)
+
+    assert _artifact_rows() == (0, 0)
+
+
+def test_reverse_restores_when_operator_user_exists(full_pre):
+    """operator user が存在する Production-like state では従来どおり復元する。"""
+    forward(APPS, SE)
+    assert _artifact_rows() == (0, 0)
+
+    reverse(APPS, SE)
+
+    assert _artifact_rows() == (1, len(LOG_IDS))
 
 
 def test_reverse_stops_when_the_shrine_pk_is_reused(full_pre):
