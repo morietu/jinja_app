@@ -2,8 +2,8 @@
 >
 > 本ドキュメントは Concierge Filter の画面構成とUI責務を補足する Reference 文書である。
 >
-> Concierge First全体の責務は `docs/product/concierge-first-final-spec.md`、
-> 参拝スタイルの分類・表示文言は `docs/product/visit-style-taxonomy.md` を正本とする。
+> Concierge First全体の責務は `docs/product/concierge-first-final-spec.md`、参拝スタイルの分類・表示文言は
+> `docs/product/visit-style-taxonomy.md` を正本とする。
 
 # Concierge Filter Area Design
 
@@ -30,12 +30,13 @@ Concierge Filterは検索フォームではなく、ユーザーの相談内容�
 
 Concierge Filterは、以下の補助条件を扱う。
 
-| 条件 | 役割 |
-|---|---|
-| 誕生日 | 相性や傾向を補足する |
-| ご利益タグ | ユーザーの願いや関心を補足する |
-| 参拝スタイル | 望む参拝体験を補足する |
-| 自由補足 | その他の条件や希望を補足する |
+| 条件                 | 役割                                               |
+| -------------------- | -------------------------------------------------- |
+| 誕生日               | 相性や傾向を補足する                               |
+| ご利益タグ           | ユーザーの願いや関心を補足する                     |
+| 参拝スタイル         | 望む参拝体験を補足する                             |
+| 参拝予定日・出発地点 | 今回の参拝に必要なRecommendation Contextを補足する |
+| 自由補足             | その他の条件や希望を補足する                       |
 
 補助条件は相談内容を補完するために使用し、相談テーマや自由入力より優先しない。
 
@@ -45,15 +46,58 @@ Concierge Filterは、以下の補助条件を扱う。
 
 ```text
 Concierge Filter
+├─ 参拝スタイル
 ├─ 相性の参考
 │  └─ 誕生日
-├─ 参拝スタイル
 ├─ 願いごと・ご利益
-├─ 自由補足
+├─ 参拝の詳細（参拝予定日・出発地点）
 └─ 操作
-   ├─ キャンセル
-   └─ この内容に反映する
+    └─ Apply
 ```
+
+### Editor責務
+
+Personalizeは、閉じた状態と開いた状態で責務を分ける。
+
+- **CLOSED Personalize（outer）**: title、説明、条件を開く入口、設定済み条件のsummary、条件をクリアする操作を担当する。
+- **OPEN Personalize**: `ConciergeFilterPanel`がEditor全体を担当する。outer側でEditorのtitleやCloseを重複表示しない。
+- `ConciergeSectionsRenderer`はsectionsのorchestrationとaction
+  bridgeのみを担当し、Filter内容からEditorの可否を独自判定しない。
+
+Open Editorの正本順序は以下とする。
+
+1. Level 2 参拝の希望
+2. Level 3-A 誕生日
+3. Level 3-B ご利益
+4. Level 3-C 参拝の詳細
+5. Apply
+
+### Close / Apply contract
+
+CloseはEditorを閉じ、入力済み値を保持する。CloseだけではRecommendationを実行しない。Cancel buttonは存在せず、draft /
+rollback stateも持たない。
+
+Applyの表示と可否は以下のとおりとする。
+
+| Context | Label                |
+| ------- | -------------------- |
+| Entry   | この条件で提案を見る |
+| Result  | この条件で提案を更新 |
+
+Apply可能条件は、ClientFullが`buildConciergePayload().query`から作るexecutable
+queryの有無とbusy状態を正本とする。RendererやFilterPanelがfilter内容から再計算しない。
+
+- executable queryがあり、busyではない場合のみApply可
+- queryなし + 条件あり → Apply不可
+- queryあり + 条件なし → Apply可
+- queryあり + 条件あり → Apply可
+- queryあり + busy → Apply不可
+
+### Level 3-C Recommendation Context
+
+参拝予定日と出発地点は、ユーザー属性や候補のhard filterではなく、今回のRecommendation
+Contextとして扱う。入力UIは`ConciergeFilterPanel`内に配置し、 `locationError`はbusiness FilterStateではなくUI
+stateとする。
 
 ---
 
@@ -75,6 +119,8 @@ Concierge Filter
 - 誕生日あり
 - ご利益を選択済み
 - 参拝スタイルを設定済み
+- 参拝予定日あり
+- 出発地点あり
 - 自由補足あり
 
 [クリア]
@@ -157,13 +203,13 @@ Recommendation Input
 
 ## Concierge Entryとの責務境界
 
-| Concierge Entry | Concierge Filter |
-|---|---|
-| 相談テーマ | 誕生日 |
-| 自由入力 | ご利益タグ |
-| 相談内容の確認・修正 | 参拝スタイル |
-| 推薦生成CTA | 自由補足 |
-| 条件追加導線 | 補助条件の適用・解除 |
+| Concierge Entry      | Concierge Filter     |
+| -------------------- | -------------------- |
+| 相談テーマ           | 誕生日               |
+| 自由入力             | ご利益タグ           |
+| 相談内容の確認・修正 | 参拝スタイル         |
+| 推薦生成CTA          | 自由補足             |
+| 条件追加導線         | 補助条件の適用・解除 |
 
 Concierge Entryは相談の主入力を扱い、Concierge Filterは推薦を補完する条件を扱う。
 
