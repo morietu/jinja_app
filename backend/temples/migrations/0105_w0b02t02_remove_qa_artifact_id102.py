@@ -68,6 +68,21 @@ sequence
 --------
 pk を明示して復元するだけで、`ALTER SEQUENCE ... RESTART` 等の巻き戻しは
 一切行わない。
+
+reverse の fresh lineage 対称性
+-------------------------------
+forward は artefact 不在の lineage では clean no-op になる。reverse が
+そこから無条件に Production PRE を復元すると、
+
+* Production にしか存在しない QA artefact を fresh DB へ新規に作り出す
+* fresh DB には `owner_id` が指す operator user が無いため FK violation で
+  rollback 自体が失敗する（GIS migration chain test が実際に落ちた）
+
+ため、reverse も forward と対称に fresh lineage では clean no-op にする。
+判定条件は `_is_fresh_lineage_for_reverse` を参照。operator user の不在
+"だけ" では fresh と判定せず、Production-like な DB から operator user が
+消えた状態は fail closed で止める。Production-like state の exact restore /
+fail-closed 契約はいずれも変更していない。
 """
 
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -365,6 +380,61 @@ def _assert_logs_match_pre(InteractionLog):
     return rows
 
 
+def _operator_user_exists(Shrine, cur):
+    """PRE の `owner_id` が指す operator user 行が存在するか。
+
+    user table 名は `Shrine.owner` の FK から解決する。`apps.get_model` で
+    auth app を引かないのは、historical model でも test の apps shim でも
+    同じ経路で動くようにするため。
+    """
+    user_table = Shrine._meta.get_field("owner").related_model._meta.db_table
+    cur.execute(
+        f"SELECT 1 FROM {user_table} WHERE id = %s", [SHRINE_PRE["owner_id"]]
+    )
+    return cur.fetchone() is not None
+
+
+def _is_fresh_lineage_for_reverse(Shrine, InteractionLog, cur):
+    """「forward が clean no-op だった fresh lineage」と等価な状態か。
+
+    forward は artefact 不在の lineage では何もしない。そこから rollback した
+    ときに reverse が Production PRE を無条件に復元すると、Production にしか
+    存在しない QA artefact を fresh DB へ**新規に作り出して**しまう。さらに
+    fresh DB には `owner_id` が指す operator user が存在しないため、
+    FK violation（`IntegrityError`）で rollback 自体が失敗する
+    （GIS migration chain test が実際にこれで落ちる）。
+
+    そこで reverse も forward と対称に、fresh lineage では clean no-op にする。
+    判定は以下を**すべて**満たす場合に限る。1 つでも外れたら fresh ではない
+    と見なし、従来どおりの exact restore / fail-closed 経路へ進む。
+
+    1. artefact pk 102 が不在
+    2. 監査済み log pk {3, 6} が不在
+    3. shrine_id=102 を参照する log が 0 行
+    4. operator user（PRE の `owner_id`）が不在
+    5. `ShrineInteractionLog` が 0 行（Production では他の log が残る）
+    6. pk >= 102 の Shrine が 0 行（この lineage は artefact の id 域へ
+       到達していない）
+
+    4 単独では判定しない。Production-like な DB から operator user だけが
+    消えた状態を「fresh」と誤認して黙って復元を飛ばすのを防ぐため、
+    5 / 6 を併せて要求する（その場合は下の fail-closed で止める）。
+    """
+    if _load_shrine(Shrine) is not None:
+        return False
+    if InteractionLog.objects.filter(pk__in=LOG_IDS).exists():
+        return False
+    if InteractionLog.objects.filter(shrine_id=ARTIFACT_ID).exists():
+        return False
+    if _operator_user_exists(Shrine, cur):
+        return False
+    if InteractionLog.objects.exists():
+        return False
+    if Shrine.objects.only("id").filter(pk__gte=ARTIFACT_ID).exists():
+        return False
+    return True
+
+
 # --------------------------------------------------------------------------
 # forward
 # --------------------------------------------------------------------------
@@ -425,6 +495,15 @@ def remove_qa_artifact_forward(apps, schema_editor):
 def restore_qa_artifact_reverse(apps, schema_editor):
     Shrine = apps.get_model("temples", "Shrine")
     InteractionLog = apps.get_model("temples", "ShrineInteractionLog")
+    cur = schema_editor.connection.cursor()
+
+    with cur:
+        # forward が no-op だった fresh lineage では reverse も no-op にする。
+        # Production-like state ではこの分岐に入らず、従来の契約がそのまま効く。
+        if _is_fresh_lineage_for_reverse(Shrine, InteractionLog, cur):
+            return
+
+        operator_present = _operator_user_exists(Shrine, cur)
 
     if _load_shrine(Shrine) is not None:
         raise _err(
@@ -445,6 +524,15 @@ def restore_qa_artifact_reverse(apps, schema_editor):
         raise _err(
             f"shrine_id={ARTIFACT_ID} の ShrineInteractionLog が {orphan} 行残っている "
             "— 想定外の状態であり復元しない"
+        )
+
+    if not operator_present:
+        # fresh lineage ではないのに operator user が欠けている。ここで復元を
+        # 試みると FK violation になる。黙って飛ばさず fail closed で止める。
+        raise _err(
+            f"PRE の owner_id={SHRINE_PRE['owner_id']} が指す operator user が "
+            "存在しないが、この DB は fresh lineage ではない — "
+            "exact restore できない状態であり、復元も no-op も行わない"
         )
 
     # `location` は型付きリテラルを書かず None だけを渡す（物理型は環境依存）。
