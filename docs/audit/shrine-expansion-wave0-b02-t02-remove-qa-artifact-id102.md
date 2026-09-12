@@ -132,6 +132,39 @@ temples_shrineinteractionlog.metadata  = jsonb
 4. `created_at` / `updated_at` を PRE の exact instant へ復元
 5. sequence は巻き戻さない
 
+### reverse の fresh lineage 対称性（2026-09-12 修正）
+
+**問題**: forward は artefact 不在の lineage で clean no-op になるが、
+初版の reverse は**無条件に** Production PRE を復元していた。このため
+
+* Production にしか存在しない QA artefact を fresh DB へ新規作成してしまう
+* fresh DB には `owner_id=1` が指す operator user が無く FK violation
+  （`IntegrityError: Key (owner_id)=(1) is not present in table "auth_user"`）で
+  rollback 自体が失敗する
+
+`test_gis_migration_0094...::test_b_forward_corrects_only_the_target_shrine` と
+`test_gis_migration_0091...::test_f_fresh_db_migration_chain_0090_to_0091_succeeds`
+が、head から 0093 / 0090 へ rollback する過程で実際にこれで落ちていた。
+
+**修正**: reverse を forward と対称にし、fresh lineage では clean no-op に
+する。判定は `_is_fresh_lineage_for_reverse` が以下を**すべて**満たす場合のみ。
+
+1. artefact pk 102 が不在
+2. 監査済み log pk `{3, 6}` が不在
+3. `shrine_id=102` を参照する log が 0 行
+4. operator user（PRE の `owner_id`）が不在
+5. `ShrineInteractionLog` が 0 行
+6. pk >= 102 の Shrine が 0 行
+
+operator user の不在 **だけ** では fresh と判定しない。Production-like な DB
+から operator user が消えた状態を「fresh」と誤認して黙って復元を飛ばすのを
+防ぐため、5 / 6 を併せて要求する。その状態では復元直前の guard が
+`PreconditionViolation` を送出し fail closed で止まる（FK violation ではなく
+明示エラーになる）。
+
+Production-like state の exact restore / fail-closed 契約、PRE 定数、artefact
+値、log 値、timestamp、relation gate、sequence policy はいずれも**変更していない**。
+
 ### fresh lineage の扱い
 
 pk 102 は Production にのみ存在する。fresh / 非 Production の lineage では
