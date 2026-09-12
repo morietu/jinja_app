@@ -72,7 +72,7 @@ EXPECTED_W0_DB01_HYDRATION = {
         "verified_at": "2026-09-12",
         "latitude": 35.1608797,
         "longitude": 136.9054313,
-        "goriyaku": "厄除祈願",
+        "goriyaku": "厄除け",
         "goriyaku_tags": ["厄除け"],
     },
     "大鳥大社": {
@@ -83,7 +83,7 @@ EXPECTED_W0_DB01_HYDRATION = {
         "verified_at": "2026-09-12",
         "latitude": 34.5367778,
         "longitude": 135.4608611,
-        "goriyaku": "家内安全・厄除祈願・安産祈願・必勝祈願・合格祈願・商売繁盛",
+        "goriyaku": "家内安全・厄除け・安産・勝運・合格祈願・商売繁盛",
         "goriyaku_tags": [
             "家内安全",
             "厄除け",
@@ -101,7 +101,7 @@ EXPECTED_W0_DB01_HYDRATION = {
         "verified_at": "2026-09-12",
         "latitude": 36.63604985,
         "longitude": 140.58558306,
-        "goriyaku": "安産祈願・家内安全・厄除開運・病気平癒・商売繁昌・良縁成就",
+        "goriyaku": "安産・家内安全・厄除け・開運・病気平癒・商売繁盛・縁結び",
         "goriyaku_tags": [
             "安産",
             "家内安全",
@@ -120,7 +120,7 @@ EXPECTED_W0_DB01_HYDRATION = {
         "verified_at": "2026-09-12",
         "latitude": 35.666443,
         "longitude": 139.756134,
-        "goriyaku": "商売繁盛・技芸上達・家内安全・必勝祈願の成就",
+        "goriyaku": "商売繁盛・技芸上達・家内安全・勝運",
         "goriyaku_tags": ["商売繁盛", "技芸上達", "家内安全", "勝運"],
     },
     "榴岡天満宮": {
@@ -131,7 +131,7 @@ EXPECTED_W0_DB01_HYDRATION = {
         "verified_at": "2026-09-12",
         "latitude": 38.260624,
         "longitude": 140.893021,
-        "goriyaku": "合格成就・学業上達・厄祓い・安産祈願・交通安全・商売繁盛",
+        "goriyaku": "合格祈願・学業成就・厄除け・安産・交通安全・商売繁盛",
         "goriyaku_tags": [
             "合格祈願",
             "学業成就",
