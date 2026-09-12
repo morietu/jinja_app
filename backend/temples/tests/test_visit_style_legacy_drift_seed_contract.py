@@ -3,8 +3,16 @@
 PR-B1.5で既存51社の ``visit_style_tags`` から canonical taxonomy 外の
 legacy tagだけを削除した状態を固定する。
 
-PR-B2で承認済み52社をcanonical Seedへ追加し、Base Seed全103社が
+PR-B2で承認済み52社をcanonical Seedへ追加し、canonical管理対象103社が
 visit_style_tagsを持つ状態を固定する。
+
+Base Seedの総件数はもう固定しない。新規Shrineは``visit_style_tags`` key
+なし（未レビュー / unmanaged）で追加されうる。固定するのは
+
+* canonical 管理対象（keyあり）が103社を下回らないこと
+* keyがある行は必ずnon-emptyなcanonical tagsを持つこと
+
+の2点。
 """
 
 from __future__ import annotations
@@ -51,14 +59,27 @@ def _load_seed() -> list[dict]:
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
 
 
-def test_base_seed_visit_style_coverage_is_complete_after_canonicalization():
+MANAGED_COHORT_MIN_COUNT = 103
+
+
+def test_canonical_managed_cohort_never_shrinks_below_103():
     data = _load_seed()
     with_tags = [row for row in data if "visit_style_tags" in row]
-    without_tags = [row for row in data if "visit_style_tags" not in row]
 
-    assert len(data) == 103
-    assert len(with_tags) == 103
-    assert len(without_tags) == 0
+    assert len(with_tags) >= MANAGED_COHORT_MIN_COUNT
+
+
+def test_every_key_present_row_carries_non_empty_canonical_tags():
+    # keyありは「レビュー済み」の意味。空配列は未レビューの表現ではない。
+    data = _load_seed()
+
+    for row in data:
+        if "visit_style_tags" not in row:
+            continue
+        tags = row["visit_style_tags"]
+        assert isinstance(tags, list), row["name_jp"]
+        assert tags, row["name_jp"]
+        assert set(tags) <= ALLOWED_SHRINE_VISIT_STYLE_TAGS, row["name_jp"]
 
 
 def test_cleaned_legacy_targets_have_the_exact_mother_ship_approved_arrays():

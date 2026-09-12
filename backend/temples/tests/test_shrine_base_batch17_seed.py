@@ -30,13 +30,26 @@ TARGETS = {
 }
 
 
+# 既存 100 社 + Batch17 3 社。Base Seed の総件数ではなく、この prefix だけを
+# 固定する（新規 Shrine は後ろに append される）。
+FROZEN_PREFIX_COUNT = 103
+
+
 def _load_seed():
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
 
 
-def test_shrine_base_seed_has_103_entries_existing_100_plus_batch17_3():
+def test_shrine_base_seed_frozen_prefix_is_existing_100_plus_batch17_3():
+    """Base Seed は今後 Shrine が追加されて増えるので総件数は固定しない。
+
+    固定するのは「既存 100 社 + Batch17 3 社 = 先頭 103 行」という
+    prefix contract の方。新規 Shrine はこの prefix の後ろに append される。
+    """
     data = _load_seed()
-    assert len(data) == 103
+    assert len(data) >= FROZEN_PREFIX_COUNT
+
+    prefix = data[:FROZEN_PREFIX_COUNT]
+    assert [e["name_jp"] for e in prefix[100:]] == list(TARGETS)
 
 
 def test_shrine_base_seed_batch17_shrines_present_exactly_once():
