@@ -20,7 +20,6 @@ import { buildDummySections } from "@/features/concierge/sections/dummy";
 
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
 import ConciergeEntryCard from "@/features/concierge/components/ConciergeEntryCard";
-import OriginSelector from "@/features/concierge/components/OriginSelector";
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { buildConciergeRequestPayload } from "@/features/concierge/buildConciergeRequestPayload";
 
@@ -1825,14 +1824,16 @@ export default function ConciergeClientFull() {
                     参拝の希望・誕生日・ご利益・参拝の詳細は、相談テーマを補う条件として扱います。
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-full border border-stone-200/70 bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
-                  onClick={() => setIsFilterOpen((prev) => !prev)}
-                  disabled={isBusy}
-                >
-                  {isFilterOpen ? "閉じる" : "条件を開く"}
-                </button>
+                {!isFilterOpen ? (
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-full border border-stone-200/70 bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+                    onClick={() => setIsFilterOpen(true)}
+                    disabled={isBusy}
+                  >
+                    条件を開く
+                  </button>
+                ) : null}
               </div>
 
               {!isFilterOpen && hasFilter ? (
@@ -1859,6 +1860,18 @@ export default function ConciergeClientFull() {
                             参拝スタイルあり
                           </span>
                         ) : null}
+
+                        {plannedVisitDate ? (
+                          <span className="rounded-full border border-stone-200/70 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                            参拝予定日あり
+                          </span>
+                        ) : null}
+
+                        {userOrigin ? (
+                          <span className="rounded-full border border-stone-200/70 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                            出発地点あり
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1882,61 +1895,11 @@ export default function ConciergeClientFull() {
                     onAction={onRendererAction}
                     sending={sending || isFiltering}
                     canApply={canApply}
+                    locationError={locationError}
                     threadId={thread?.id ?? activeThreadId}
                     isEntryRoute={isEntryRoute}
                     isPremiumActive={isPremiumActive}
                   />
-
-                  {/* Level 3-C Recommendation Context. Ambient situational
-                      data (not user identity, not a candidate hard filter) --
-                      kept out of the Initial screen (Task 8) and rendered
-                      here with its own labeled subsection so it is not
-                      confused with Level 3-A Personal Profile or Level 3-B
-                      Explicit Constraint above. Same plannedVisitDate/
-                      userOrigin state and handlers as before this move --
-                      request payload semantics are unchanged. */}
-                  <section
-                    aria-label="参拝の詳細（任意）"
-                    className="mt-2.5 rounded-2xl border border-stone-200/50 bg-white/80 p-2.5"
-                  >
-                    <p className="text-xs font-semibold text-slate-700">参拝の詳細（任意）</p>
-                    <p className="mt-0.5 text-[10px] leading-4 text-slate-400">
-                      予定日と出発地点から、神社への方角を補助条件として使います。
-                    </p>
-                    <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
-                      <label className="block text-sm font-medium text-stone-600">
-                        参拝予定日（任意）
-                        <input
-                          type="date"
-                          value={plannedVisitDate}
-                          min={new Date().toISOString().slice(0, 10)}
-                          onChange={(event) => {
-                            setPlannedVisitDate(event.target.value);
-                            if (event.target.value) trackWebDirection("direction_visit_date_set");
-                          }}
-                          className="mt-1 min-h-11 w-full rounded-2xl border border-[var(--kt-color-border-strong)] bg-stone-50/25 px-3 py-2 text-base text-[var(--kt-color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                        />
-                      </label>
-                      <OriginSelector
-                        origin={userOrigin}
-                        onChange={(value) => {
-                          setUserOrigin(value);
-                          if (value)
-                            trackWebDirection("direction_origin_result", {
-                              origin_type: value.source,
-                              result: "selected",
-                            });
-                        }}
-                        onUseDevice={useCurrentLocation}
-                        deviceError={locationError}
-                      />
-                    </div>
-                    {plannedVisitDate ? (
-                      <p className="mt-2 text-xs text-[var(--kt-color-text-muted)]">
-                        予定日の年盤・月盤と、設定した出発地点から神社への方角を補助条件に使います。
-                      </p>
-                    ) : null}
-                  </section>
                 </div>
               ) : null}
             </div>
@@ -2019,6 +1982,7 @@ export default function ConciergeClientFull() {
             onAction={onRendererAction}
             sending={sending || isFiltering}
             canApply={canApply}
+            locationError={locationError}
             threadId={thread?.id ?? activeThreadId}
             isEntryRoute={isEntryRoute}
             isPremiumActive={isPremiumActive}

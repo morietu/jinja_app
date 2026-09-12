@@ -65,7 +65,8 @@ describe("Collapsed filter density (default collapsed contract)", () => {
     expect(screen.queryByRole("button", { name: "階段少なめ" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "入口に戻る" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "この内容で反映する" })).not.toBeInTheDocument();
-    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.queryByLabelText("誕生日")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("参拝予定日")).not.toBeInTheDocument();
   });
 
   it("2. filter指定済み + result: collapsedでも同じ最小構成のまま（appliedLabelは既存の別blockが担う、重複表示しない）", () => {
@@ -112,22 +113,42 @@ describe("Collapsed filter density (default collapsed contract)", () => {
     //   そのUIは ConciergeFilterPanel へ一本化して廃止したため観測点を移した。
     //   ConciergeFilterPanel は extraCondition の自由入力欄を持たない。）
     const { rerender } = render(
-      <ConciergeSectionsRenderer payload={buildTestPayload(openState)} threadId={1} onAction={onAction} isEntryRoute={false} />,
+      <ConciergeSectionsRenderer
+        payload={buildTestPayload(openState)}
+        threadId={1}
+        onAction={onAction}
+        isEntryRoute={false}
+      />,
     );
-    expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe("1990-05-20");
+    expect((screen.getByLabelText("誕生日") as HTMLInputElement).value).toBe("1990-05-20");
     expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
 
     // Close: only the parent's isOpen flag flips, the rest of filterState is untouched
     // (mirrors how ConciergeClientFull's filter_close handler only calls
     // setIsFilterOpen(false), never resets extraCondition/birthdate/etc).
     const closedState = { ...openState, isOpen: false };
-    rerender(<ConciergeSectionsRenderer payload={buildTestPayload(closedState)} threadId={1} onAction={onAction} isEntryRoute={false} />);
-    expect(document.querySelector('input[type="date"]')).toBeNull();
+    rerender(
+      <ConciergeSectionsRenderer
+        payload={buildTestPayload(closedState)}
+        threadId={1}
+        onAction={onAction}
+        isEntryRoute={false}
+      />,
+    );
+    expect(screen.queryByLabelText("誕生日")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("参拝予定日")).not.toBeInTheDocument();
     expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
 
     // Reopen: the same values must still be there, not reset.
-    rerender(<ConciergeSectionsRenderer payload={buildTestPayload(openState)} threadId={1} onAction={onAction} isEntryRoute={false} />);
-    expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe("1990-05-20");
+    rerender(
+      <ConciergeSectionsRenderer
+        payload={buildTestPayload(openState)}
+        threadId={1}
+        onAction={onAction}
+        isEntryRoute={false}
+      />,
+    );
+    expect((screen.getByLabelText("誕生日") as HTMLInputElement).value).toBe("1990-05-20");
     expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
   });
 

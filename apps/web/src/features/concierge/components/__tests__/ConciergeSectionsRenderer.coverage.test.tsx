@@ -125,18 +125,30 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     fireEvent.click(screen.getByRole("button", { name: "健康" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_toggle_tag", tagId: 1 });
 
-    const birthdateInput = document.querySelector('input[type="date"]');
-    expect(birthdateInput).not.toBeNull();
-    fireEvent.change(birthdateInput as HTMLInputElement, { target: { value: "1990-01-01" } });
+    const birthdateInput = screen.getByLabelText("誕生日");
+    fireEvent.change(birthdateInput, { target: { value: "1990-01-01" } });
     expect(onAction).toHaveBeenCalledWith({ type: "filter_set_birthdate", birthdate: "1990-01-01" });
 
-    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(screen.queryByRole("button", { name: "キャンセル" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "閉じる" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_close" });
+    expect(onAction).not.toHaveBeenCalledWith({ type: "filter_apply" });
 
     fireEvent.click(screen.getByRole("button", { name: "静かな時間を過ごしたい" }));
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ type: "filter_set_extra" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "この内容に反映する" }));
+    const plannedVisitDateInput = screen.getByLabelText("参拝予定日");
+    fireEvent.change(plannedVisitDateInput, { target: { value: "2030-01-02" } });
+    expect(onAction).toHaveBeenCalledWith({ type: "filter_set_visit_date", plannedVisitDate: "2030-01-02" });
+
+    fireEvent.click(screen.getByRole("radio", { name: "方位情報を使用しない" }));
+    expect(onAction).toHaveBeenCalledWith({ type: "filter_set_origin", userOrigin: null });
+
+    fireEvent.click(screen.getByRole("radio", { name: "現在地を使用" }));
+    expect(onAction).toHaveBeenCalledWith({ type: "filter_use_current_location" });
+
+    fireEvent.click(screen.getByRole("button", { name: "この条件で提案を更新" }));
     expect(onAction).toHaveBeenCalledWith({ type: "filter_apply" });
 
     // 参拝PreferenceのStructured Signalは上の「静かな時間を過ごしたい」= 正本
@@ -146,6 +158,33 @@ describe("ConciergeSectionsRenderer - 既存経路のCoverage補完", () => {
     // が網羅しているため重複させない。
     fireEvent.click(screen.getByRole("button", { name: "入口に戻る" }));
     expect(onAction).toHaveBeenCalledWith({ type: "back_to_entry" });
+  });
+
+  it("open editorはL2 → L3-A → L3-B → L3-Cの順で表示し、Apply labelをcontext別にする", () => {
+    const u: any = { data: { recommendations: [heroRec] }, thread: { id: 1 } };
+    const payload = buildTestPayload(u, { ...baseFilterState, isOpen: true });
+    const { container, rerender } = render(
+      <ConciergeSectionsRenderer payload={payload} threadId={1} isEntryRoute onAction={vi.fn()} />,
+    );
+
+    const sections = [
+      screen.getByRole("region", { name: "今回の参拝の希望（任意）" }),
+      screen.getByRole("region", { name: "誕生日（任意）" }),
+      screen.getByRole("region", { name: "ご利益を指定する" }),
+      screen.getByRole("region", { name: "参拝の詳細（任意）" }),
+    ];
+    for (let i = 0; i < sections.length - 1; i += 1) {
+      expect(sections[i].compareDocumentPosition(sections[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(screen.getByRole("button", { name: "この条件で提案を見る" })).toBeDisabled();
+
+    rerender(<ConciergeSectionsRenderer payload={payload} threadId={1} isEntryRoute canApply onAction={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "この条件で提案を見る" })).toBeEnabled();
+    rerender(
+      <ConciergeSectionsRenderer payload={payload} threadId={1} isEntryRoute={false} onAction={vi.fn()} canApply />,
+    );
+    expect(screen.getByRole("button", { name: "この条件で提案を更新" })).toBeEnabled();
+    expect(container).toBeInTheDocument();
   });
 
   it("補助条件(開いた状態)ではConciergeFilterPanelのタイトルが重複表示されない(Concierge Entry Responsive/Density Polish)", () => {

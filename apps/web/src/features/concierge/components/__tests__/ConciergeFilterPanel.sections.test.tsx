@@ -23,6 +23,11 @@ const baseProps = {
   tagsError: null,
   extraCondition: "",
   onExtraConditionChange: vi.fn(),
+  plannedVisitDate: "",
+  userOrigin: null,
+  onPlannedVisitDateChange: vi.fn(),
+  onOriginChange: vi.fn(),
+  onUseCurrentLocation: vi.fn(),
 };
 
 describe("ConciergeFilterPanel Personalize section separation", () => {
