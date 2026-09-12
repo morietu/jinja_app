@@ -25,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
-from typing import Any, Iterable, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 # Weekly Presentation の版。Snapshot の一意性・determinism seed・Theme選択の
 # すべてがこの値に紐づくため、文字列を複数箇所へ直書きせず必ずここを参照する。
@@ -251,24 +251,38 @@ def _resolve_shrine_id(recommendation: Any) -> Optional[int]:
     return _normalize_optional_int(raw)
 
 
-def build_weekly_pool(recommendations: Optional[Iterable[Any]]) -> list[int]:
+def build_weekly_pool(recommendations: Optional[Sequence[Any]]) -> list[int]:
     """既存Recommendation結果から Weekly の candidate universe を作る。
+
+    Candidate Universe の定義は
+    「**既存Recommendation結果そのものの上位 `WEEKLY_POOL_LIMIT` 件のみ**」である。
+    したがって処理順は必ず次の通りで、順序を入れ替えてはならない:
+
+        Recommendation結果の先頭6件を切り出す
+        -> その6件の中だけでShrine ID解決
+        -> invalid IDを除外
+        -> duplicateを除外
+        -> 残った候補をWeekly Poolとする
+
+    切り出した6件の中の invalid ID / duplicate によって候補が6件未満になっても、
+    7位以降から補充しない（「有効なIDが6件集まるまで後ろへ読み進める」実装は
+    Recommendation順位7位以降をWeekly候補へ混入させるため契約違反になる）。
 
     - 元の順位をそのまま維持する（並べ替えない）
     - 同一Shrineの重複は最初の出現だけ残す
-    - ID を解決できないentryは落とす（外部から補充はしない）
-    - 上位 `WEEKLY_POOL_LIMIT` 件で打ち切る
+    - ID を解決できないentryは落とす（外部からも後続順位からも補充しない）
     """
+    # 先に「上位6件」を確定させる。ID解決より前に切り出すことが契約の本体。
+    top_ranked = list(recommendations or [])[:WEEKLY_POOL_LIMIT]
+
     pool: list[int] = []
     seen: set[int] = set()
-    for recommendation in recommendations or []:
+    for recommendation in top_ranked:
         shrine_id = _resolve_shrine_id(recommendation)
         if shrine_id is None or shrine_id in seen:
             continue
         seen.add(shrine_id)
         pool.append(shrine_id)
-        if len(pool) >= WEEKLY_POOL_LIMIT:
-            break
     return pool
 
 

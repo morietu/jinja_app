@@ -242,6 +242,79 @@ def test_pool_is_empty_for_no_recommendations():
     assert build_weekly_pool([]) == []
 
 
+# Candidate Universe 契約:
+#   「既存Recommendation結果そのものの上位 WEEKLY_POOL_LIMIT 件のみ」
+# 上位6件を切り出した **後** にID解決・invalid除外・duplicate除外を行うため、
+# 6件未満になっても7位以降からは補充されない。
+SHRINE_A, SHRINE_B, SHRINE_C, SHRINE_D, SHRINE_E, SHRINE_F = 101, 102, 103, 104, 105, 106
+
+
+def test_duplicate_within_top_six_shrinks_the_pool_without_pulling_in_rank_seven():
+    """Recommendation 1:A 2:A 3:B 4:C 5:D 6:E 7:F -> Pool は A B C D E（Fは入らない）。"""
+    recommendations = _recommendations(
+        SHRINE_A,
+        SHRINE_A,
+        SHRINE_B,
+        SHRINE_C,
+        SHRINE_D,
+        SHRINE_E,
+        SHRINE_F,
+    )
+    pool = build_weekly_pool(recommendations)
+
+    assert pool == [SHRINE_A, SHRINE_B, SHRINE_C, SHRINE_D, SHRINE_E]
+    assert SHRINE_F not in pool
+    assert len(pool) < WEEKLY_POOL_LIMIT
+
+
+def test_invalid_id_within_top_six_is_not_backfilled_from_rank_seven_onward():
+    recommendations = [
+        {"shrine_id": SHRINE_A},
+        {"name": "ID解決できないentry"},
+        {"shrine_id": SHRINE_B},
+        {"shrine_id": SHRINE_C},
+        {"shrine_id": SHRINE_D},
+        {"shrine_id": SHRINE_E},
+        {"shrine_id": SHRINE_F},
+    ]
+    pool = build_weekly_pool(recommendations)
+
+    assert pool == [SHRINE_A, SHRINE_B, SHRINE_C, SHRINE_D, SHRINE_E]
+    assert SHRINE_F not in pool
+
+
+@pytest.mark.parametrize(
+    "seventh_entry",
+    [
+        {"shrine_id": SHRINE_F},
+        {"id": SHRINE_F},
+    ],
+)
+def test_rank_seven_never_changes_the_pool_whatever_its_id_key(seventh_entry):
+    top_six = _recommendations(
+        SHRINE_A, SHRINE_A, SHRINE_B, SHRINE_C, SHRINE_D, SHRINE_E
+    )
+    assert build_weekly_pool(top_six + [seventh_entry]) == build_weekly_pool(top_six)
+
+
+def test_featured_selection_never_promotes_rank_seven_when_top_six_is_thin():
+    """上位6件がduplicateで5件へ減っても、featuredへFが昇格しない。"""
+    recommendations = _recommendations(
+        SHRINE_A,
+        SHRINE_A,
+        SHRINE_B,
+        SHRINE_C,
+        SHRINE_D,
+        SHRINE_E,
+        SHRINE_F,
+    )
+    selected = _select(recommendations)
+
+    assert len(selected) == WEEKLY_FEATURED_LIMIT
+    assert SHRINE_F not in selected
+    assert set(selected) <= {SHRINE_A, SHRINE_B, SHRINE_C, SHRINE_D, SHRINE_E}
+
+
 # --------------------------------------------------------------------------
 # featured selection
 # --------------------------------------------------------------------------
