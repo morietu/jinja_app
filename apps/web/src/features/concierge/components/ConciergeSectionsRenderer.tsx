@@ -216,28 +216,14 @@ type Props = {
   analyticsContext?: AnalyticsContext;
 };
 
+// extraCondition (Legacy/Transitional free-text) を表示用トークンへ分解する。
+// 用途は下の appliedLabel（結果の近くに出る「条件: X / Y」チップ）のみで、
+// 入力UIは持たない。参拝Preferenceの入力は ConciergeFilterPanel が正本。
 function parseExtraTokens(extra: string | undefined | null): string[] {
   return (extra || "")
     .split(/[、,\s]+/)
     .map((x) => x.trim())
     .filter(Boolean);
-}
-
-// Closed-card preset token -> Level 2 canonical Visit Preference tag
-// (Structured Signal Mapping, see ConciergeFilterPanel.tsx for the main
-// mapping table). "ひとり"/"階段少なめ" have no Shrine-side capability
-// (Task 13 Shrine Data Capability Check: Hold) and stay natural-language-only.
-const CLOSED_PRESET_VISIT_PREFERENCE_TAGS: Readonly<Record<string, readonly string[]>> = {
-  静か: ["quiet"],
-  駅近: ["nearby"],
-};
-
-function visitPreferencesForClosedPresets(presets: readonly string[]): string[] {
-  const next = new Set<string>();
-  for (const p of presets) {
-    for (const tag of CLOSED_PRESET_VISIT_PREFERENCE_TAGS[p] ?? []) next.add(tag);
-  }
-  return Array.from(next);
 }
 
 function buildHistoryThemeDisplay(theme: string | null | undefined): { title: string; body: string } | null {
@@ -668,46 +654,22 @@ export default function ConciergeSectionsRenderer({
             const canApplyCompatFilter =
               !!state.birthdate?.trim() || (state.selectedTagIds?.length ?? 0) > 0 || !!state.extraCondition?.trim();
 
-            // Quick preset state is shared between the collapsed summary (selectedPresets
-            // count/label only) and the open panel (interactive chips, moved there --
-            // see the isOpen branch below and docs/product/
-            // recommendation-result-information-architecture.md §15 PR1 follow-up).
-            const presets = ["静か", "駅近", "ひとり", "階段少なめ"] as const;
-            const parts = parseExtraTokens(state.extraCondition);
-            const set = new Set(parts);
-
-            const togglePreset = (p: string) => {
-              const next = new Set(parts);
-              const turningOn = !next.has(p);
-              if (next.has(p)) next.delete(p);
-              else next.add(p);
-              onAction?.({ type: "filter_set_extra", extraCondition: Array.from(next).join(" ") });
-
-              // Structured Visit Preference is union/append-only here (like
-              // mergeExtra() in ConciergeFilterPanel.tsx) -- toggling a
-              // preset off never removes a tag, since it may also have
-              // been set via the open ConciergeFilterPanel.
-              if (turningOn) {
-                const addedTags = visitPreferencesForClosedPresets([p]);
-                if (addedTags.length) {
-                  const merged = new Set([...(state.visitPreferences ?? []), ...addedTags]);
-                  onAction?.({
-                    type: "filter_set_visit_preferences",
-                    visitPreferences: Array.from(merged),
-                  });
-                }
-              }
-            };
-
-            const selectedPresets = presets.filter((p) => set.has(p));
-
+            // 参拝Preferenceの入力UIは ConciergeFilterPanel が正本。
+            // ここには独立したQuick Preset（短縮ラベル「静か」「駅近」「ひとり」
+            // 「階段少なめ」）を持たない。同じ役割のUIが2系統あると、
+            // 同じ意図に対して異なるSignalが飛ぶため一本化した。
+            //   静か  -> FilterPanelの「静かな時間を過ごしたい」(quiet)
+            //   駅近  -> 「近場がいい」/「アクセスしやすい場所がいい」(nearby)
+            // 「ひとり」「階段少なめ」はShrine側にcapabilityが無く
+            // (Task 13 Shrine Data Capability Check: Hold) canonical tagを持たない
+            // ため、Presetとしては提供しない。自由入力としては引き続き受け付ける
+            // （ConciergeClientFull.tsx / hooks.ts のfree-text互換処理は不変更）。
+            //
             // Collapsed state is an entry point only (docs/product/
             // recommendation-result-information-architecture.md §3 Finding 1 follow-up,
             // §15 PR1): a single way to open the full editor. The current condition (if
             // any) is already surfaced by the existing appliedLabel chip near the results
-            // below (with its own "クリア" control) -- not repeated here. Actual input
-            // controls (preset chips, apply, back-to-entry) live in the open
-            // ConciergeFilterPanel branch below -- moved there, not removed.
+            // below (with its own "クリア" control) -- not repeated here.
             if (!state.isOpen) {
               return (
                 <div key={`filter-${i}-closed`}>
@@ -758,42 +720,9 @@ export default function ConciergeSectionsRenderer({
                   }
                 />
 
-                {/* Quick presets, moved here from the collapsed state (docs/product/
-                    recommendation-result-information-architecture.md §15 PR1
-                    follow-up) -- same tokens/tag mapping as before, just no longer
-                    interactive while collapsed. Distinct from ConciergeFilterPanel's
-                    own longer-label presets above: "ひとり"/"階段少なめ" have no
-                    equivalent there and would otherwise become unreachable. */}
-                <div className="mt-2 rounded-[var(--kt-radius-panel)] border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-3">
-                  <p className="mb-2 text-xs text-[var(--kt-color-text-muted)]">必要なものだけ選んでください</p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {presets.map((p) => {
-                      const active = set.has(p);
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          className={[
-                            "rounded-full border px-3 py-1 text-xs font-semibold transition",
-                            active
-                              ? "bg-[var(--kt-color-action-primary)] text-[var(--kt-color-action-primary-text)] border-[var(--kt-color-action-primary)]"
-                              : "bg-[var(--kt-color-surface-default)] text-[var(--kt-color-text-secondary)] hover:bg-[var(--kt-color-background-subtle)]",
-                          ].join(" ")}
-                          onClick={() => togglePreset(p)}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedPresets.length > 0 && (
-                    <div className={`mt-2 ${conciergeSoftCardClass} text-xs leading-6 text-slate-600`}>
-                      追加済み: {selectedPresets.join(" / ")}
-                    </div>
-                  )}
-                </div>
+                {/* 独立したQuick Preset群はここに置かない。
+                    ConciergeFilterPanel が QUICK_PRESET_GROUPS を正本として
+                    持っており、同じ役割のUIを二重に出さないため。 */}
 
                 {!isEntryRoute ? (
                   <button

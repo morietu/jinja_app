@@ -74,7 +74,7 @@ export default function ChatPanel({
           <div className="space-y-1.5">
             {showEmptyHint && (
               <div className="mt-4 rounded-xl bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
-                条件や希望があれば追加してください（例：静か／駅近／ひとりで／階段少なめ など）
+                条件や希望があれば追加してください（例：静か／自然／駅近／人混み少なめ など）
               </div>
             )}
 

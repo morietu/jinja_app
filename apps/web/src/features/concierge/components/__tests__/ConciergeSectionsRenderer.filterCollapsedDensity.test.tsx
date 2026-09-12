@@ -4,10 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 // docs/product/recommendation-result-information-architecture.md §3 Finding 1
 // follow-up, §15 PR1: the collapsed filter state must act as an entry point only
 // (a single "add/change condition" affordance), not an inline input UI. Real input
-// controls (quick preset chips, apply, back-to-entry) live in the open
-// ConciergeFilterPanel state -- moved there, not removed. This file locks that
-// contract down, separately from the pre-existing behavior tests in
-// ConciergeSectionsRenderer.coverage.test.tsx.
+// controls (apply, back-to-entry, 参拝Preference preset) live in the open
+// ConciergeFilterPanel state. This file locks that contract down, separately from
+// the pre-existing behavior tests in ConciergeSectionsRenderer.coverage.test.tsx.
+//
+// 参拝Preferenceの入力UIは ConciergeFilterPanel が正本で、Renderer側の独立
+// Quick Preset（短縮ラベル「静か」「駅近」等）は廃止した。その契約自体は
+// ConciergeSectionsRenderer.presetUnification.test.tsx が担保する。
 
 const authMock = vi.hoisted(() => ({
   useAuth: vi.fn(() => ({ isLoggedIn: false, loading: false })),
@@ -100,23 +103,30 @@ describe("Collapsed filter density (default collapsed contract)", () => {
       extraCondition: "駅近",
     };
 
+    // 保持の観測点:
+    //   birthdate    -> ConciergeFilterPanel の date input の value
+    //   extraCondition -> 結果近くの appliedLabel チップ「条件: 駅近」
+    // （以前は Renderer 側の独立Quick Presetチップの活性状態を見ていたが、
+    //   そのUIは ConciergeFilterPanel へ一本化して廃止したため観測点を移した。
+    //   ConciergeFilterPanel は extraCondition の自由入力欄を持たない。）
     const { rerender } = render(
       <ConciergeSectionsRenderer payload={buildTestPayload(openState)} threadId={1} onAction={onAction} isEntryRoute={false} />,
     );
     expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe("1990-05-20");
-    expect(screen.getByRole("button", { name: "駅近" }).className).toContain("action-primary");
+    expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
 
     // Close: only the parent's isOpen flag flips, the rest of filterState is untouched
     // (mirrors how ConciergeClientFull's filter_close handler only calls
     // setIsFilterOpen(false), never resets extraCondition/birthdate/etc).
     const closedState = { ...openState, isOpen: false };
     rerender(<ConciergeSectionsRenderer payload={buildTestPayload(closedState)} threadId={1} onAction={onAction} isEntryRoute={false} />);
-    expect(screen.queryByRole("button", { name: "駅近" })).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
 
     // Reopen: the same values must still be there, not reset.
     rerender(<ConciergeSectionsRenderer payload={buildTestPayload(openState)} threadId={1} onAction={onAction} isEntryRoute={false} />);
     expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe("1990-05-20");
-    expect(screen.getByRole("button", { name: "駅近" }).className).toContain("action-primary");
+    expect(screen.getByText("条件: 駅近")).toBeInTheDocument();
   });
 
   it("6. 再Recommendation後(fallback候補)でもcollapsed contractを維持する", () => {
