@@ -10,9 +10,10 @@
 * 同一入力から2回buildしてSHA-256が一致する。
 * 全行がcanonical key順を持つ（optional keyを除いた部分列として）。
 * Shrine identity `(name_jp, address)` がbuildで変化しない。
-* Base Seed schemaが `CANONICAL_KEY_ORDER` の9keyから増減しない。
+* Base Seed schemaは `CANONICAL_KEY_ORDER` の10keyを上限とし、
+  `goriyaku_tags` / `visit_style_tags` の2keyをoptionalとして扱う。
 * `visit_style_tags` のmanaged / unmanaged契約をbuilderが強制する。
-  Importer / Sync / Builder の3経路で意味が完全一致していること。
+  Importer / Sync / Builder の3経路で意味が一致していること。
 
 件数・Batch17 identity・visit_style_tagsの意味内容は既存の
 `test_shrine_base_batch17_seed.py` / `test_visit_style_legacy_drift_seed_contract.py`
@@ -78,8 +79,8 @@ def test_repeated_build_produces_the_same_sha256(builder, built_rows):
 def _expected_key_order(builder, row) -> tuple[str, ...]:
     """行が実際に持つkeyだけに絞ったcanonical key順。
 
-    optional key（`visit_style_tags`）を持たない未レビュー行も、残りのkeyは
-    canonical順に並んでいなければならない。
+    optional key（`goriyaku_tags` / `visit_style_tags`）を持たない行も、
+    残りのkeyはcanonical順に並んでいなければならない。
     """
     return tuple(key for key in builder.CANONICAL_KEY_ORDER if key in row)
 
@@ -87,7 +88,6 @@ def _expected_key_order(builder, row) -> tuple[str, ...]:
 def test_every_row_uses_the_canonical_key_order(builder, source_rows):
     for row in source_rows:
         assert tuple(row.keys()) == _expected_key_order(builder, row), row.get("name_jp")
-
 
 def test_every_location_object_uses_the_canonical_key_order(builder, source_rows):
     for row in source_rows:
@@ -275,19 +275,23 @@ def test_existing_canonical_seed_rebuilds_deterministically(builder):
     assert builder.SOURCE_PATH.read_text(encoding="utf-8") == first
 
 
-def test_existing_canonical_seed_is_fully_managed(builder, source_rows):
-    # 既存103社はすべてkeyを持つ（未レビュー扱いへ退行していない）。
+def test_existing_canonical_managed_cohort_is_preserved(builder, source_rows):
+    managed = [row for row in source_rows if "visit_style_tags" in row]
+    unmanaged = [row for row in source_rows if "visit_style_tags" not in row]
     built = [builder.canonicalize_row(row) for row in source_rows]
     result = builder.validate(source_rows, built)
 
-    assert result["managed_visit_style_rows"] == len(source_rows)
-    assert result["unmanaged_visit_style_rows"] == 0
+    assert result["managed_visit_style_rows"] == len(managed)
+    assert result["unmanaged_visit_style_rows"] == len(unmanaged)
+    assert all(row["visit_style_tags"] for row in managed)
     assert result["visit_style_violations"] == []
 
 
 # 9. W0-DB01形式のunmanaged追加rowを含むSeedでもbuild可能
 def test_seed_with_appended_unmanaged_rows_still_builds(builder, source_rows):
     # 実データ5社は追加しない。形式だけ同じplaceholderで契約を固定する。
+    source_managed = sum("visit_style_tags" in row for row in source_rows)
+    source_unmanaged = len(source_rows) - source_managed
     appended = [
         _row(
             name_jp=f"契約テスト未レビュー神社{i}",
@@ -301,8 +305,8 @@ def test_seed_with_appended_unmanaged_rows_still_builds(builder, source_rows):
 
     assert builder.gate_failures(result) == []
     assert result["total"] == len(source_rows) + 5
-    assert result["managed_visit_style_rows"] == len(source_rows)
-    assert result["unmanaged_visit_style_rows"] == 5
+    assert result["managed_visit_style_rows"] == source_managed
+    assert result["unmanaged_visit_style_rows"] == source_unmanaged + len(appended)
     assert result["identity_mutations"] == []
     assert result["schema_violations"] == []
     assert result["prefecture_unresolved"] == []
@@ -344,9 +348,10 @@ def test_builder_taxonomy_matches_the_canonical_command_module(builder):
     assert builder.MAX_TAGS_PER_SHRINE == canonical.MAX_TAGS_PER_SHRINE
 
 
-def test_visit_style_tags_is_an_optional_schema_key(builder):
-    assert "visit_style_tags" in builder.EXPECTED_KEYS
-    assert "visit_style_tags" in builder.OPTIONAL_KEYS
+def test_goriyaku_and_visit_style_tags_are_the_optional_schema_keys(builder):
+    optional_keys = {"goriyaku_tags", "visit_style_tags"}
+
+    assert builder.OPTIONAL_KEYS == optional_keys
+    assert builder.REQUIRED_SCHEMA_KEYS == builder.EXPECTED_KEYS - optional_keys
+    assert "goriyaku_tags" not in builder.REQUIRED_SCHEMA_KEYS
     assert "visit_style_tags" not in builder.REQUIRED_SCHEMA_KEYS
-    # identity / location など他のkeyは必須のまま。
-    assert builder.REQUIRED_SCHEMA_KEYS == builder.EXPECTED_KEYS - {"visit_style_tags"}

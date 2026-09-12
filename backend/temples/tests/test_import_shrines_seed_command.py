@@ -71,6 +71,7 @@ SEED_ALLOWED_KEYS = frozenset(
         "astro_elements",
         "visit_style_tags",
         "location",
+        "goriyaku_tags",
     }
 )
 
@@ -309,7 +310,7 @@ def test_dry_run_over_the_real_base_seed_leaves_the_database_untouched():
     before = list(
         Shrine.objects.order_by("id").values_list("id", "name_jp", "visit_style_tags")
     )
-    output = _run("--source", str(SEED_PATH), "--dry-run")
+    output = _run("--source", str(SEED_PATH), "--skip-goriyaku-tags", "--dry-run")
 
     assert _summary(output)["total_seed"] == len(_load_seed())
     assert (
@@ -498,17 +499,24 @@ def test_present_but_empty_visit_style_tags_aborts_before_any_write(tmp_path):
 def test_repair_only_visit_style_backfill_is_idempotent_against_canonical_seed():
     """repair-onlyのvisit-style backfill後もcanonical Seedとの再同期で差分が発生しない。"""
     data = _load_seed()
-    assert len(data) >= MANAGED_COHORT_MIN_COUNT
-    assert all(row.get("visit_style_tags") for row in data)
+    managed = [row for row in data if "visit_style_tags" in row]
+    assert len(managed) >= MANAGED_COHORT_MIN_COUNT
+    assert all(row["visit_style_tags"] for row in managed)
     seed_names = [row["name_jp"] for row in data]
+    managed_names = [row["name_jp"] for row in managed]
 
-    first = _summary(_run("--source", str(SEED_PATH)))
+    first = _summary(_run("--source", str(SEED_PATH), "--skip-goriyaku-tags"))
     assert first["created"] == len(data)
 
     call_command("backfill_goriyaku_tags", "--with-visit-style", "--force", stdout=StringIO())
-    assert Shrine.objects.filter(name_jp__in=seed_names).exclude(visit_style_tags=[]).count() == len(data)
+    assert (
+        Shrine.objects.filter(name_jp__in=managed_names)
+        .exclude(visit_style_tags=[])
+        .count()
+        == len(managed)
+    )
 
-    output = _run("--source", str(SEED_PATH), "--dry-run")
+    output = _run("--source", str(SEED_PATH), "--skip-goriyaku-tags", "--dry-run")
     second = _summary(output)
     assert second["created"] == 0
     assert second["updated"] == 0

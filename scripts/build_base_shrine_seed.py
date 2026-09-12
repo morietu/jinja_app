@@ -63,6 +63,7 @@ CANONICAL_KEY_ORDER: tuple[str, ...] = (
     "latitude",
     "longitude",
     "goriyaku",
+    "goriyaku_tags",
     "kyusei",
     "astro_elements",
     "visit_style_tags",
@@ -74,8 +75,9 @@ EXPECTED_KEYS = frozenset(CANONICAL_KEY_ORDER)
 # Base Seedへ新規Shrineを追加するとき合法な状態である。builderはその行へ
 # キーを補わない（空listを足すとImporter側で「レビュー済みタグ0件」と
 # 区別できなくなる）。
-OPTIONAL_KEYS = frozenset({"visit_style_tags"})
+OPTIONAL_KEYS = frozenset({"goriyaku_tags", "visit_style_tags"})
 REQUIRED_SCHEMA_KEYS = EXPECTED_KEYS - OPTIONAL_KEYS
+
 
 # `location` object内のcanonical key順。
 CANONICAL_LOCATION_KEY_ORDER: tuple[str, ...] = ("lat", "lng")
@@ -214,8 +216,9 @@ def load_source(path: Path) -> list[dict[str, Any]]:
 def canonicalize_row(row: dict[str, Any]) -> dict[str, Any]:
     """key順だけを固定する。値は一切変換しない。
 
-    optional keyが無い行にはkeyを補わない。`visit_style_tags` を欠く行は
-    「未レビュー」という意味を持つため、空listを足すと意味が変わる。
+    optional key（goriyaku_tags / visit_style_tags）が無い行にはkeyを補わない。
+    特に visit_style_tags keyなしは未レビュー / unmanaged を意味するため、
+    空listを補完しない。
     """
     canonical = {key: row[key] for key in CANONICAL_KEY_ORDER if key in row}
 
