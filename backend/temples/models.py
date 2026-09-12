@@ -11,6 +11,7 @@ from django.utils import timezone
 from .models_places_seeds import PlacesSeed, PlacesSeedState  # noqa
 from .models_concierge_analytics import ConciergeRecommendationLog
 from .models_usage import FeatureUsage  # noqa
+from .models_weekly_presentation import WeeklyPresentationSnapshot  # noqa
 from temples.domain.evidence_provenance import EVIDENCE_MECHANISMS, EVIDENCE_PRODUCERS
 from temples.domain.evidence_taxonomy import get_current_taxonomy_version
 from temples.domain.goriyaku_taxonomy_v1 import (
