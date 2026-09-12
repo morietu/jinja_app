@@ -19,6 +19,11 @@ const baseProps = {
   onToggleTag: vi.fn(),
   tagsLoading: false,
   tagsError: null,
+  plannedVisitDate: "",
+  userOrigin: null,
+  onPlannedVisitDateChange: vi.fn(),
+  onOriginChange: vi.fn(),
+  onUseCurrentLocation: vi.fn(),
 };
 
 describe("ConciergeFilterPanel Visit Preference Structured Signal Mapping", () => {
@@ -38,9 +43,7 @@ describe("ConciergeFilterPanel Visit Preference Structured Signal Mapping", () =
 
     fireEvent.click(screen.getByText("静かな時間を過ごしたい"));
 
-    expect(onExtraConditionChange).toHaveBeenCalledWith(
-      "静かな雰囲気で、気持ちを落ち着けて整理できる場所がいい",
-    );
+    expect(onExtraConditionChange).toHaveBeenCalledWith("静かな雰囲気で、気持ちを落ち着けて整理できる場所がいい");
     expect(onVisitPreferencesChange).toHaveBeenCalledWith(["quiet"]);
   });
 
@@ -150,13 +153,7 @@ describe("ConciergeFilterPanel Visit Preference Structured Signal Mapping", () =
   });
 
   it("renders without crashing when visitPreferences/onVisitPreferencesChange are omitted (backward compatible props)", () => {
-    render(
-      <ConciergeFilterPanel
-        {...baseProps}
-        extraCondition=""
-        onExtraConditionChange={vi.fn()}
-      />,
-    );
+    render(<ConciergeFilterPanel {...baseProps} extraCondition="" onExtraConditionChange={vi.fn()} />);
 
     expect(() => fireEvent.click(screen.getByText("静かな時間を過ごしたい"))).not.toThrow();
   });

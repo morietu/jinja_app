@@ -20,7 +20,6 @@ import { buildDummySections } from "@/features/concierge/sections/dummy";
 
 import ConciergeSectionsRenderer from "@/features/concierge/components/ConciergeSectionsRenderer";
 import ConciergeEntryCard from "@/features/concierge/components/ConciergeEntryCard";
-import OriginSelector from "@/features/concierge/components/OriginSelector";
 import { buildPayloadFromUnified } from "@/features/concierge/buildPayloadFromUnified";
 import { buildConciergeRequestPayload } from "@/features/concierge/buildConciergeRequestPayload";
 
@@ -37,7 +36,8 @@ import type { UserOrigin } from "../../../../../packages/shared/userOrigin";
 
 import { conciergeLog } from "@/lib/log/concierge";
 import { EVT_CLOSE_CONCIERGE } from "@/lib/events";
-const conciergeCardClass = "rounded-3xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-6";
+const conciergeCardClass =
+  "rounded-3xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-6";
 
 import { isValidISODate, normalizeBirthdateInput } from "@/lib/date/normalizeBirthdateInput";
 import { track } from "@/lib/analytics/track";
@@ -1007,24 +1007,52 @@ export default function ConciergeClientFull() {
         userOrigin,
         input,
       }),
-    [sessionState.temporaryBirthdate, needText, baseFilters, user?.profile, plannedVisitDate, userOrigin, visitPreferences],
+    [
+      sessionState.temporaryBirthdate,
+      needText,
+      baseFilters,
+      user?.profile,
+      plannedVisitDate,
+      userOrigin,
+      visitPreferences,
+    ],
   );
 
-  const useCurrentLocation = useCallback(() => {
+  const handleCurrentLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setLocationError("このブラウザでは現在地を取得できません。");
       return;
     }
     setLocationError(null);
     navigator.geolocation.getCurrentPosition(
-      (position) => { setUserOrigin({ latitude: position.coords.latitude, longitude: position.coords.longitude, source: "device", displayName: "現在地", accuracy: "precise" }); trackWebDirection("direction_origin_result", { origin_type: "device", result: "success" }); },
-      (error) => { setLocationError("現在地を取得できませんでした。位置情報の許可を確認してください。"); trackWebDirection("direction_origin_result", { origin_type: "device", result: error.code === 1 ? "denied" : "failed" }); },
+      (position) => {
+        setUserOrigin({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          source: "device",
+          displayName: "現在地",
+          accuracy: "precise",
+        });
+        trackWebDirection("direction_origin_result", { origin_type: "device", result: "success" });
+      },
+      (error) => {
+        setLocationError("現在地を取得できませんでした。位置情報の許可を確認してください。");
+        trackWebDirection("direction_origin_result", {
+          origin_type: "device",
+          result: error.code === 1 ? "denied" : "failed",
+        });
+      },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
     );
   }, []);
 
   const hasFilter =
-    (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 || !!baseFilters.birthdate || !!baseFilters.extra_condition;
+    (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 ||
+    !!baseFilters.birthdate ||
+    !!baseFilters.extra_condition ||
+    visitPreferences.length > 0 ||
+    !!plannedVisitDate ||
+    !!userOrigin;
 
   const selectedTagNames = useMemo(() => {
     if (!goriyakuTags.length || !selectedTagIds.length) return [];
@@ -1046,6 +1074,8 @@ export default function ConciergeClientFull() {
       tagsError,
       extraCondition,
       visitPreferences,
+      plannedVisitDate,
+      userOrigin,
     }),
     [
       isFilterOpen,
@@ -1058,6 +1088,8 @@ export default function ConciergeClientFull() {
       tagsError,
       extraCondition,
       visitPreferences,
+      plannedVisitDate,
+      userOrigin,
     ],
   );
 
@@ -1273,6 +1305,8 @@ export default function ConciergeClientFull() {
    * ロック統一：isBusy
    * -------------------------------------- */
   const isBusy = sending || isFiltering || (isEntryRoute && entrySubmitting);
+  const hasExecutableQuery = buildConciergePayload().query.trim().length > 0;
+  const canApply = hasExecutableQuery && !isBusy;
 
   /* ----------------------------------------
    * 安全な送信関数（共通化）
@@ -1489,23 +1523,12 @@ export default function ConciergeClientFull() {
   };
 
   const buildFilterPayload = useCallback((): Omit<ConciergeChatRequestV1, "thread_id"> | null => {
-    const hasFilterInput =
-      !!normalizeBirthdateInput(sessionState.temporaryBirthdate ?? "") ||
-      (baseFilters.goriyaku_tag_ids?.length ?? 0) > 0 ||
-      !!baseFilters.extra_condition;
+    const payload = buildConciergePayload();
 
-    const hasQuery = needText.trim().length > 0;
+    if (!payload.query.trim()) return null;
 
-    if (!hasFilterInput && !hasQuery) return null;
-
-    return buildConciergePayload();
-  }, [
-    sessionState.temporaryBirthdate,
-    baseFilters.goriyaku_tag_ids,
-    baseFilters.extra_condition,
-    needText,
-    buildConciergePayload,
-  ]);
+    return payload;
+  }, [buildConciergePayload]);
 
   /* ----------------------------------------
    * UIアクション
@@ -1521,7 +1544,9 @@ export default function ConciergeClientFull() {
             action: "route",
             rank: typeof a.rank === "number" ? a.rank : null,
             tid: activeThreadIdRef.current || null,
-            ...(modeAnalyticsPayload.consultationAxis ? { consultationAxis: modeAnalyticsPayload.consultationAxis } : {}),
+            ...(modeAnalyticsPayload.consultationAxis
+              ? { consultationAxis: modeAnalyticsPayload.consultationAxis }
+              : {}),
           });
         }
 
@@ -1661,12 +1686,36 @@ export default function ConciergeClientFull() {
         setVisitPreferences(Array.isArray(a.visitPreferences) ? a.visitPreferences : []);
         return;
 
+      case "filter_set_visit_date":
+        setPlannedVisitDate(a.plannedVisitDate);
+        if (a.plannedVisitDate) {
+          trackWebDirection("direction_visit_date_set");
+        }
+        return;
+
+      case "filter_set_origin":
+        setUserOrigin(a.userOrigin);
+        if (a.userOrigin) {
+          trackWebDirection("direction_origin_result", {
+            origin_type: a.userOrigin.source,
+            result: "selected",
+          });
+        }
+        return;
+
+      case "filter_use_current_location":
+        handleCurrentLocation();
+        return;
+
       case "filter_clear":
         snap("action:filter_clear", {});
         conciergeLog("filter_clear", { tid: activeThreadIdRef.current });
         setExtraCondition("");
         setVisitPreferences([]);
         setSelectedTagIds([]);
+        setPlannedVisitDate("");
+        setUserOrigin(null);
+        setLocationError(null);
         setEntryValidationError(null);
         setSessionState((prev) => ({
           ...prev,
@@ -1744,7 +1793,13 @@ export default function ConciergeClientFull() {
               onPickExample={onPickExample}
               isBusy={isBusy}
               canSend={canSend}
-              onSubmit={() => { trackWebDirection("direction_condition_submitted", { has_visit_date: !!plannedVisitDate, has_origin: !!userOrigin }); void safeSend(needText.trim(), { kind: "need_submit", textLen: needText.trim().length }); }}
+              onSubmit={() => {
+                trackWebDirection("direction_condition_submitted", {
+                  has_visit_date: !!plannedVisitDate,
+                  has_origin: !!userOrigin,
+                });
+                void safeSend(needText.trim(), { kind: "need_submit", textLen: needText.trim().length });
+              }}
               onClear={() => {
                 setNeedText("");
                 setEntryValidationError(null);
@@ -1762,17 +1817,23 @@ export default function ConciergeClientFull() {
             <div className="mt-5 rounded-3xl border border-stone-200/45 bg-stone-50/60 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-medium tracking-[0.2em] text-stone-500">もう少し自分に合わせる（任意）</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">参拝の希望・誕生日・ご利益・参拝の詳細は、相談テーマを補う条件として扱います。</p>
+                  <p className="text-[11px] font-medium tracking-[0.2em] text-stone-500">
+                    もう少し自分に合わせる（任意）
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-stone-500">
+                    参拝の希望・誕生日・ご利益・参拝の詳細は、相談テーマを補う条件として扱います。
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-full border border-stone-200/70 bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
-                  onClick={() => setIsFilterOpen((prev) => !prev)}
-                  disabled={isBusy}
-                >
-                  {isFilterOpen ? "閉じる" : "条件を開く"}
-                </button>
+                {!isFilterOpen ? (
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-full border border-stone-200/70 bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+                    onClick={() => setIsFilterOpen(true)}
+                    disabled={isBusy}
+                  >
+                    条件を開く
+                  </button>
+                ) : null}
               </div>
 
               {!isFilterOpen && hasFilter ? (
@@ -1799,6 +1860,18 @@ export default function ConciergeClientFull() {
                             参拝スタイルあり
                           </span>
                         ) : null}
+
+                        {plannedVisitDate ? (
+                          <span className="rounded-full border border-stone-200/70 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                            参拝予定日あり
+                          </span>
+                        ) : null}
+
+                        {userOrigin ? (
+                          <span className="rounded-full border border-stone-200/70 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                            出発地点あり
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1821,50 +1894,12 @@ export default function ConciergeClientFull() {
                     analyticsContext={modeAnalyticsPayload}
                     onAction={onRendererAction}
                     sending={sending || isFiltering}
+                    canApply={canApply}
+                    locationError={locationError}
                     threadId={thread?.id ?? activeThreadId}
                     isEntryRoute={isEntryRoute}
                     isPremiumActive={isPremiumActive}
                   />
-
-                  {/* Level 3-C Recommendation Context. Ambient situational
-                      data (not user identity, not a candidate hard filter) --
-                      kept out of the Initial screen (Task 8) and rendered
-                      here with its own labeled subsection so it is not
-                      confused with Level 3-A Personal Profile or Level 3-B
-                      Explicit Constraint above. Same plannedVisitDate/
-                      userOrigin state and handlers as before this move --
-                      request payload semantics are unchanged. */}
-                  <section aria-label="参拝の詳細（任意）" className="mt-2.5 rounded-2xl border border-stone-200/50 bg-white/80 p-2.5">
-                    <p className="text-xs font-semibold text-slate-700">参拝の詳細（任意）</p>
-                    <p className="mt-0.5 text-[10px] leading-4 text-slate-400">予定日と出発地点から、神社への方角を補助条件として使います。</p>
-                    <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
-                      <label className="block text-sm font-medium text-stone-600">
-                        参拝予定日（任意）
-                        <input
-                          type="date"
-                          value={plannedVisitDate}
-                          min={new Date().toISOString().slice(0, 10)}
-                          onChange={(event) => {
-                            setPlannedVisitDate(event.target.value);
-                            if (event.target.value) trackWebDirection("direction_visit_date_set");
-                          }}
-                          className="mt-1 min-h-11 w-full rounded-2xl border border-[var(--kt-color-border-strong)] bg-stone-50/25 px-3 py-2 text-base text-[var(--kt-color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                        />
-                      </label>
-                      <OriginSelector
-                        origin={userOrigin}
-                        onChange={(value) => {
-                          setUserOrigin(value);
-                          if (value) trackWebDirection("direction_origin_result", { origin_type: value.source, result: "selected" });
-                        }}
-                        onUseDevice={useCurrentLocation}
-                        deviceError={locationError}
-                      />
-                    </div>
-                    {plannedVisitDate ? (
-                      <p className="mt-2 text-xs text-[var(--kt-color-text-muted)]">予定日の年盤・月盤と、設定した出発地点から神社への方角を補助条件に使います。</p>
-                    ) : null}
-                  </section>
                 </div>
               ) : null}
             </div>
@@ -1946,6 +1981,8 @@ export default function ConciergeClientFull() {
             analyticsContext={modeAnalyticsPayload}
             onAction={onRendererAction}
             sending={sending || isFiltering}
+            canApply={canApply}
+            locationError={locationError}
             threadId={thread?.id ?? activeThreadId}
             isEntryRoute={isEntryRoute}
             isPremiumActive={isPremiumActive}

@@ -2,6 +2,7 @@ import type { ConciergeBreakdown, ConciergeReasonFacts } from "@/lib/api/concier
 import type { ConciergeModeSignal } from "@/features/concierge/types/unified";
 import type { DirectionReference } from "../../../../../../packages/shared/directionReference";
 import type { RecommendationAnalyticsProvenance } from "../../../../../../packages/shared/recommendationAnalyticsProvenance";
+import type { UserOrigin } from "../../../../../../packages/shared/userOrigin";
 
 /* =========================
  * filter state
@@ -20,6 +21,11 @@ export type ConciergeFilterState = {
   tagsError: string | null;
   extraCondition: string; // Level 2 Visit Preference (Legacy/Transitional, free-text)
   visitPreferences: readonly string[]; // Level 2 Visit Preference (Structured, canonical tags)
+  // Level 3-C Recommendation Context. These remain optional during the staged
+  // PR3 wiring so the branch stays type-safe until ConciergeClientFull starts
+  // projecting the existing source-of-truth state into this FilterState.
+  plannedVisitDate: string;
+  userOrigin: UserOrigin | null;
 };
 
 /* =========================
@@ -155,5 +161,8 @@ export type RendererAction =
   | { type: "filter_toggle_tag"; tagId: number }
   | { type: "filter_set_extra"; extraCondition: string }
   | { type: "filter_set_visit_preferences"; visitPreferences: string[] }
+  | { type: "filter_set_visit_date"; plannedVisitDate: string }
+  | { type: "filter_set_origin"; userOrigin: UserOrigin | null }
+  | { type: "filter_use_current_location" }
   | { type: "filter_clear" }
   | { type: "save_concierge_thread" };

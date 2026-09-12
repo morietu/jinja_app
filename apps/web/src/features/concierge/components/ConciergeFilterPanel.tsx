@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import type { GoriyakuTag, Element4 } from "@/features/concierge/sections/types";
+import OriginSelector from "@/features/concierge/components/OriginSelector";
+import type { UserOrigin } from "../../../../../../packages/shared/userOrigin";
 
 type Props = {
   isOpen: boolean;
@@ -34,7 +36,15 @@ type Props = {
   visitPreferences?: readonly string[];
   onVisitPreferencesChange?: (tags: string[]) => void;
 
+  plannedVisitDate: string;
+  userOrigin: UserOrigin | null;
+  locationError?: string | null;
+  onPlannedVisitDateChange: (value: string) => void;
+  onOriginChange: (value: UserOrigin | null) => void;
+  onUseCurrentLocation: () => void;
+
   canApply?: boolean;
+  applyLabel?: string;
 };
 
 const QUICK_PRESET_GROUPS: readonly {
@@ -88,17 +98,17 @@ const INITIAL_VISIBLE_GORIYAKU_COUNT = 4;
 // natural-language-only (no Shrine-side capability to evaluate it, Task 13
 // Shrine Data Capability Check: Hold).
 const PRESET_VISIT_PREFERENCE_TAGS: Readonly<Record<string, readonly string[]>> = {
-  "静かな時間を過ごしたい": ["quiet"],
-  "気分を切り替えたい": ["reset"],
-  "自然を感じたい": ["nature"],
-  "歴史や文化に触れたい": ["classic"],
-  "近場がいい": ["nearby"],
-  "アクセスしやすい場所がいい": ["nearby"],
-  "有名な神社が安心": ["classic"],
-  "人混みを避けたい": ["less_crowded"],
-  "由緒を知りたい": ["classic"],
-  "神話に触れたい": ["classic"],
-  "境内をゆっくり歩きたい": ["quiet", "nature"],
+  静かな時間を過ごしたい: ["quiet"],
+  気分を切り替えたい: ["reset"],
+  自然を感じたい: ["nature"],
+  歴史や文化に触れたい: ["classic"],
+  近場がいい: ["nearby"],
+  アクセスしやすい場所がいい: ["nearby"],
+  有名な神社が安心: ["classic"],
+  人混みを避けたい: ["less_crowded"],
+  由緒を知りたい: ["classic"],
+  神話に触れたい: ["classic"],
+  境内をゆっくり歩きたい: ["quiet", "nature"],
 };
 
 function mergeExtra(prev: string, add: string) {
@@ -134,7 +144,14 @@ export default function ConciergeFilterPanel({
   onExtraConditionChange,
   visitPreferences = [],
   onVisitPreferencesChange,
+  plannedVisitDate,
+  userOrigin,
+  locationError = null,
+  onPlannedVisitDateChange,
+  onOriginChange,
+  onUseCurrentLocation,
   canApply = false,
+  applyLabel = "この条件で提案を更新",
 }: Props) {
   const [showAllGoriyakuTags, setShowAllGoriyakuTags] = useState(false);
 
@@ -156,24 +173,6 @@ export default function ConciergeFilterPanel({
       </div>
 
       <div className="grid gap-0.5 rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-2">
-        {/* Level 3-A Personal Profile */}
-        <section aria-label="誕生日（任意）" className="space-y-0.5">
-          <div className="text-[10px] font-semibold text-[var(--kt-color-text-muted)]">誕生日（任意）</div>
-          <div className="text-[10px] text-slate-400">相性候補を見るための任意の補助情報です</div>
-          <input
-            type="date"
-            value={birthdate}
-            onChange={(e) => onBirthdateChange(e.target.value)}
-            className="w-full rounded-xl border px-3 py-1.5 text-sm"
-          />
-        </section>
-
-        {element4 ? (
-          <div className="text-[11px] text-[var(--kt-color-text-muted)]">
-            誕生日から見た補助傾向: <span className="font-semibold text-[var(--kt-color-text-secondary)]">{element4}</span>
-          </div>
-        ) : null}
-
         {/* Level 2 Visit Preference */}
         <section aria-label="今回の参拝の希望（任意）" className="space-y-1.5">
           <div>
@@ -212,6 +211,26 @@ export default function ConciergeFilterPanel({
           ))}
         </section>
 
+        {/* Level 3-A Personal Profile */}
+        <section aria-label="誕生日（任意）" className="space-y-0.5">
+          <div className="text-[10px] font-semibold text-[var(--kt-color-text-muted)]">誕生日（任意）</div>
+          <div className="text-[10px] text-slate-400">相性候補を見るための任意の補助情報です</div>
+          <input
+            type="date"
+            aria-label="誕生日"
+            value={birthdate}
+            onChange={(e) => onBirthdateChange(e.target.value)}
+            className="w-full rounded-xl border px-3 py-1.5 text-sm"
+          />
+        </section>
+
+        {element4 ? (
+          <div className="text-[11px] text-[var(--kt-color-text-muted)]">
+            誕生日から見た補助傾向:{" "}
+            <span className="font-semibold text-[var(--kt-color-text-secondary)]">{element4}</span>
+          </div>
+        ) : null}
+
         {element4 && suggestedTags.length > 0 ? (
           <div className="space-y-0.5">
             <div className="text-[10px] font-semibold text-[var(--kt-color-text-muted)]">相性から見た候補</div>
@@ -245,7 +264,10 @@ export default function ConciergeFilterPanel({
           not a "おすすめテーマ"/Personal Profile. Kept distinct from L2
           (参拝スタイル) and L3-A (誕生日) above (Task 7). */}
       {tagsLoading || tagsError || visibleGoriyakuTags.length > 0 || hiddenGoriyakuCount > 0 ? (
-        <section aria-label="ご利益を指定する" className="space-y-1 rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-2">
+        <section
+          aria-label="ご利益を指定する"
+          className="space-y-1 rounded-xl border border-[var(--kt-color-border-default)] bg-[var(--kt-color-surface-default)] p-2"
+        >
           <div>
             <div className="text-[10px] font-semibold text-[var(--kt-color-text-secondary)]">ご利益を指定する</div>
             <p className="mt-0.5 text-[10px] leading-4 text-[var(--kt-color-text-muted)]">
@@ -289,18 +311,48 @@ export default function ConciergeFilterPanel({
         </section>
       ) : null}
 
-      <div className="flex justify-end gap-2 border-t border-[var(--kt-color-border-default)] bg-slate-50/95 pt-1.5 pb-0.5">
-        <button type="button" className="rounded-xl border px-3 py-1.5 text-sm font-semibold" onClick={onClose}>
-          キャンセル
-        </button>
+      {/* Level 3-C Recommendation Context */}
+      <section
+        aria-label="参拝の詳細（任意）"
+        className="space-y-1.5 rounded-xl border border-stone-200/50 bg-white/80 p-2"
+      >
+        <div>
+          <div className="text-[10px] font-semibold text-slate-700">参拝の詳細（任意）</div>
+          <p className="mt-0.5 text-[10px] leading-4 text-slate-400">
+            予定日と出発地点から、神社への方角を補助条件として使います。
+          </p>
+        </div>
+        <label className="block text-sm font-medium text-stone-600">
+          参拝予定日（任意）
+          <input
+            type="date"
+            aria-label="参拝予定日"
+            value={plannedVisitDate}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(event) => onPlannedVisitDateChange(event.target.value)}
+            className="mt-1 min-h-11 w-full rounded-2xl border border-[var(--kt-color-border-strong)] bg-stone-50/25 px-3 py-2 text-base text-[var(--kt-color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+          />
+        </label>
+        <OriginSelector
+          origin={userOrigin}
+          onChange={onOriginChange}
+          onUseDevice={onUseCurrentLocation}
+          deviceError={locationError}
+        />
+        {plannedVisitDate ? (
+          <p className="text-xs text-[var(--kt-color-text-muted)]">
+            予定日の年盤・月盤と、設定した出発地点から神社への方角を補助条件に使います。
+          </p>
+        ) : null}
+      </section>
 
+      <div className="flex justify-end gap-2 border-t border-[var(--kt-color-border-default)] bg-slate-50/95 pt-1.5 pb-0.5">
         <button
           type="button"
           onClick={() => {
             onApply();
           }}
-          disabled={false}
-          style={{ pointerEvents: "auto" }}
+          disabled={!canApply}
           className={[
             "relative z-20 rounded-xl px-3 py-1.5 text-sm font-semibold transition",
             canApply
@@ -308,7 +360,7 @@ export default function ConciergeFilterPanel({
               : "bg-slate-200 text-slate-400 cursor-not-allowed",
           ].join(" ")}
         >
-          この内容に反映する
+          {applyLabel}
         </button>
       </div>
     </section>

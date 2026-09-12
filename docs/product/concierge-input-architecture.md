@@ -1791,38 +1791,69 @@ L2 Visit Preference + L3-A Personal Profile + L3-B Explicit Constraint
 （Task 11）各責務ごとにaccessible sectionを分離した。
 
 `apps/web/src/features/concierge/components/ConciergeFilterPanel.tsx`
-（既存、L2+L3-A+L3-Bを保持）:
+（L2+L3-A+L3-B+L3-Cのopen Editorを保持）:
 
-- 誕生日ブロック（L3-A）を`<section aria-label="誕生日（任意）">`へ。
 - 参拝スタイルpresetブロック（L2）を
   `<section aria-label="今回の参拝の希望（任意）">`へ。
-- ご利益ブロック（L3-B）を`<section aria-label="ご利益を指定する">`へ
-  （見出し文言も「ご利益・願いに近いもの」から変更 -- 「おすすめ
-  テーマ」等と混同しないため、§6 3-B Explicit Constraintの定義に
-  合わせた）。
-- Preset値・`onToggleTag`/`onBirthdateChange`/`onVisitPreferencesChange`
-  等のhandler・Structured Visit Preference mapping（`PRESET_VISIT_
-  PREFERENCE_TAGS`）は**一切変更していない**。
+- 誕生日ブロック（L3-A）を`<section aria-label="誕生日（任意）">`へ。
+- ご利益ブロック（L3-B）を`<section aria-label="ご利益を指定する">`へ。
+- Level 3-C（参拝予定日・出発地点）を
+  `<section aria-label="参拝の詳細（任意）">`として配置した。
+- open Editor内の順序は
+  **L2 → L3-A → L3-B → L3-C → Apply**
+  を正本とする。
+- Preset値・`onToggleTag`/`onBirthdateChange`/
+  `onVisitPreferencesChange`等の既存Signal mappingは変更していない。
 
-`apps/web/src/app/concierge/ConciergeClientFull.tsx`（L3-C新設配置）:
+`apps/web/src/app/concierge/ConciergeClientFull.tsx`
+（Personalize outer / state source）:
 
-- Level 3-C（参拝予定日・出発地点、`plannedVisitDate`/`userOrigin`
-  state）を`ConciergeEntryCard`から除去し、Personalizeセクション内へ
-  `<section aria-label="参拝の詳細（任意）">`として新設した。
-- state・handler（`setPlannedVisitDate`/`onOriginChange`/
-  `useCurrentLocation`/`trackWebDirection`呼び出し含む）は完全に
-  同一のものを再利用しており、request payload（`visit_date`/
-  `location`）の生成ロジックには一切触れていない。
+- Personalize outerは、collapsed時のtitle・説明・「条件を開く」入口・
+  選択済み条件summary・clearのみを担当する。
+- open時はEditor titleやClose controlを重複表示せず、
+  `ConciergeFilterPanel`へEditor責務を委譲する。
+- `plannedVisitDate` / `userOrigin` / `locationError`のstateと、
+  direction analyticsを含むhandlerは引き続きClientFullを正本とする。
+- `ConciergeSectionsRenderer`はL3-Cを含むEditor state/actionの
+  orchestration / bridgeのみを担当し、独自にbusiness ruleを判断しない。
+- request payload（`visit_date` / `location`）の生成ロジックは変更していない。
+
 
 ### State Preservation
 
 `filter_close`アクション（`ConciergeClientFull.tsx`）は
 `setIsFilterOpen(false)`のみを行い、`birthdate`/`selectedTagIds`/
 `extraCondition`/`visitPreferences`/`plannedVisitDate`/`userOrigin`の
-いずれもクリアしない。これらは全てPersonalizeセクションの外
-（`ConciergeClientFull`のcomponent state）に持ち上げられているため、
-開閉に伴うunmount/remountでも値は構造的に保持される（Browser QAで
-誕生日・ご利益選択が閉じて再度開いた後も保持されることを確認済み）。
+いずれもクリアしない。これらは全て`ConciergeClientFull`のcomponent
+stateとして保持されているため、開閉に伴うunmount/remountでも値は
+構造的に保持される（Browser QAで誕生日・ご利益選択が閉じて再度
+開いた後も保持されることを確認済み）。
+
+### Editor Operation Contract
+
+Closeは`filter_close`のみをdispatchし、Editorを閉じる。
+入力済みのPersonalize stateは保持し、Recommendationは実行しない。
+
+Cancelは設けず、draft / rollback stateも導入しない。
+
+Apply labelはcontextによって以下を使用する。
+
+- Entry: 「この条件で提案を見る」
+- Result: 「この条件で提案を更新」
+
+Apply可否は`ConciergeClientFull`を正本とし、
+
+`canApply = executable query && !isBusy`
+
+で判定する。
+
+- queryなし + 条件あり → Apply不可
+- queryあり + 条件なし → Apply可
+- queryあり + 条件あり → Apply可
+- queryあり + busy → Apply不可
+
+`ConciergeSectionsRenderer`はこの判定を再計算せず、
+`ConciergeFilterPanel`へpropとしてbridgeする。
 
 ### Request Payload Extraction（Task 17対応）
 
@@ -1880,7 +1911,7 @@ Browser QA（実機ではなくdev server + Browser preview、実backend接続�
   確認。
 - Case B (Assist): chip clickでtextareaが置き換わり編集可能になる
   ことを確認（既存挙動、変更なし）。
-- Case C (Personalize): 開いてL3-A（誕生日）・L2（参拝スタイル）・
+- Case C (Personalize): 開いてL2（参拝スタイル）・L3-A（誕生日）・
   L3-B（ご利益）・L3-C（参拝予定日・出発地点）が全て個別の
   accessible sectionとして表示されること、誕生日入力・ご利益選択
   後に閉じて再度開いても値が保持されることを確認。実際に
@@ -1904,3 +1935,27 @@ Browser QA（実機ではなくdev server + Browser preview、実backend接続�
   section等）の再設計。
 - 呼び名フィールドのInitial Recommendation Flowからの完全除去
   （runtime dependencyがあるため今回は視覚的な優先度低下のみ）。
+
+#### PR3 Editor Boundary — Integration Coverage Debt
+
+PR3で確定した以下のEditor Contractは既存component / Renderer testsで固定済み。
+
+- L2 → L3-A → L3-B → L3-C → ApplyのDOM order
+- open時のClose controlは1つ
+- Cancelなし
+- Close後の値保持
+- CloseのみではApplyしない
+- Entry / Result別Apply label
+- L3-C action bridge
+- Apply disabled / enabled
+
+一方、`ConciergeClientFull`専用のrender test harnessは既存しないため、
+以下はIntegration Coverage Debtとして残す。
+
+- `openFilter=1`のClientFull integration regression
+- `filter_clear`後のL3-C state
+  （`plannedVisitDate` / `userOrigin` / `locationError`）integration regression
+- query / busy truth tableのClientFull integration regression
+
+これらは実装未完了を意味せず、巨大なClientFull mock harnessを本PRで
+新設しないというtest scope上の判断である。

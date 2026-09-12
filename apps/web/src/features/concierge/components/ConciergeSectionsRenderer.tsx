@@ -42,6 +42,7 @@ import type {
 } from "@/features/concierge/sections/types";
 
 import { buildConciergeCardRoutes } from "@/lib/concierge/conciergeCardRoutes";
+import type { UserOrigin } from "../../../../../../packages/shared/userOrigin";
 
 type MetaMode = NonNullable<ConciergeSectionsPayload["meta"]>["mode"];
 type AnalyticsContext = Pick<
@@ -210,6 +211,8 @@ type Props = {
   payload: ConciergeSectionsPayload;
   onAction?: (action: RendererAction) => void;
   sending?: boolean;
+  canApply?: boolean;
+  locationError?: string | null;
   threadId?: number | null;
   isEntryRoute?: boolean;
   isPremiumActive?: boolean;
@@ -300,6 +303,8 @@ export default function ConciergeSectionsRenderer({
   payload,
   onAction,
   sending = false,
+  canApply = false,
+  locationError = null,
   threadId = null,
   isEntryRoute = false,
   isPremiumActive: isPremiumActiveProp,
@@ -651,9 +656,6 @@ export default function ConciergeSectionsRenderer({
             const state: ConciergeFilterState = (sec as any).state;
             const title = (sec as any).title ?? "条件を追加して絞る";
 
-            const canApplyCompatFilter =
-              !!state.birthdate?.trim() || (state.selectedTagIds?.length ?? 0) > 0 || !!state.extraCondition?.trim();
-
             // 参拝Preferenceの入力UIは ConciergeFilterPanel が正本。
             // ここには独立したQuick Preset（短縮ラベル「静か」「駅近」「ひとり」
             // 「階段少なめ」）を持たない。同じ役割のUIが2系統あると、
@@ -702,7 +704,8 @@ export default function ConciergeSectionsRenderer({
                   onApply={() => {
                     onAction?.({ type: "filter_apply" });
                   }}
-                  canApply={canApplyCompatFilter}
+                  canApply={canApply}
+                  applyLabel={isEntryRoute ? "この条件で提案を見る" : "この条件で提案を更新"}
                   birthdate={state.birthdate}
                   onBirthdateChange={(v: string) => onAction?.({ type: "filter_set_birthdate", birthdate: v })}
                   element4={state.element4}
@@ -718,6 +721,16 @@ export default function ConciergeSectionsRenderer({
                   onVisitPreferencesChange={(tags: string[]) =>
                     onAction?.({ type: "filter_set_visit_preferences", visitPreferences: tags })
                   }
+                  plannedVisitDate={state.plannedVisitDate}
+                  userOrigin={state.userOrigin}
+                  locationError={locationError}
+                  onPlannedVisitDateChange={(value: string) =>
+                    onAction?.({ type: "filter_set_visit_date", plannedVisitDate: value })
+                  }
+                  onOriginChange={(value: UserOrigin | null) =>
+                    onAction?.({ type: "filter_set_origin", userOrigin: value })
+                  }
+                  onUseCurrentLocation={() => onAction?.({ type: "filter_use_current_location" })}
                 />
 
                 {/* 独立したQuick Preset群はここに置かない。

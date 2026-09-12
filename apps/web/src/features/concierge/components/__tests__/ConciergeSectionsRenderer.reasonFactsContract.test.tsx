@@ -22,6 +22,8 @@ const filterState: any = {
   tagsError: null,
   extraCondition: "",
   visitPreferences: [],
+  plannedVisitDate: "",
+  userOrigin: null,
 };
 
 function fact(type: string, label: string, isPrimary = true) {
