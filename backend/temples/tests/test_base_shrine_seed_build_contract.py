@@ -10,7 +10,7 @@
 * 同一入力から2回buildしてSHA-256が一致する。
 * 全行がcanonical key順を持つ。
 * Shrine identity `(name_jp, address)` がbuildで変化しない。
-* Base Seed schemaが `CANONICAL_KEY_ORDER` の9keyから増減しない。
+* Base Seed schemaはlegacy 9keyとoptional `goriyaku_tags`だけを許可する。
 
 件数・Batch17 identity・visit_style_tagsの意味内容は既存の
 `test_shrine_base_batch17_seed.py` / `test_visit_style_legacy_drift_seed_contract.py`
@@ -75,7 +75,8 @@ def test_repeated_build_produces_the_same_sha256(builder, built_rows):
 
 def test_every_row_uses_the_canonical_key_order(builder, source_rows):
     for row in source_rows:
-        assert tuple(row.keys()) == builder.CANONICAL_KEY_ORDER, row.get("name_jp")
+        expected = tuple(key for key in builder.CANONICAL_KEY_ORDER if key in row)
+        assert tuple(row.keys()) == expected, row.get("name_jp")
 
 
 def test_every_location_object_uses_the_canonical_key_order(builder, source_rows):

@@ -53,12 +53,14 @@ CANONICAL_KEY_ORDER: tuple[str, ...] = (
     "latitude",
     "longitude",
     "goriyaku",
+    "goriyaku_tags",
     "kyusei",
     "astro_elements",
     "visit_style_tags",
     "location",
 )
 EXPECTED_KEYS = frozenset(CANONICAL_KEY_ORDER)
+REQUIRED_SEED_KEYS = frozenset(key for key in CANONICAL_KEY_ORDER if key != "goriyaku_tags")
 
 # `location` object内のcanonical key順。
 CANONICAL_LOCATION_KEY_ORDER: tuple[str, ...] = ("lat", "lng")
@@ -120,7 +122,7 @@ def load_source(path: Path) -> list[dict[str, Any]]:
 
 def canonicalize_row(row: dict[str, Any]) -> dict[str, Any]:
     """key順だけを固定する。値は一切変換しない。"""
-    canonical = {key: row[key] for key in CANONICAL_KEY_ORDER}
+    canonical = {key: row[key] for key in CANONICAL_KEY_ORDER if key in row}
 
     location = canonical.get("location")
     if isinstance(location, dict):
@@ -160,7 +162,7 @@ def validate(source_rows: list[dict[str, Any]], built_rows: list[dict[str, Any]]
         label = str(row.get("name_jp") or f"<row {index}>")
 
         unexpected = sorted(set(row) - EXPECTED_KEYS)
-        absent = sorted(EXPECTED_KEYS - set(row))
+        absent = sorted(REQUIRED_SEED_KEYS - set(row))
         if unexpected:
             schema_violations.append(f"{label}: unexpected keys {unexpected}")
         if absent:
