@@ -23,8 +23,11 @@ Safety contract
   (``--expected-updates`` / ``--expected-seed-sha256`` /
   ``--expected-snapshot-sha256``); any missing lock is a hard abort with zero
   writes.
-* The full Seed is validated, and every one of the 103 identities is resolved,
-  before a single row is written.
+* The full Seed is validated, and every managed identity (rows carrying
+  ``visit_style_tags``) is resolved, before a single row is written. Rows
+  without the key are unreviewed / unmanaged: never read, written, or
+  snapshotted here. The managed cohort must never fall below
+  ``MANAGED_COHORT_MIN_COUNT``.
 * Identity is ``(name_jp, address)`` exact match, the same identity
   ``import_shrines_seed`` uses -- but resolved strictly: 0 matches aborts and
   2+ matches abort. No ``.first()``, no CREATE fallback.
@@ -68,7 +71,15 @@ REQUEST_ONLY_TAGS = frozenset({"nearby"})
 # Retired labels that must never reappear in the canonical Seed.
 FORBIDDEN_LEGACY_TAGS = frozenset({"love", "formal", "tourism"})
 
-EXPECTED_SEED_ROW_COUNT = 103
+# Base Seed の総行数は固定ではない（新規 Shrine の追加を許容する）。
+# 固定するのは「canonical 管理対象 cohort が縮まないこと」だけ。
+#
+#   visit_style_tags key あり = canonical 管理対象（managed）
+#   visit_style_tags key なし = 未レビュー / unmanaged
+#
+# 既存 canonical 103 社はすべて key を持つ。managed cohort がこれを下回る
+# ことは「canonical 行から key が外れた」ことを意味するので hard fail にする。
+MANAGED_COHORT_MIN_COUNT = 103
 MIN_TAGS_PER_SHRINE = 1
 MAX_TAGS_PER_SHRINE = 3
 
@@ -111,7 +122,15 @@ def build_snapshot_core(
 
 
 def validate_seed_rows(data: Any) -> list[dict]:
-    """Validate the whole Seed before any DB access. Returns the rows.
+    """Validate the whole Seed before any DB access. Returns the **managed** rows.
+
+    Seed 総行数は固定しない。返すのは `visit_style_tags` key を持つ行
+    （canonical 管理対象）だけで、key なし行は未レビュー / unmanaged として
+    write / snapshot / update のいずれの対象にもしない。
+
+    identity（`name_jp` / `address` / 重複）の検証は managed / unmanaged を
+    問わず **全行** に適用する。unmanaged 行が canonical 行と identity を
+    衝突させると、後段の identity 解決が曖昧になるため。
 
     Raises CommandError listing every violation found, so an operator sees the
     complete picture instead of fixing one row at a time.
@@ -119,12 +138,8 @@ def validate_seed_rows(data: Any) -> list[dict]:
     if not isinstance(data, list):
         raise CommandError("seed json must be a list")
 
-    if len(data) != EXPECTED_SEED_ROW_COUNT:
-        raise CommandError(
-            f"seed row count must be exactly {EXPECTED_SEED_ROW_COUNT}, got {len(data)}"
-        )
-
     problems: list[str] = []
+    managed_rows: list[dict] = []
     seen_identity: dict[tuple[str, str], int] = {}
 
     for index, row in enumerate(data):
@@ -154,7 +169,8 @@ def validate_seed_rows(data: Any) -> list[dict]:
                 seen_identity[identity] = index
 
         if "visit_style_tags" not in row:
-            problems.append(f"{label} {name or '?'}: visit_style_tags key is missing")
+            # 未レビュー / unmanaged。canonical 管理対象ではないので、この
+            # command は読み書きも snapshot も一切行わない。
             continue
 
         tags = row["visit_style_tags"]
@@ -162,11 +178,22 @@ def validate_seed_rows(data: Any) -> list[dict]:
             problems.append(f"{label} {name or '?'}: visit_style_tags must be a list")
             continue
 
+        if not tags:
+            # key があるのに空 = 「レビュー済みでタグ 0 件」という状態は認めない。
+            # 未レビューを表したいなら key ごと省く。
+            problems.append(
+                f"{label} {name or '?'}: visit_style_tags is present but empty; "
+                "omit the key entirely for an unreviewed Shrine"
+            )
+            continue
+
         if not MIN_TAGS_PER_SHRINE <= len(tags) <= MAX_TAGS_PER_SHRINE:
             problems.append(
                 f"{label} {name or '?'}: visit_style_tags cardinality must be "
                 f"{MIN_TAGS_PER_SHRINE}-{MAX_TAGS_PER_SHRINE}, got {len(tags)}"
             )
+
+        managed_rows.append(row)
 
         seen_tags: set[str] = set()
         for tag in tags:
@@ -191,6 +218,13 @@ def validate_seed_rows(data: Any) -> list[dict]:
                     f"{label} {name or '?'}: {tag!r} is outside the allowed taxonomy"
                 )
 
+    if len(managed_rows) < MANAGED_COHORT_MIN_COUNT:
+        problems.append(
+            f"managed cohort shrank: {len(managed_rows)} row(s) carry "
+            f"visit_style_tags but at least {MANAGED_COHORT_MIN_COUNT} are required "
+            "(a canonical row lost its key)"
+        )
+
     if problems:
         raise CommandError(
             "seed validation failed with "
@@ -198,7 +232,7 @@ def validate_seed_rows(data: Any) -> list[dict]:
             + "\n  - ".join(problems)
         )
 
-    return data
+    return managed_rows
 
 
 class Command(BaseCommand):
@@ -285,6 +319,8 @@ class Command(BaseCommand):
             raise CommandError(f"seed json is not readable: {exc}") from exc
 
         seed_rows = validate_seed_rows(data)
+        total_seed_rows = len(data) if isinstance(data, list) else 0
+        unmanaged_rows = total_seed_rows - len(seed_rows)
 
         # --- 4. Identity pre-flight for every Seed row.
         resolved, identity_problems = self._resolve_identities(seed_rows)
@@ -327,7 +363,9 @@ class Command(BaseCommand):
 
         mode = "APPLY" if apply_changes else "DRY_RUN"
         self.stdout.write(f"mode={mode}")
-        self.stdout.write(f"total_seed={len(seed_rows)}")
+        self.stdout.write(f"total_seed={total_seed_rows}")
+        self.stdout.write(f"managed_rows={len(seed_rows)}")
+        self.stdout.write(f"unmanaged_rows={unmanaged_rows}")
         self.stdout.write(f"planned_updates={planned_updates}")
         self.stdout.write(f"source_seed_sha256={source_seed_sha256}")
         self.stdout.write(f"snapshot_sha256={snapshot_sha256}")

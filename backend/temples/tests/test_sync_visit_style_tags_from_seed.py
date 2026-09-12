@@ -18,7 +18,10 @@ from django.core.management.base import CommandError
 from temples.management.commands import sync_visit_style_tags_from_seed as sync_module
 from temples.models import PlaceRef, Shrine
 
-SEED_SIZE = sync_module.EXPECTED_SEED_ROW_COUNT  # 103
+# Seed の総行数は固定ではない。固定されているのは canonical 管理対象
+# （`visit_style_tags` key を持つ行）の下限だけ。
+MANAGED_COHORT_MIN = sync_module.MANAGED_COHORT_MIN_COUNT  # 103
+SEED_SIZE = MANAGED_COHORT_MIN
 
 
 # --------------------------------------------------------------------------- #
@@ -34,22 +37,35 @@ def _address(index: int) -> str:
     return f"東京都同期区{index:03d}-1"
 
 
+def _base_row(index: int) -> dict:
+    return {
+        "name_jp": _name(index),
+        "address": _address(index),
+        "latitude": 35.0 + index * 0.001,
+        "longitude": 139.0 + index * 0.001,
+        "goriyaku": "開運",
+        "kyusei": None,
+        "astro_elements": [],
+    }
+
+
 def _seed_rows(tag_overrides: dict[int, list] | None = None) -> list[dict]:
-    """A structurally valid Seed of exactly SEED_SIZE rows."""
+    """A structurally valid managed Seed of exactly SEED_SIZE rows."""
     overrides = tag_overrides or {}
-    return [
-        {
-            "name_jp": _name(i),
-            "address": _address(i),
-            "latitude": 35.0 + i * 0.001,
-            "longitude": 139.0 + i * 0.001,
-            "goriyaku": "開運",
-            "kyusei": None,
-            "astro_elements": [],
-            "visit_style_tags": list(overrides.get(i, ["classic"])),
-        }
-        for i in range(SEED_SIZE)
-    ]
+    rows = []
+    for i in range(SEED_SIZE):
+        row = _base_row(i)
+        row["visit_style_tags"] = list(overrides.get(i, ["classic"]))
+        rows.append(row)
+    return rows
+
+
+def _unmanaged_row(index: int) -> dict:
+    """A newly added Shrine whose Visit Style has not been reviewed yet.
+
+    未レビューは「`visit_style_tags` key ごと存在しない」で表現する。
+    """
+    return _base_row(index)
 
 
 def _write_seed(tmp_path, rows) -> str:
@@ -85,7 +101,9 @@ def _create_shrines(
             "latitude": row["latitude"],
             "longitude": row["longitude"],
             "goriyaku": row["goriyaku"],
-            "visit_style_tags": list(db_tags.get(i, row["visit_style_tags"])),
+            "visit_style_tags": list(
+                db_tags.get(i, row.get("visit_style_tags") or [])
+            ),
         }
         kwargs.update(field_overrides.get(i, {}))
         created[i] = Shrine.objects.create(**kwargs)
@@ -331,21 +349,94 @@ def test_command_never_creates_a_shrine(tmp_path):
 
 
 @pytest.mark.django_db
-def test_seed_row_count_other_than_103_aborts(tmp_path):
+def test_managed_cohort_shrinking_below_the_floor_aborts(tmp_path):
+    # canonical 行から key が外れた / canonical 行が消えた場合は hard fail。
     rows = _seed_rows()[:-1]
     _create_shrines(rows)
 
-    with pytest.raises(CommandError, match="seed row count must be exactly 103"):
+    with pytest.raises(CommandError, match="managed cohort shrank"):
         _run(_write_seed(tmp_path, rows))
 
 
 @pytest.mark.django_db
-def test_missing_visit_style_tags_key_aborts(tmp_path):
+def test_dropping_the_key_from_a_canonical_row_aborts(tmp_path):
+    # 総件数は足りていても、managed cohort が floor を割れば abort する。
     rows = _seed_rows()
     rows[2].pop("visit_style_tags")
     _create_shrines(_seed_rows())
 
-    with pytest.raises(CommandError, match="visit_style_tags key is missing"):
+    with pytest.raises(CommandError, match="managed cohort shrank"):
+        _run(_write_seed(tmp_path, rows))
+
+
+@pytest.mark.django_db
+def test_seed_growth_with_unreviewed_rows_is_allowed(tmp_path):
+    # Base Seed が 103 件から増えても、それ自体は validation を落とさない。
+    rows = _seed_rows() + [_unmanaged_row(SEED_SIZE + i) for i in range(5)]
+    _create_shrines(rows)
+
+    summary = _summary(_run(_write_seed(tmp_path, rows)))
+
+    assert summary["total_seed"] == str(SEED_SIZE + 5)
+    assert summary["managed_rows"] == str(SEED_SIZE)
+    assert summary["unmanaged_rows"] == "5"
+    assert summary["planned_updates"] == "0"
+
+
+@pytest.mark.django_db
+def test_unmanaged_row_is_never_read_or_written(tmp_path):
+    # key なし行は snapshot にも planned_updates にも現れず、DB の
+    # visit_style_tags は APPLY 後も一切変わらない。
+    rows = _seed_rows({0: ["quiet"]}) + [_unmanaged_row(SEED_SIZE)]
+    _create_shrines(
+        rows,
+        db_tags={0: ["classic"], SEED_SIZE: ["urban", "nature"]},
+    )
+    source = _write_seed(tmp_path, rows)
+
+    dry = _run(source)
+    summary = _summary(dry)
+    assert summary["planned_updates"] == "1"
+    assert _name(SEED_SIZE) not in dry
+
+    _run(
+        source,
+        "--apply",
+        "--expected-updates",
+        "1",
+        "--expected-seed-sha256",
+        _seed_sha256(source),
+        "--expected-snapshot-sha256",
+        summary["snapshot_sha256"],
+    )
+
+    assert Shrine.objects.get(name_jp=_name(0)).visit_style_tags == ["quiet"]
+    assert Shrine.objects.get(name_jp=_name(SEED_SIZE)).visit_style_tags == [
+        "urban",
+        "nature",
+    ]
+
+
+@pytest.mark.django_db
+def test_unmanaged_row_without_a_matching_shrine_does_not_abort(tmp_path):
+    # identity 解決は managed 行だけが対象。未レビュー行がまだ DB に
+    # 存在しなくても、この command は落ちない。
+    rows = _seed_rows() + [_unmanaged_row(SEED_SIZE)]
+    _create_shrines(rows, skip_indexes={SEED_SIZE})
+
+    summary = _summary(_run(_write_seed(tmp_path, rows)))
+
+    assert summary["unmanaged_rows"] == "1"
+    assert summary["planned_updates"] == "0"
+
+
+@pytest.mark.django_db
+def test_present_but_empty_visit_style_tags_aborts(tmp_path):
+    # key があるのに空 = invalid。未レビューを表したいなら key ごと省く。
+    rows = _seed_rows({1: []})
+    _create_shrines(_seed_rows())
+
+    with pytest.raises(CommandError, match="present but empty"):
         _run(_write_seed(tmp_path, rows))
 
 
@@ -381,8 +472,8 @@ def test_request_only_nearby_tag_aborts(tmp_path):
 @pytest.mark.parametrize(
     "tags",
     [
-        [],
         ["classic", "quiet", "nature", "urban"],
+        ["classic", "quiet", "nature", "urban", "study"],
     ],
 )
 def test_cardinality_outside_1_to_3_aborts(tmp_path, tags):

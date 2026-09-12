@@ -22,6 +22,9 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 
+from temples.management.commands.sync_visit_style_tags_from_seed import (
+    MANAGED_COHORT_MIN_COUNT,
+)
 from temples.models import Shrine
 
 pytestmark = pytest.mark.django_db
@@ -45,6 +48,14 @@ IMPORTER_PAYLOAD_FIELDS = frozenset(
         "description",
         "element",
     }
+)
+
+# `visit_style_tags` は payload dict literal には含まれない。key を持つ行
+# だけ、後から条件付きで payload に載る（key なし行は CREATE で model
+# default、UPDATE で既存値保持）。
+IMPORTER_CONDITIONAL_PAYLOAD_FIELDS = frozenset({"visit_style_tags"})
+IMPORTER_UNCONDITIONAL_PAYLOAD_FIELDS = (
+    IMPORTER_PAYLOAD_FIELDS - IMPORTER_CONDITIONAL_PAYLOAD_FIELDS
 )
 
 # Seed JSONに現れてよいkey。Importerが読むkeyと、Importerが無視するkey
@@ -362,7 +373,10 @@ def test_importer_payload_field_set_is_pinned():
         for line in payload_block.splitlines()
         if line.strip().startswith('"')
     }
-    assert declared == set(IMPORTER_PAYLOAD_FIELDS)
+    assert declared == set(IMPORTER_UNCONDITIONAL_PAYLOAD_FIELDS)
+
+    # visit_style_tags は key を持つ行だけに条件付きで追加される。
+    assert 'payload["visit_style_tags"] = list(managed_visit_style[index])' in source
 
 
 # --------------------------------------------------------------------------
@@ -370,35 +384,24 @@ def test_importer_payload_field_set_is_pinned():
 # --------------------------------------------------------------------------
 
 
-def test_base_seed_visit_style_tags_are_complete_and_non_empty():
-    """Base Seed canonical contract: 全103社がnon-empty visit_style_tagsを持つ。"""
+def test_base_seed_canonical_managed_cohort_is_complete_and_non_empty():
+    """canonical契約: keyを持つ行が103社以上あり、いずれもnon-empty。
+
+    Base Seedの総件数は固定しない。新規Shrineは``visit_style_tags`` key
+    なし（未レビュー）で追加されうる。
+    """
     data = _load_seed()
     with_tags = [row for row in data if "visit_style_tags" in row]
-    without_tags = [row for row in data if "visit_style_tags" not in row]
 
-    assert len(data) == 103
-    assert len(with_tags) == 103
-    assert without_tags == []
+    assert len(with_tags) >= MANAGED_COHORT_MIN_COUNT
     assert all(row["visit_style_tags"] for row in with_tags)
 
 
-def test_absent_visit_style_tags_key_is_treated_as_empty_list_by_the_importer(tmp_path):
-    """現行Importerのcharacterization test（挙動の固定であり、是認ではない）。
+def test_absent_visit_style_tags_key_preserves_the_existing_value(tmp_path):
+    """keyなし = 未レビュー / unmanaged。既存のDB値を書き換えない。
 
-    Importerは `row.get("visit_style_tags") or []` を使うため、
-    keyが存在しない行と空listの行を区別できない。その結果、
-    DB側に値が入っているShrineに対してkey欠落行をimportすると、
-    値が空listへのUPDATE対象になる。
-
-    この挙動は、Base Seedがvisit_style_tagsを部分適用していた時期には、
-    visit-style backfillとの組み合わせで既存値を消去する原因となっていた。
-
-    現在はBase Seed全103社がcanonicalなvisit_style_tagsを持ち、
-    通常bootstrapからvisit-style backfillも分離済みである。
-    --with-visit-styleはrepair-only経路として扱う。
-
-    Base Seedをcanonical sourceとする現行契約とは別に、
-    Importerのabsent-key semantics自体をcharacterizationとして固定する。
+    Base Seedは今後、Visit Style未レビューの新規Shrineを含みうる。その行が
+    既存Shrineのcanonical visit_style_tagsを空listで上書きしないことを固定する。
     """
     shrine = _make_shrine(visit_style_tags=["quiet", "nature", "classic"])
     source = _write_seed(
@@ -409,21 +412,93 @@ def test_absent_visit_style_tags_key_is_treated_as_empty_list_by_the_importer(tm
                 "address": shrine.address,
                 "latitude": shrine.latitude,
                 "longitude": shrine.longitude,
+                "goriyaku": "新ご利益",
             }
         ],
     )
-    output = _run("--source", str(source), "--dry-run")
 
-    assert "fields=['visit_style_tags']" in output
-    # dry-runなのでDBはまだ変わっていない。
+    dry = _run("--source", str(source), "--dry-run")
+    assert "visit_style_tags" not in dry
+
+    _run("--source", str(source))
+
     shrine.refresh_from_db()
     assert shrine.visit_style_tags == ["quiet", "nature", "classic"]
+    # keyがある他fieldは通常どおり更新される。
+    assert shrine.goriyaku == "新ご利益"
+
+
+def test_absent_visit_style_tags_key_on_create_uses_the_model_default(tmp_path):
+    # 新規Shrineへタグを推測して付与しない。model defaultのまま作られる。
+    source = _write_seed(
+        tmp_path,
+        [
+            {
+                "name_jp": "未レビュー神社",
+                "address": "東京都新宿区9-9",
+                "latitude": 35.7,
+                "longitude": 139.7,
+            }
+        ],
+    )
+    _run("--source", str(source))
+
+    created = Shrine.objects.get(name_jp="未レビュー神社")
+    assert created.visit_style_tags == []
+
+
+def test_present_visit_style_tags_key_updates_to_the_exact_seed_value(tmp_path):
+    # keyあり = canonical。Seedの値がそのまま（順序込みで）書かれる。
+    shrine = _make_shrine(visit_style_tags=["classic"])
+    source = _write_seed(
+        tmp_path,
+        [
+            {
+                "name_jp": shrine.name_jp,
+                "address": shrine.address,
+                "latitude": shrine.latitude,
+                "longitude": shrine.longitude,
+                "visit_style_tags": ["urban", "quiet"],
+            }
+        ],
+    )
+
+    output = _run("--source", str(source))
+    assert "visit_style_tags" in output
+
+    shrine.refresh_from_db()
+    assert shrine.visit_style_tags == ["urban", "quiet"]
+
+
+def test_present_but_empty_visit_style_tags_aborts_before_any_write(tmp_path):
+    # keyありの空listはinvalid。未レビューを表したいならkeyごと省く。
+    shrine = _make_shrine(visit_style_tags=["classic"])
+    source = _write_seed(
+        tmp_path,
+        [
+            {
+                "name_jp": shrine.name_jp,
+                "address": shrine.address,
+                "latitude": shrine.latitude,
+                "longitude": shrine.longitude,
+                "goriyaku": "書かれてはいけない値",
+                "visit_style_tags": [],
+            }
+        ],
+    )
+
+    with pytest.raises(CommandError, match="cardinality must be 1-3"):
+        _run("--source", str(source))
+
+    shrine.refresh_from_db()
+    assert shrine.visit_style_tags == ["classic"]
+    assert shrine.goriyaku != "書かれてはいけない値"
 
 
 def test_repair_only_visit_style_backfill_is_idempotent_against_canonical_seed():
     """repair-onlyのvisit-style backfill後もcanonical Seedとの再同期で差分が発生しない。"""
     data = _load_seed()
-    assert len(data) == 103
+    assert len(data) >= MANAGED_COHORT_MIN_COUNT
     assert all(row.get("visit_style_tags") for row in data)
     seed_names = [row["name_jp"] for row in data]
 
