@@ -155,3 +155,49 @@ def test_subscription_updated_and_deleted_drive_billing_state(settings, monkeypa
     data = status_res.json()
     assert data["plan"] == "free"
     assert data["is_active"] is False
+
+
+@pytest.mark.django_db
+def test_subscription_cancel_at_period_end_keeps_premium_until_period_end(settings, monkeypatch):
+    """
+    Customer Portal で「期間終了時に解約」した場合の回帰。
+
+    Stripe は subscription.updated を cancel_at_period_end=true / status=active で送る。
+    ここで即 Free に落とすと既存の Billing contract（期間終了までは Premium）を壊すため、
+    current_period_end が未来の間は Premium のままであることを固定する。
+    """
+    _enable_stripe_billing(settings, monkeypatch)
+    settings.STRIPE_WEBHOOK_SECRET = "whsec_test"
+    period_end = int(time.time()) + 3600
+    user = get_user_model().objects.create_user(username="billing-cancel-at-period-end-user")
+    UserProfile.objects.update_or_create(
+        user=user, defaults={"stripe_customer_id": "cus_cancel_at_period_end"}
+    )
+    client = APIClient()
+
+    payload = _payload(
+        "customer.subscription.updated",
+        {
+            "id": "sub_cape",
+            "customer": "cus_cancel_at_period_end",
+            "status": "active",
+            "cancel_at_period_end": True,
+            "cancel_at": period_end,
+            "current_period_end": period_end,
+            "items": {"data": [{"price": {"id": "price_premium"}}]},
+        },
+    )
+    res = _post_signed(client, payload, settings.STRIPE_WEBHOOK_SECRET)
+
+    assert res.status_code == 200
+    profile = UserProfile.objects.get(user=user)
+    assert profile.subscription_status == "active"
+    assert int(profile.current_period_end.timestamp()) == period_end
+
+    client.force_authenticate(user=user)
+    status_res = client.get("/api/billings/status/")
+    assert status_res.status_code == 200
+    data = status_res.json()
+    assert data["plan"] == "premium"
+    assert data["is_active"] is True
+    assert data["current_period_end"] is not None
