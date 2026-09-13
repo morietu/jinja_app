@@ -28,6 +28,10 @@ class UserProfile(models.Model):
         db_index=True,
     )
     current_period_end = models.DateTimeField(blank=True, null=True)
+    # Stripe subscription.cancel_at_period_end のミラー。
+    # 「期間終了時に解約」予約の有無だけを持ち、Premium/Free の判定には使わない
+    # （判定は subscription_status + current_period_end が正）。
+    cancel_at_period_end = models.BooleanField(default=False)
 
     updated_at = models.DateTimeField(auto_now=True)
 

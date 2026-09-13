@@ -65,17 +65,22 @@ def get_billing_status(*, user=None, now: Optional[datetime] = None) -> BillingS
             prof = getattr(user, "profile", None)
         status = getattr(prof, "subscription_status", None) if prof else None
         cpe = getattr(prof, "current_period_end", None) if prof else None
+        # Stripe webhook が同期した「期間終了時に解約」予約のミラー。
+        # Billing status 取得のたびに Stripe API は叩かない（DB が正本）。
+        cape = bool(getattr(prof, "cancel_at_period_end", False)) if prof else False
 
         active = is_subscription_active(status=status, current_period_end=cpe, now=now_)
         plan = "premium" if active else "free"
 
+        # cancel_at_period_end は「解約予定」を伝えるだけで、
+        # premium/free の判定材料にはしない。期間終了までは Premium を維持する。
         return BillingStatus(
             plan=plan,
             is_active=active,
             provider=prov,
             current_period_end=(cpe if active else None),
             trial_ends_at=None,
-            cancel_at_period_end=False,
+            cancel_at_period_end=cape,
         )
 
     # ---- anonymous: stub env (stripe運用でも未認証はstubで良いならここ。嫌ならfree固定でもOK) ----

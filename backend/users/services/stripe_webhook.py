@@ -359,6 +359,22 @@ def _apply_subscription_object(obj: dict[str, Any], *, etype: str) -> None:
         profile.subscription_status = status.strip()
         update_fields.append("subscription_status")
 
+    # cancel_at_period_end（Customer Portal の「期間終了時に解約」予約）
+    #
+    # - deleted: subscription 自体が消えたので予約は存在しない → False へ戻す
+    # - created / updated: payload に値があれば True/False の両方向で同期する
+    #   （キーが無い = Stripe が何も言っていないので、既存値を上書きしない）
+    #
+    # これは表示用のミラーであり、Premium/Free の判定には使わない。
+    # 期間終了までは Premium を維持する契約は subscription_status と
+    # current_period_end 側が持つ（is_subscription_active を参照）。
+    if etype == "customer.subscription.deleted":
+        profile.cancel_at_period_end = False
+        update_fields.append("cancel_at_period_end")
+    elif "cancel_at_period_end" in obj:
+        profile.cancel_at_period_end = _is_trueish(obj.get("cancel_at_period_end"))
+        update_fields.append("cancel_at_period_end")
+
     # ---- 観測ログ（payloadの形を確定）: DEBUG時だけ ----
     raw_cpe = obj.get("current_period_end")
     raw_cancel_at = obj.get("cancel_at")
