@@ -8,18 +8,19 @@
 - Production post-import QA: `PASS`
 - Candidate lifecycle before transition: `IMPORTED`
 - `knowledge_status`: `FACT_READY`
-- CORE_READY transition: `NOT YET APPLIED`
+- Candidate lifecycle after transition: `CORE_READY`
+- CORE_READY transition: `APPLIED`
 
 ```text
 W0_DB01_CORE_READY_EVIDENCE_GATE  = PASS
-W0_DB01_COMPLETION_CONTRACT       = 11/12 FINAL + #12 PRE_TRANSITION PASS
+W0_DB01_COMPLETION_CONTRACT       = 12/12 PASS
 W0_DB01_POST_IMPORT_QA            = PASS
 W0_DB01_PRE_TRANSITION_ALIGNMENT  = PASS
-W0_DB01_POST_TRANSITION_ALIGNMENT = PENDING
-CANDIDATE_STATUS_TRANSITION       = NOT_YET_APPLIED
+W0_DB01_POST_TRANSITION_ALIGNMENT = PASS
+CANDIDATE_STATUS_TRANSITION       = APPLIED
 ```
 
-本 Audit 単体では `candidate_status` を `CORE_READY` にしていない。
+PRE_TRANSITION 記録時点では `candidate_status = IMPORTED` であり、本 transition で W0-DB01 5社のみを `CORE_READY` へ同期した。
 
 #1〜#11 の Production / Runtime Evidence は確定済みであり、#12 は Candidate Master の Governance state を同期するための Synchronization Gate として遷移前後を分けて評価する。
 
@@ -29,7 +30,7 @@ CANDIDATE_STATUS_TRANSITION       = NOT_YET_APPLIED
 
 `docs/audit/shrine-expansion-wave0-data-build-plan.md` の CORE READY Completion Contract 12条件について、W0-DB01 の5社に対する Production 実測と post-import QA を repo 内の永続 Audit として固定する。
 
-本 Audit 時点では #1〜#11 を FINAL PASS とし、#12 は `PRE_TRANSITION PASS / POST_TRANSITION PENDING` とする。Candidate Master の `IMPORTED -> CORE_READY` 遷移後に Governance Synchronization を確認して初めて Completion Contract を `12/12 PASS` と確定する。
+PRE_TRANSITION 時点で #1〜#11 は FINAL PASS、#12 は `PRE_TRANSITION PASS / POST_TRANSITION PENDING` だった。本 transition で `IMPORTED -> CORE_READY` の Governance Synchronization と minimal-diff verification が完了したため、Completion Contract を `12/12 PASS` と確定する。
 
 Data Build Plan が定める `CORE READY候補` と `CORE READY` の境界を、Evidence と Governance state の2段階に分けて記録することが本 Audit の目的である。
 
@@ -397,11 +398,11 @@ W0_DB01_PRE_TRANSITION_ALIGNMENT = PASS
 9. CORE_READY を `build_batch` 保持対象として扱う test が PASS する
 10. #1〜#11 の Production Evidence は再解釈・書き換えされていない
 
-現在はまだ遷移前なので:
+POST_TRANSITION 実測結果:
 
 ```text
-W0_DB01_POST_TRANSITION_ALIGNMENT = PENDING
-CANDIDATE_STATUS_TRANSITION       = NOT_YET_APPLIED
+W0_DB01_POST_TRANSITION_ALIGNMENT = PASS
+CANDIDATE_STATUS_TRANSITION       = APPLIED
 ```
 
 #### 12.4 Completion Contract を閉じる条件
@@ -414,7 +415,22 @@ W0_DB01_COMPLETION_CONTRACT       = 12/12 PASS
 CANDIDATE_STATUS_TRANSITION       = APPLIED
 ```
 
-**#12 判定: `PRE_TRANSITION PASS / POST_TRANSITION PENDING`**
+**#12 判定: `PRE_TRANSITION PASS / POST_TRANSITION PASS`**
+
+#### 12.5 POST_TRANSITION 実測
+
+- changed candidate IDs: `wave0-001 / 002 / 003 / 005 / 006` の5社のみ
+- changed field: `candidate_status` のみ
+- transition: `IMPORTED -> CORE_READY`
+- `knowledge_status = FACT_READY` を5社すべて保持
+- `build_batch = W0-DB01` を5社すべて保持
+- W0-DB01外 candidate row: diff なし
+- `candidate_defaults`: diff なし
+- lifecycle: `BUILD_READY 30 / CORE_READY 5 / HOLD 8 / REVIEW 1 / TOTAL 44`
+- lifecycle delta: `IMPORTED -5 / CORE_READY +5 / TOTAL ±0`
+- Candidate Master contract tests: `11 passed`
+- Production再接続・再write: なし
+- #1〜#11 Production / Runtime Evidence: 判定変更なし
 
 ---
 
@@ -422,11 +438,11 @@ CANDIDATE_STATUS_TRANSITION       = APPLIED
 
 ```text
 W0_DB01_CORE_READY_EVIDENCE_GATE  = PASS
-W0_DB01_COMPLETION_CONTRACT       = 11/12 FINAL + #12 PRE_TRANSITION PASS
+W0_DB01_COMPLETION_CONTRACT       = 12/12 PASS
 W0_DB01_POST_IMPORT_QA            = PASS
 W0_DB01_PRE_TRANSITION_ALIGNMENT  = PASS
-W0_DB01_POST_TRANSITION_ALIGNMENT = PENDING
-CANDIDATE_STATUS_TRANSITION       = NOT_YET_APPLIED
+W0_DB01_POST_TRANSITION_ALIGNMENT = PASS
+CANDIDATE_STATUS_TRANSITION       = APPLIED
 ```
 
 | # | 条件 | 判定 |
@@ -442,19 +458,11 @@ CANDIDATE_STATUS_TRANSITION       = NOT_YET_APPLIED
 | 9 | Shared Recommendation Eligibility / candidate path | `PASS` |
 | 10 | Compass distance / direction | `PASS` |
 | 11 | Import idempotency | `PASS` |
-| 12 | Candidate Master / Production alignment | `PRE_TRANSITION PASS / POST_TRANSITION PENDING` |
+| 12 | Candidate Master / Production alignment | `PASS` |
 
-#1〜#11 は本 Audit 時点で FINAL である。
+#1〜#11 は FINAL PASS を維持し、今回の lifecycle transition では判定を再解釈・変更していない。
 
-#12 は Candidate Master の Governance Synchronization Gate であり、`CORE_READY` 遷移後の minimal-diff verification が完了するまでは Completion Contract を `12/12 PASS` と確定しない。
-
-次工程で POST_TRANSITION 条件をすべて満たした場合のみ、以下へ更新する。
-
-```text
-W0_DB01_POST_TRANSITION_ALIGNMENT = PASS
-W0_DB01_COMPLETION_CONTRACT       = 12/12 PASS
-CANDIDATE_STATUS_TRANSITION       = APPLIED
-```
+#12 の Governance Synchronization と minimal-diff verification は完了した。`W0_DB01_POST_TRANSITION_ALIGNMENT = PASS`、Completion Contract は `12/12 PASS`、transition は `APPLIED` とする。
 
 ---
 
