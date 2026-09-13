@@ -148,6 +148,7 @@ def test_subscription_updated_and_deleted_drive_billing_state(settings, monkeypa
     profile.refresh_from_db()
     assert profile.subscription_status == "canceled"
     assert profile.current_period_end is None
+    assert profile.cancel_at_period_end is False
 
     client.force_authenticate(user=user)
     status_res = client.get("/api/billings/status/")
@@ -193,6 +194,7 @@ def test_subscription_cancel_at_period_end_keeps_premium_until_period_end(settin
     profile = UserProfile.objects.get(user=user)
     assert profile.subscription_status == "active"
     assert int(profile.current_period_end.timestamp()) == period_end
+    assert profile.cancel_at_period_end is True
 
     client.force_authenticate(user=user)
     status_res = client.get("/api/billings/status/")
@@ -201,3 +203,4 @@ def test_subscription_cancel_at_period_end_keeps_premium_until_period_end(settin
     assert data["plan"] == "premium"
     assert data["is_active"] is True
     assert data["current_period_end"] is not None
+    assert data["cancel_at_period_end"] is True
