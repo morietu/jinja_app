@@ -6,6 +6,8 @@ import { NextRequest } from "next/server";
 
 import { POST } from "./route";
 
+vi.mock("server-only", () => ({}));
+
 const DJANGO_ORIGIN = "http://127.0.0.1:8000";
 const UPSTREAM_LOGIN = `${DJANGO_ORIGIN}/api/auth/jwt/create/`;
 
@@ -45,6 +47,22 @@ function getSetCookies(res: Response): string[] {
 }
 
 describe("/api/auth/login contract", () => {
+  it.each(["42", null])("upstream 429 preserves Retry-After %s without body or cookies", async (retryAfter) => {
+    server.use(
+      http.post(UPSTREAM_LOGIN, () => HttpResponse.json(
+        { detail: "internal username information", access: "SECRET", remaining: 0 },
+        { status: 429, headers: retryAfter ? { "Retry-After": retryAfter } : {} },
+      )),
+    );
+    const res = await POST(makeReq({ username: "u", password: "p" }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe(retryAfter);
+    expect(await res.json()).toEqual({
+      detail: "ログイン試行回数が多すぎます。しばらく待ってから再試行してください。",
+    });
+    expect(getSetCookies(res)).toEqual([]);
+  });
+
   it("success: upstream 200 -> ok:true + 2 cookies", async () => {
     server.use(
       http.post(UPSTREAM_LOGIN, async () => {
@@ -63,7 +81,7 @@ describe("/api/auth/login contract", () => {
     expect(cookies).toContain("refresh_token=");
     expect(cookies).toContain("HttpOnly");
     expect(cookies).toContain("Path=/");
-    expect(cookies).toContain("SameSite=Lax");
+    expect(cookies).toMatch(/;\s*SameSite=lax/i);
     expect(cookies).not.toMatch(/;\s*Secure/i); // dev想定
   });
 

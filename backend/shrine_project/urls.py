@@ -19,7 +19,8 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
+from users.api.auth import AuthTokenObtainPairView
 from temples import api_views_concierge as concierge
 
 from .views import favicon, index
@@ -86,7 +87,7 @@ urlpatterns = [
     path("api/concierge/plan/", concierge.plan, name="concierge-plan"),
     path("api/_debug/whoami/", whoami, name="whoami"),
     path("_debug/whoami_jwt/", whoami_jwt, name="whoami_jwt"),
-    path("api/auth/jwt/create/", TokenObtainPairView.as_view(), name="jwt_create"),
+    path("api/auth/jwt/create/", AuthTokenObtainPairView.as_view(), name="jwt_create"),
     path("api/auth/jwt/refresh/", TokenRefreshView.as_view(), name="jwt_refresh"),
     path("api/auth/jwt/verify/", TokenVerifyView.as_view(), name="jwt_verify"),
     path(

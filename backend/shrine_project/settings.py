@@ -311,6 +311,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/min",
         "user": "100/min",
+        "auth_login": "5/min",
 
         # feature scopes
         "concierge": "8/min",          # ← 仕様として固定
@@ -334,6 +335,9 @@ REST_FRAMEWORK = {
 _rates = REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
 
 # env 上書き（必要なときだけ）
+if os.getenv("THROTTLE_AUTH_LOGIN"):
+    _rates["auth_login"] = os.environ["THROTTLE_AUTH_LOGIN"]
+
 if os.getenv("THROTTLE_CONCIERGE"):
     _rates["concierge"] = os.environ["THROTTLE_CONCIERGE"]
 
@@ -367,6 +371,8 @@ SPECTACULAR_SETTINGS = {
     ],
 }
 
+# Login throttling MVP requires WEB_CONCURRENCY=1 with LocMemCache.
+# Migrate to a shared cache before adding Gunicorn workers.
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

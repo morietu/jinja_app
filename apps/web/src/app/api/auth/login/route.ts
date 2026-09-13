@@ -83,6 +83,14 @@ export async function POST(req: NextRequest) {
       contentType,
     });
 
+    if (r.status === 429) {
+      const retryAfter = r.headers.get("retry-after");
+      return NextResponse.json(
+        { detail: "ログイン試行回数が多すぎます。しばらく待ってから再試行してください。" },
+        { status: 429, headers: retryAfter ? { "Retry-After": retryAfter } : {} },
+      );
+    }
+
     if (!r.ok) {
       serverLog("warn", "AUTH_LOGIN_UPSTREAM_NOT_OK", {
         requestId,
