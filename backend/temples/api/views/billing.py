@@ -13,6 +13,12 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from temples.services.billing_checkout import create_checkout_session
+from temples.services.billing_portal import (
+    BillingPortalCustomerMissing,
+    BillingPortalNotConfigured,
+    BillingPortalUnavailable,
+    create_portal_session,
+)
 from temples.services.billing_state import get_billing_status
 from users.services.stripe_webhook import (
     StripeWebhookInvalidSignature,
@@ -29,6 +35,18 @@ class CheckoutUnavailable(APIException):
     status_code = 503
     default_detail = "checkout is unavailable"
     default_code = "checkout_unavailable"
+
+
+class BillingPortalUnavailableError(APIException):
+    status_code = 503
+    default_detail = "billing portal is unavailable"
+    default_code = "billing_portal_unavailable"
+
+
+class BillingCustomerMissingError(APIException):
+    status_code = 409
+    default_detail = "billing customer is not linked to this account"
+    default_code = "billing_customer_missing"
 
 
 class BillingStatusSerializer(serializers.Serializer):
@@ -113,6 +131,53 @@ class BillingCheckoutView(APIView):
                 "checkout_url": session.checkout_url,
             }
         )
+        return Response(ser.data, status=200)
+
+
+class PortalRequestSerializer(serializers.Serializer):
+    return_url = serializers.URLField()
+
+
+class PortalResponseSerializer(serializers.Serializer):
+    portal_url = serializers.URLField()
+
+
+@extend_schema(
+    summary="Create billing customer portal session",
+    tags=["billing"],
+    request=PortalRequestSerializer,
+    responses={200: OpenApiResponse(response=PortalResponseSerializer)},
+)
+class BillingPortalView(APIView):
+    """
+    Stripe Customer Portal への遷移 URL を発行する。
+
+    解約/支払い方法変更などの管理 UI は Stripe 側に委譲しており、
+    ここでは portal_url 以外を返さない（Stripe secret / 内部エラーは露出させない）。
+    """
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        req = PortalRequestSerializer(data=request.data)
+        req.is_valid(raise_exception=True)
+
+        try:
+            session = create_portal_session(
+                user=request.user,
+                return_url=req.validated_data["return_url"],
+            )
+        except BillingPortalCustomerMissing as exc:
+            raise BillingCustomerMissingError() from exc
+        except BillingPortalNotConfigured as exc:
+            log.warning("[stripe] billing portal is not configured")
+            raise BillingPortalUnavailableError() from exc
+        except BillingPortalUnavailable as exc:
+            log.exception("[stripe] billing portal session creation failed")
+            raise BillingPortalUnavailableError() from exc
+
+        ser = PortalResponseSerializer(instance={"portal_url": session.portal_url})
         return Response(ser.data, status=200)
 
 

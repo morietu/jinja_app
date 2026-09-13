@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 from temples import api_views_concierge as concierge
 from temples.api.views.billing import (
     BillingCheckoutView,
+    BillingPortalView,
     BillingStatusLegacyView,
     BillingStatusView,
     BillingStripeWebhookView,
@@ -144,6 +145,7 @@ urlpatterns = [
     path("compass/weekly/", CompassWeeklyView.as_view(), name="compass-weekly"),
     path("billing/status/", BillingStatusLegacyView.as_view(), name="billing-status-legacy"),
     path("billings/checkout/", BillingCheckoutView.as_view(), name="billing-checkout"),
+    path("billings/portal/", BillingPortalView.as_view(), name="billing-portal"),
     path("billings/status/", BillingStatusView.as_view(), name="billing-status"),
     path("billings/webhook/", BillingStripeWebhookView.as_view(), name="billing-stripe-webhook"),
     path("profiles/<str:username>/", public_profile, name="public_profile"),
