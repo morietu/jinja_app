@@ -127,6 +127,12 @@ Import で CREATE された5行の Production `id` は実測済みである。
 W0_DB01_PRODUCTION_IDS = 109, 110, 111, 112, 113
 ```
 
+この Production `id` mapping は **W0-DB01 post-write reconciliation で観測した
+時点の値**であり、将来の DB restore / migration / environment rebuild 後も
+不変であることは保証しない。`id` は sequence 由来の provenance 値であって
+契約値ではない。identity は引き続き `(name_jp, address)` であり、
+`id` を identity として扱わない。
+
 `address` は5件とも Candidate Master の `official_address` と exact 一致する
 （`backend/temples/data/shrine_expansion_candidate_master.json`、
 `wave0-001 / 002 / 003 / 005 / 006`）。Shrine identity は
