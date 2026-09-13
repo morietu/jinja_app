@@ -20,11 +20,14 @@ import CompassDirectionVisual from "./components/CompassDirectionVisual";
 import CompassOriginSummary from "./components/CompassOriginSummary";
 import CompassPurposeSelector from "./components/CompassPurposeSelector";
 import CompassRecommendationsSection from "./components/CompassRecommendationsSection";
+import WeeklyFeaturedShrinesSection from "./components/WeeklyFeaturedShrinesSection";
+import WeeklyThemeSection from "./components/WeeklyThemeSection";
 import type {
   CompassDirectionRuntime,
   CompassPurpose,
   CompassRecommendationsResponse,
   CompassUiState,
+  CompassWeeklyResponse,
 } from "./types";
 
 // Compass lifecycle analytics (PR-A,
@@ -103,10 +106,16 @@ export default function CompassClient({
   const [attempted, setAttempted] = useState(false);
   const [uiState, setUiState] = useState<CompassUiState>("initial");
   const [result, setResult] = useState<CompassRecommendationsResponse | null>(null);
+  // Weeklyは補助Presentation。Monthlyの `uiState` とは独立したstateで持ち、
+  // Weekly側の失敗が既存Monthly Compassの表示を壊さないようにする。
+  const [weeklyResult, setWeeklyResult] = useState<CompassWeeklyResponse | null>(null);
 
   const searchParams = useSearchParams();
   const entryTrackedRef = useRef(false);
   const birthdateEditedRef = useRef(false);
+  // 連続送信時に、古いWeekly responseが新しいMonthly結果の下へ描画されるのを
+  // 防ぐ世代カウンタ（purposeを変えて再送信した場合など）。
+  const weeklyRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!savedBirthday || birthdateEditedRef.current) return;
@@ -179,6 +188,41 @@ export default function CompassClient({
   const missingOrigin = attempted && !origin;
   const missingPurpose = attempted && !purpose;
 
+  // Monthly Compassが recommendation_success を返した後にだけ実行する補助
+  // Presentation。Monthlyの描画はこの完了を待たない（awaitしない）。
+  //
+  // 通信失敗・non-successのいずれでも `uiState` を "backend_error" にしない。
+  // Weeklyが出ないだけで、Monthlyの結果はそのまま残る。
+  //
+  // target_date / timezone は送らない。基準週はBackend Authority（Asia/Tokyo）
+  // が決める。
+  const fetchWeeklyPresentation = async (
+    submittedPurpose: CompassPurpose,
+    submittedBirthdate: string,
+    submittedOrigin: UserOrigin,
+  ) => {
+    const requestId = weeklyRequestIdRef.current;
+    try {
+      const res = await fetch("/api/compass/weekly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purpose: submittedPurpose,
+          birthdate: submittedBirthdate,
+          origin: toOriginPayload(submittedOrigin),
+        }),
+      });
+
+      if (!res.ok) return;
+
+      const body = (await res.json()) as CompassWeeklyResponse;
+      if (requestId !== weeklyRequestIdRef.current) return;
+      setWeeklyResult(body.state === "weekly_success" ? body : null);
+    } catch {
+      // Weeklyの失敗はMonthlyへ伝播させない（uiStateを変えない）。
+    }
+  };
+
   const handleSubmit = async () => {
     setAttempted(true);
     if (!purpose || !birthdate.trim() || !origin) {
@@ -189,6 +233,8 @@ export default function CompassClient({
 
     setUiState("loading");
     setResult(null);
+    setWeeklyResult(null);
+    weeklyRequestIdRef.current += 1;
 
     try {
       const res = await fetch("/api/compass/recommendations", {
@@ -216,6 +262,11 @@ export default function CompassClient({
       // Shared Context boundary and never awaited here, so result rendering wins.
       if (isLoggedIn && body.state !== "invalid_purpose") {
         onPersistBirthday?.(submittedBirthdate);
+      }
+
+      // Monthly fail-safe stateでは不要なWeekly requestを行わない。
+      if (body.state === "recommendation_success") {
+        void fetchWeeklyPresentation(purpose, submittedBirthdate, origin);
       }
 
       trackCompassResult(
@@ -330,6 +381,12 @@ export default function CompassClient({
           </div>
         </DetailSection>
       ) : null}
+
+      {/* 月の方向表示の直後にWeekly Presentationを置く。weekly_themeがnull、
+          featured_shrinesが0件、あるいはWeekly自体が失敗した場合はいずれも
+          何も描画しない（Monthly側の表示には影響しない）。 */}
+      <WeeklyThemeSection theme={weeklyResult?.weekly_theme ?? null} />
+      <WeeklyFeaturedShrinesSection shrines={weeklyResult?.featured_shrines ?? []} />
 
       {uiState === "direction_filter_unavailable" ? (
         <DetailSection title="方向の参考情報を計算できませんでした" variant="tertiary">

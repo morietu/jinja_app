@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { trackSearchEvent } from "@/lib/analytics/searchEvents";
+import type { SearchAnalyticsPayload } from "@/lib/analytics/searchEvents";
 
 function formatDistance(m?: number | null) {
   if (typeof m !== "number" || !Number.isFinite(m)) return null;
@@ -69,6 +70,15 @@ export type ShrineCardProps = {
     text?: string | null;
     strength?: "low" | "mid" | "high" | null;
   }> | null;
+
+  /**
+   * shrine_card_click の `source`。既存 SearchAnalyticsPayload.source の値のみを
+   * 受け付ける（新しいsource taxonomyは作らない）。
+   *
+   * 既定は従来のハードコード値 "shrines" で、指定しない既存callerの挙動は変わらない。
+   * Weekly Compassからの呼び出しだけが "compass" を指定する。
+   */
+  analyticsSource?: NonNullable<SearchAnalyticsPayload["source"]>;
 };
 
 export function ShrineCard(props: ShrineCardProps) {
@@ -94,6 +104,7 @@ export function ShrineCard(props: ShrineCardProps) {
     isNew = false,
     explanationSummary,
     explanationReasons,
+    analyticsSource = "shrines",
   } = props;
 
   const distText = formatDistance(distanceM);
@@ -227,7 +238,7 @@ export function ShrineCard(props: ShrineCardProps) {
           className="block"
           onClick={() => {
             trackSearchEvent("shrine_card_click", {
-              source: "shrines",
+              source: analyticsSource,
               shrineId,
             });
           }}

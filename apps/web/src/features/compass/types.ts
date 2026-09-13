@@ -12,6 +12,8 @@
 // genuinely invalid/unavailable runtime). See compass-product-contract.md
 // Section 2.1.
 
+import type { Shrine } from "@/lib/api/shrines";
+
 export type CompassPurpose =
   | "love"
   | "relationship"
@@ -114,4 +116,54 @@ export type CompassRecommendationsResponse = {
   distance_stage_km: 15 | 30 | 60 | null;
   direction_candidate_count: number | null;
   distance_candidate_count: number | null;
+};
+
+// ---------------------------------------------------------------------------
+// Weekly Compass (PR3 Web接続)
+//
+// backend/temples/api_views_compass_weekly.py::CompassWeeklyView の
+// response shapeをそのまま写したもの。stateはBackendが実際に返す値だけを
+// 列挙する（推測したstateを足さない）:
+//   - "weekly_success"（Weekly固有の成功state）
+//   - Snapshot MISS時にRecommendationが非成功だった場合の既存Compass state
+//     （CompassRecommendationsResponse["state"] と同一集合のうち、
+//       recommendation_success を除いたもの）
+//
+// Weekly ThemeはBackendのPresentation Copyであり、Frontendで生成も書き換えも
+// しない。featured_shrinesはBackendが最大3件を保証するため、Frontendでslice・
+// 再ranking・不足分の補充を行わない。
+// ---------------------------------------------------------------------------
+
+export type CompassWeeklyTheme = {
+  key: string;
+  title: string;
+  message: string;
+};
+
+export type CompassWeeklyState =
+  | "weekly_success"
+  | "invalid_purpose"
+  | "direction_filter_unavailable"
+  | "no_common_direction"
+  | "recommendation_eligibility_zero_candidates"
+  | "direction_zero_candidates"
+  | "evidence_zero_candidates";
+
+export type CompassWeeklyResponse = {
+  state: CompassWeeklyState;
+  purpose: string | null;
+  // Backend Time Contract（Asia/Tokyo / Monday start）が決めた表示用の週境界。
+  // Frontendで週を計算し直さない。
+  week: {
+    start: string;
+    end: string;
+  };
+  direction_context: CompassDirectionRuntime | null;
+  // 非成功stateではnull。Snapshot HIT時は保存済みのThemeがそのまま返る。
+  weekly_theme: CompassWeeklyTheme | null;
+  // 既存 ShrineListSerializer の公開表現。Weekly専用のShrine型は作らない。
+  // Snapshot保存後に表示不可となったShrineは除外されるため、成功時でも
+  // 0〜3件になり得る（Frontendで別の神社を補充しない）。
+  featured_shrines: Shrine[];
+  presentation_version: string;
 };
