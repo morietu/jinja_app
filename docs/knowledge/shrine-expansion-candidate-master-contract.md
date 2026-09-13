@@ -143,9 +143,18 @@ Wave0 P0-Aでは、PR #2779で抽出した35社だけを `BUILD_READY` とする
 
 ### IMPORTED
 
-Base ShrineおよびそのBatchで必要なKnowledge dataがProductionへwriteされたが、Post-import CORE READY QAがまだ完了していない状態。
+Base ShrineおよびそのBatchで必要なKnowledge dataがProductionへwrite済みの状態。
+Post-import CORE READY QAはまだ完了していない。
 
-Importだけで `CORE_READY` へ進めない。
+`IMPORTED` が主張するのはProductionへのwrite完了だけである。
+
+- `build_batch` は `BUILD_READY` 時点の値をそのまま保持する。
+- `IMPORTED` だけでは `CORE_READY` ではない。
+- `IMPORTED` はRecommendation eligibilityを意味しない。
+
+Knowledgeの質は `candidate_status` ではなく `knowledge_status` が表す。
+Production上でusable Knowledgeまで確認できた場合に限り `FACT_READY` を
+Candidate objectへ明示する。
 
 ### CORE_READY
 
@@ -207,11 +216,34 @@ W0-DB06
 W0-DB07
 ```
 
-- `BUILD_READY` 35社だけがbatch assignmentを持つ。
+- 初期Registry時点では35社が `BUILD_READY` としてbatch assignmentを持つ。
 - 各Batchは5社。
 - HOLD / REVIEWは `null`。
 - Batch順はProduct priorityではない。
 - PR #2780のdeterministic groupingをそのまま使用する（member setは不変）。
+
+### build_batchはData Build provenanceである
+
+`build_batch` はlifecycle stateではなく、**そのCandidateがどのData Build Batch
+で処理されたか**というprovenanceである。したがってlifecycle遷移で消さない。
+
+```text
+BUILD_READY -> IMPORTED   build_batchは不変
+IMPORTED    -> CORE_READY build_batchは不変
+```
+
+「`BUILD_READY` の行だけがbatch assignmentを持つ」は**初期Registry時点の
+スナップショット**であって恒久ルールではない。Import後も `build_batch` を
+保持しないと、Production上のどのShrineがどのBatchで入ったのかを追跡できなくなる。
+
+恒久的な不変条件は次の2つ。
+
+- `build_batch` が非nullの行のstatusは `BUILD_READY` または `IMPORTED`
+  （以降 `CORE_READY` を含む）である。
+- `HOLD` / `REVIEW` はBatch未割り当てなので `build_batch = null` を維持する。
+
+固定test:
+`backend/temples/tests/test_shrine_expansion_candidate_master.py::test_build_batch_survives_the_import_lifecycle_transition`
 
 ### legacy mapping（schema 1.1 以前）
 
@@ -303,6 +335,17 @@ HOLD
 
 `ACQUISITION_PATH_CONFIRMED` はusable Deity / History候補を生成できる取得経路が確認済みという意味であり、Fact生成・Source relation・Evidence Gate完了を意味しない。
 
+`FACT_READY` は**Production上でusable Knowledgeが確認された**状態を指す。
+Deity / History / Source のCoverageとFact-ready判定がProduction実測で揃った
+Candidateにのみ、行レベルでoverrideとして付与する。
+
+`FACT_READY` も `CORE_READY` を意味しない。CORE READYはData Build Planの
+Completion Contract側が判定する。
+
+`candidate_defaults.knowledge_status` は `ACQUISITION_PATH_CONFIRMED` のまま
+据え置く。defaultsを `FACT_READY` にすると、未importのCandidateまで
+「Production上でusable Knowledgeが確認済み」と読めてしまう。
+
 ## Factual Field Hydration Boundary
 
 P0-AはRegistry / Lifecycle Foundationであり、過去AuditのFact候補をCandidate Masterへ一括転記しない。
@@ -389,6 +432,17 @@ HOLD / REVIEW
 
 遷移は監査・Production実測を根拠に行う。状態を見た目だけ合わせるための自動昇格は禁止する。
 
+遷移で消してはならないfield:
+
+```text
+build_batch          Data Build provenance。遷移全体で不変
+status_reason_code   Registry登録理由。lifecycleと独立
+duplicate_status     duplicate監査結果。lifecycleと独立
+```
+
+`HOLD` / `REVIEW` から `BUILD_READY` へ戻す場合のみ、Batch割り当てが未確定な
+ためこの時点の `build_batch` は `null` である。
+
 ## Concierge / Compass Boundary
 
 Candidate Masterへの登録や `BUILD_READY` はRecommendation eligibilityを意味しない。
@@ -401,7 +455,8 @@ Candidate MasterはRanking / Direction / Distance / Recommendation Scoreを変�
 
 初期Candidate Registryには、過去のOmairi監査から再確認できた44社を `historical_recovered_popularity_candidate` として登録する。
 
-会計:
+会計（**初期Registry時点**。以降のlifecycle遷移でstatus内訳は動く。総数44と
+HOLD / REVIEWの内訳は不変）:
 
 ```text
 BUILD_READY = 35
@@ -413,6 +468,22 @@ REVIEW = 1
   ENTITY_GRANULARITY_REVIEW = 1
 TOTAL = 44
 ```
+
+### 現在のlifecycle会計
+
+W0-DB01のProduction Import完了を反映した実測値。
+
+```text
+BUILD_READY = 30   W0-DB02〜W0-DB07
+IMPORTED    = 5    W0-DB01
+HOLD        = 8
+REVIEW      = 1
+TOTAL       = 44
+```
+
+W0-DB01の5社（三輪神社 / 大鳥大社 / 御岩神社 / 烏森神社 / 榴岡天満宮）は
+`candidate_status = IMPORTED` / `knowledge_status = FACT_READY` /
+`build_batch = W0-DB01` である。`CORE_READY` へはまだ進めていない。
 
 過去に主張された50社のうち残り6社は、`docs/audit/shrine-expansion-historical-candidate-audit.md` の結論に従い推測で補完しない。
 

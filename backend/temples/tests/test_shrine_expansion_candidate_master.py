@@ -11,10 +11,23 @@ MASTER_PATH = (
 )
 
 EXPECTED_STATUS_COUNTS = {
-    "BUILD_READY": 35,
+    "BUILD_READY": 30,
+    "IMPORTED": 5,
     "HOLD": 8,
     "REVIEW": 1,
 }
+EXPECTED_TOTAL = 44
+
+# Data Build Batch を割り当てられた Candidate の lifecycle status。
+#
+#   BUILD_READY : Batch へ割り当て済み / Production import 未実施
+#   IMPORTED    : Base Shrine と Batch 必須 Knowledge を Production へ write 済み
+#
+# `build_batch` は Data Build provenance であり lifecycle state ではない。
+# BUILD_READY -> IMPORTED で消してはならない。HOLD / REVIEW は Batch 未割り当て
+# なので `build_batch` は null のまま。
+BATCH_ASSIGNED_STATUSES = frozenset({"BUILD_READY", "IMPORTED"})
+UNASSIGNED_STATUSES = frozenset({"HOLD", "REVIEW"})
 
 EXPECTED_REASON_COUNTS = {
     "WAVE0_CORE_READY_CANDIDATE": 35,
@@ -50,6 +63,16 @@ EXPECTED_W0_DB01_MEMBERS = {
     "烏森神社",
     "榴岡天満宮",
 }
+
+# W0-DB01 Production Import 完了後の lifecycle 実測値。
+#
+#   Base Shrine Import 成功 / Shrine total = 108 / exact match = 5 / missing = 0
+#   Knowledge Import 成功 / Coverage 5/5 / Fact-ready Deity 5/5 / History 5/5
+#
+# ここまで到達した状態を `IMPORTED` + `FACT_READY` として固定する。
+# なお `IMPORTED` はまだ `CORE_READY` ではない。
+EXPECTED_W0_DB01_STATUS = "IMPORTED"
+EXPECTED_W0_DB01_KNOWLEDGE_STATUS = "FACT_READY"
 
 REQUIRED_W0_DB01_HYDRATION_FIELDS = {
     "official_name",
@@ -157,23 +180,55 @@ def test_wave0_candidate_master_registry_accounting():
     candidates = master["candidates"]
 
     assert master["schema_version"] == "1.2"
-    assert len(candidates) == 44
-    assert len({row["candidate_id"] for row in candidates}) == 44
+    assert len(candidates) == EXPECTED_TOTAL
+    assert len({row["candidate_id"] for row in candidates}) == EXPECTED_TOTAL
     assert Counter(row["candidate_status"] for row in candidates) == EXPECTED_STATUS_COUNTS
     assert Counter(row["status_reason_code"] for row in candidates) == EXPECTED_REASON_COUNTS
 
 
-def test_wave0_build_ready_batch_membership_is_deterministic():
-    candidates = _load_master()["candidates"]
-    build_ready = [row for row in candidates if row["candidate_status"] == "BUILD_READY"]
+def test_wave0_batch_membership_is_deterministic():
+    """Batch 割り当ては 7 batch x 5 社で固定。
 
-    assert len(build_ready) == 35
-    assert Counter(row["build_batch"] for row in build_ready) == EXPECTED_BUILD_BATCH_COUNTS
+    初期 Registry 時点では 35 社すべてが `BUILD_READY` だったが、これは
+    その時点のスナップショットであって恒久ルールではない。Batch 割り当ての
+    不変条件は status ではなく「`build_batch` が付いた行の分布」である。
+    """
+    candidates = _load_master()["candidates"]
+    assigned = [row for row in candidates if row["build_batch"] is not None]
+
+    assert len(assigned) == 35
+    assert Counter(row["build_batch"] for row in assigned) == EXPECTED_BUILD_BATCH_COUNTS
+    assert all(row["candidate_status"] in BATCH_ASSIGNED_STATUSES for row in assigned)
+
+
+def test_build_batch_survives_the_import_lifecycle_transition():
+    """`build_batch` は Data Build provenance であり lifecycle state ではない。
+
+    BUILD_READY -> IMPORTED で消してはならない。消すと「どの Batch で
+    Production へ入ったのか」が追跡不能になる。
+    """
+    candidates = _load_master()["candidates"]
+
+    imported = [row for row in candidates if row["candidate_status"] == "IMPORTED"]
+    assert len(imported) == 5
+    assert all(row["build_batch"] == "W0-DB01" for row in imported)
+
+    # Batch 未割り当ての lifecycle state は null を維持する。
     assert all(
         row["build_batch"] is None
         for row in candidates
-        if row["candidate_status"] != "BUILD_READY"
+        if row["candidate_status"] in UNASSIGNED_STATUSES
     )
+
+
+def test_w0_db02_to_db07_stay_build_ready():
+    """今回の import は W0-DB01 のみ。残り 30 社は BUILD_READY のまま。"""
+    candidates = _load_master()["candidates"]
+
+    for batch in CANONICAL_BUILD_BATCHES[1:]:
+        members = [row for row in candidates if row["build_batch"] == batch]
+        assert len(members) == 5, batch
+        assert all(row["candidate_status"] == "BUILD_READY" for row in members), batch
 
 
 def test_wave0_build_batch_uses_the_canonical_db_namespace_only():
@@ -206,9 +261,9 @@ def test_wave0_db01_member_set_is_frozen():
     }
     assert members == EXPECTED_W0_DB01_MEMBERS
 
-    # すべて BUILD_READY であること（HOLD / REVIEW が混ざらない）。
+    # Production Import 完了後は全員 IMPORTED（HOLD / REVIEW が混ざらない）。
     assert all(
-        row["candidate_status"] == "BUILD_READY"
+        row["candidate_status"] == EXPECTED_W0_DB01_STATUS
         for row in candidates
         if row["build_batch"] == "W0-DB01"
     )
@@ -231,8 +286,9 @@ def test_wave0_db01_candidates_are_hydrated_from_frozen_source_packet():
         assert REQUIRED_W0_DB01_HYDRATION_FIELDS <= row.keys()
         assert effective["identity_status"] == "CONFIRMED"
         assert effective["official_source_status"] == "CONFIRMED"
-        assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
-        assert row["candidate_status"] == "BUILD_READY"
+        assert effective["knowledge_status"] == EXPECTED_W0_DB01_KNOWLEDGE_STATUS
+        assert row["candidate_status"] == EXPECTED_W0_DB01_STATUS
+        assert row["build_batch"] == "W0-DB01"
         assert row["status_reason_code"] == "WAVE0_CORE_READY_CANDIDATE"
         assert row["duplicate_status"] == "NEW"
 
@@ -283,7 +339,7 @@ def test_wave0_duplicate_and_availability_states_match_completed_audits():
         if row["build_batch"] == "W0-DB01":
             assert effective["identity_status"] == "CONFIRMED"
             assert effective["official_source_status"] == "CONFIRMED"
-            assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
+            assert effective["knowledge_status"] == EXPECTED_W0_DB01_KNOWLEDGE_STATUS
         elif row["candidate_status"] == "REVIEW":
             assert effective["identity_status"] == "UNREVIEWED"
             assert effective["official_source_status"] == "UNREVIEWED"
@@ -292,6 +348,19 @@ def test_wave0_duplicate_and_availability_states_match_completed_audits():
             assert effective["identity_status"] == "UNREVIEWED"
             assert effective["official_source_status"] == "AVAILABLE"
             assert effective["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
+
+
+def test_candidate_defaults_are_not_promoted_by_a_single_batch_import():
+    """W0-DB01 の FACT_READY は行レベルの事実であり、Registry 全体の既定ではない。
+
+    `candidate_defaults` を FACT_READY にすると、未 import の 39 社まで
+    「Production 上で usable Knowledge が確認済み」と読めてしまう。
+    """
+    defaults = _load_master()["candidate_defaults"]
+
+    assert defaults["knowledge_status"] == "ACQUISITION_PATH_CONFIRMED"
+    assert defaults["identity_status"] == "UNREVIEWED"
+    assert defaults["official_source_status"] == "AVAILABLE"
 
 
 def test_wave0_discovery_provenance_has_required_fields():
