@@ -12,7 +12,7 @@ MASTER_PATH = (
 
 EXPECTED_STATUS_COUNTS = {
     "BUILD_READY": 30,
-    "IMPORTED": 5,
+    "CORE_READY": 5,
     "HOLD": 8,
     "REVIEW": 1,
 }
@@ -22,11 +22,12 @@ EXPECTED_TOTAL = 44
 #
 #   BUILD_READY : Batch へ割り当て済み / Production import 未実施
 #   IMPORTED    : Base Shrine と Batch 必須 Knowledge を Production へ write 済み
+#   CORE_READY  : Completion Contract と post-import QA を完了済み
 #
 # `build_batch` は Data Build provenance であり lifecycle state ではない。
-# BUILD_READY -> IMPORTED で消してはならない。HOLD / REVIEW は Batch 未割り当て
+# BUILD_READY -> IMPORTED -> CORE_READY で消してはならない。HOLD / REVIEW は Batch 未割り当て
 # なので `build_batch` は null のまま。
-BATCH_ASSIGNED_STATUSES = frozenset({"BUILD_READY", "IMPORTED"})
+BATCH_ASSIGNED_STATUSES = frozenset({"BUILD_READY", "IMPORTED", "CORE_READY"})
 UNASSIGNED_STATUSES = frozenset({"HOLD", "REVIEW"})
 
 EXPECTED_REASON_COUNTS = {
@@ -69,9 +70,9 @@ EXPECTED_W0_DB01_MEMBERS = {
 #   Base Shrine Import 成功 / Shrine total = 108 / exact match = 5 / missing = 0
 #   Knowledge Import 成功 / Coverage 5/5 / Fact-ready Deity 5/5 / History 5/5
 #
-# ここまで到達した状態を `IMPORTED` + `FACT_READY` として固定する。
-# なお `IMPORTED` はまだ `CORE_READY` ではない。
-EXPECTED_W0_DB01_STATUS = "IMPORTED"
+# CORE READY Completion Contract と post-transition alignment 完了後の状態を
+# `CORE_READY` + `FACT_READY` として固定する。
+EXPECTED_W0_DB01_STATUS = "CORE_READY"
 EXPECTED_W0_DB01_KNOWLEDGE_STATUS = "FACT_READY"
 
 REQUIRED_W0_DB01_HYDRATION_FIELDS = {
@@ -204,14 +205,15 @@ def test_wave0_batch_membership_is_deterministic():
 def test_build_batch_survives_the_import_lifecycle_transition():
     """`build_batch` は Data Build provenance であり lifecycle state ではない。
 
-    BUILD_READY -> IMPORTED で消してはならない。消すと「どの Batch で
-    Production へ入ったのか」が追跡不能になる。
+    BUILD_READY -> IMPORTED -> CORE_READY で消してはならない。消すと
+    「どの Batch で Production へ入ったのか」が追跡不能になる。
     """
     candidates = _load_master()["candidates"]
 
-    imported = [row for row in candidates if row["candidate_status"] == "IMPORTED"]
-    assert len(imported) == 5
-    assert all(row["build_batch"] == "W0-DB01" for row in imported)
+    imported_or_core_ready = [row for row in candidates if row["candidate_status"] in {"IMPORTED", "CORE_READY"}]
+    assert len(imported_or_core_ready) == 5
+    assert all(row["build_batch"] == "W0-DB01" for row in imported_or_core_ready)
+    assert all(_effective(_load_master(), row)["knowledge_status"] == "FACT_READY" for row in imported_or_core_ready)
 
     # Batch 未割り当ての lifecycle state は null を維持する。
     assert all(
