@@ -58,9 +58,10 @@ VALUE_COMPLETION       = NONE（実測していない値は補完していない
 | 実行 operator | `NOT_RECORDED` |
 | Production DB identifier | `NOT_RECORDED` |
 | deploy 時の application commit | `NOT_RECORDED` |
-| 各 Shrine の Production `id` | `NOT_RECORDED` |
 
-W0-DB02 以降では、これらを実行時点で併せて記録することを推奨する。
+各 Shrine の Production `id` は実測済みである（§3.4 Production identity mapping）。
+
+W0-DB02 以降では、`NOT_RECORDED` の4項目も実行時点で併せて記録することを推奨する。
 
 ---
 
@@ -110,7 +111,47 @@ duplicate identity       = 0
 拡張されていないことを示す。5社の `goriyaku_tags` はすべて既存 canonical tag
 への link として解決された。
 
-### 3.4 repo 内での cross-check
+### 3.4 Production identity mapping
+
+Import で CREATE された5行の Production `id` は実測済みである。
+
+| Production `id` | `name_jp` | `address` |
+|---|---|---|
+| 109 | 三輪神社 | 愛知県名古屋市中区大須3-9-32 |
+| 110 | 大鳥大社 | 大阪府堺市西区鳳北町1-1-2 |
+| 111 | 御岩神社 | 茨城県日立市入四間町752 |
+| 112 | 烏森神社 | 東京都港区新橋2-15-5 |
+| 113 | 榴岡天満宮 | 宮城県仙台市宮城野区榴ケ岡105-3 |
+
+```text
+W0_DB01_PRODUCTION_IDS = 109, 110, 111, 112, 113
+```
+
+`address` は5件とも Candidate Master の `official_address` と exact 一致する
+（`backend/temples/data/shrine_expansion_candidate_master.json`、
+`wave0-001 / 002 / 003 / 005 / 006`）。Shrine identity は
+`(name_jp, address)` であるため、この一致は Import が Source Packet Freeze で
+凍結した identity のまま Production へ入ったことを意味する。
+
+#### `id` と件数は一致しない
+
+```text
+post-write Shrine 件数 = 108
+割り当てられた id      = 109..113
+```
+
+`id` は sequence 由来であり行数ではない。Wave0 では
+`temples.0105_w0b02t02_remove_qa_artifact_id102` で監査済み QA artifact
+（`Shrine id=102`）を削除しており、sequence は削除で巻き戻らない。
+したがって `id` の最大値が件数を上回るのは期待どおりの状態である。
+
+`id` を Shrine identity として扱ってはならない。Base Seed は `id` を field に
+持たず（W0-B01 の決定）、`import_shrines_seed` / Knowledge Seed の
+`shrine_ref` 解決はいずれも `(name_jp, address)` で行う。本 mapping は
+Production 上の行を特定するための **provenance 記録**であって、
+identity contract の変更ではない。
+
+### 3.5 repo 内での cross-check
 
 `added_links = 24` は Candidate Master 側の値と一致する。
 
